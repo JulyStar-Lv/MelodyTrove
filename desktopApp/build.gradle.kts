@@ -22,12 +22,11 @@ kotlin {
 
 compose.desktop {
     application {
-        mainClass = "com.kutedev.easemusicplayer.MainKt"
+        mainClass = "com.github.tidetune.MainKt"
         nativeDistributions {
             targetFormats(TargetFormat.Deb, TargetFormat.Msi, TargetFormat.Dmg)
-            packageName = "Ease Music Player"
+            packageName = "TideTune"
             packageVersion = "1.0.0"
         }
-        jvmArgs += "-Djna.library.path=${rootProject.file("rust-libs/target/debug").absolutePath}"
     }
 }

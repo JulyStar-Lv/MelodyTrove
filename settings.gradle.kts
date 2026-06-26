@@ -19,7 +19,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "EaseMusicPlayer"
+rootProject.name = "TideTune"
 include(":shared")
 include(":androidApp")
 include(":desktopApp")

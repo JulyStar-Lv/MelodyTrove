@@ -1,5 +1,6 @@
 import java.io.FileInputStream
 import java.util.Properties
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.application)
@@ -15,15 +16,15 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.kutedev.easemusicplayer"
-    compileSdk = 35
+    namespace = "com.github.tidetune"
+    compileSdk = 36
 
     lint {
         abortOnError = false
     }
 
     defaultConfig {
-        applicationId = "com.kutedev.easemusicplayer"
+        applicationId = "com.github.tidetune"
         minSdk = 29
         targetSdk = 34
         versionCode = 1
@@ -67,9 +68,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
     }
-    kotlinOptions {
-        jvmTarget = "21"
-    }
     buildFeatures {
         compose = true
     }
@@ -88,6 +86,12 @@ android {
             include("arm64-v8a")
             isUniversalApk = false
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_21)
     }
 }
 

@@ -2,8 +2,8 @@ import { execSync } from "node:child_process";
 import { ROOT, RUST_LIBS_ROOTS, TARGETS } from "./base";
 import path from "node:path";
 
-console.log("Build ease-client in debug mode");
-execSync(`cargo build -p ease-client-backend`, {
+console.log("Build TideTune core in debug mode");
+execSync(`cargo build -p tidetune-core`, {
   stdio: "inherit",
   cwd: RUST_LIBS_ROOTS,
 });
@@ -26,7 +26,7 @@ for (const buildTarget of TARGETS) {
 
 console.log("Generate kotlin bindings");
 execSync(
-  `cargo run -p ease-client-android-ffi-builder generate --library ${path.resolve(RUST_LIBS_ROOTS, "./target/debug/libease_client_backend.so")} --language kotlin --out-dir ${path.resolve(ROOT, "shared/src/commonMain/kotlin/")}`,
+  `cargo run -p tidetune-ffi-builder generate --library ${path.resolve(RUST_LIBS_ROOTS, "./target/debug/libtidetune_core.so")} --language kotlin --out-dir ${path.resolve(ROOT, "shared/src/commonMain/kotlin/")}`,
   {
     stdio: "inherit",
     cwd: RUST_LIBS_ROOTS,

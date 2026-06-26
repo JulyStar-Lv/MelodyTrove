@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="music_count_unit">Musics</string>
-    <string name="app_name">Ease Music Player</string>
+    <string name="app_name">TideTune</string>
     <string name="dashboard_sleep_mode">SLEEP MODE</string>
     <string name="dashboard_devices">DEVICES</string>
     <string name="dashboard_devices_add">Add Devices</string>
@@ -71,6 +71,9 @@
     <string name="storage_edit_onedrive_disconnect">Disconnect</string>
     <string name="storage_edit_onedrive_should_auth">Should connect your account</string>
     <string name="storage_edit_onedrive_alias_not_empty">Alias should not be empty</string>
+    <string name="storage_edit_onedrive_drive">Drive</string>
+    <string name="storage_edit_onedrive_drive_loading">Loading drives…</string>
+    <string name="storage_edit_onedrive_drive_required">Select a drive</string>
     <string name="setting_debug">DEBUG</string>
     <string name="setting_log">Logs</string>
     <string name="setting_more">More...</string>

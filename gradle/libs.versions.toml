@@ -1,6 +1,6 @@
 [versions]
 agp = "8.12.0"
-kotlin = "2.1.21"
+kotlin = "2.4.0"
 coreKtx = "1.13.1"
 junit = "4.13.2"
 junitVersion = "1.1.5"
@@ -10,15 +10,19 @@ activityCompose = "1.9.0"
 composeBom = "2024.04.01"
 navigationCompose = "2.9.2"
 reorderable = "3.0.0"
-composeMultiplatform = "1.8.0"
-koin = "4.0.2"
+composeMultiplatform = "1.11.1"
+koin = "4.2.2"
 kotlinxCoroutines = "1.10.1"
 kotlinxSerialization = "1.8.1"
 kotlinxCollectionsImmutable = "0.4.0"
 kotlinxDatetime = "0.6.2"
 media3 = "1.5.0"
-jna = "5.15.0"
 vlcj = "4.8.3"
+gobley = "0.3.7"
+room = "2.8.4"
+sqlite = "2.6.2"
+ksp = "2.3.9"
+datastore = "1.2.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -49,7 +53,11 @@ kotlinx-datetime = { group = "org.jetbrains.kotlinx", name = "kotlinx-datetime",
 media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
 media3-exoplayer-dash = { group = "androidx.media3", name = "media3-exoplayer-dash", version.ref = "media3" }
 media3-session = { group = "androidx.media3", name = "media3-session", version.ref = "media3" }
-jna = { group = "net.java.dev.jna", name = "jna", version.ref = "jna" }
+androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
+androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
+androidx-sqlite-bundled = { module = "androidx.sqlite:sqlite-bundled", version.ref = "sqlite" }
+androidx-datastore = { module = "androidx.datastore:datastore", version.ref = "datastore" }
+androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -57,3 +65,8 @@ android-library = { id = "com.android.library", version.ref = "agp" }
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 jetbrains-compose = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
+gobley-cargo = { id = "dev.gobley.cargo", version.ref = "gobley" }
+gobley-uniffi = { id = "dev.gobley.uniffi", version.ref = "gobley" }
+kotlin-atomicfu = { id = "org.jetbrains.kotlin.plugin.atomicfu", version.ref = "kotlin" }
+androidx-room = { id = "androidx.room", version.ref = "room" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }

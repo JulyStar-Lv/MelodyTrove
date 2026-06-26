@@ -1,1 +1,0 @@
-lrc parser is a fork version of [https://github.com/waylyrics/lrc-nom](https://github.com/waylyrics/lrc-nom)

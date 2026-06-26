@@ -12,7 +12,7 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
     <application
-        android:name=".EaseMusicPlayerApplication"
+        android:name=".TideTuneApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -20,11 +20,11 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.EaseMusicPlayer"
+        android:theme="@style/Theme.TideTune"
         android:usesCleartextTraffic="true"
         tools:targetApi="34">
         <service
-            android:name="com.kutedev.easemusicplayer.core.PlaybackService"
+            android:name="com.github.tidetune.core.PlaybackService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback">
             <intent-filter>
@@ -32,7 +32,7 @@
             </intent-filter>
         </service>
         <service
-            android:name="com.kutedev.easemusicplayer.core.KeepBackendService"
+            android:name="com.github.tidetune.core.KeepBackendService"
             android:exported="false"
             android:foregroundServiceType="mediaPlayback">
         </service>
@@ -40,7 +40,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.EaseMusicPlayer"
+            android:theme="@style/Theme.TideTune"
             android:launchMode="singleInstance">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -51,7 +51,7 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
-                    android:scheme="easem"
+                    android:scheme="tidetune"
                     android:host="oauth2redirect" />
             </intent-filter>
         </activity>

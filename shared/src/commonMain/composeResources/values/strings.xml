@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="music_count_unit">Musics</string>
-    <string name="app_name">Ease Music Player</string>
+    <string name="app_name">TideTune</string>
     <string name="dashboard_sleep_mode">SLEEP MODE</string>
+    <string name="dashboard_imports">IMPORTS</string>
+    <string name="dashboard_import_cancel">Cancel</string>
     <string name="dashboard_devices">DEVICES</string>
     <string name="dashboard_devices_add">Add Devices</string>
+    <string name="library_title">Library</string>
+    <string name="library_empty">No imported songs yet. Choose a storage library folder first.</string>
     <string name="setting_about">ABOUT</string>
     <string name="setting_git_repo">Git Repository</string>
     <string name="setting_version">Version</string>
@@ -17,6 +21,8 @@
     <string name="storage_edit_form_address">Address cannot be empty</string>
     <string name="storage_edit_form_username">Username cannot be empty</string>
     <string name="storage_edit_form_password">Password cannot be empty</string>
+    <string name="storage_edit_import_library_label">LIBRARY</string>
+    <string name="storage_edit_import_library_action">Choose library folder</string>
     <string name="storage_edit_testing_toast_testing">Testing...</string>
     <string name="storage_edit_testing_toast_timeout">Error: Timeout</string>
     <string name="storage_edit_testing_toast_unauth">Error: Unauthorized</string>
@@ -42,6 +48,7 @@
     <string name="confirm_dialog_btn_cancel">CANCEL</string>
     <string name="playlist_remove_dialog_text">Are you sure to remove playlist</string>
     <string name="import_musics_title_default">Import Musics</string>
+    <string name="import_library_title">Choose Library Folder</string>
     <string name="import_musics_title_single_suffix">Music Selected</string>
     <string name="import_musics_title_multi_suffix">Musics Selected</string>
     <string name="import_musics_paths_root">Root</string>
@@ -71,6 +78,9 @@
     <string name="storage_edit_onedrive_disconnect">Disconnect</string>
     <string name="storage_edit_onedrive_should_auth">Should connect your account</string>
     <string name="storage_edit_onedrive_alias_not_empty">Alias should not be empty</string>
+    <string name="storage_edit_onedrive_drive">Drive</string>
+    <string name="storage_edit_onedrive_drive_loading">Loading drives…</string>
+    <string name="storage_edit_onedrive_drive_required">Select a drive</string>
     <string name="setting_debug">DEBUG</string>
     <string name="setting_log">Logs</string>
     <string name="setting_more">More...</string>
