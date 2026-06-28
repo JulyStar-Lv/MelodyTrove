@@ -1,5 +1,5 @@
 /target
-/tidetune-test-support/test-dbs/*
+/tidetunes-test-support/test-dbs/*
 /android
 
 bridge_generated.io.rs

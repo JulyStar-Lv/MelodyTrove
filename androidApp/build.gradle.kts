@@ -16,7 +16,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.github.tidetune"
+    namespace = "com.github.tidetunes"
     compileSdk = 36
 
     lint {
@@ -24,7 +24,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.github.tidetune"
+        applicationId = "com.github.tidetunes"
         minSdk = 29
         targetSdk = 34
         versionCode = 1

@@ -70,7 +70,7 @@ Playback now uses a Rust loopback media gateway:
 The first simulator run exposed a startup panic in
 `hyper::Server::from_tcp`: UniFFI was polling the async controller on a Kotlin
 coroutine thread with no active Tokio reactor. Listener and Hyper server
-creation were moved into TideTune's Rust Tokio runtime.
+creation were moved into TideTunes's Rust Tokio runtime.
 
 AList returned a generic media MIME type. The gateway now derives
 `audio/flac` from the source extension and preserves a `.flac` suffix on the
@@ -93,13 +93,13 @@ parsed the stream.
 
 ## Reusable probe
 
-`rust-libs/tidetune-metadata/examples/webdav_probe.rs` performs the live
+`rust-libs/tidetunes-metadata/examples/webdav_probe.rs` performs the live
 directory, finite-range, and Lofty checks. It reads these environment variables:
 
 ```text
-TIDETUNE_WEBDAV_ADDRESS
-TIDETUNE_WEBDAV_USERNAME
-TIDETUNE_WEBDAV_PASSWORD
+TIDETUNES_WEBDAV_ADDRESS
+TIDETUNES_WEBDAV_USERNAME
+TIDETUNES_WEBDAV_PASSWORD
 ```
 
 No defaults or credentials are embedded in source.

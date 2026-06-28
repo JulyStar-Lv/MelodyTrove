@@ -3,12 +3,12 @@
 [workspace]
 resolver = "2"
 members = [
-    "tidetune-core",
-    "tidetune-ffi-builder",
-    "tidetune-runtime",
-    "tidetune-order-key",
-    "tidetune-remote-storage",
-    "tidetune-metadata",
+    "tidetunes-core",
+    "tidetunes-ffi-builder",
+    "tidetunes-runtime",
+    "tidetunes-order-key",
+    "tidetunes-remote-storage",
+    "tidetunes-metadata",
 ]
 
 [profile.bench]
@@ -28,5 +28,5 @@ thiserror = "1.0.57"
 chrono = "0.4.41"
 anyhow = "1.0"
 tracing = "0.1"
-tidetune-runtime = { path = "./tidetune-runtime" }
-tidetune-order-key = { path = "./tidetune-order-key" }
+tidetunes-runtime = { path = "./tidetunes-runtime" }
+tidetunes-order-key = { path = "./tidetunes-order-key" }

@@ -24,13 +24,13 @@ playback range serving.
 
 | Command | Result |
 | --- | --- |
-| `cargo check -p tidetune-core` | Passed |
-| `cargo test -p tidetune-core` | Passed; 7 tests |
+| `cargo check -p tidetunes-core` | Passed |
+| `cargo test -p tidetunes-core` | Passed; 7 tests |
 | `./gradlew :shared:desktopTest` | Passed; 29 tests including DataStore play-mode persistence |
 | `./gradlew :shared:compileDebugKotlinAndroid` | Passed |
 | `./gradlew :shared:compileKotlinIosSimulatorArm64` | Passed |
 | `git diff --check` | Passed |
-| `rg -n "redb|DatabaseServer|database_server|tidetune-legacy|LegacyLibraryMirror|ctUpsertStorage|ctRemoveStorage|ctListStorage\\(" shared/src rust-libs/tidetune-core rust-libs/Cargo.toml rust-libs/Cargo.lock -g '!**/build/**' -g '!**/target/**'` | No matches |
+| `rg -n "redb|DatabaseServer|database_server|tidetunes-legacy|LegacyLibraryMirror|ctUpsertStorage|ctRemoveStorage|ctListStorage\\(" shared/src rust-libs/tidetunes-core rust-libs/Cargo.toml rust-libs/Cargo.lock -g '!**/build/**' -g '!**/target/**'` | No matches |
 
 ## Notes
 

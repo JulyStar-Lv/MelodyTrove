@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="setting_debug">DEBUG</string>
+    <string name="setting_log">Logs</string>
+    <string name="setting_more">More...</string>
+    <string name="setting_about">ABOUT</string>
+    <string name="setting_git_repo">Git Repository</string>
+    <string name="setting_version">Version</string>
+    <string name="debug_trigger_rs_err">Trigger Rust Error</string>
+    <string name="debug_trigger_rs_async_err">Trigger Rust Async Error</string>
+    <string name="debug_trigger_rs_panic">Trigger Rust panic!</string>
+    <string name="debug_trigger_kt_exception">Trigger Kotlin Exception</string>
+    <string name="debug_trigger_kt_async_exception">Trigger Kotlin Async Exception</string>
+    <string name="log_title">Log</string>
+</resources>

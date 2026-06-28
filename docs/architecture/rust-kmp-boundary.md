@@ -143,7 +143,7 @@ request, returns `206 Partial Content` or `416 Range Not Satisfiable`, and never
 falls back to a whole-file disk cache. The KMP controller owns the Rust
 `PlaybackSession`; replacing or stopping playback shuts down the gateway.
 
-Gateway setup and serving run inside TideTune's Rust Tokio runtime. This is
+Gateway setup and serving run inside TideTunes's Rust Tokio runtime. This is
 required because UniFFI async functions may be polled from platform coroutine
 threads that do not have a Tokio reactor.
 

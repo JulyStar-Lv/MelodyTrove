@@ -177,13 +177,13 @@ Observed baseline cases:
 Run `webdav_metadata_scan` with credentials supplied through environment
 variables. Optional controls include:
 
-- `TIDETUNE_SCAN_START`;
-- `TIDETUNE_SCAN_LIMIT`;
-- `TIDETUNE_SCAN_FILE_TIMEOUT_SECS`;
-- `TIDETUNE_SCAN_BLOCK_SIZE`;
-- `TIDETUNE_SCAN_CONCURRENCY`;
-- `TIDETUNE_SCAN_PREVIOUS`;
-- `TIDETUNE_SCAN_OUTPUT`.
+- `TIDETUNES_SCAN_START`;
+- `TIDETUNES_SCAN_LIMIT`;
+- `TIDETUNES_SCAN_FILE_TIMEOUT_SECS`;
+- `TIDETUNES_SCAN_BLOCK_SIZE`;
+- `TIDETUNES_SCAN_CONCURRENCY`;
+- `TIDETUNES_SCAN_PREVIOUS`;
+- `TIDETUNES_SCAN_OUTPUT`.
 
 The scanner emits detailed JSON including normalized tags, technical audio
 properties, per-file timings, request counts, byte counts, and classified

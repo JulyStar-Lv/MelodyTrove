@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dashboard_devices">DEVICES</string>
+    <string name="dashboard_devices_add">Add Devices</string>
+    <string name="dashboard_downloads">DOWNLOADS</string>
+    <string name="dashboard_import_cancel">Cancel</string>
+    <string name="dashboard_import_pause">Pause</string>
+    <string name="dashboard_import_resume">Resume</string>
+    <string name="dashboard_import_retry">Retry</string>
+    <string name="dashboard_imports">IMPORTS</string>
+    <string name="dashboard_sleep_mode">SLEEP MODE</string>
+    <string name="playlists_dialog_button_cancel">CANCEL</string>
+    <string name="playlists_dialog_button_ok">OK</string>
+    <string name="time_to_pause_delete">DELETE</string>
+    <string name="time_to_pause_hour">HOUR</string>
+    <string name="time_to_pause_minute">MINUTE</string>
+</resources>

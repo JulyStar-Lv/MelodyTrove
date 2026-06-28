@@ -23,14 +23,14 @@ app/
 ├── shared/                          # KMP 共享模块
 │   ├── src/
 │   │   ├── commonMain/
-│   │   │   ├── kotlin/com/tidetune/
+│   │   │   ├── kotlin/com/tidetunes/
 │   │   │   │   ├── theme/           # 主题系统
 │   │   │   │   │   ├── Color.kt     # 双主题色值
 │   │   │   │   │   ├── Type.kt      # 字阶
 │   │   │   │   │   ├── Shape.kt     # 圆角
 │   │   │   │   │   ├── Motion.kt    # 动效
 │   │   │   │   │   ├── Spacing.kt   # 间距
-│   │   │   │   │   └── Theme.kt     # TideTuneTheme 入口
+│   │   │   │   │   └── Theme.kt     # TideTunesTheme 入口
 │   │   │   │   ├── components/      # 全局组件
 │   │   │   │   │   ├── GradientPlayButton.kt
 │   │   │   │   │   ├── MiniPlayerBar.kt
@@ -69,7 +69,7 @@ app/
 
 | 类型 | 命名规则 | 示例 |
 | --- | --- | --- |
-| 主题入口 | `TideTuneTheme` | `TideTuneTheme(darkTheme = true) { ... }` |
+| 主题入口 | `TideTunesTheme` | `TideTunesTheme(darkTheme = true) { ... }` |
 | ColorScheme | `LightColorScheme` / `DarkColorScheme` | — |
 | 组件 | PascalCase，与设计稿组件同名 | `GradientPlayButton`、`MiniPlayerBar`、`TrackRow` |
 | 页面 Composable | PascalCase + Screen 后缀 | `HomeScreen`、`PlayerScreen` |
@@ -80,13 +80,13 @@ app/
 
 ```kotlin
 @Composable
-fun TideTuneTheme(
+fun TideTunesTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
-    val typography = TideTuneTypography
-    val shapes = TideTuneShapes
+    val typography = TideTunesTypography
+    val shapes = TideTunesShapes
     val spacing = Spacing()  // 自定义 LocalSpacing
 
     CompositionLocalProvider(

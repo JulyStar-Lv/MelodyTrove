@@ -1,0 +1,98 @@
+package com.github.tidetunes.source.storage
+
+import com.github.tidetunes.core.domain.model.SourceAccountId
+import com.github.tidetunes.source.api.SourceListFailureReason
+import com.github.tidetunes.source.api.SourceListResult
+import com.github.tidetunes.source.api.SourceNode
+import com.github.tidetunes.source.api.SourceNodeType
+import uniffi.tidetunes_core.ListStorageEntryChildrenResp
+import uniffi.tidetunes_core.StorageEntry
+import uniffi.tidetunes_core.StorageId
+import uniffi.tidetunes_core.StorageType
+
+fun interface LegacyStorageDirectoryLister {
+    suspend fun list(
+        accountId: SourceAccountId,
+        directoryId: String?,
+        expectedType: StorageType,
+    ): SourceListResult
+}
+
+internal fun SourceAccountId.toLegacyStorageIdOrNull(): StorageId? {
+    return value
+        .takeIf { accountId -> accountId.startsWith(STORAGE_ACCOUNT_PREFIX) }
+        ?.removePrefix(STORAGE_ACCOUNT_PREFIX)
+        ?.toLongOrNull()
+        ?.let(::StorageId)
+}
+
+internal fun StorageId.toLegacyStorageSourceAccountId(): SourceAccountId {
+    return SourceAccountId("$STORAGE_ACCOUNT_PREFIX$value")
+}
+
+internal fun ListStorageEntryChildrenResp.toSourceListResult(
+    accountId: SourceAccountId,
+): SourceListResult {
+    return when (this) {
+        is ListStorageEntryChildrenResp.Ok -> {
+            SourceListResult.Success(
+                nodes = v1.map { entry ->
+                    entry.toSourceNode(accountId)
+                }
+            )
+        }
+        ListStorageEntryChildrenResp.AuthenticationFailed -> {
+            SourceListResult.Failure(SourceListFailureReason.Unauthorized)
+        }
+        ListStorageEntryChildrenResp.Timeout -> {
+            SourceListResult.Failure(SourceListFailureReason.Timeout)
+        }
+        ListStorageEntryChildrenResp.Unknown -> {
+            SourceListResult.Failure(SourceListFailureReason.Unknown)
+        }
+    }
+}
+
+private fun StorageEntry.toSourceNode(accountId: SourceAccountId): SourceNode {
+    return SourceNode(
+        accountId = accountId,
+        nodeId = remoteId ?: path,
+        remoteId = remoteId,
+        parentNodeId = parentRemoteId,
+        name = name,
+        path = path,
+        type = sourceNodeType(),
+        sizeBytes = size,
+        mimeType = mimeType,
+        etag = etag,
+        ctag = ctag,
+        createdAtEpochMs = createdAt,
+        modifiedAtEpochMs = modifiedAt,
+    )
+}
+
+private fun StorageEntry.sourceNodeType(): SourceNodeType {
+    if (isDir) return SourceNodeType.Folder
+
+    val lowerPath = path.lowercase()
+    return when {
+        MUSIC_EXTENSIONS.any { extension -> lowerPath.endsWith(extension) } -> SourceNodeType.Track
+        IMAGE_EXTENSIONS.any { extension -> lowerPath.endsWith(extension) } -> SourceNodeType.Image
+        LYRIC_EXTENSIONS.any { extension -> lowerPath.endsWith(extension) } -> SourceNodeType.Lyric
+        else -> SourceNodeType.Other
+    }
+}
+
+private const val STORAGE_ACCOUNT_PREFIX = "storage:"
+private val MUSIC_EXTENSIONS = arrayOf(
+    ".wav",
+    ".mp3",
+    ".aac",
+    ".flac",
+    ".ogg",
+    ".oga",
+    ".opus",
+    ".m4a",
+)
+private val IMAGE_EXTENSIONS = arrayOf(".jpg", ".jpeg", ".png")
+private val LYRIC_EXTENSIONS = arrayOf(".lrc")

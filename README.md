@@ -1,6 +1,6 @@
-# TideTune
+# TideTunes
 
-TideTune is a lightweight music player, written in Rust and Jetpack Compose.
+TideTunes is a lightweight music player, written in Rust and Jetpack Compose.
 
 Features
 ----
@@ -30,4 +30,4 @@ License
 ----
 
 - The majority of this project is licensed under the GPL-3.0 license.
-- The [tidetune-order-key](./rust-libs/tidetune-order-key) is under either the Apache-2.0 or the MIT license.
+- The [tidetunes-order-key](./rust-libs/tidetunes-order-key) is under either the Apache-2.0 or the MIT license.

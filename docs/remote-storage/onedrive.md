@@ -4,7 +4,7 @@ Last updated: 2026-06-26
 
 ## Current implementation
 
-TideTune uses Microsoft Graph v1.0 and opens the Microsoft authorization page
+TideTunes uses Microsoft Graph v1.0 and opens the Microsoft authorization page
 in the system browser. The authorization request uses OAuth 2.0 Authorization
 Code with PKCE:
 
@@ -12,7 +12,7 @@ Code with PKCE:
 - an S256 code challenge;
 - a random state value validated when the app receives the redirect;
 - the `Files.Read offline_access` scope;
-- the `tidetune://oauth2redirect/` redirect URI.
+- the `tidetunes://oauth2redirect/` redirect URI.
 
 The pending verifier and state are stored temporarily in the existing platform
 credential store rather than Room or ordinary preferences. They are removed

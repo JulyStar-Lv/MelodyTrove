@@ -1,11 +1,11 @@
-# TideTune Room KMP schema
+# TideTunes Room KMP schema
 
-Date: 2026-06-26
+Date: 2026-06-27
 
-The shared Room database is `tidetune.db`. Android, iOS, and Desktop use
-platform-specific builders with bundled SQLite. Schema versions 1, 2, and 3 are
+The shared Room database is `tidetunes.db`. Android, iOS, and Desktop use
+platform-specific builders with bundled SQLite. Schema versions 1 through 4 are
 exported under
-`shared/schemas/com.github.tidetune.database.TideTuneDatabase/`.
+`shared/schemas/com.github.tidetunes.database.TideTunesDatabase/`.
 
 ## Ownership
 
@@ -31,6 +31,7 @@ exported under
 | `raw_metadata` | Unmapped source tags | Indexed by track and tag key |
 | `import_job` | Resumable import progress and errors | Indexed active status and folder |
 | `sync_cursor` | OneDrive delta/WebDAV scan checkpoints | One cursor per selected folder |
+| `download_task` | Offline download task state and progress | Unique source/media/remote ID; indexed status and update time |
 | `playlist`, `playlist_track` | User playlists and stable ordering | Foreign-key cascades and ordered indexes |
 
 ## Room-only persistence
@@ -124,3 +125,18 @@ the Library action opens the shared import picker in current-directory mode.
 Confirming the current directory calls `scanAndImportFolder`, so the directory
 selection flow now reaches Room persistence instead of returning a transient
 file list only.
+
+## Migration 3 to 4
+
+`MIGRATION_3_4` adds the offline download task state table:
+
+- `download_task.id`
+- source media ID fields: `sourceId`, `mediaType`, `remoteId`
+- display metadata: `title`, `artist`, `album`, `durationMs`, `mimeType`
+- progress and result state: `status`, `downloadedBytes`, `totalBytes`,
+  `localPath`, `errorMessage`
+- timestamps: `createdAt`, `updatedAt`
+
+The table keeps download scheduling state in Room before platform-specific
+download workers are wired. It does not store credentials or transient playback
+URLs.

@@ -1,0 +1,246 @@
+package com.github.tidetunes.service.download.data.scheduler
+
+import com.github.tidetunes.core.domain.model.MediaId
+import com.github.tidetunes.core.domain.model.MediaType
+import com.github.tidetunes.core.domain.model.SourceAccountId
+import com.github.tidetunes.core.domain.model.SourceId
+import com.github.tidetunes.service.download.domain.DownloadStatus
+import com.github.tidetunes.service.download.domain.DownloadTask
+import com.github.tidetunes.service.download.domain.DownloadTaskId
+import com.github.tidetunes.service.download.domain.DownloadTaskRepository
+import com.github.tidetunes.source.api.MusicSource
+import com.github.tidetunes.source.api.MusicSourceDescriptor
+import com.github.tidetunes.source.api.MusicSourceRegistry
+import com.github.tidetunes.source.api.PlaybackResource
+import com.github.tidetunes.source.api.SourceAuthFailureReason
+import com.github.tidetunes.source.api.SourceAuthResult
+import com.github.tidetunes.source.api.SourceCapability
+import com.github.tidetunes.source.api.SourceConfiguration
+import com.github.tidetunes.source.api.SourceListFailureReason
+import com.github.tidetunes.source.api.SourceListResult
+import com.github.tidetunes.source.api.SourcePlaybackFailureReason
+import com.github.tidetunes.source.api.SourcePlaybackResult
+import com.github.tidetunes.source.api.SourceSearchFailureReason
+import com.github.tidetunes.source.api.SourceSearchResult
+import com.github.tidetunes.source.storage.LegacyStoragePlaybackResolver
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
+import java.io.File
+import java.nio.file.Files
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+
+class DesktopCoroutineDownloadSchedulerTest {
+    @Test
+    fun scheduleCopiesResolvedResourceAndCompletesTask() = runBlocking {
+        val tempDir = Files.createTempDirectory("tidetunes-download-test").toFile()
+        val sourceFile = File(tempDir, "source.flac").apply {
+            writeBytes(byteArrayOf(1, 2, 3, 4))
+        }
+        val repository = FakeDownloadTaskRepository()
+        val task = task()
+        repository.upsertTask(task)
+        val playbackResourceResolver = RecordingLegacyStoragePlaybackResolver()
+        val scheduler = DesktopCoroutineDownloadScheduler(
+            repository = repository,
+            sourceRegistry = MusicSourceRegistry(
+                listOf(
+                    FakeMusicSource(
+                        result = SourcePlaybackResult.Success(
+                            PlaybackResource(
+                                uri = sourceFile.toURI().toString(),
+                                mimeType = "audio/flac",
+                                isLocal = true,
+                            )
+                        )
+                    )
+                )
+            ),
+            legacyStoragePlaybackResolver = playbackResourceResolver,
+            scope = this,
+            downloadDirectoryProvider = { File(tempDir, "downloads") },
+            maxConcurrentTasks = 1,
+            nowEpochMs = { 20 },
+        )
+
+        scheduler.schedule(task)
+
+        val completed = awaitTask(repository, task.id, DownloadStatus.Completed)
+        val localPath = completed.localPath!!
+        assertEquals(sourceFile.readBytes().toList(), File(localPath).readBytes().toList())
+        assertEquals(4, completed.downloadedBytes)
+        assertEquals(4, completed.totalBytes)
+        assertEquals("audio/flac", completed.mimeType)
+        awaitRelease(playbackResourceResolver, sourceFile.toURI().toString())
+        assertEquals(listOf(sourceFile.toURI().toString()), playbackResourceResolver.releasedUris)
+    }
+
+    @Test
+    fun failedResolveMarksTaskFailedWithoutCreatingFile() = runBlocking {
+        val tempDir = Files.createTempDirectory("tidetunes-download-failed-test").toFile()
+        val repository = FakeDownloadTaskRepository()
+        val task = task()
+        repository.upsertTask(task)
+        val scheduler = DesktopCoroutineDownloadScheduler(
+            repository = repository,
+            sourceRegistry = MusicSourceRegistry(
+                listOf(
+                    FakeMusicSource(
+                        result = SourcePlaybackResult.Failure(
+                            SourcePlaybackFailureReason.Unavailable
+                        )
+                    )
+                )
+            ),
+            legacyStoragePlaybackResolver = RecordingLegacyStoragePlaybackResolver(),
+            scope = this,
+            downloadDirectoryProvider = { File(tempDir, "downloads") },
+            maxConcurrentTasks = 1,
+            nowEpochMs = { 30 },
+        )
+
+        scheduler.schedule(task)
+
+        val failed = awaitTask(repository, task.id, DownloadStatus.Failed)
+        assertTrue(failed.errorMessage!!.contains("Unavailable"))
+        assertFalse(File(tempDir, "downloads").exists())
+    }
+
+    private suspend fun awaitTask(
+        repository: FakeDownloadTaskRepository,
+        id: DownloadTaskId,
+        status: DownloadStatus,
+    ): DownloadTask {
+        return withTimeout(5_000) {
+            while (true) {
+                val task = repository.getTask(id)
+                if (task?.status == status) return@withTimeout task
+                delay(10)
+            }
+            error("unreachable")
+        }
+    }
+
+    private suspend fun awaitRelease(
+        resolver: RecordingLegacyStoragePlaybackResolver,
+        uri: String,
+    ) {
+        withTimeout(5_000) {
+            while (uri !in resolver.releasedUris) {
+                delay(10)
+            }
+        }
+    }
+
+    private fun task(): DownloadTask {
+        return DownloadTask(
+            id = DownloadTaskId("download-1"),
+            mediaId = MediaId(
+                sourceId = SourceId("webdav"),
+                mediaType = MediaType.Track,
+                remoteId = "account-1:/Music/source.flac",
+            ),
+            title = "Source",
+            createdAtEpochMs = 1,
+            updatedAtEpochMs = 1,
+        )
+    }
+}
+
+private class FakeMusicSource(
+    private val result: SourcePlaybackResult,
+) : MusicSource {
+    override val descriptor = MusicSourceDescriptor(
+        id = SourceId("webdav"),
+        displayName = "WebDAV",
+    )
+    override val capabilities = setOf(SourceCapability.Download)
+
+    override suspend fun authenticate(configuration: SourceConfiguration): SourceAuthResult {
+        return SourceAuthResult.Failure(SourceAuthFailureReason.UnsupportedConfiguration)
+    }
+
+    override suspend fun list(
+        accountId: SourceAccountId,
+        directoryId: String?,
+    ): SourceListResult {
+        return SourceListResult.Failure(SourceListFailureReason.UnsupportedAccount)
+    }
+
+    override suspend fun search(
+        accountId: SourceAccountId,
+        query: String,
+        limit: Int,
+    ): SourceSearchResult {
+        return SourceSearchResult.Failure(SourceSearchFailureReason.Unsupported)
+    }
+
+    override suspend fun resolvePlayback(mediaId: MediaId): SourcePlaybackResult {
+        return result
+    }
+}
+
+private class RecordingLegacyStoragePlaybackResolver : LegacyStoragePlaybackResolver {
+    val releasedUris = mutableListOf<String>()
+
+    override suspend fun resolve(
+        accountId: SourceAccountId,
+        path: String,
+        expectedStorageType: uniffi.tidetunes_core.StorageType,
+    ): SourcePlaybackResult {
+        return SourcePlaybackResult.Failure(SourcePlaybackFailureReason.Unavailable)
+    }
+
+    override suspend fun release(uri: String) {
+        releasedUris += uri
+    }
+
+    override suspend fun releaseAll() = Unit
+}
+
+private class FakeDownloadTaskRepository : DownloadTaskRepository {
+    private val tasks = MutableStateFlow(emptyList<DownloadTask>())
+
+    override fun observeTasks(): Flow<List<DownloadTask>> {
+        return tasks
+    }
+
+    override fun observeActiveTasks(): Flow<List<DownloadTask>> {
+        return tasks.map { current ->
+            current.filter { task ->
+                task.status in setOf(
+                    DownloadStatus.Queued,
+                    DownloadStatus.Resolving,
+                    DownloadStatus.Downloading,
+                    DownloadStatus.Paused,
+                )
+            }
+        }
+    }
+
+    override fun observeTask(id: DownloadTaskId): Flow<DownloadTask?> {
+        return tasks.map { current -> current.firstOrNull { it.id == id } }
+    }
+
+    override suspend fun getTask(id: DownloadTaskId): DownloadTask? {
+        return tasks.value.firstOrNull { it.id == id }
+    }
+
+    override suspend fun upsertTask(task: DownloadTask) {
+        tasks.value = tasks.value.filterNot { it.id == task.id } + task
+    }
+
+    override suspend fun updateTask(task: DownloadTask) {
+        upsertTask(task)
+    }
+
+    override suspend fun deleteTask(id: DownloadTaskId) {
+        tasks.value = tasks.value.filterNot { it.id == id }
+    }
+}

@@ -2,15 +2,12 @@ import gobley.gradle.GobleyHost
 import gobley.gradle.cargo.dsl.jvm
 
 plugins {
-    alias(libs.plugins.kotlin.multiplatform)
-    alias(libs.plugins.compose.compiler)
-    alias(libs.plugins.jetbrains.compose)
-    alias(libs.plugins.gobley.cargo)
-    alias(libs.plugins.gobley.uniffi)
+    alias(libs.plugins.convention.kmp.library)
+    alias(libs.plugins.convention.cmp.library)
+    alias(libs.plugins.convention.feature)
+    alias(libs.plugins.convention.room)
+    alias(libs.plugins.convention.cargo.uniffi)
     alias(libs.plugins.kotlin.atomicfu)
-    alias(libs.plugins.androidx.room)
-    alias(libs.plugins.ksp)
-    kotlin("plugin.serialization")
     id("com.android.library")
 }
 
@@ -34,11 +31,35 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation(compose.runtime)
-            implementation(compose.foundation)
-            implementation(compose.material3)
-            implementation(compose.components.resources)
-            implementation(compose.animation)
+            implementation(project(":core:domain"))
+            implementation(project(":core:presentation"))
+            implementation(project(":source:api"))
+            implementation(project(":service:playback:domain"))
+            implementation(project(":service:playback:presentation"))
+            implementation(project(":service:download:domain"))
+            implementation(project(":feature:downloads"))
+            implementation(project(":feature:search"))
+            implementation(project(":feature:settings"))
+            implementation(project(":feature:playlist"))
+            implementation(project(":feature:sources"))
+            implementation(project(":feature:dashboard"))
+            implementation(project(":feature:importing"))
+            implementation(project(":feature:onboarding"))
+            implementation(project(":feature:queue"))
+            implementation(project(":feature:radio"))
+            implementation(project(":feature:lyrics"))
+            implementation(project(":feature:album"))
+            implementation(project(":feature:artist"))
+            implementation(project(":feature:browse"))
+            implementation(project(":feature:library"))
+            implementation(project(":feature:recentlyadded"))
+            implementation(project(":feature:recentlyplayed"))
+            implementation(project(":service:librarysync:domain"))
+            implementation(libs.runtime)
+            implementation(libs.foundation)
+            implementation(libs.material3)
+            implementation(libs.components.resources)
+            implementation(libs.animation)
             implementation(libs.androidx.navigation.compose)
             implementation(libs.koin.core)
             implementation(libs.koin.compose)
@@ -52,6 +73,7 @@ kotlin {
             implementation(libs.androidx.sqlite.bundled)
             implementation(libs.androidx.datastore)
             implementation(libs.androidx.datastore.preferences)
+            implementation(libs.miuix.ui)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
@@ -63,6 +85,7 @@ kotlin {
             implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.core.ktx)
             implementation(libs.koin.android)
+            implementation(libs.androidx.work.runtime.ktx)
         }
         val desktopMain by getting {
             dependencies {
@@ -84,19 +107,15 @@ room {
     schemaDirectory("$projectDir/schemas")
 }
 
-tasks.matching { it.name.startsWith("ksp") }.configureEach {
-    dependsOn(tasks.named("buildUniffiBindings"))
-}
-
 cargo {
-    packageDirectory = layout.projectDirectory.dir("../rust-libs/tidetune-core")
+    packageDirectory = layout.projectDirectory.dir("../rust-libs/tidetunes-core")
     builds.jvm {
         embedRustLibrary = rustTarget == GobleyHost.current.rustTarget
     }
 }
 
 android {
-    namespace = "com.github.tidetune.shared"
+    namespace = "com.github.tidetunes.shared"
     compileSdk = 36
     defaultConfig {
         minSdk = 29

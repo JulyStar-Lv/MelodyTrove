@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dashboard_devices_add">Add Devices</string>
+    <string name="storage_edit_addr">ADDRESS</string>
+    <string name="storage_edit_alias">NAME (ALIAS)</string>
+    <string name="storage_edit_anonymous">ANONYMOUS</string>
+    <string name="storage_edit_form_address">Address cannot be empty</string>
+    <string name="storage_edit_form_password">Password cannot be empty</string>
+    <string name="storage_edit_form_username">Username cannot be empty</string>
+    <string name="storage_edit_import_library_action">Choose library folder</string>
+    <string name="storage_edit_import_library_label">LIBRARY</string>
+    <string name="storage_edit_oauth">OAuth</string>
+    <string name="storage_edit_onedrive_alias_not_empty">Alias should not be empty</string>
+    <string name="storage_edit_onedrive_connect">Connect your account</string>
+    <string name="storage_edit_onedrive_disconnect">Disconnect</string>
+    <string name="storage_edit_onedrive_drive">Drive</string>
+    <string name="storage_edit_onedrive_drive_loading">Loading drives…</string>
+    <string name="storage_edit_onedrive_drive_required">Select a drive</string>
+    <string name="storage_edit_onedrive_should_auth">Should connect your account</string>
+    <string name="storage_edit_password">PASSWORD</string>
+    <string name="storage_edit_username">USERNAME</string>
+    <string name="storage_remove_desc_count">$$B__E_MCNT$$ musics will be removed.</string>
+    <string name="storage_remove_desc_main">Are you sure to remove storage “$$B__E_TITLE$$”?</string>
+</resources>

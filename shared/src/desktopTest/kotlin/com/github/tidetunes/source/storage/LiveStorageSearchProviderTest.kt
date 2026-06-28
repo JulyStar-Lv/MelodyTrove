@@ -1,0 +1,189 @@
+package com.github.tidetunes.source.storage
+
+import com.github.tidetunes.core.domain.model.SourceAccountId
+import com.github.tidetunes.source.api.BuiltInSourceIds
+import com.github.tidetunes.source.api.SourceSearchFailureReason
+import com.github.tidetunes.source.api.SourceSearchResult
+import kotlinx.coroutines.runBlocking
+import uniffi.tidetunes_core.ListStorageEntryChildrenResp
+import uniffi.tidetunes_core.Storage
+import uniffi.tidetunes_core.StorageEntry
+import uniffi.tidetunes_core.StorageId
+import uniffi.tidetunes_core.StorageType
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
+import kotlin.test.assertTrue
+
+class LiveStorageSearchProviderTest {
+    @Test
+    fun findsMusicFilesByCaseInsensitiveName() = runBlocking {
+        val provider = providerWithFiles(1L, mapOf(
+            "/" to listOf(
+                entry(isDir = true, name = "Music", path = "/Music"),
+            ),
+            "/Music" to listOf(
+                entry(isDir = false, name = "Summer.mp3", path = "/Music/Summer.mp3"),
+                entry(isDir = false, name = "Winter Blues.flac", path = "/Music/Winter Blues.flac"),
+                entry(isDir = false, name = "Cover.jpg", path = "/Music/Cover.jpg"),
+            ),
+        ))
+
+        val result = provider.search(
+            accountId = SourceAccountId("storage:1"),
+            query = "blues",
+            limit = 10,
+            expectedStorageType = StorageType.LOCAL,
+            sourceId = BuiltInSourceIds.Local,
+        )
+
+        val items = assertIs<SourceSearchResult.Success>(result).items
+        assertEquals(1, items.size)
+        assertEquals("Winter Blues.flac", items.single().title)
+        assertEquals("/Music/Winter Blues.flac", items.single().path)
+    }
+
+    @Test
+    fun returnsEmptyForNoMatches() = runBlocking {
+        val provider = providerWithFiles(1L, mapOf(
+            "/" to listOf(
+                entry(isDir = false, name = "Song.mp3", path = "/Song.mp3"),
+            ),
+        ))
+
+        val result = provider.search(
+            accountId = SourceAccountId("storage:1"),
+            query = "zzz_no_match",
+            limit = 10,
+            expectedStorageType = StorageType.LOCAL,
+            sourceId = BuiltInSourceIds.Local,
+        )
+
+        assertTrue((result as SourceSearchResult.Success).items.isEmpty()); Unit
+    }
+
+    @Test
+    fun respectsLimit() = runBlocking {
+        val provider = providerWithFiles(1L, mapOf(
+            "/" to listOf(
+                entry(isDir = false, name = "a_song.mp3", path = "/a_song.mp3"),
+                entry(isDir = false, name = "b_song.flac", path = "/b_song.flac"),
+                entry(isDir = false, name = "c_song.ogg", path = "/c_song.ogg"),
+            ),
+        ))
+
+        val result = provider.search(
+            accountId = SourceAccountId("storage:1"),
+            query = "song",
+            limit = 2,
+            expectedStorageType = StorageType.LOCAL,
+            sourceId = BuiltInSourceIds.Local,
+        )
+
+        assertEquals(2, (result as SourceSearchResult.Success).items.size)
+    }
+
+    @Test
+    fun skipsHiddenDirectories() = runBlocking {
+        val provider = providerWithFiles(1L, mapOf(
+            "/" to listOf(
+                entry(isDir = true, name = ".hidden", path = "/.hidden"),
+                entry(isDir = false, name = "visible.mp3", path = "/visible.mp3"),
+            ),
+            "/.hidden" to listOf(
+                entry(isDir = false, name = "secret.mp3", path = "/.hidden/secret.mp3"),
+            ),
+        ))
+
+        val result = provider.search(
+            accountId = SourceAccountId("storage:1"),
+            query = "mp3",
+            limit = 10,
+            expectedStorageType = StorageType.LOCAL,
+            sourceId = BuiltInSourceIds.Local,
+        )
+
+        val items = (result as SourceSearchResult.Success).items
+        assertEquals(listOf("visible.mp3"), items.map { it.title })
+    }
+
+    @Test
+    fun rejectsMismatchedStorageType() = runBlocking {
+        val provider = providerWithFiles(1L, emptyMap())
+
+        val result = provider.search(
+            accountId = SourceAccountId("storage:1"),
+            query = "song",
+            limit = 10,
+            expectedStorageType = StorageType.WEBDAV,
+            sourceId = BuiltInSourceIds.WebDav,
+        )
+
+        assertIs<SourceSearchResult.Failure>(result); Unit
+    }
+
+    @Test
+    fun returnsBlankQueryAsEmpty() = runBlocking {
+        val provider = providerWithFiles(1L, emptyMap())
+
+        val result = provider.search(
+            accountId = SourceAccountId("storage:1"),
+            query = "   ",
+            limit = 10,
+            expectedStorageType = StorageType.LOCAL,
+            sourceId = BuiltInSourceIds.Local,
+        )
+
+        assertTrue((result as SourceSearchResult.Success).items.isEmpty()); Unit
+    }
+
+    private fun providerWithFiles(
+        storageId: Long,
+        entriesByPath: Map<String, List<StorageEntry>>,
+    ): LiveStorageSearchProvider {
+        val directoryLister = object : StorageDirectoryLister {
+            override suspend fun listDirectory(
+                id: StorageId,
+                path: String,
+            ): ListStorageEntryChildrenResp {
+                val normalized = if (path == "/") "/" else path.trimEnd('/')
+                val children = entriesByPath[normalized].orEmpty()
+                return ListStorageEntryChildrenResp.Ok(children)
+            }
+        }
+        val storageLookup = LiveStorageLookup { id ->
+            if (id.value == storageId) {
+                Storage(
+                    id = StorageId(storageId),
+                    addr = "/test",
+                    alias = "Test",
+                    username = "",
+                    password = "",
+                    isAnonymous = true,
+                    typ = StorageType.LOCAL,
+                    musicCount = 0u,
+                )
+            } else {
+                null
+            }
+        }
+        return LiveStorageSearchProvider(directoryLister, storageLookup)
+    }
+
+    private fun entry(isDir: Boolean, name: String, path: String): StorageEntry {
+        return StorageEntry(
+            storageId = StorageId(1L),
+            name = name,
+            path = path,
+            size = if (isDir) null else 1000uL,
+            isDir = isDir,
+            remoteId = name,
+            parentRemoteId = null,
+            mimeType = null,
+            etag = null,
+            ctag = null,
+            createdAt = null,
+            modifiedAt = null,
+        )
+    }
+}

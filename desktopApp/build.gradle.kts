@@ -22,10 +22,10 @@ kotlin {
 
 compose.desktop {
     application {
-        mainClass = "com.github.tidetune.MainKt"
+        mainClass = "com.github.tidetunes.MainKt"
         nativeDistributions {
             targetFormats(TargetFormat.Deb, TargetFormat.Msi, TargetFormat.Dmg)
-            packageName = "TideTune"
+            packageName = "TideTunes"
             packageVersion = "1.0.0"
         }
     }

@@ -1,0 +1,66 @@
+package com.github.tidetunes.service.librarysync.domain
+
+import com.github.tidetunes.core.domain.model.SourceAccountId
+import kotlinx.coroutines.flow.Flow
+
+interface LibrarySyncController {
+    val recentTasks: Flow<List<LibrarySyncTask>>
+
+    suspend fun syncFolder(request: LibrarySyncRequest): LibrarySyncResult
+    suspend fun pause(scanId: String): Boolean
+    suspend fun cancel(scanId: String): Boolean
+    suspend fun resume(scanId: String): LibrarySyncResult?
+    suspend fun retry(scanId: String): LibrarySyncResult?
+}
+
+interface LibrarySyncTaskRepository {
+    fun observeRecentTasks(limit: Int = DEFAULT_LIBRARY_SYNC_TASK_LIMIT): Flow<List<LibrarySyncTask>>
+    fun observeActiveTasks(): Flow<List<LibrarySyncTask>>
+    suspend fun getTask(id: String): LibrarySyncTask?
+    suspend fun hasActiveTask(
+        accountId: SourceAccountId,
+        excludingTaskId: String? = null,
+    ): Boolean
+    suspend fun markPaused(id: String): Boolean
+    suspend fun markCancelled(id: String): Boolean
+}
+
+data class LibrarySyncRequest(
+    val accountId: SourceAccountId,
+    val selectedFolderRemoteId: String?,
+    val selectedFolderCanonicalPath: String,
+    val selectedFolderDisplayPath: String? = null,
+    val scanId: String? = null,
+    val metadataConcurrency: UInt = 4u,
+    val importBatchSize: Int = DEFAULT_LIBRARY_SYNC_BATCH_SIZE,
+) {
+    init {
+        require(selectedFolderCanonicalPath.isNotBlank()) {
+            "selected folder path cannot be blank"
+        }
+        require(scanId == null || scanId.isNotBlank()) {
+            "scan id cannot be blank"
+        }
+        require(metadataConcurrency in 1u..MAX_LIBRARY_SYNC_METADATA_CONCURRENCY) {
+            "metadata concurrency must be between 1 and $MAX_LIBRARY_SYNC_METADATA_CONCURRENCY"
+        }
+        require(importBatchSize in 1..MAX_LIBRARY_SYNC_IMPORT_BATCH_SIZE) {
+            "import batch size must be between 1 and $MAX_LIBRARY_SYNC_IMPORT_BATCH_SIZE"
+        }
+    }
+}
+
+data class LibrarySyncResult(
+    val scanId: String,
+    val selectedFolderId: Long,
+    val scannedCount: Long,
+    val changedCount: Long,
+    val skippedCount: Long,
+    val importedCount: Long,
+    val failedCount: Long,
+)
+
+const val DEFAULT_LIBRARY_SYNC_BATCH_SIZE = 100
+const val DEFAULT_LIBRARY_SYNC_TASK_LIMIT = 5
+const val MAX_LIBRARY_SYNC_IMPORT_BATCH_SIZE = 500
+const val MAX_LIBRARY_SYNC_METADATA_CONCURRENCY = 16u

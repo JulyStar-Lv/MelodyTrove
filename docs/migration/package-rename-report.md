@@ -1,32 +1,32 @@
-# TideTune package and identity migration
+# TideTunes package and identity migration
 
 Date: 2026-06-24  
-Branch: `codex/tidetune-migration`
+Branch: `codex/tidetunes-migration`
 
 ## Product identity
 
-| Item | TideTune value |
+| Item | TideTunes value |
 | --- | --- |
-| Product and project name | `TideTune` |
-| Android application ID | `com.github.tidetune` |
-| Android namespace | `com.github.tidetune` |
-| Shared Android namespace | `com.github.tidetune.shared` |
-| Kotlin root package | `com.github.tidetune` |
-| Desktop main class | `com.github.tidetune.MainKt` |
-| Desktop package name | `TideTune` |
-| OAuth custom scheme | `tidetune://` |
-| Desktop data directory | `~/.tidetune` |
-| Transitional redb filename | `tidetune-legacy.redb` |
-| Rust core crate/library | `tidetune-core` / `tidetune_core` |
+| Product and project name | `TideTunes` |
+| Android application ID | `com.github.tidetunes` |
+| Android namespace | `com.github.tidetunes` |
+| Shared Android namespace | `com.github.tidetunes.shared` |
+| Kotlin root package | `com.github.tidetunes` |
+| Desktop main class | `com.github.tidetunes.MainKt` |
+| Desktop package name | `TideTunes` |
+| OAuth custom scheme | `tidetunes://` |
+| Desktop data directory | `~/.tidetunes` |
+| Transitional redb filename | `tidetunes-legacy.redb` |
+| Rust core crate/library | `tidetunes-core` / `tidetunes_core` |
 
-The final Room database will be named `tidetune.db`. The existing redb database
-uses `tidetune-legacy.redb` to keep the migration source distinct from the Room
+The final Room database will be named `tidetunes.db`. The existing redb database
+uses `tidetunes-legacy.redb` to keep the migration source distinct from the Room
 destination.
 
 ## Kotlin source migration
 
 All active Kotlin source roots were moved from
-`com/kutedev/easemusicplayer` to `com/github/tidetune`:
+`com/kutedev/easemusicplayer` to `com/github/tidetunes`:
 
 - `androidApp/src/main/java`
 - `desktopApp/src/desktopMain/kotlin`
@@ -44,22 +44,22 @@ included by the root Gradle build.
 
 ## Rust crate migration
 
-| Previous crate role | TideTune crate |
+| Previous crate role | TideTunes crate |
 | --- | --- |
-| backend/core plus current UniFFI exports | `tidetune-core` |
-| schema and persisted redb models | `tidetune-schema` |
-| async runtime | `tidetune-runtime` |
-| ordering keys | `tidetune-order-key` |
-| remote storage | `tidetune-remote-storage` |
-| UniFFI binding CLI | `tidetune-ffi-builder` |
+| backend/core plus current UniFFI exports | `tidetunes-core` |
+| schema and persisted redb models | `tidetunes-schema` |
+| async runtime | `tidetunes-runtime` |
+| ordering keys | `tidetunes-order-key` |
+| remote storage | `tidetunes-remote-storage` |
+| UniFFI binding CLI | `tidetunes-ffi-builder` |
 
 Cargo package names, paths, Rust imports, generated FFI symbols, native library
 lookup names, and Kotlin UniFFI packages were migrated. Kotlin bindings were
-regenerated from `libtidetune_core.dylib`, not only text-replaced, so UniFFI
+regenerated from `libtidetunes_core.dylib`, not only text-replaced, so UniFFI
 checksums match the renamed Rust exports.
 
-`tidetune-core` still contains the current UniFFI exports as an intermediate
-buildable state. A dedicated `tidetune-ffi` wrapper crate will be introduced
+`tidetunes-core` still contains the current UniFFI exports as an intermediate
+buildable state. A dedicated `tidetunes-ffi` wrapper crate will be introduced
 during the Gobley/UniFFI boundary phase.
 
 ## License handling
@@ -72,7 +72,7 @@ remain unchanged.
 
 ## Compatibility identifiers intentionally retained
 
-`rust-libs/tidetune-schema/src/v2/repositories.rs` retains five historical
+`rust-libs/tidetunes-schema/src/v2/repositories.rs` retains five historical
 `ease_client_shared::...` redb type-name strings. They are serialized database
 type identifiers required to read and migrate existing v2 data. Changing them
 would break compatibility. They are not package names, runtime namespaces, app

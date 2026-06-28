@@ -1,0 +1,40 @@
+plugins {
+    alias(libs.plugins.convention.kmp.domain)
+}
+
+kotlin {
+    androidTarget()
+    jvm("desktop")
+    listOf(
+        iosArm64(),
+        iosSimulatorArm64(),
+    ).forEach { iosTarget ->
+        iosTarget.binaries.framework {
+            baseName = "TideTunesSourceApi"
+            isStatic = true
+            binaryOption("bundleId", "com.github.tidetunes.source.api")
+        }
+    }
+
+    sourceSets {
+        commonMain.dependencies {
+            implementation(project(":core:domain"))
+            implementation(libs.kotlinx.coroutines.core)
+        }
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+        }
+    }
+}
+
+android {
+    namespace = "com.github.tidetunes.source.api"
+    compileSdk = 36
+    defaultConfig {
+        minSdk = 29
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
+    }
+}

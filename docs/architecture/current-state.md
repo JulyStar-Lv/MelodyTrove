@@ -1,4 +1,4 @@
-# TideTune migration: current state
+# TideTunes migration: current state
 
 Date: 2026-06-24  
 Upstream: `https://github.com/hpp2334/ease-music-player.git`  
@@ -9,7 +9,7 @@ Reviewed commit: `897ce0747dce191070fcc91711b5369e04df903c`
 
 The workspace was populated from the upstream `kmp` branch. The pre-existing
 `Design/` directory is not part of the upstream commit and is retained as the
-TideTune UI specification.
+TideTunes UI specification.
 
 The upstream checkout has a case-insensitive-filesystem issue before any source
 change: the tracked `LICENSE` symlink conflicts with the tracked `license/`
@@ -163,7 +163,7 @@ database-backed library screen independent of playlists.
 
 ## Database
 
-The local app database is Room KMP, created as `tidetune.db`. Binary artwork and
+The local app database is Room KMP, created as `tidetunes.db`. Binary artwork and
 credentials stay outside Room.
 
 Persisted models include storage, selected folders, remote files, tracks,
@@ -208,7 +208,7 @@ iOS:
 - no player implementation exists.
 
 The shared `PlayerController` does not expose the complete queue/state contract
-required by TideTune.
+required by TideTunes.
 
 ## UI and navigation
 
@@ -220,10 +220,10 @@ The shared Compose UI contains:
 - a mini player and Android/Desktop platform adapters.
 
 Navigation is shared Navigation Compose. The current theme is a small Material 3
-color override named `EaseMusicPlayerTheme`; it has no TideTune spacing, shape,
+color override named `EaseMusicPlayerTheme`; it has no TideTunes spacing, shape,
 motion, elevation, or responsive-window system. Desktop reuses the phone layout.
 
-The pre-existing `Design/` package defines TideTune colors, typography, spacing,
+The pre-existing `Design/` package defines TideTunes colors, typography, spacing,
 responsive behavior, and target screens. It can be reused without replacing
 the functional Compose screens wholesale.
 
@@ -251,4 +251,4 @@ the functional Compose screens wholesale.
 - metadata extraction and artwork persistence;
 - import/sync coordinator;
 - Desktop player and all iOS platform implementations;
-- responsive TideTune UI system and missing library screens.
+- responsive TideTunes UI system and missing library screens.

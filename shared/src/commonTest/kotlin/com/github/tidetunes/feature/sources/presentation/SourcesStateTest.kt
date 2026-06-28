@@ -1,0 +1,84 @@
+package com.github.tidetunes.feature.sources.presentation
+
+import com.github.tidetunes.core.domain.model.StorageAccountInfo
+import com.github.tidetunes.core.data.toSourceAccountId
+import com.github.tidetunes.core.domain.model.toStorageRouteIdOrNull
+import com.github.tidetunes.core.domain.model.SourceAccountId
+import com.github.tidetunes.core.domain.model.SourceId
+import com.github.tidetunes.source.api.BuiltInSourceIds
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
+import uniffi.tidetunes_core.StorageId
+
+class SourcesStateTest {
+    @Test
+    fun mapsOnlyRemoteSourcesForPresentation() {
+        val accounts = listOf(
+            StorageAccountInfo(
+                accountId = SourceAccountId("storage:1"),
+                sourceId = BuiltInSourceIds.Local,
+                isLocal = true,
+                isOneDrive = false,
+                title = "Local",
+                subtitle = "",
+                musicCount = 0,
+            ),
+            StorageAccountInfo(
+                accountId = SourceAccountId("storage:2"),
+                sourceId = BuiltInSourceIds.WebDav,
+                isLocal = false,
+                isOneDrive = false,
+                title = "https://dav.example.com/music",
+                subtitle = "https://dav.example.com/music",
+                musicCount = 10,
+            ),
+            StorageAccountInfo(
+                accountId = SourceAccountId("storage:3"),
+                sourceId = BuiltInSourceIds.OneDrive,
+                isLocal = false,
+                isOneDrive = false,
+                title = "OneDrive",
+                subtitle = "drive-id",
+                musicCount = 5,
+            ),
+        )
+
+        val sources = accounts
+            .filter { account -> !account.isLocal }
+            .map { account ->
+                SourceAccountUi(
+                    id = account.accountId,
+                    title = account.title,
+                    subtitle = account.subtitle,
+                )
+            }
+
+        assertEquals(2, sources.size)
+        assertEquals(
+            SourceAccountUi(
+                id = SourceAccountId("storage:2"),
+                title = "https://dav.example.com/music",
+                subtitle = "https://dav.example.com/music",
+            ),
+            sources[0],
+        )
+        assertEquals(
+            SourceAccountUi(
+                id = SourceAccountId("storage:3"),
+                title = "OneDrive",
+                subtitle = "drive-id",
+            ),
+            sources[1],
+        )
+    }
+
+    @Test
+    fun mapsTransitionalSourceAccountIdToStorageRouteId() {
+        assertEquals(
+            42,
+            StorageId(42).toSourceAccountId().toStorageRouteIdOrNull(),
+        )
+        assertNull(SourceAccountId("webdav:account").toStorageRouteIdOrNull())
+    }
+}

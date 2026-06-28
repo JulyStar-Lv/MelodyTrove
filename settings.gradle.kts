@@ -1,4 +1,5 @@
 pluginManagement {
+    includeBuild("build-logic/convention")
     repositories {
         google {
             content {
@@ -19,7 +20,31 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "TideTune"
+rootProject.name = "TideTunes"
 include(":shared")
+include(":core:domain")
+include(":core:presentation")
+include(":feature:search")
+include(":feature:downloads")
+include(":feature:settings")
+include(":feature:playlist")
+include(":feature:sources")
+include(":feature:dashboard")
+include(":feature:importing")
+include(":feature:onboarding")
+include(":feature:queue")
+include(":feature:radio")
+include(":feature:lyrics")
+include(":feature:album")
+include(":feature:artist")
+include(":feature:browse")
+include(":feature:library")
+include(":feature:recentlyadded")
+include(":feature:recentlyplayed")
+include(":source:api")
+include(":service:playback:domain")
+include(":service:playback:presentation")
+include(":service:download:domain")
+include(":service:librarysync:domain")
 include(":androidApp")
 include(":desktopApp")

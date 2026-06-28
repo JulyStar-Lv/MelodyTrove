@@ -1,4 +1,4 @@
-# TideTune migration plan
+# TideTunes migration plan
 
 Date: 2026-06-24
 
@@ -6,7 +6,7 @@ Date: 2026-06-24
 
 1. The upstream `kmp` branch is the only source baseline. Reusable functionality
    is migrated rather than rewritten.
-2. `Design/` is an accepted TideTune design input and remains in the repository.
+2. `Design/` is an accepted TideTunes design input and remains in the repository.
 3. Room KMP becomes the UI-facing source of truth. Rust does not write Room
    tables directly; it returns typed batches to a KMP import coordinator.
 4. Rust remains authoritative for remote storage, bounded range reads, metadata
@@ -79,7 +79,7 @@ Changes:
 
 - add `iosArm64()` and `iosSimulatorArm64()` targets;
 - create `iosMain`, `iosTest`, and missing common/platform test source sets;
-- create an `iosApp` Xcode project with bundle ID `com.github.tidetune`;
+- create an `iosApp` Xcode project with bundle ID `com.github.tidetunes`;
 - move JNA/JVM APIs to Desktop-only code;
 - replace Java time/URL APIs in common code with Kotlin/common equivalents;
 - isolate generated Rust bindings behind `RustMusicCore`;
@@ -99,7 +99,7 @@ xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp \
 
 Changes:
 
-- create `tidetune-core` and `tidetune-ffi` crate identities;
+- create `tidetunes-core` and `tidetunes-ffi` crate identities;
 - configure Gobley Cargo and UniFFI plugins;
 - export one asynchronous typed function and one typed error;
 - build and call it from Android, Desktop, iOS Simulator, and iOS device
@@ -124,7 +124,7 @@ spike. Handwritten JNI is not an acceptable fallback.
 Changes:
 
 - add bundled SQLite, KSP schema generation, platform database builders, and
-  `tidetune.db`;
+  `tidetunes.db`;
 - implement storage, selected folder, remote file, track, album, artist, genre,
   artwork, lyrics, raw metadata, import job, sync cursor, playlist, and
   cross-reference entities;
@@ -146,9 +146,9 @@ and a 50,000-track query/import benchmark.
 
 Changes:
 
-- split Rust into `tidetune-core`, `tidetune-ffi`,
-  `tidetune-remote-storage`, `tidetune-metadata`,
-  `tidetune-player-desktop`, and `tidetune-test-support`;
+- split Rust into `tidetunes-core`, `tidetunes-ffi`,
+  `tidetunes-remote-storage`, `tidetunes-metadata`,
+  `tidetunes-player-desktop`, and `tidetunes-test-support`;
 - implement typed `RemoteNode` with stable IDs and remote metadata;
 - add bounded `RemoteRangeReader`, block cache, validation, request/byte budgets,
   cancellation, retry, rate limits, and explicit no-range fallback;
@@ -203,11 +203,11 @@ Verify:
 - iOS Simulator player lifecycle test;
 - Desktop current-host playback smoke test.
 
-## Phase 8: TideTune UI
+## Phase 8: TideTunes UI
 
 Changes:
 
-- implement `TideTuneTheme`, colors, typography, shapes, spacing, motion, and
+- implement `TideTunesTheme`, colors, typography, shapes, spacing, motion, and
   elevation from `Design/design-system/tokens.json`;
 - migrate existing screens surgically and add the missing onboarding, library,
   folder selection, progress, album, artist, search, queue, lyrics, sync, and
