@@ -28,6 +28,11 @@ kotlin {
             implementation(libs.foundation)
             implementation(libs.material3)
             implementation(libs.kotlinx.collections.immutable)
+            implementation(libs.koin.core)
+            implementation(libs.koin.compose.viewmodel)
+            implementation(libs.kotlinx.coroutines.core)
+            implementation(project(":service:playback:domain"))
+            implementation(project(":service:download:domain"))
         }
         commonTest.dependencies {
             implementation(kotlin("test"))

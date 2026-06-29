@@ -4,6 +4,11 @@ import com.github.tidetunes.core.domain.model.SourceAccountId
 import com.github.tidetunes.core.domain.model.SourceId
 import com.github.tidetunes.core.domain.model.StorageAccountInfo
 import com.github.tidetunes.core.domain.model.OneDriveDriveInfo
+import com.github.tidetunes.core.domain.model.OneDriveDriveListResult
+import com.github.tidetunes.core.domain.model.SourceConnectionTestStatus
+import com.github.tidetunes.core.domain.model.SourceEditorDraft
+import com.github.tidetunes.core.domain.model.SourceEditorStorageState
+import com.github.tidetunes.core.domain.model.SourceEditorType
 import com.github.tidetunes.core.domain.model.toStorageRouteIdOrNull
 import com.github.tidetunes.core.domain.model.STORAGE_ACCOUNT_PREFIX
 import com.github.tidetunes.core.domain.repository.StorageRepository
@@ -32,9 +37,6 @@ import uniffi.tidetunes_core.ctStartOnedriveOauth
 import uniffi.tidetunes_core.ctTestStorage
 import uniffi.tidetunes_core.StorageId
 import uniffi.tidetunes_core.StorageType
-import com.github.tidetunes.feature.sources.presentation.SourceConnectionTestStatus
-import com.github.tidetunes.feature.sources.presentation.SourceEditorDraft
-import com.github.tidetunes.feature.sources.presentation.SourceEditorType
 
 
 class StorageRepositoryImpl(
@@ -71,7 +73,7 @@ class StorageRepositoryImpl(
         }
     }
 
-    suspend fun startOneDriveOAuth(): String {
+    override suspend fun startOneDriveOAuth(): String {
         val session = ctStartOnedriveOauth()
         credentialStore.save(
             PENDING_ONEDRIVE_OAUTH_CREDENTIAL_ID,
@@ -146,6 +148,10 @@ class StorageRepositoryImpl(
                 updatedAt = now,
             )
         )
+    }
+
+    override suspend fun upsertSource(draft: SourceEditorDraft) {
+        upsertStorage(draft.toArgUpsertStorage())
     }
 
     suspend fun remove(id: StorageId) {
@@ -224,19 +230,11 @@ class StorageRepositoryImpl(
         }
     }
 
-    internal data class StorageEditorState(
-        val accountId: SourceAccountId,
-        val draft: SourceEditorDraft,
-        val title: String,
-        val musicCount: ULong,
-        val isOneDrive: Boolean,
-    )
-
-    internal suspend fun loadEditorState(id: Long): StorageEditorState? {
+    override suspend fun loadEditorState(id: Long): SourceEditorStorageState? {
         val storage = _storages.value.find { it.id.value == id } ?: return null
         val credential = loadCredential(StorageId(id))
         val accountId = SourceAccountId("$STORAGE_ACCOUNT_PREFIX$id")
-        return StorageEditorState(
+        return SourceEditorStorageState(
             accountId = accountId,
             draft = storage.copy(password = "").toSourceEditorDraft(),
             title = storage.displayNameForEditor(),
@@ -245,16 +243,11 @@ class StorageRepositoryImpl(
         )
     }
 
-    internal suspend fun testSource(draft: SourceEditorDraft): SourceConnectionTestStatus {
+    override suspend fun testSource(draft: SourceEditorDraft): SourceConnectionTestStatus {
         return test(draft.toArgUpsertStorage()).toSourceConnectionTestStatus()
     }
 
-    internal data class OneDriveDriveListResult(
-        val drives: List<OneDriveDriveInfo>,
-        val refreshedToken: String,
-    )
-
-    internal suspend fun listOneDriveDriveInfos(refreshToken: String): OneDriveDriveListResult {
+    override suspend fun listOneDriveDriveInfos(refreshToken: String): OneDriveDriveListResult {
         val result = listOneDriveDrives(refreshToken)
         return OneDriveDriveListResult(
             drives = result.drives.map { drive ->
@@ -272,7 +265,7 @@ class StorageRepositoryImpl(
         remove(id)
     }
 
-    suspend fun updateOneDriveRefreshTokenByAccountId(accountId: SourceAccountId, refreshToken: String) {
+    override suspend fun updateOneDriveRefreshTokenByAccountId(accountId: SourceAccountId, refreshToken: String) {
         val id = accountId.toStorageIdOrNull() ?: return
         updateOneDriveRefreshToken(id, refreshToken)
     }
@@ -345,4 +338,3 @@ fun StorageConnectionTestResult.toSourceConnectionTestStatus(): SourceConnection
 fun uniffi.tidetunes_core.StorageId.toSourceAccountId(): SourceAccountId {
     return SourceAccountId("$STORAGE_ACCOUNT_PREFIX$value")
 }
-

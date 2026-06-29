@@ -70,4 +70,5 @@ data class CurrentTrackInfo(
     val sourceStorageId: Long,
     val sourcePath: String,
     val coverArtwork: Artwork?,
+    val mediaId: MediaId? = null,
 )

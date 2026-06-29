@@ -9,6 +9,8 @@ import com.github.tidetunes.core.domain.model.PlaylistSummary
 import com.github.tidetunes.core.toArtwork
 import com.github.tidetunes.source.api.SourceNodeSelection
 import com.github.tidetunes.core.domain.repository.PlaylistRepository
+import com.github.tidetunes.source.storage.LegacyStorageLookup
+import com.github.tidetunes.source.storage.legacyStorageTrackMediaIdOrNull
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentList
 import kotlinx.coroutines.CoroutineScope
@@ -20,6 +22,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
 import uniffi.tidetunes_core.ArgRemoveMusicFromPlaylist
 import uniffi.tidetunes_core.PlaylistAbstract
@@ -45,6 +48,7 @@ class PlaylistRepositoryImpl(
     private val _scope: CoroutineScope,
     private val playlistDao: PlaylistDao,
     private val roomLibraryStore: RoomLibraryStore,
+    private val storageLookup: LegacyStorageLookup,
 ) : PlaylistRepository {
     private val _playlists = MutableStateFlow(persistentListOf<PlaylistAbstract>())
     private val _syncedTotalDuration = MutableSharedFlow<MusicId>()
@@ -56,6 +60,10 @@ class PlaylistRepositoryImpl(
     private val _playlistSummaries = MutableStateFlow<List<PlaylistSummary>>(emptyList())
     override val playlistSummaries = _playlistSummaries.asStateFlow()
     val syncedTotalDuration = _syncedTotalDuration.asSharedFlow()
+    override val playlistRefreshEvents: Flow<Unit> = merge(
+        syncedTotalDuration.debounce(500.milliseconds).map { Unit },
+        storageRepository.onRemoveStorageEvent,
+    )
     val preRemovePlaylistEvent = _preRemovePlaylistEvent.asSharedFlow()
     val preRemoveMusicEvent = _preRemoveMusicEvent.asSharedFlow()
 
@@ -81,7 +89,7 @@ class PlaylistRepositoryImpl(
 
     override fun observePlaylistTracks(playlistId: Long): Flow<List<DomainPlaylistTrack>> {
         return playlistDao.observeTracks(playlistId).map { rows ->
-            rows.map { it.toDomainRow() }
+            rows.map { it.toDomainRow(storageLookup) }
         }
     }
 
@@ -97,7 +105,7 @@ class PlaylistRepositoryImpl(
         }
     }
 
-    fun removePlaylist(id: Long) {
+    override fun removePlaylist(id: Long) {
         _scope.launch {
             _preRemovePlaylistEvent.emit(PlaylistId(id))
             playlistDao.delete(id)
@@ -110,7 +118,7 @@ class PlaylistRepositoryImpl(
         }
     }
 
-    fun requestTotalDurationById(addedTrackIds: List<Long>) {
+    override fun requestTotalDurationById(addedTrackIds: List<Long>) {
         requestTotalDuration(addedTrackIds.map { MusicId(it) })
     }
 
@@ -126,13 +134,20 @@ class PlaylistRepositoryImpl(
         }
     }
 
-    suspend fun removeMusic(playlistId: Long, musicId: Long) {
+    override suspend fun removeMusic(playlistId: Long, musicId: Long) {
         val arg = ArgRemoveMusicFromPlaylist(
             playlistId = PlaylistId(playlistId),
             musicId = MusicId(musicId)
         )
         _preRemoveMusicEvent.emit(arg)
         roomLibraryStore.removeMusic(PlaylistId(playlistId), MusicId(musicId))
+    }
+
+    override suspend fun replaceMusicOrderById(
+        playlistId: Long,
+        orderedTrackIds: List<Long>,
+    ) {
+        roomLibraryStore.replaceMusicOrderById(playlistId, orderedTrackIds)
     }
 
     override fun scheduleReload() {
@@ -157,7 +172,9 @@ class PlaylistRepositoryImpl(
     }
 }
 
-internal fun DaoPlaylistTrackRow.toDomainRow(): DomainPlaylistTrack {
+internal suspend fun DaoPlaylistTrackRow.toDomainRow(
+    storageLookup: LegacyStorageLookup,
+): DomainPlaylistTrack {
     return DomainPlaylistTrack(
         trackId = trackId,
         title = title,
@@ -165,5 +182,10 @@ internal fun DaoPlaylistTrackRow.toDomainRow(): DomainPlaylistTrack {
         sortOrder = sortOrder,
         sourceStorageId = sourceStorageId,
         sourcePath = sourcePath,
+        mediaId = legacyStorageTrackMediaIdOrNull(
+            storageLookup = storageLookup,
+            sourceStorageId = sourceStorageId,
+            sourcePath = sourcePath,
+        ),
     )
 }

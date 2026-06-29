@@ -7,4 +7,5 @@ data class DomainPlaylistTrack(
     val sortOrder: Long,
     val sourceStorageId: Long?,
     val sourcePath: String?,
+    val mediaId: MediaId? = null,
 )

@@ -1,17 +1,14 @@
 package com.github.tidetunes.feature.playlist.presentation
 
 import com.github.tidetunes.core.domain.model.DomainPlaylistTrack
+import com.github.tidetunes.core.domain.model.MediaId
+import com.github.tidetunes.core.domain.model.MediaType
 import com.github.tidetunes.source.api.BuiltInSourceIds
-import com.github.tidetunes.source.storage.LegacyStorageLookup
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertSame
 import kotlinx.collections.immutable.persistentListOf
-import kotlinx.coroutines.runBlocking
 import com.github.tidetunes.core.domain.model.PlaylistSummary
-import uniffi.tidetunes_core.Storage
-import uniffi.tidetunes_core.StorageId
-import uniffi.tidetunes_core.StorageType
 import kotlin.time.Duration.Companion.seconds
 
 class PlaylistStateTest {
@@ -43,7 +40,12 @@ class PlaylistStateTest {
     }
 
     @Test
-    fun mapsPlaylistTrackRowToDownloadablePresentationItem() = runBlocking {
+    fun mapsPlaylistTrackRowToDownloadablePresentationItem() {
+        val mediaId = MediaId(
+            sourceId = BuiltInSourceIds.WebDav,
+            mediaType = MediaType.Track,
+            remoteId = "legacy-storage-track:storage%3A5:%2FMusic%2FDownloadable.flac",
+        )
         val item = DomainPlaylistTrack(
             trackId = 9,
             sortOrder = 2,
@@ -51,11 +53,8 @@ class PlaylistStateTest {
             durationMs = 123_000,
             sourceStorageId = 5,
             sourcePath = "/Music/Downloadable.flac",
-        ).toPlaylistTrackItem(
-            LegacyStorageLookup { storageId ->
-                storage(id = storageId.value, typ = StorageType.WEBDAV)
-            }
-        )
+            mediaId = mediaId,
+        ).toPlaylistTrackItem()
 
         assertEquals(9, item.id)
         assertEquals("Downloadable", item.title)
@@ -79,17 +78,4 @@ class PlaylistStateTest {
         coverArtwork = null,
     )
 
-    private fun storage(
-        id: Long,
-        typ: StorageType,
-    ) = Storage(
-        id = StorageId(id),
-        addr = "https://example.com",
-        alias = "NAS",
-        username = "alice",
-        password = "",
-        isAnonymous = true,
-        typ = typ,
-        musicCount = 0u,
-    )
 }

@@ -24,6 +24,8 @@ kotlin {
         commonMain.dependencies {
             implementation(project(":core:domain"))
             implementation(project(":core:presentation"))
+            implementation(project(":source:api"))
+            implementation(project(":service:librarysync:domain"))
             implementation(compose.runtime)
             implementation(compose.foundation)
             implementation(compose.material3)

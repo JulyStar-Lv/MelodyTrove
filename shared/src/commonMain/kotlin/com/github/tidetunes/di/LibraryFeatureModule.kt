@@ -9,17 +9,16 @@ import com.github.tidetunes.core.domain.repository.LibraryRepository
 import com.github.tidetunes.core.domain.repository.BrowseRepository
 import com.github.tidetunes.core.data.BrowseRepositoryImpl
 import com.github.tidetunes.core.data.LibraryRepositoryImpl
+import com.github.tidetunes.core.data.PlaylistImportTargetImpl
 import com.github.tidetunes.core.data.PlaylistRepositoryImpl
 import com.github.tidetunes.feature.playlist.presentation.PlaylistMetaToEdit
 import com.github.tidetunes.core.data.StorageRepositoryImpl
 import com.github.tidetunes.core.data.UpdatePlaylistRequest
 import com.github.tidetunes.core.data.toSourceNodeSelection
 import com.github.tidetunes.source.api.ImportRepository
+import com.github.tidetunes.source.api.PlaylistImportTarget
 import com.github.tidetunes.feature.importing.data.ImportRepositoryImpl
 import com.github.tidetunes.core.domain.repository.PlaylistRepository
-import com.github.tidetunes.feature.album.presentation.AlbumViewModel
-import com.github.tidetunes.feature.artist.presentation.ArtistViewModel
-import com.github.tidetunes.feature.lyrics.presentation.LyricsViewModel
 import com.github.tidetunes.feature.onboarding.di.onboardingFeatureModule
 import com.github.tidetunes.feature.queue.di.queueFeatureModule
 import com.github.tidetunes.core.data.TrackBrowserRepositoryImpl
@@ -30,9 +29,16 @@ import com.github.tidetunes.feature.recentlyadded.di.recentlyAddedFeatureDiModul
 import com.github.tidetunes.feature.recentlyplayed.di.recentlyPlayedFeatureDiModule
 import com.github.tidetunes.feature.playlist.presentation.EditPlaylistVM
 import com.github.tidetunes.feature.library.di.libraryFeatureDiModule
-import com.github.tidetunes.viewmodels.PlaylistVM
+import com.github.tidetunes.core.data.AlbumDetailRepositoryImpl
+import com.github.tidetunes.core.data.ArtistDetailRepositoryImpl
+import com.github.tidetunes.core.data.LyricsRepositoryImpl
+import com.github.tidetunes.core.domain.repository.AlbumDetailRepository
+import com.github.tidetunes.core.domain.repository.ArtistDetailRepository
+import com.github.tidetunes.core.domain.repository.LyricsRepository
+import com.github.tidetunes.feature.album.di.albumFeatureDiModule
+import com.github.tidetunes.feature.artist.di.artistFeatureDiModule
+import com.github.tidetunes.feature.lyrics.di.lyricsFeatureDiModule
 import com.github.tidetunes.feature.playlist.di.playlistsFeatureDiModule
-import org.koin.core.module.dsl.viewModelOf
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
@@ -49,12 +55,15 @@ val libraryFeatureModule = module {
     single<LibraryRepository> { LibraryRepositoryImpl(get(), get(), get()) }
     single<BrowseRepository> { BrowseRepositoryImpl(get(), get()) }
     single<TrackBrowserRepository> { TrackBrowserRepositoryImpl(get(), get(), get()) }
-    single<PlaylistRepository> { PlaylistRepositoryImpl(get(), get(), get(), get()) }
+    single<LyricsRepository> { LyricsRepositoryImpl(get(), get()) }
+    single<AlbumDetailRepository> { AlbumDetailRepositoryImpl(get(), get(), get()) }
+    single<ArtistDetailRepository> { ArtistDetailRepositoryImpl(get(), get(), get()) }
+    single<PlaylistRepository> { PlaylistRepositoryImpl(get(), get(), get(), get(), get()) }
+    single<PlaylistImportTarget> { PlaylistImportTargetImpl(get()) }
     single<ImportRepository> { ImportRepositoryImpl() }
 
     includes(playlistsFeatureDiModule)
-    viewModel { PlaylistVM(get(), get(), get(), get(), get(), get(), get(), get()) }
-    
+
     viewModel { parameters ->
         val playlistRepo = get<PlaylistRepositoryImpl>()
         val storageRepo = get<StorageRepositoryImpl>()
@@ -88,7 +97,7 @@ val libraryFeatureModule = module {
     includes(radioFeatureDiModule)
     includes(recentlyAddedFeatureDiModule)
     includes(recentlyPlayedFeatureDiModule)
-    viewModelOf(::AlbumViewModel)
-    viewModelOf(::ArtistViewModel)
-    viewModelOf(::LyricsViewModel)
+    includes(lyricsFeatureDiModule)
+    includes(albumFeatureDiModule)
+    includes(artistFeatureDiModule)
 }

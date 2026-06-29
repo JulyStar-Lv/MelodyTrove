@@ -25,6 +25,7 @@ kotlin {
             implementation(project(":core:domain"))
             implementation(project(":core:presentation"))
             implementation(project(":service:librarysync:domain"))
+            implementation(project(":service:playback:domain"))
             implementation(compose.runtime)
             implementation(compose.foundation)
             implementation(compose.material3)

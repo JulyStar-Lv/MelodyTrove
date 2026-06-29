@@ -7,5 +7,8 @@ data class DomainTrackBrowserItem(
     val albumName: String?,
     val durationMs: Long?,
     val mediaId: MediaId?,
+    val trackNumber: Int? = null,
+    val discNumber: Int? = null,
+    val albumId: Long? = null,
     val canDownload: Boolean,
 )

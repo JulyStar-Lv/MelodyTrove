@@ -192,6 +192,9 @@ class IosPlayerControllerTest {
                     _scope = scope,
                     playlistDao = database.playlistDao(),
                     roomLibraryStore = roomLibraryStore,
+                    storageLookup = LegacyStorageLookup {
+                        storage(id = STORAGE_ID, type = StorageType.WEBDAV)
+                    },
                 ),
                 storageRepository = storageRepository,
                 roomLibraryStore = roomLibraryStore,

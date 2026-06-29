@@ -264,5 +264,10 @@ private suspend fun Music.toCurrentTrackInfo(storageLookup: LegacyStorageLookup)
         sourceStorageId = loc.storageId.value,
         sourcePath = loc.path,
         coverArtwork = cover?.toArtwork(),
+        mediaId = legacyStorageTrackMediaIdOrNull(
+            storageLookup = storageLookup,
+            sourceStorageId = loc.storageId.value,
+            sourcePath = loc.path,
+        ),
     )
 }

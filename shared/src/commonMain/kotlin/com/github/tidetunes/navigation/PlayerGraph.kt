@@ -5,7 +5,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import com.github.tidetunes.service.playback.presentation.nowplaying.NowPlayingRoot
 import com.github.tidetunes.feature.importing.data.RouteImportType
-import com.github.tidetunes.feature.dashboard.presentation.TimeToPauseModal
+import com.github.tidetunes.service.playback.presentation.sleep.TimeToPauseModal
 
 fun NavGraphBuilder.playerGraph(
     navController: NavHostController,

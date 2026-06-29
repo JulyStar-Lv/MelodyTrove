@@ -3323,3 +3323,894 @@ XML test reports: 256 tests, 0 failures.
 | LyricsViewModel | trackDao.findByIds + metadataDao.getLyrics + artistNamesForTrack | Medium |
 | AlbumViewModel | trackDao.findByAlbumId + metadataDao.getAlbum + artistNamesForAlbum | Medium |
 | ArtistViewModel | trackDao.findTracksByArtistId + metadataDao.albumsByArtistId + getArtist | Medium |
+
+
+### Session Update 2026-06-29 (Round 47)
+
+#### TrackBrowser Decoupling + Colocation
+
+- [x] **Created `DomainTrackBrowserItem` in `core:domain/model/`**
+  - fields: id, title, artist, albumName, durationMs, trackNumber, discNumber, albumId, mediaId, canDownload
+  - No Room, UniFFI, or Compose deps
+
+- [x] **Created `TrackBrowserRepository` interface in `core:domain/repository/`**
+  - `suspend fun findTracksByGenre(genre, limit): List<DomainTrackBrowserItem>`
+  - `suspend fun findRecentlyAdded(limit): List<DomainTrackBrowserItem>`
+  - `suspend fun findRecentlyPlayed(limit): List<DomainTrackBrowserItem>`
+
+- [x] **Created `TrackBrowserRepositoryImpl` in `shared/core/data/`**
+  - Wraps TrackDao + MetadataDao + LegacyStorageLookup
+  - Maps TrackEntity → DomainTrackBrowserItem with albumName, mediaId, canDownload
+
+- [x] **Refactored 4 VMs to use `TrackBrowserRepository`**
+  - `GenreTracksViewModel` (was: TrackDao + MetadataDao + LegacyStorageLookup + EnqueueDownloadUseCase)
+  - `RadioViewModel` (was: TrackDao + MetadataDao + LegacyStorageLookup + EnqueueDownloadUseCase)
+  - `RecentlyAddedViewModel` (was: TrackDao + MetadataDao + LegacyStorageLookup + EnqueueDownloadUseCase)
+  - `RecentlyPlayedViewModel` (was: TrackDao + MetadataDao + LegacyStorageLookup + EnqueueDownloadUseCase)
+  - All now depend on `TrackBrowserRepository + EnqueueDownloadUseCase` (3-4 params → 2)
+
+- [x] **Moved 4 VM+Root pairs to feature modules**
+  - GenreTracksVM/Root → `:feature:browse`
+  - RadioVM/Root → `:feature:radio`
+  - RecentlyAddedVM/Root → `:feature:recentlyadded`
+  - RecentlyPlayedVM/Root → `:feature:recentlyplayed`
+
+- [x] **Created DI modules in radio, recentlyadded, recentlyplayed** (browse was already colocated)
+  - Added koin/coroutine deps to feature build files
+  - Added `:service:playback:domain` + `:service:download:domain` deps (Root uses PlaybackController, VM uses EnqueueDownloadUseCase)
+
+- [x] **Updated `shared/di/LibraryFeatureModule.kt`**
+  - `single<TrackBrowserRepository> { TrackBrowserRepositoryImpl(get(), get(), get()) }`
+  - Replaced `viewModelOf(::GenreTracksViewModel)` etc with `includes()` for radio, recentlyAdded, recentlyPlayed
+  - Browse DI module already included `GenreTracksViewModel`
+
+#### Gate (2026-06-29 Round 47)
+- Full regression gate: **627 Gradle tasks, BUILD SUCCESSFUL**
+- All 18 desktop test modules, Android test, iOS simulator test, cross-platform compilations — PASS
+
+#### DI Colocation Status (13/13 feature DI modules colocated)
+| DI Module | Location | Status |
+|-----------|----------|--------|
+| `radioFeatureDiModule` | `:feature:radio/di/` | Colocated (R47) — RadioViewModel |
+| `recentlyAddedFeatureDiModule` | `:feature:recentlyadded/di/` | Colocated (R47) — RecentlyAddedViewModel |
+| `recentlyPlayedFeatureDiModule` | `:feature:recentlyplayed/di/` | Colocated (R47) — RecentlyPlayedViewModel |
+| `browseFeatureDiModule` | `:feature:browse/di/` | Colocated (R46/47) — BrowseVM + GenreTracksVM |
+| ... (9 previously colocated) | ... | Colocated |
+| Data-layer bindings only | `shared/di/` | Repository bindings stay in shared |
+
+### Session Update 2026-06-29 (Round 48)
+
+#### Lyrics/Album/Artist DAO Decoupling + Colocation
+
+- [x] **Created `DomainLyrics` in `core:domain/model/`**
+  - Pure data class: trackTitle, trackArtist, lines, format, synchronized
+  - No Room, UniFFI, or Compose deps
+
+- [x] **Created `DomainAlbumDetail` in `core:domain/model/`**
+  - albumTitle, albumArtist, tracks: List<DomainTrackBrowserItem>
+
+- [x] **Created `DomainArtistDetail` + `DomainArtistAlbum` in `core:domain/model/`**
+  - DomainArtistAlbum: id, name, year, firstTrackId
+  - DomainArtistDetail: name, albums, tracks
+
+- [x] **Extended `DomainTrackBrowserItem` with trackNumber, discNumber, albumId** (all nullable, backward-compatible)
+
+- [x] **Created 3 repository interfaces in `core:domain/repository/`**
+  - `LyricsRepository.loadLyrics(trackId): DomainLyrics`
+  - `AlbumDetailRepository.loadAlbumDetail(albumId): DomainAlbumDetail`
+  - `ArtistDetailRepository.loadArtistDetail(artistId): DomainArtistDetail`
+
+- [x] **Created 3 repository impls in `shared/core/data/`**
+  - `LyricsRepositoryImpl` — wraps TrackDao + MetadataDao
+  - `AlbumDetailRepositoryImpl` — wraps TrackDao + MetadataDao + LegacyStorageLookup
+  - `ArtistDetailRepositoryImpl` — wraps TrackDao + MetadataDao + LegacyStorageLookup
+
+- [x] **Refactored 3 VMs to use domain repository interfaces**
+  - `LyricsViewModel` (was: MetadataDao + TrackDao → now: LyricsRepository)
+  - `AlbumViewModel` (was: MetadataDao + TrackDao + LegacyStorageLookup → now: AlbumDetailRepository + EnqueueDownloadUseCase)
+  - `ArtistViewModel` (was: MetadataDao + TrackDao + LegacyStorageLookup → now: ArtistDetailRepository + EnqueueDownloadUseCase)
+  - ArtistViewModel no longer imports `AlbumEntity` or `TrackEntity` directly
+
+- [x] **Moved 3 VM+Root pairs to feature modules**
+  - LyricsVM/Root → `:feature:lyrics`
+  - AlbumVM/Root → `:feature:album`
+  - ArtistVM/Root → `:feature:artist`
+
+- [x] **Created DI modules**
+  - `lyricsFeatureDiModule` in `:feature:lyrics/di/`
+  - `albumFeatureDiModule` in `:feature:album/di/`
+  - `artistFeatureDiModule` in `:feature:artist/di/`
+
+- [x] **Added build deps to 3 feature modules** — koin.core, koin.compose.viewmodel, kotlinx.coroutines.core, service:playback:domain, service:download:domain
+
+- [x] **Updated `shared/di/LibraryFeatureModule.kt`**
+  - `single<LyricsRepository> { LyricsRepositoryImpl(get(), get()) }`
+  - `single<AlbumDetailRepository> { AlbumDetailRepositoryImpl(get(), get(), get()) }`
+  - `single<ArtistDetailRepository> { ArtistDetailRepositoryImpl(get(), get(), get()) }`
+  - Replaced `viewModelOf(::LyricsViewModel)` etc with `includes()` for all 3
+
+#### Gate (2026-06-29 Round 48)
+- Full regression gate: **627 Gradle tasks, BUILD SUCCESSFUL**
+- All 18 desktop test modules, Android test, iOS simulator test, cross-platform compilations — PASS
+
+#### Remaining ViewModels in shared (3 — unchanged from R47)
+| VM | Blocker |
+|----|---------|
+| `EditStorageVM` | StorageRepositoryImpl (UniFFI-heavy) |
+| `PlaylistVM` | PlaylistRepositoryImpl + PlayerController + RoomLibraryStore + LegacyStorageLookup (5 concrete deps) |
+| `PlayerVM` | PlayerRepository (UniFFI Music/Playlist/PlayMode types) |
+
+#### Remaining DAO-bound VMs in shared (0 — all resolved)
+All 7 previously DAO-bound VMs (GenreTracksVM, RadioVM, RecentlyAddedVM, RecentlyPlayedVM,
+LyricsVM, AlbumVM, ArtistVM) have been refactored to use domain repository interfaces and
+colocated to their respective feature modules.
+
+### Session Update 2026-06-29 (Round 49)
+
+#### PlaylistVM Interface Decoupling + Colocation
+
+- [x] **Extended `DomainPlaylistTrack` with `mediaId`**
+  - Playlist presentation no longer needs `LegacyStorageLookup` to build downloadable track state
+  - `PlaylistRepositoryImpl` maps Room rows to domain tracks with `MediaId`
+
+- [x] **Extended `PlaylistRepository` domain interface**
+  - Added playlist detail operations used by PlaylistVM: remove playlist, remove track, replace order, duration refresh request
+  - Added `playlistRefreshEvents` to replace direct `StorageRepositoryImpl` and `syncedTotalDuration` subscriptions in the VM
+
+- [x] **Created source-facing playlist import target**
+  - `PlaylistImportTarget` in `source:api`
+  - `PlaylistImportTargetImpl` in `shared/core/data/`
+  - PlaylistVM now imports selected tracks through an interface instead of `RoomLibraryStore`
+
+- [x] **Created playback sync boundary**
+  - `PlaylistPlaybackSync` in `service:playback:domain`
+  - `LegacyPlaylistPlaybackSync` in `shared/service/playback/data/`
+  - Legacy `PlayerController.refreshPlaylistIfMatch(...)` stays behind the service data adapter
+
+- [x] **Refactored PlaylistVM dependencies**
+  - Was: `PlaylistRepositoryImpl`, `StorageRepositoryImpl`, `ImportRepositoryImpl`, `PlayerController`, `RoomLibraryStore`, `LegacyStorageLookup`, `EnqueueDownloadUseCase`
+  - Now: `PlaylistRepository`, `ImportRepository`, `PlaylistImportTarget`, `PlaylistPlaybackSync`, `EnqueueDownloadUseCase`
+  - Removed direct UniFFI, Room store, storage lookup, and playback data dependencies from the VM
+
+- [x] **Moved PlaylistVM, PlaylistRoot, and PlaylistMappers to `:feature:playlist`**
+  - `PlaylistRoot` now uses `PlaybackController` and `PlayableItem` from `service:playback:domain`
+  - Removed `PlayerVM` dependency from PlaylistRoot
+  - `playlistsFeatureDiModule` now owns `PlaylistVM` binding
+
+- [x] **Updated Koin assembly**
+  - `LibraryFeatureModule.kt` no longer binds `PlaylistVM`
+  - Added `PlaylistImportTarget` binding
+  - Updated `PlaylistRepositoryImpl` constructor binding with `LegacyStorageLookup`
+  - `PlaybackModule.kt` binds `PlaylistPlaybackSync`
+
+#### Gate (2026-06-29 Round 49)
+- Full regression gate: **627 Gradle tasks, BUILD SUCCESSFUL**
+- Shared Android unit + iOS simulator tests: **686 Gradle tasks, BUILD SUCCESSFUL**
+- Existing warnings remain limited to generated UniFFI code and pre-existing deprecated immutable collection calls
+
+#### Remaining ViewModels in shared (2)
+| VM | Blocker |
+|----|---------|
+| `EditStorageVM` | StorageRepositoryImpl / StorageRepository boundary remains UniFFI-heavy |
+| `PlayerVM` | PlayerRepository still exposes UniFFI Music/Playlist/PlayMode types |
+
+### Session Update 2026-06-29 (Round 50)
+
+#### PlayerVM Playback Boundary Decoupling + Colocation
+
+- [x] **Created `NowPlayingRepository` in `service:playback:domain`**
+  - Exposes pure now-playing flows: `CurrentTrackInfo`, adjacent artwork, and previous/next availability
+  - Exposes now-playing mutations: remove current track and remove current lyrics
+  - Keeps UniFFI `Music`, `Playlist`, and `PlayMode` out of presentation VM contracts
+
+- [x] **Created `LegacyNowPlayingRepository` in shared playback data**
+  - Wraps existing `PlayerRepository`
+  - Maps legacy previous/next music into boolean availability
+  - Leaves legacy `PlayerRepository` as the compatibility adapter behind the service-domain interface
+
+- [x] **Moved `PlayerVM` to `:service:playback:presentation`**
+  - Old path removed: `shared/src/commonMain/kotlin/com/github/tidetunes/viewmodels/PlayerVM.kt`
+  - New path: `service/playback/presentation/src/commonMain/kotlin/com/github/tidetunes/service/playback/presentation/PlayerVM.kt`
+  - Constructor now depends on `NowPlayingRepository`, `PlaybackController`, and `EnqueueDownloadUseCase`
+  - Removed direct `PlayerRepository`, UniFFI music, adjacent music, and play mode exposure from `PlayerVM`
+
+- [x] **Created playback presentation DI module**
+  - `playbackPresentationModule` registers `PlayerVM`
+  - `shared/di/PlaybackModule.kt` now includes the presentation module and binds `NowPlayingRepository`
+
+- [x] **Updated MiniPlayer and app shell callers**
+  - Shared UI imports `com.github.tidetunes.service.playback.presentation.PlayerVM`
+  - `MiniPlayer` reads title, artwork, duration, and next availability from playback domain/presentation state instead of legacy `Music`
+
+- [x] **Extended current-track domain mapping with `MediaId`**
+  - `CurrentTrackInfo` now carries optional `mediaId`
+  - `PlayerRepository` maps legacy storage track location to `MediaId`
+  - `NowPlayingMappers` forwards `mediaId`, so Now Playing download action can use the source-level identifier when available
+
+#### Gate (2026-06-29 Round 50)
+- Targeted compile: **201 Gradle tasks, BUILD SUCCESSFUL**
+  - `:service:playback:presentation:compileKotlinDesktop`
+  - `:shared:compileKotlinDesktop`
+- Broad regression gate: **634 Gradle tasks, BUILD SUCCESSFUL**
+  - Playback presentation/domain desktop tests, all feature desktop tests, Android debug compile, iOS simulator compile, shared compile, desktop app compile
+- Shared Android unit + iOS simulator tests: **690 Gradle tasks, BUILD SUCCESSFUL**
+  - iOS test run still reports the local simulator runtime warning for iOS 15.5 metadata, but the Gradle test task completed successfully
+- Existing warnings remain limited to generated UniFFI code and pre-existing deprecated immutable collection calls
+
+#### Remaining ViewModels in shared (1)
+| VM | Blocker |
+|----|---------|
+| `EditStorageVM` | StorageRepositoryImpl / StorageRepository boundary remains UniFFI-heavy |
+
+### Session Update 2026-06-29 (Round 51)
+
+#### Source Editor Boundary Decoupling + Colocation
+
+- [x] **Created source editor domain models in `core:domain`**
+  - Added `SourceEditorDraft`, `SourceEditorType`, `SourceConnectionTestStatus`, `SourceEditorStorageState`, and `OneDriveDriveListResult`
+  - `:feature:sources` now keeps compatibility typealiases for existing presentation state call sites
+
+- [x] **Extended `StorageRepository` as the source editor boundary**
+  - Added source editor operations for OAuth start, draft upsert, editor-state load, connection test, OneDrive drive listing, and refresh-token update
+  - `StorageRepositoryImpl` keeps UniFFI and legacy adapter calls behind the domain repository interface
+
+- [x] **Moved source editor presentation to `:feature:sources`**
+  - Old shared paths removed for `EditStorageVM`, `SourceEditorRoot`, `SourceEditorMapper`, `SourcesRoot`, and `SourcesViewModel`
+  - `EditStorageVM` now depends on `StorageRepository`, `ToastRepository`, `ImportRepository`, `LibrarySyncController`, and `SavedStateHandle`
+  - `SourcesViewModel` now depends on `StorageRepository` instead of the concrete shared data implementation
+
+- [x] **Created feature-owned DI wiring**
+  - Added `sourcesFeatureModule` with `SourcesViewModel` and `EditStorageVM`
+  - `shared/di/AppModule.kt` now includes the sources feature module
+  - Added required `:feature:sources` dependencies for `source:api` and `service:librarysync:domain`
+
+#### Gate (2026-06-29 Round 51)
+- Targeted compile: **197 Gradle tasks, BUILD SUCCESSFUL**
+  - `:feature:sources:compileKotlinDesktop`
+  - `:shared:compileKotlinDesktop`
+- Broad regression gate: **634 Gradle tasks, BUILD SUCCESSFUL**
+  - Playback presentation/domain desktop tests, all feature desktop tests, Android debug compile, iOS simulator compile, shared compile, desktop app compile
+- Shared Android unit + iOS simulator tests: **686 Gradle tasks, BUILD SUCCESSFUL**
+  - iOS test run still reports the local simulator runtime warning for iOS 15.5 metadata, but the Gradle task completed successfully
+- `git diff --check`: **PASS**
+- Old shared VM/source-editor path checks: **PASS**
+
+#### Remaining ViewModels in shared (0)
+All presentation ViewModels have been moved out of `shared/src/commonMain/kotlin/com/github/tidetunes/viewmodels` into feature or service presentation modules.
+
+### Session Update 2026-06-29 (Round 52)
+
+#### Sleep Timer Playback Presentation Ownership
+
+- [x] **Moved sleep timer presentation ownership to `:service:playback:presentation`**
+  - Old shared dashboard paths removed for `SleepModeVM` and `TimeToPauseModal`
+  - New path: `service/playback/presentation/.../sleep/`
+  - This keeps the sleep timer with the playback subsystem that owns `SleepController`
+
+- [x] **Removed dashboard-presentation coupling from playback callers**
+  - `NowPlayingRoot`, `PlayerGraph`, and `HomePage` now import `TimeToPauseModal` / `SleepModeVM` from playback presentation
+  - Old imports from `com.github.tidetunes.feature.dashboard.presentation.SleepModeVM` and `TimeToPauseModal` no longer exist
+
+- [x] **Moved Koin ownership for `SleepModeVM`**
+  - `playbackPresentationModule` now registers `SleepModeVM`
+  - `shared/di/PlaybackModule.kt` no longer binds the playback sleep ViewModel directly
+
+- [x] **Added playback presentation resources for the sleep dialog**
+  - `:service:playback:presentation` now owns the small string resource set used by `TimeToPauseModal`
+  - Added existing catalog dependencies for Compose resources and animation in the playback presentation module
+
+#### Gate (2026-06-29 Round 52)
+- Targeted compile: **207 Gradle tasks, BUILD SUCCESSFUL**
+  - `:service:playback:presentation:compileKotlinDesktop`
+  - `:shared:compileKotlinDesktop`
+- Broad regression gate: **642 Gradle tasks, BUILD SUCCESSFUL**
+  - Playback presentation/domain desktop tests, all feature desktop tests, Android debug compile, iOS simulator compile, desktop app compile
+- Shared Android unit + iOS simulator tests: **698 Gradle tasks, BUILD SUCCESSFUL**
+  - iOS test run still reports the local simulator runtime warning for iOS 15.5 metadata, but the Gradle task completed successfully
+- `git diff --check`: **PASS**
+- Old sleep timer import/path checks: **PASS**
+- Shared `*VM.kt` / `*ViewModel.kt` file check: **PASS**
+
+#### Remaining Shared Presentation Islands
+The next upper-layer migration targets are the remaining shared-hosted Root/UI
+files, especially DashboardRoot, ImportRoot/ImportScreen, Settings Root files,
+and playlist create/edit roots. These still need callback-based navigation
+boundaries before they can move cleanly into their feature modules.
+
+### Session Update 2026-06-29 (Round 53)
+
+#### DashboardRoot Feature Ownership + Callback Boundary
+
+- [x] **Moved `DashboardRoot` to `:feature:dashboard`**
+  - Old shared dashboard Root path removed
+  - New path: `feature/dashboard/src/commonMain/.../presentation/DashboardRoot.kt`
+  - The shared dashboard presentation directory no longer contains source files
+
+- [x] **Created dashboard-owned ViewModel**
+  - Added `DashboardViewModel` in `:feature:dashboard`
+  - It observes `SleepController.sleepState` and `LibrarySyncController.recentTasks`
+  - Import task pause, resume, retry, and cancel actions now route through the dashboard ViewModel instead of `ImportStatusVM`
+
+- [x] **Replaced cross-feature/navigation dependencies with callbacks**
+  - `DashboardRoot` no longer imports `LocalNavController`, `MusicGraph`, `RouteAddDevices`, `ImportStatusVM`, `SourcesRoot`, `SleepModeVM`, or shared platform time
+  - `HomePage` owns navigation callbacks, sleep-modal opening, and embedding `SourcesRoot`
+  - Dashboard state now carries `sleepRemainingMs` so the Root can open the sleep timer without depending on the playback sleep ViewModel
+
+- [x] **Added feature-owned DI wiring**
+  - Added `dashboardFeatureModule` with `DashboardViewModel`
+  - `shared/di/AppModule.kt` now includes the dashboard feature module
+  - `:feature:dashboard` now depends on `:service:playback:domain` for the `SleepController` boundary
+
+#### Gate (2026-06-29 Round 53)
+- Targeted compile: **207 Gradle tasks, BUILD SUCCESSFUL**
+  - `:feature:dashboard:compileKotlinDesktop`
+  - `:shared:compileKotlinDesktop`
+- Broad regression gate: **642 Gradle tasks, BUILD SUCCESSFUL**
+  - Playback presentation/domain desktop tests, dashboard desktop tests, all feature desktop tests, Android debug compile, iOS simulator compile, desktop app compile
+- Shared Android unit + iOS simulator tests: **698 Gradle tasks, BUILD SUCCESSFUL**
+  - iOS test run still reports the local simulator runtime warning for iOS 15.5 metadata, but the Gradle task completed successfully
+- `git diff --check`: **PASS**
+- Dashboard source boundary checks: **PASS**
+
+#### Remaining Shared Presentation Islands
+The next upper-layer migration targets are ImportRoot/ImportScreen, Settings
+Root files, playlist create/edit roots, and the remaining shared playback
+NowPlaying Root/Screen files.
+
+### Session Update 2026-06-29 (Round 54)
+
+#### ImportRoot / ImportScreen Feature Ownership
+
+- [x] **Moved import presentation shell to `:feature:importing`**
+  - Old shared paths removed for `ImportRoot` and `ImportScreen`
+  - New path: `feature/importing/src/commonMain/.../presentation/`
+  - `ImportRoot` remains the Koin ViewModel collector and event bridge; `ImportScreen` remains pure state/action UI
+
+- [x] **Removed shared UI/resource coupling from import screen**
+  - `ImportScreen` now imports resources from `tidetunes.feature.importing.generated.resources`
+  - `:feature:importing` now owns the import picker strings and icon assets used by the screen
+  - The screen now uses Compose `painterResource(...)` instead of the shared-hosted `appPainterResource(...)`
+
+- [x] **Added a core presentation back-handler boundary**
+  - Added `TideTunesBackHandler` expect/actual in `:core:presentation`
+  - Android delegates to `androidx.activity.compose.BackHandler`
+  - Desktop and iOS keep the existing no-op behavior
+  - `ImportScreen` no longer imports `com.github.tidetunes.platform.BackHandler`
+
+- [x] **Kept existing navigation and DI wiring intact**
+  - `LibraryGraph` and `SourcesGraph` continue to call `ImportRoot` through the same feature package
+  - `importFeatureModule` already includes `importingFeatureDiModule`, so no extra ViewModel binding was needed
+
+#### Gate (2026-06-29 Round 54)
+- Targeted compile: **249 Gradle tasks, BUILD SUCCESSFUL**
+  - `:core:presentation:compileKotlinDesktop`
+  - `:core:presentation:compileDebugKotlinAndroid`
+  - `:feature:importing:compileKotlinDesktop`
+  - `:feature:importing:compileDebugKotlinAndroid`
+  - `:shared:compileKotlinDesktop`
+- Broad regression gate: **646 Gradle tasks, BUILD SUCCESSFUL**
+  - Playback presentation/domain desktop tests, all feature desktop tests, Android debug compile, iOS simulator compile, desktop app compile
+- Shared Android unit + iOS simulator tests:
+  - `:shared:testDebugUnitTest` completed in the combined run
+  - Combined `:shared:iosSimulatorArm64Test` failed once with simulator process signal 11 while `simctl` reported the local iOS 15.5 runtime metadata warning
+  - Isolated rerun `:shared:iosSimulatorArm64Test --rerun-tasks`: **412 Gradle tasks, BUILD SUCCESSFUL**
+- `git diff --check`: **PASS**
+- Import feature boundary checks: **PASS**
+  - No `tidetunes.shared.generated.resources`, `com.github.tidetunes.platform.BackHandler`, or `appPainterResource` references remain under `feature/importing/src/commonMain`
+  - The old shared importing presentation directory contains no source files
+
+#### Remaining Shared Presentation Islands
+The next upper-layer migration targets are Settings Root files, playlist
+create/edit roots, and the remaining shared playback NowPlaying Root/Screen
+files.
+
+### Session Update 2026-06-29 (Round 55)
+
+#### Settings Roots Feature Ownership + Host Navigation Boundary
+
+- [x] **Moved settings roots to `:feature:settings`**
+  - Old shared paths removed for `SettingsRoot`, `DebugRoot`, and `LogRoot`
+  - New path: `feature/settings/src/commonMain/.../presentation/`
+  - `DebugRoot` and `LogRoot` remain feature-owned Koin ViewModel collectors over `DebugScreen` and `LogScreen`
+
+- [x] **Replaced settings root navigation coupling with callbacks**
+  - `SettingsRoot` now accepts `onNavigateToLog` and `onNavigateToDebugMore`
+  - `SettingsRoot` no longer imports `LocalNavController`, `RouteLog`, `RouteDebugMore`, or `MusicGraph`
+  - `HomePage` owns the top-level settings-tab navigation and routes to `MusicGraph.Log` / `MusicGraph.DebugMore`
+
+- [x] **Moved app version lookup out of settings presentation**
+  - Removed the old settings presentation `getAppVersion()` expect/actual files from shared
+  - Added shared platform `getAppVersion()` under `com.github.tidetunes.platform`
+  - `HomePage` passes `appVersion` into the feature-owned `SettingsRoot`
+
+- [x] **Removed stale settings navigation dependency**
+  - `:feature:settings` no longer depends on `libs.androidx.navigation.compose`
+  - Boundary checks show no Navigation Compose, `LocalNavController`, route helper, or `MusicGraph` references under `feature/settings/src`
+
+#### Gate (2026-06-29 Round 55)
+- Targeted compile: **550 Gradle tasks, BUILD SUCCESSFUL**
+  - `:feature:settings:compileKotlinDesktop`
+  - `:feature:settings:compileDebugKotlinAndroid`
+  - `:shared:compileKotlinDesktop`
+  - `:shared:compileDebugKotlinAndroid`
+  - `:shared:compileKotlinIosSimulatorArm64`
+- Broad regression gate: **646 Gradle tasks, BUILD SUCCESSFUL**
+  - Playback presentation/domain desktop tests, all feature desktop tests, Android debug compile, iOS simulator compile, desktop app compile
+- Shared Android unit + iOS simulator tests: **702 Gradle tasks, BUILD SUCCESSFUL**
+  - iOS test run still reports the local simulator runtime warning for iOS 15.5 metadata, but the Gradle task completed successfully
+- `git diff --check`: **PASS**
+- Settings feature boundary checks: **PASS**
+  - No `LocalNavController`, `RouteLog`, `RouteDebugMore`, `MusicGraph`, or Navigation Compose references remain under `feature/settings/src`
+  - The old shared settings presentation directory contains no source files
+
+#### Remaining Shared Presentation Islands
+The next upper-layer migration targets are playlist create/edit roots and the
+remaining shared playback NowPlaying Root/Screen files. Shared also still owns
+two legacy common UI helper files under `core/presentation/components`
+package paths that should be migrated to `:core:presentation` when their
+Android resource mapping is disentangled from shared resources.
+
+### Session Update 2026-06-29 (Round 56)
+
+#### Playlist Create/Edit Roots Feature Ownership + Host Import Navigation
+
+- [x] **Moved playlist create/edit roots to `:feature:playlist`**
+  - Old shared paths removed for `CreatePlaylistRoot` and `EditPlaylistRoot`
+  - New paths live under `feature/playlist/src/commonMain/.../presentation/`
+  - The old shared playlist presentation directory now contains no source files
+
+- [x] **Replaced root-level navigation coupling with callbacks**
+  - `CreatePlaylistRoot` now accepts `onNavigateToImport` and `onNavigateToCoverImport`
+  - `EditPlaylistRoot` now accepts `onNavigateToCoverImport`
+  - Feature playlist roots no longer import `LocalNavController`, `MusicGraph`,
+    `RouteImport`, `RouteImportType`, or Navigation Compose APIs
+
+- [x] **Kept global import routing in the shared host**
+  - `HomePage` owns navigation to `MusicGraph.Import(RouteImportType.EditPlaylist)`
+    and `MusicGraph.Import(RouteImportType.EditPlaylistCover)`
+  - `PlaylistRoot.onNavigateToImport` continues to route to
+    `MusicGraph.Import(RouteImportType.Music)` from the host
+  - The create-playlist data adapter remains in `HomePage` as a transitional
+    shared-host boundary; `:feature:playlist` no longer imports the shared data
+    request type or repository implementation
+
+- [x] **Removed stale playlist navigation dependency**
+  - `:feature:playlist` no longer depends on `libs.androidx.navigation.compose`
+  - Boundary checks show no Navigation Compose, route helper, `MusicGraph`,
+    shared data import, `PlaylistRepositoryImpl`, or `CreatePlaylistRequest`
+    references under `feature/playlist/src/commonMain`
+
+#### Gate (2026-06-29 Round 56)
+- Targeted compile: **550 Gradle tasks, BUILD SUCCESSFUL**
+  - `:feature:playlist:compileKotlinDesktop`
+  - `:feature:playlist:compileDebugKotlinAndroid`
+  - `:shared:compileKotlinDesktop`
+  - `:shared:compileDebugKotlinAndroid`
+  - `:shared:compileKotlinIosSimulatorArm64`
+- Broad regression gate: **646 Gradle tasks, BUILD SUCCESSFUL**
+  - Playback presentation/domain desktop tests, all feature desktop tests,
+    Android debug compile, iOS simulator compile, desktop app compile
+- Shared Android unit + iOS simulator tests:
+  - `:shared:testDebugUnitTest` completed in the combined run
+  - Combined `:shared:iosSimulatorArm64Test` failed once with simulator process
+    signal 11 in `IosPlayerControllerTest.resolveFailureDoesNotLoadEngineAndClearsLoadingState`
+    while `simctl` reported the local iOS 15.5 runtime metadata warning
+  - Isolated rerun `:shared:iosSimulatorArm64Test --rerun-tasks`: **412 Gradle
+    tasks, BUILD SUCCESSFUL**
+- `git diff --check`: **PASS**
+- Playlist feature boundary checks: **PASS**
+  - No `LocalNavController`, `RouteImport`, `RouteImportType`, `MusicGraph`,
+    `androidx.navigation`, `navigation.compose`, `PlaylistRepositoryImpl`,
+    `CreatePlaylistRequest`, `onCreatePlaylistRequest`, or shared data imports
+    remain under `feature/playlist/src/commonMain`
+  - The old shared playlist presentation directory contains no source files
+
+#### Remaining Shared Presentation Islands
+The next upper-layer migration target is the remaining shared playback
+`NowPlayingRoot` / `NowPlayingScreen` island. Shared also still owns two legacy
+common UI helper files under `core/presentation/components` package paths that
+should be migrated to `:core:presentation` when their Android resource mapping
+is disentangled from shared resources.
+
+### Session Update 2026-06-29 (Round 57)
+
+#### NowPlaying Feature Ownership In Playback Presentation
+
+- [x] **Moved Now Playing Root/Screen out of shared**
+  - Old shared paths removed for `NowPlayingRoot` and `NowPlayingScreen`
+  - New paths live under `service/playback/presentation/src/commonMain/.../nowplaying/`
+  - `PlayerGraph` still owns top-level navigation and imports the playback
+    presentation Root from the service module
+
+- [x] **Moved Now Playing UI resources to playback presentation**
+  - `:service:playback:presentation` now owns the icon and string resources used
+    by `NowPlayingScreen`
+  - `NowPlayingScreen` now imports
+    `tidetunes.service.playback.presentation.generated.resources.Res`
+  - The screen now uses Compose `painterResource(...)` instead of the
+    shared-hosted `appPainterResource(...)`
+
+- [x] **Removed cross-feature presentation dependency**
+  - Moved `AnimatedLyricLine` from `:feature:lyrics` to `:core:presentation`
+  - `NowPlayingScreen` no longer imports `feature.lyrics.presentation`
+  - Added the immutable collections dependency to `:core:presentation` because
+    the shared lyric model exposes immutable lists
+
+- [x] **Moved remaining shared-only helpers required by Now Playing**
+  - Moved `DropShadow` expect/actual from shared to `:core:presentation`
+  - Moved `nextTickOnMain` expect/actual from shared to `:core:presentation`
+  - Moved pure `Duration` formatting helpers to `:core:presentation`
+  - Shared `Duration.kt` now keeps only the UniFFI `Music` adapter overloads
+
+#### Gate (2026-06-29 Round 57)
+- Targeted compile: **547 Gradle tasks, BUILD SUCCESSFUL**
+  - `:core:presentation:compileKotlinDesktop`
+  - `:core:presentation:compileDebugKotlinAndroid`
+  - `:core:presentation:compileKotlinIosSimulatorArm64`
+  - `:service:playback:presentation:compileKotlinDesktop`
+  - `:service:playback:presentation:compileDebugKotlinAndroid`
+  - `:service:playback:presentation:compileKotlinIosSimulatorArm64`
+  - `:feature:lyrics:compileKotlinDesktop`
+  - `:shared:compileKotlinDesktop`
+  - `:shared:compileDebugKotlinAndroid`
+  - `:shared:compileKotlinIosSimulatorArm64`
+- Broad regression gate: **647 Gradle tasks, BUILD SUCCESSFUL**
+  - Playback presentation/domain desktop tests, all feature desktop tests,
+    Android debug compile, iOS simulator compile, desktop app compile
+- Shared Android unit + iOS simulator tests: **703 Gradle tasks, BUILD SUCCESSFUL**
+  - iOS test run still reports the local simulator runtime warning for iOS 15.5
+    metadata, but the Gradle task completed successfully
+- `git diff --check`: **PASS**
+- Now Playing boundary checks: **PASS**
+  - The old shared nowplaying presentation directory contains no source files
+  - No shared generated resources, `appPainterResource`,
+    `feature.lyrics.presentation`, navigation APIs, shared data imports, or
+    UniFFI imports remain under playback presentation nowplaying sources
+
+#### Remaining Shared Presentation Islands
+The major shared-hosted Root/Screen islands from the current upper-layer
+migration pass are now cleared. Shared still owns app shell/navigation surfaces,
+MiniPlayer/appbar host UI, and the legacy shared-resource-backed
+`AppPainterResource` helper under `core/presentation/components`; that helper
+should be retired or moved after the remaining shared shell resources are split
+into their owning modules.
+
+### Session Update 2026-06-29 (Round 58)
+
+#### Retired Shared AppPainterResource Bridge
+
+- [x] **Removed the legacy `AppPainterResource` expect/actual wrapper**
+  - Deleted the common, Android, desktop, and iOS `AppPainterResource.kt` files
+    from shared
+  - The Android-only shared drawable ID mapping is no longer used by shell UI
+  - No `appPainterResource` / `AppPainterResource` references remain in
+    shared, core presentation, service modules, or feature modules
+
+- [x] **Switched shell controls to Compose resource loading**
+  - `MiniPlayer` now uses `org.jetbrains.compose.resources.painterResource`
+    for play, pause, next, and stop controls
+  - `BottomBar`, `NavigationRailBar`, and `SidebarBar` now use standard
+    `painterResource(tab.painterRes)` for tab icons
+  - This keeps the current shell UI behavior while removing a shared-owned
+    platform resource bridge
+
+#### Gate (2026-06-29 Round 58)
+- Targeted compile: **547 Gradle tasks, BUILD SUCCESSFUL**
+  - `:core:presentation:compileKotlinDesktop`
+  - `:core:presentation:compileDebugKotlinAndroid`
+  - `:core:presentation:compileKotlinIosSimulatorArm64`
+  - `:shared:compileKotlinDesktop`
+  - `:shared:compileDebugKotlinAndroid`
+  - `:shared:compileKotlinIosSimulatorArm64`
+- Broad regression gate: **643 Gradle tasks, BUILD SUCCESSFUL**
+  - Playback presentation/domain desktop tests, all feature desktop tests,
+    Android debug compile, iOS simulator compile, desktop app compile
+- Shared Android unit + iOS simulator tests: **699 Gradle tasks, BUILD SUCCESSFUL**
+  - First run hit a transient Android unit assertion in
+    `PlayerControllerRepositoryTest.unsupportedEngineReleasesResolvedResourceAndKeepsPlayerIdle`
+    where `loading` was still true after resource release; rerunning the same
+    shared gate completed successfully without code changes
+  - iOS test run still reports the local simulator runtime warning for iOS 15.5
+    metadata, but the Gradle task completed successfully
+- `git diff --check`: **PASS**
+- Resource bridge boundary check: **PASS**
+  - `rg -n "appPainterResource|AppPainterResource" shared/src core/presentation/src service feature -S`
+    returned no matches
+
+#### Remaining Shared Presentation Islands
+Shared still owns app shell/navigation surfaces and MiniPlayer/appbar host UI.
+The legacy shared-resource-backed painter bridge is now gone; the next cleanup
+target is the remaining shell/navigation ownership boundary, especially moving
+or narrowing MiniPlayer/appbar once route ownership and generated resources are
+split into their final modules.
+
+### Session Update 2026-06-29 (Round 59)
+
+#### MiniPlayer Ownership Moved To Playback Presentation
+
+- [x] **Moved MiniPlayer out of shared**
+  - Deleted the old shared `widgets/musics/MiniPlayer.kt`
+  - Added `service/playback/presentation/.../miniplayer/MiniPlayer.kt`
+  - The MiniPlayer now lives with the playback presentation surfaces, matching
+    the attachment target structure (`service/playback/presentation/miniplayer`)
+
+- [x] **Kept navigation owned by the shell**
+  - The playback MiniPlayer exposes `onOpenNowPlaying: () -> Unit`
+  - `BottomBar`, `NavigationRailBar`, and `SidebarBar` pass
+    `navController.navigate(RouteMusicPlayer())` from shared shell code
+  - The playback MiniPlayer does not import `LocalNavController`,
+    `RouteMusicPlayer`, or shared navigation APIs
+
+- [x] **Moved MiniPlayer resources into playback presentation**
+  - Added playback-owned `icon_stop.svg`
+  - MiniPlayer now imports
+    `tidetunes.service.playback.presentation.generated.resources.Res`
+  - Removed unused shared playback / nowplaying icon copies:
+    `icon_back`, `icon_lyrics`, repeat-mode icons, play/pause/next/previous,
+    `icon_stop`, `icon_timelapse`, and `icon_vertialcal_more`
+
+#### Gate (2026-06-29 Round 59)
+- Targeted compile: **551 Gradle tasks, BUILD SUCCESSFUL**
+  - `:service:playback:presentation:compileKotlinDesktop`
+  - `:service:playback:presentation:compileDebugKotlinAndroid`
+  - `:service:playback:presentation:compileKotlinIosSimulatorArm64`
+  - `:shared:compileKotlinDesktop`
+  - `:shared:compileDebugKotlinAndroid`
+  - `:shared:compileKotlinIosSimulatorArm64`
+  - After deleting shared resources, the first cached compile hit stale Compose
+    resource collector references; rerunning the same targeted gate with
+    `--rerun-tasks --no-configuration-cache` regenerated resource accessors and
+    passed
+- Broad regression gate: **643 Gradle tasks, BUILD SUCCESSFUL**
+  - Playback presentation/domain desktop tests, all feature desktop tests,
+    Android debug compile, iOS simulator compile, desktop app compile
+- Shared Android unit + iOS simulator tests: **699 Gradle tasks, BUILD SUCCESSFUL**
+  - iOS test run still reports the local simulator runtime warning for iOS 15.5
+    metadata, but the Gradle task completed successfully
+- `git diff --check`: **PASS**
+- MiniPlayer boundary checks: **PASS**
+  - No `widgets.musics` references remain
+  - Playback MiniPlayer has no shared generated resource, `LocalNavController`,
+    or `RouteMusicPlayer` imports
+  - No shared source references remain for the deleted playback / nowplaying
+    icon resources
+
+#### Remaining Shared Presentation Islands
+Shared now acts more narrowly as the current app shell/navigation host for
+MiniPlayer and appbar placement. Remaining cleanup should continue splitting
+shell concerns toward the composeApp/AppShell boundary and reducing shared's
+direct ownership of navigation bars, `HomeTab`, and route registration.
+
+### Session Update 2026-06-29 (Round 60)
+
+#### Create Playlist Flow Decoupled From HomePage Data Access
+
+- [x] **Removed HomePage repository/data implementation coupling**
+  - `HomePage` no longer injects `PlaylistRepository` / `ImportRepository`
+    for the create-playlist modal path
+  - Removed the `PlaylistRepositoryImpl` cast and direct
+    `CreatePlaylistRequest` construction from shared UI code
+  - `HomePage` now resolves the shared `CreatePlaylistVM` instance through
+    feature-level Koin wiring and passes it to playlist roots
+
+- [x] **Moved create-from-selection behavior behind a source API boundary**
+  - Added `PlaylistImportTarget.createPlaylistFromSelections(...)`
+  - `PlaylistImportTargetImpl` now owns the conversion to
+    `CreatePlaylistRequest` and calls the Room-backed playlist store
+  - `CreatePlaylistVM` depends on `PlaylistImportTarget` instead of receiving a
+    UI-layer callback that builds data requests
+
+- [x] **Registered create-playlist VM in the playlist feature**
+  - `PlaylistsFeatureModule` now registers `CreatePlaylistVM`
+  - `CreatePlaylistRoot` can resolve `CreatePlaylistVM` via `koinViewModel()`
+    while still accepting an explicit VM for the shared HomePage modal pairing
+
+#### Gate (2026-06-29 Round 60)
+- Targeted compile: **547 Gradle tasks, BUILD SUCCESSFUL**
+  - `:source:api:compileKotlinDesktop`
+  - `:source:api:compileDebugKotlinAndroid`
+  - `:source:api:compileKotlinIosSimulatorArm64`
+  - `:feature:playlist:compileKotlinDesktop`
+  - `:feature:playlist:compileDebugKotlinAndroid`
+  - `:feature:playlist:compileKotlinIosSimulatorArm64`
+  - `:shared:compileKotlinDesktop`
+  - `:shared:compileDebugKotlinAndroid`
+  - `:shared:compileKotlinIosSimulatorArm64`
+  - First compile caught a missing coroutine `launch` import in
+    `CreatePlaylistVM`; adding the import made the same gate pass
+- Broad regression gate: **643 Gradle tasks, BUILD SUCCESSFUL**
+  - Playback presentation/domain desktop tests, all feature desktop tests,
+    Android debug compile, iOS simulator compile, desktop app compile
+- Shared Android unit + iOS simulator tests: **699 Gradle tasks, BUILD SUCCESSFUL**
+  - iOS test run still reports the local simulator runtime warning for iOS 15.5
+    metadata, but the Gradle task completed successfully
+- `git diff --check`: **PASS**
+- Create-playlist boundary checks: **PASS**
+  - `HomePage` and feature playlist sources no longer reference
+    `PlaylistRepositoryImpl`, `CreatePlaylistRequest`, or shared data
+    implementation imports for create-playlist construction
+  - The remaining `koinInject` match in playlist feature is
+    `PlaylistRoot` resolving `PlaybackController`, not a repository/data
+    implementation dependency
+
+#### Remaining Shared Presentation Islands
+Shared still hosts the current `HomePage` shell, appbar placement, tab
+navigation, and route orchestration. Next cleanup should continue narrowing
+that app-shell ownership and remove feature composition responsibilities from
+shared once the final composeApp/AppShell boundary is established.
+
+### Session Update 2026-06-29 (Round 61)
+
+#### Appbar Now Playing Navigation Narrowed To Shell Callback
+
+- [x] **Removed direct route navigation from appbar components**
+  - `BottomBar`, `NavigationRailBar`, and `SidebarBar` no longer read
+    `LocalNavController`
+  - Removed direct `RouteMusicPlayer()` navigation from the appbar layer
+  - Each appbar now receives `onOpenNowPlaying: () -> Unit` and passes it into
+    the playback-owned `MiniPlayer`
+
+- [x] **Kept shell routing in `HomePage`**
+  - `HomePage` owns the `MusicGraph.NowPlaying` navigation callback
+  - `BottomBar` still receives the current root route as data so its existing
+    home-route visibility behavior is preserved without owning the NavController
+  - Playlist detail `onNavigateToPlayer` now reuses the same shell callback
+
+#### Gate (2026-06-29 Round 61)
+- Targeted compile: **551 Gradle tasks, BUILD SUCCESSFUL**
+  - `:shared:compileKotlinDesktop`
+  - `:shared:compileDebugKotlinAndroid`
+  - `:shared:compileKotlinIosSimulatorArm64`
+- Broad regression gate: **643 Gradle tasks, BUILD SUCCESSFUL**
+  - Playback presentation/domain desktop tests, all feature desktop tests,
+    Android debug compile, iOS simulator compile, desktop app compile
+- Shared Android unit + iOS simulator tests: **699 Gradle tasks, BUILD SUCCESSFUL**
+  - iOS test run still reports the local simulator runtime warning for iOS 15.5
+    metadata, but the Gradle task completed successfully
+- `git diff --check`: **PASS**
+- Appbar navigation boundary checks: **PASS**
+  - `rg -n "LocalNavController|RouteMusicPlayer|Route[A-Za-z]+\\(|MusicGraph|navigate\\(" shared/src/commonMain/kotlin/com/github/tidetunes/widgets/appbar -S`
+    returns only `BottomBar`'s `isRouteHome(currentRootRoute)` visibility
+    checks, with no `LocalNavController`, route helper navigation, `MusicGraph`,
+    or `navigate(...)` usage under appbar sources
+  - `onOpenNowPlaying` is now supplied by `HomePage` and consumed by the three
+    appbar components
+
+#### Remaining Shared Presentation Islands
+Shared still owns the current `HomePage` shell, tab stacks, route callbacks,
+and appbar placement. The appbar components are now less coupled to navigation,
+so the next cleanup can either continue extracting shell-owned callbacks or
+start moving the app shell boundary toward composeApp once module dependencies
+allow it.
+
+### Session Update 2026-06-29 (Round 62)
+
+#### Appbar Route Awareness Removed
+
+- [x] **Moved home-route chrome visibility out of `BottomBar`**
+  - `BottomBar` no longer imports `isRouteHome`
+  - The appbar layer now receives `showChrome: Boolean` instead of the current
+    root route string
+  - `HomePage` computes `showHomeChrome = isRouteHome(currentRootRoute)` and
+    remains the single owner of root route/chrome decisions
+
+- [x] **Kept existing compact chrome behavior**
+  - The compact bottom bar and MiniPlayer still show only when the shell says
+    home chrome should be visible
+  - `BottomBar` still owns only tab selection rendering, MiniPlayer placement,
+    and bottom inset layout
+
+#### Gate (2026-06-29 Round 62)
+- Targeted compile: **547 Gradle tasks, BUILD SUCCESSFUL**
+  - `:shared:compileKotlinDesktop`
+  - `:shared:compileDebugKotlinAndroid`
+  - `:shared:compileKotlinIosSimulatorArm64`
+- Broad regression gate: **643 Gradle tasks, BUILD SUCCESSFUL**
+  - Playback presentation/domain desktop tests, all feature desktop tests,
+    Android debug compile, iOS simulator compile, desktop app compile
+- Shared Android unit + iOS simulator tests: **699 Gradle tasks, BUILD SUCCESSFUL**
+  - iOS test run still reports the local simulator runtime warning for iOS 15.5
+    metadata, but the Gradle task completed successfully
+- `git diff --check`: **PASS**
+- Appbar route/navigation boundary checks: **PASS**
+  - `rg -n "LocalNavController|RouteMusicPlayer|Route[A-Za-z]+\\(|MusicGraph|navigate\\(|isRouteHome|currentRootRoute" shared/src/commonMain/kotlin/com/github/tidetunes/widgets/appbar -S`
+    returns no matches
+  - `showHomeChrome` and `isRouteHome(currentRootRoute)` now exist only in
+    `HomePage` for this shell path
+
+#### Remaining Shared Presentation Islands
+Shared still hosts `HomePage`, nested tab `NavHost`s, root route callbacks, and
+appbar placement. The appbar components are now route-agnostic, so the next
+larger cleanup can focus on splitting `HomePage` into a shell coordinator plus
+feature-hosted tab content, or moving the shell boundary toward composeApp.
+
+### Session Update 2026-06-29 (Round 63)
+
+#### HomePage Shell Split From Tab Content
+
+- [x] **Split feature tab composition out of `HomePage`**
+  - Added `HomeTabContent` as the owner of the current nested tab `NavHost`s
+    and feature root composition
+  - `HomePage` now keeps the shell concerns: window size selection, current
+    tab state, remembered tab `NavHostController`s, appbar placement, home
+    chrome visibility, and root navigation callbacks
+  - Feature roots for playlists, library, search, dashboard, sources, and
+    settings are no longer imported by `Page.kt`
+
+- [x] **Preserved root-owned navigation behavior**
+  - `HomePage` still converts explicit callbacks into typed `MusicGraph`
+    navigation for import, downloads, edit storage, log, debug, and now
+    playing
+  - `HomeTabContent` receives callbacks instead of reading the root
+    `NavController`
+  - The five remembered tab stacks remain created by `HomePage`, so tab back
+    stack retention is unchanged
+
+#### Gate (2026-06-29 Round 63)
+- Targeted compile: **547 Gradle tasks, BUILD SUCCESSFUL**
+  - `:shared:compileKotlinDesktop`
+  - `:shared:compileDebugKotlinAndroid`
+  - `:shared:compileKotlinIosSimulatorArm64`
+- Broad regression gate: **643 Gradle tasks, BUILD SUCCESSFUL**
+  - Playback presentation/domain desktop tests, all feature desktop tests,
+    Android debug compile, iOS simulator compile, desktop app compile
+- Shared Android unit + iOS simulator tests: **699 Gradle tasks, BUILD SUCCESSFUL**
+  - iOS test run still reports the local simulator runtime warning for iOS 15.5
+    metadata, but the Gradle task completed successfully
+- `git diff --check`: **PASS**
+- Home shell boundary checks: **PASS**
+  - `Page.kt` has no matches for direct feature root imports, `RouteImportType`,
+    `NavHost`, or `composable`
+  - The same search matches only `HomeTabContent.kt`, which is now the
+    explicit temporary tab-content host
+
+#### Remaining Shared Presentation Islands
+Shared still hosts the shell files under `widgets/home`. `HomeTabContent` is a
+smaller and more explicit island than the previous all-in-one `HomePage`, but
+it still imports feature presentation roots. The next cleanup should either
+move this tab-content host into a proper home/app-shell module or continue
+shrinking it by moving individual tab graph builders closer to their feature
+modules once module dependencies allow that split.
+
+### Session Update 2026-06-29 (Round 64)
+
+#### Home Tab Graphs Split By Tab
+
+- [x] **Reduced `HomeTabContent` to a tab dispatcher**
+  - `HomeTabContent` now imports only Compose animation, navigation controller
+    type, `HomeTab`, and `SleepModeVM`
+  - It no longer owns direct feature root imports, `RouteImportType`,
+    `NavHost`, or `composable`
+  - Existing tab stack controllers and callback contracts are unchanged
+
+- [x] **Moved concrete tab graphs into focused files**
+  - Added `PlaylistsTabGraph.kt` for playlist list/detail/create/edit graph
+  - Added `LibraryTabGraph.kt` for the library tab graph
+  - Added `SearchTabGraph.kt` for the search tab graph
+  - Added `DashboardTabGraph.kt` for dashboard, sources, and sleep modal
+  - Added `SettingsTabGraph.kt` for settings/log/debug navigation callbacks
+
+#### Gate (2026-06-29 Round 64)
+- Targeted compile: **547 Gradle tasks, BUILD SUCCESSFUL**
+  - `:shared:compileKotlinDesktop`
+  - `:shared:compileDebugKotlinAndroid`
+  - `:shared:compileKotlinIosSimulatorArm64`
+- Broad regression gate: **643 Gradle tasks, BUILD SUCCESSFUL**
+  - Playback presentation/domain desktop tests, all feature desktop tests,
+    Android debug compile, iOS simulator compile, desktop app compile
+- Shared Android unit + iOS simulator tests: **699 Gradle tasks, BUILD SUCCESSFUL**
+  - iOS test run still reports the local simulator runtime warning for iOS 15.5
+    metadata, but the Gradle task completed successfully
+- `git diff --check`: **PASS**
+- Home tab graph boundary checks: **PASS**
+  - `HomeTabContent.kt` has no direct feature root imports, `RouteImportType`,
+    `NavHost`, or `composable`
+  - Direct feature root imports and nested `NavHost` registrations now live in
+    the focused `*TabGraph.kt` files
+
+#### Remaining Shared Presentation Islands
+The app shell path is now split into `Page.kt`, `HomeTabContent.kt`, and
+focused tab graph files, but all of them still live under `shared`. The next
+architecture step should introduce a real home/app-shell module boundary, or
+continue relocating these graph builders toward feature-owned graph extension
+points so shared no longer imports feature presentation roots.

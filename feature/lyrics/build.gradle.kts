@@ -29,6 +29,9 @@ kotlin {
             implementation(libs.material3)
             implementation(libs.animation)
             implementation(libs.kotlinx.collections.immutable)
+            implementation(libs.koin.core)
+            implementation(libs.koin.compose.viewmodel)
+            implementation(libs.kotlinx.coroutines.core)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))

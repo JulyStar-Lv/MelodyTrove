@@ -1,15 +1,9 @@
 package com.github.tidetunes.feature.sources.presentation
 
-data class SourceEditorDraft(
-    val id: Long? = null,
-    val address: String = "",
-    val alias: String = "",
-    val username: String = "",
-    val secret: String = "",
-    val isAnonymous: Boolean = true,
-    val storageType: SourceEditorType = SourceEditorType.WebDav,
-)
+typealias SourceEditorDraft = com.github.tidetunes.core.domain.model.SourceEditorDraft
+typealias SourceEditorType = com.github.tidetunes.core.domain.model.SourceEditorType
+typealias SourceConnectionTestStatus = com.github.tidetunes.core.domain.model.SourceConnectionTestStatus
 
 fun defaultSourceEditorDraft(): SourceEditorDraft {
-    return SourceEditorDraft()
+    return com.github.tidetunes.core.domain.model.defaultSourceEditorDraft()
 }

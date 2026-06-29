@@ -24,11 +24,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.github.tidetunes.core.presentation.components.appPainterResource
 import com.github.tidetunes.core.presentation.components.dropShadow
 import com.github.tidetunes.navigation.HomeTab
-import com.github.tidetunes.viewmodels.PlayerVM
-import com.github.tidetunes.widgets.musics.MiniPlayer
+import com.github.tidetunes.service.playback.presentation.PlayerVM
+import com.github.tidetunes.service.playback.presentation.miniplayer.MiniPlayer
+import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.viewmodel.koinViewModel
 
 fun getSidebarWidth(): Dp = 248.dp
@@ -37,6 +37,7 @@ fun getSidebarWidth(): Dp = 248.dp
 fun SidebarBar(
     currentTab: HomeTab,
     onTabSelected: (HomeTab) -> Unit,
+    onOpenNowPlaying: () -> Unit,
     playerVM: PlayerVM = koinViewModel(),
     modifier: Modifier = Modifier,
 ) {
@@ -73,7 +74,9 @@ fun SidebarBar(
         }
         Spacer(modifier = Modifier.weight(1f))
         if (hasCurrentMusic) {
-            MiniPlayer()
+            MiniPlayer(
+                onOpenNowPlaying = onOpenNowPlaying,
+            )
         }
     }
 }
@@ -106,7 +109,7 @@ private fun SidebarItem(
             .padding(horizontal = 12.dp),
     ) {
         Icon(
-            painter = appPainterResource(tab.painterRes),
+            painter = painterResource(tab.painterRes),
             tint = contentColor,
             contentDescription = null,
             modifier = Modifier

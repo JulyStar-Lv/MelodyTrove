@@ -36,11 +36,14 @@ class TrackBrowserRepositoryImpl(
             artist = artist,
             albumName = albumName,
             durationMs = durationMs,
+            trackNumber = trackNumber,
+            discNumber = discNumber,
             mediaId = legacyStorageTrackMediaIdOrNull(
                 storageLookup = storageLookup,
                 sourceStorageId = sourceStorageId,
                 sourcePath = sourcePath,
             ),
+            albumId = albumId,
             canDownload = sourceStorageId != null && sourcePath != null,
         )
     }

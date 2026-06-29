@@ -1,0 +1,14 @@
+<resources>
+    <string name="downloads_title">Downloads</string>
+    <string name="music_player_context_menu_remove">Remove</string>
+    <string name="music_lyric_add">Add Lyric</string>
+    <string name="music_lyric_remove">Remove Lyric</string>
+    <string name="music_lyric_no_desc">No Lyric.</string>
+    <string name="music_lyric_try_add_desc">Try add one.</string>
+    <string name="music_lyric_fail">Failed to load lyric.</string>
+    <string name="playlists_dialog_button_cancel">Cancel</string>
+    <string name="playlists_dialog_button_ok">OK</string>
+    <string name="time_to_pause_delete">Delete</string>
+    <string name="time_to_pause_hour">Hour</string>
+    <string name="time_to_pause_minute">Minute</string>
+</resources>

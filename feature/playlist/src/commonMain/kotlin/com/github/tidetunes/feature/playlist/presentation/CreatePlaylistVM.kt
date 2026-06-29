@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.tidetunes.core.domain.model.Artwork
 import com.github.tidetunes.source.api.ImportRepository
+import com.github.tidetunes.source.api.PlaylistImportTarget
 import com.github.tidetunes.source.api.SourceNodeSelection
 import com.github.tidetunes.source.api.SourceNodeType
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,11 +13,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import kotlin.collections.firstOrNull
 
 class CreatePlaylistVM constructor(
     private val importRepository: ImportRepository,
-    private val onCreatePlaylistRequest: (String, SourceNodeSelection?, List<SourceNodeSelection>) -> Unit,
+    private val playlistImportTarget: PlaylistImportTarget,
 ) : ViewModel() {
     private val _modalOpen = MutableStateFlow(false)
     private val _mode = MutableStateFlow(CreatePlaylistTab.Full)
@@ -118,11 +120,13 @@ class CreatePlaylistVM constructor(
     }
 
     fun finish() {
-        onCreatePlaylistRequest(
-            _name.value,
-            _cover.value,
-            _entries.value,
-        )
+        viewModelScope.launch {
+            playlistImportTarget.createPlaylistFromSelections(
+                title = _name.value,
+                cover = _cover.value,
+                entries = _entries.value,
+            )
+        }
     }
 }
 

@@ -25,9 +25,15 @@ kotlin {
             implementation(project(":core:domain"))
             implementation(project(":core:presentation"))
             implementation(project(":service:playback:domain"))
+            implementation(project(":service:download:domain"))
             implementation(libs.runtime)
             implementation(libs.foundation)
             implementation(libs.material3)
+            implementation(libs.components.resources)
+            implementation(libs.animation)
+            implementation(libs.koin.core)
+            implementation(libs.koin.compose.viewmodel)
+            implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.collections.immutable)
         }
         commonTest.dependencies {

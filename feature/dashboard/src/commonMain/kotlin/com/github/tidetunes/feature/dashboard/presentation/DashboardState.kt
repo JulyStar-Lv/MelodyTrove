@@ -8,6 +8,7 @@ import kotlinx.collections.immutable.persistentListOf
 @Immutable
 data class DashboardState(
     val sleepEnabled: Boolean = false,
+    val sleepRemainingMs: Long = 0L,
     val sleepHour: Int = 0,
     val sleepMinute: Int = 0,
     val importJobs: ImmutableList<ImportJobUi> = persistentListOf(),

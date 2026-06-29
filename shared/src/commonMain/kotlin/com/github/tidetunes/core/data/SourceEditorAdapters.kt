@@ -1,7 +1,7 @@
 package com.github.tidetunes.core.data
 
-import com.github.tidetunes.feature.sources.presentation.SourceEditorDraft
-import com.github.tidetunes.feature.sources.presentation.SourceEditorType
+import com.github.tidetunes.core.domain.model.SourceEditorDraft
+import com.github.tidetunes.core.domain.model.SourceEditorType
 import uniffi.tidetunes_core.ArgUpsertStorage
 import uniffi.tidetunes_core.Storage
 import uniffi.tidetunes_core.StorageId

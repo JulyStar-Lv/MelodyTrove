@@ -15,18 +15,6 @@ data class SourceEditorState(
     val oneDrive: OneDriveSourceEditorState = OneDriveSourceEditorState(),
 )
 
-enum class SourceEditorType {
-    WebDav,
-    OneDrive,
-}
-
-enum class SourceConnectionTestStatus {
-    None,
-    Testing,
-    Success,
-    Error,
-}
-
 @Immutable
 data class SourceEditorValidation(
     val addressEmpty: Boolean = false,
