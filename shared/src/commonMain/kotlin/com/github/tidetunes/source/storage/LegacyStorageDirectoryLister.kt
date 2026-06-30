@@ -1,6 +1,9 @@
 package com.github.tidetunes.source.storage
 
 import com.github.tidetunes.core.domain.model.SourceAccountId
+import com.github.tidetunes.core.domain.model.storageSourceAccountId
+import com.github.tidetunes.core.domain.model.toStorageRouteIdOrNull
+import com.github.tidetunes.source.api.LegacyStorageKind
 import com.github.tidetunes.source.api.SourceListFailureReason
 import com.github.tidetunes.source.api.SourceListResult
 import com.github.tidetunes.source.api.SourceNode
@@ -10,24 +13,20 @@ import uniffi.tidetunes_core.StorageEntry
 import uniffi.tidetunes_core.StorageId
 import uniffi.tidetunes_core.StorageType
 
-fun interface LegacyStorageDirectoryLister {
-    suspend fun list(
-        accountId: SourceAccountId,
-        directoryId: String?,
-        expectedType: StorageType,
-    ): SourceListResult
-}
-
 internal fun SourceAccountId.toLegacyStorageIdOrNull(): StorageId? {
-    return value
-        .takeIf { accountId -> accountId.startsWith(STORAGE_ACCOUNT_PREFIX) }
-        ?.removePrefix(STORAGE_ACCOUNT_PREFIX)
-        ?.toLongOrNull()
-        ?.let(::StorageId)
+    return toStorageRouteIdOrNull()?.let(::StorageId)
 }
 
 internal fun StorageId.toLegacyStorageSourceAccountId(): SourceAccountId {
-    return SourceAccountId("$STORAGE_ACCOUNT_PREFIX$value")
+    return storageSourceAccountId(value)
+}
+
+internal fun LegacyStorageKind.toStorageType(): StorageType {
+    return when (this) {
+        LegacyStorageKind.Local -> StorageType.LOCAL
+        LegacyStorageKind.WebDav -> StorageType.WEBDAV
+        LegacyStorageKind.OneDrive -> StorageType.ONE_DRIVE
+    }
 }
 
 internal fun ListStorageEntryChildrenResp.toSourceListResult(
@@ -83,7 +82,6 @@ private fun StorageEntry.sourceNodeType(): SourceNodeType {
     }
 }
 
-private const val STORAGE_ACCOUNT_PREFIX = "storage:"
 private val MUSIC_EXTENSIONS = arrayOf(
     ".wav",
     ".mp3",

@@ -3,6 +3,7 @@ package com.github.tidetunes.feature.playlist.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.tidetunes.core.domain.model.Artwork
+import com.github.tidetunes.core.domain.model.toStorageRouteIdOrNull
 import com.github.tidetunes.source.api.ImportRepository
 import com.github.tidetunes.source.api.PlaylistImportTarget
 import com.github.tidetunes.source.api.SourceNodeSelection
@@ -56,7 +57,7 @@ class CreatePlaylistVM constructor(
     val coverArtwork = _cover.map { cover ->
         cover?.let { sel ->
             Artwork.LegacyStorageEntry(
-                storageId = sel.accountId.toLegacyStorageId(),
+                storageId = sel.accountId.toStorageRouteIdOrNull() ?: 0L,
                 path = "/" + sel.node.path.trimStart('/'),
             )
         }
@@ -150,8 +151,4 @@ private fun decodeUrlComponent(value: String): String {
         }
     }
     return decoded.toString()
-}
-
-private fun com.github.tidetunes.core.domain.model.SourceAccountId.toLegacyStorageId(): Long {
-    return value.removePrefix("storage:").toLongOrNull() ?: 0L
 }

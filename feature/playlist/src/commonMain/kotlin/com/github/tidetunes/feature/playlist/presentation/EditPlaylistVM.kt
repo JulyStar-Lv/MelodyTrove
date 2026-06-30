@@ -4,6 +4,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.tidetunes.core.domain.model.Artwork
+import com.github.tidetunes.core.domain.model.toStorageRouteIdOrNull
+import com.github.tidetunes.feature.playlist.domain.EditPlaylistGateway
 import com.github.tidetunes.source.api.ImportRepository
 import com.github.tidetunes.source.api.SourceNodeSelection
 import com.github.tidetunes.source.api.SourceNodeType
@@ -15,15 +17,9 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlin.collections.firstOrNull
 
-data class PlaylistMetaToEdit(
-    val title: String,
-    val coverSelection: SourceNodeSelection?,
-)
-
 class EditPlaylistVM constructor(
     private val importRepository: ImportRepository,
-    private val onGetPlaylistMetaToEdit: (Long) -> PlaylistMetaToEdit?,
-    private val onUpdatePlaylistRequest: (id: Long, title: String, cover: SourceNodeSelection?) -> Unit,
+    private val editPlaylistGateway: EditPlaylistGateway,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
     private val _id: Long = savedStateHandle["id"]!!
@@ -35,7 +31,7 @@ class EditPlaylistVM constructor(
     val coverArtwork = _cover.map { cover ->
         cover?.let { sel ->
             Artwork.LegacyStorageEntry(
-                storageId = sel.accountId.toLegacyStorageId(),
+                storageId = sel.accountId.toStorageRouteIdOrNull() ?: 0L,
                 path = "/" + sel.node.path.trimStart('/'),
             )
         }
@@ -61,7 +57,7 @@ class EditPlaylistVM constructor(
     fun openModal() {
         _modalOpen.value = true
 
-        val meta = onGetPlaylistMetaToEdit(_id)
+        val meta = editPlaylistGateway.getPlaylistMetaToEdit(_id)
         if (meta != null) {
             _name.value = meta.title
             _cover.value = meta.coverSelection
@@ -85,11 +81,7 @@ class EditPlaylistVM constructor(
     }
 
     fun finish() {
-        onUpdatePlaylistRequest(_id, _name.value, _cover.value)
+        editPlaylistGateway.updatePlaylist(_id, _name.value, _cover.value)
         closeModal()
     }
-}
-
-private fun com.github.tidetunes.core.domain.model.SourceAccountId.toLegacyStorageId(): Long {
-    return value.removePrefix("storage:").toLongOrNull() ?: 0L
 }

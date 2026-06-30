@@ -10,7 +10,7 @@ import com.github.tidetunes.database.TrackEntity
 import com.github.tidetunes.singleton.Bridge
 import com.github.tidetunes.singleton.RoomLibraryStore
 import com.github.tidetunes.core.data.StorageRepositoryImpl
-import com.github.tidetunes.source.storage.toLegacyStorageArtworkTarget
+import com.github.tidetunes.source.api.toLegacyStorageArtworkTarget
 import com.github.tidetunes.source.storage.toLegacyStorageIdOrNull
 import uniffi.tidetunes_core.MusicId
 import uniffi.tidetunes_core.StorageEntryLoc

@@ -6,24 +6,27 @@ import com.github.tidetunes.source.storage.RemoteScannerRepository
 import com.github.tidetunes.core.data.StorageRepositoryImpl
 import com.github.tidetunes.core.domain.repository.StorageRepository
 import com.github.tidetunes.source.api.MusicSourceRegistry
+import com.github.tidetunes.source.api.LegacyStorageConnectionTester
+import com.github.tidetunes.source.api.LegacyStorageDirectoryLister
+import com.github.tidetunes.source.api.LegacyStoragePlaybackResolver
+import com.github.tidetunes.source.api.LegacyStorageSearchProvider
 import com.github.tidetunes.source.api.SourceListFailureReason
 import com.github.tidetunes.source.api.SourceListResult
 import com.github.tidetunes.source.local.LocalMusicSource
 import com.github.tidetunes.source.onedrive.OneDriveMusicSource
 import com.github.tidetunes.source.storage.BridgeLegacyPlaybackSessionFactory
-import com.github.tidetunes.source.storage.LegacyStorageConnectionTester
-import com.github.tidetunes.source.storage.LegacyStorageDirectoryLister
 import com.github.tidetunes.source.storage.LegacyPlaybackSessionFactory
 import com.github.tidetunes.source.storage.LegacyStorageLookup
-import com.github.tidetunes.source.storage.LegacyStoragePlaybackResolver
-import com.github.tidetunes.source.storage.LegacyStorageSearchProvider
 import com.github.tidetunes.source.storage.LiveStorageSearchProvider
 import com.github.tidetunes.source.storage.LiveStorageLookup
 import com.github.tidetunes.source.storage.RetainedLegacyStoragePlaybackResolver
 import com.github.tidetunes.source.storage.RoomLegacyStorageSearchProvider
 import com.github.tidetunes.source.storage.StorageDirectoryLister
+import com.github.tidetunes.source.storage.toArgUpsertStorage
 import com.github.tidetunes.source.storage.toLegacyStorageIdOrNull
 import com.github.tidetunes.source.storage.toSourceListResult
+import com.github.tidetunes.source.storage.toSourceAuthResult
+import com.github.tidetunes.source.storage.toStorageType
 import com.github.tidetunes.source.webdav.WebDavMusicSource
 import org.koin.dsl.module
 import org.koin.core.qualifier.named
@@ -50,14 +53,15 @@ val sourceDataModule = module {
     }
     single<LegacyStorageConnectionTester> {
         val storageRepository = get<StorageRepositoryImpl>()
-        LegacyStorageConnectionTester { arg ->
-            storageRepository.test(arg)
+        LegacyStorageConnectionTester { request ->
+            storageRepository.test(request.toArgUpsertStorage()).toSourceAuthResult()
         }
     }
     single<LegacyStorageDirectoryLister> {
         val storageRepository = get<StorageRepositoryImpl>()
         val remoteScannerRepository = get<RemoteScannerRepository>()
-        LegacyStorageDirectoryLister { accountId, directoryId, expectedType ->
+        LegacyStorageDirectoryLister { accountId, directoryId, expectedStorageKind ->
+            val expectedType = expectedStorageKind.toStorageType()
             val storageId = accountId.toLegacyStorageIdOrNull()
                 ?: return@LegacyStorageDirectoryLister SourceListResult.Failure(
                     SourceListFailureReason.UnsupportedAccount

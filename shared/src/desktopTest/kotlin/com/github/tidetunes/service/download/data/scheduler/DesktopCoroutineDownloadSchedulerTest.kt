@@ -8,6 +8,8 @@ import com.github.tidetunes.service.download.domain.DownloadStatus
 import com.github.tidetunes.service.download.domain.DownloadTask
 import com.github.tidetunes.service.download.domain.DownloadTaskId
 import com.github.tidetunes.service.download.domain.DownloadTaskRepository
+import com.github.tidetunes.source.api.LegacyStorageKind
+import com.github.tidetunes.source.api.LegacyStoragePlaybackResolver
 import com.github.tidetunes.source.api.MusicSource
 import com.github.tidetunes.source.api.MusicSourceDescriptor
 import com.github.tidetunes.source.api.MusicSourceRegistry
@@ -22,7 +24,6 @@ import com.github.tidetunes.source.api.SourcePlaybackFailureReason
 import com.github.tidetunes.source.api.SourcePlaybackResult
 import com.github.tidetunes.source.api.SourceSearchFailureReason
 import com.github.tidetunes.source.api.SourceSearchResult
-import com.github.tidetunes.source.storage.LegacyStoragePlaybackResolver
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -192,7 +193,7 @@ private class RecordingLegacyStoragePlaybackResolver : LegacyStoragePlaybackReso
     override suspend fun resolve(
         accountId: SourceAccountId,
         path: String,
-        expectedStorageType: uniffi.tidetunes_core.StorageType,
+        expectedStorageKind: LegacyStorageKind,
     ): SourcePlaybackResult {
         return SourcePlaybackResult.Failure(SourcePlaybackFailureReason.Unavailable)
     }

@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.compose.viewmodel.koinViewModel
-import com.github.tidetunes.feature.settings.presentation.ToastVM
+import com.github.tidetunes.core.presentation.overlay.ToastVM
 
 @Composable
 fun ToastFrame(

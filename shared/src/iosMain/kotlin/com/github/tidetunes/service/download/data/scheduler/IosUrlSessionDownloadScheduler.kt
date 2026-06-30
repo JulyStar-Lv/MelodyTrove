@@ -7,10 +7,10 @@ import com.github.tidetunes.service.download.domain.DownloadTaskId
 import com.github.tidetunes.service.download.domain.DownloadTaskRepository
 import com.github.tidetunes.service.download.domain.DownloadTaskScheduler
 import com.github.tidetunes.service.download.domain.canTransitionTo
+import com.github.tidetunes.source.api.LegacyStoragePlaybackResolver
 import com.github.tidetunes.source.api.PlaybackResource
 import com.github.tidetunes.source.api.MusicSourceRegistry
 import com.github.tidetunes.source.api.SourcePlaybackResult
-import com.github.tidetunes.source.storage.LegacyStoragePlaybackResolver
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope

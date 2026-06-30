@@ -5,6 +5,7 @@ import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNull
 
 class IdentifiersTest {
     @Test
@@ -36,5 +37,14 @@ class IdentifiersTest {
                 remoteId = "",
             )
         }
+    }
+
+    @Test
+    fun storageSourceAccountIdRoundTripsNumericId() {
+        val accountId = storageSourceAccountId(42)
+
+        assertEquals(SourceAccountId("storage:42"), accountId)
+        assertEquals(42, accountId.toStorageRouteIdOrNull())
+        assertNull(SourceAccountId("webdav:42").toStorageRouteIdOrNull())
     }
 }

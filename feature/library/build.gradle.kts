@@ -28,6 +28,7 @@ kotlin {
             implementation(libs.runtime)
             implementation(libs.foundation)
             implementation(libs.material3)
+            implementation(libs.androidx.navigation.compose)
             implementation(libs.koin.core)
             implementation(libs.koin.compose)
             implementation(libs.koin.compose.viewmodel)

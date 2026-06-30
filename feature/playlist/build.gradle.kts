@@ -32,6 +32,7 @@ kotlin {
             implementation(libs.material3)
             implementation(libs.components.resources)
             implementation(libs.animation)
+            implementation(libs.androidx.navigation.compose)
             implementation(libs.koin.core)
             implementation(libs.koin.compose)
             implementation(libs.koin.compose.viewmodel)

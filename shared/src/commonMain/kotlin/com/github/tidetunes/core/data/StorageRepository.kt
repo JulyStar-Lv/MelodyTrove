@@ -9,8 +9,8 @@ import com.github.tidetunes.core.domain.model.SourceConnectionTestStatus
 import com.github.tidetunes.core.domain.model.SourceEditorDraft
 import com.github.tidetunes.core.domain.model.SourceEditorStorageState
 import com.github.tidetunes.core.domain.model.SourceEditorType
+import com.github.tidetunes.core.domain.model.storageSourceAccountId
 import com.github.tidetunes.core.domain.model.toStorageRouteIdOrNull
-import com.github.tidetunes.core.domain.model.STORAGE_ACCOUNT_PREFIX
 import com.github.tidetunes.core.domain.repository.StorageRepository
 import com.github.tidetunes.database.StorageDao
 import com.github.tidetunes.singleton.Bridge
@@ -233,7 +233,7 @@ class StorageRepositoryImpl(
     override suspend fun loadEditorState(id: Long): SourceEditorStorageState? {
         val storage = _storages.value.find { it.id.value == id } ?: return null
         val credential = loadCredential(StorageId(id))
-        val accountId = SourceAccountId("$STORAGE_ACCOUNT_PREFIX$id")
+        val accountId = storageSourceAccountId(id)
         return SourceEditorStorageState(
             accountId = accountId,
             draft = storage.copy(password = "").toSourceEditorDraft(),
@@ -284,11 +284,7 @@ class StorageRepositoryImpl(
     }
 
     private fun SourceAccountId.toStorageIdOrNull(): StorageId? {
-        return value
-            .takeIf { it.startsWith(STORAGE_ACCOUNT_PREFIX) }
-            ?.removePrefix(STORAGE_ACCOUNT_PREFIX)
-            ?.toLongOrNull()
-            ?.let { StorageId(it) }
+        return toStorageRouteIdOrNull()?.let { StorageId(it) }
     }
 
 
@@ -308,7 +304,7 @@ fun Storage.toStorageAccountInfo(): StorageAccountInfo {
         StorageType.ONE_DRIVE -> BuiltInSourceIds.OneDrive
     }
     return StorageAccountInfo(
-        accountId = SourceAccountId("storage:${id.value}"),
+        accountId = storageSourceAccountId(id.value),
         sourceId = sourceId,
         isLocal = typ == StorageType.LOCAL,
         isOneDrive = typ == StorageType.ONE_DRIVE,
@@ -336,5 +332,5 @@ fun StorageConnectionTestResult.toSourceConnectionTestStatus(): SourceConnection
 }
 
 fun uniffi.tidetunes_core.StorageId.toSourceAccountId(): SourceAccountId {
-    return SourceAccountId("$STORAGE_ACCOUNT_PREFIX$value")
+    return storageSourceAccountId(value)
 }

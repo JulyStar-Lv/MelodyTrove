@@ -3,10 +3,12 @@ package com.github.tidetunes.core.data
 import com.github.tidetunes.core.domain.model.Artwork
 import com.github.tidetunes.core.domain.model.SourceAccountId
 import com.github.tidetunes.core.domain.model.SourceId
+import com.github.tidetunes.core.domain.model.storageSourceAccountId
+import com.github.tidetunes.core.domain.model.toStorageRouteIdOrNull
 import com.github.tidetunes.source.api.SourceNode
 import com.github.tidetunes.source.api.SourceNodeSelection
 import com.github.tidetunes.source.api.SourceNodeType
-import com.github.tidetunes.source.storage.legacyStorageArtworkMediaId
+import com.github.tidetunes.source.api.legacyStorageArtworkMediaId
 import com.github.tidetunes.source.storage.toBuiltInSourceId
 import uniffi.tidetunes_core.Storage
 import uniffi.tidetunes_core.StorageEntry
@@ -42,7 +44,7 @@ fun SourceNodeSelection.toLegacyStorageEntryLoc(): StorageEntryLoc? {
 fun StorageEntryLoc.toSourceNodeSelection(storages: List<Storage>): SourceNodeSelection? {
     if (path.isBlank()) return null
     val storage = storages.firstOrNull { storage -> storage.id == storageId }
-    val accountId = SourceAccountId("$LEGACY_STORAGE_ACCOUNT_PREFIX${storageId.value}")
+    val accountId = storageSourceAccountId(storageId.value)
     return SourceNodeSelection(
         sourceId = storage?.typ?.toBuiltInSourceId() ?: UNKNOWN_LEGACY_STORAGE_SOURCE_ID,
         accountId = accountId,
@@ -69,12 +71,7 @@ fun SourceNodeSelection.toLegacyStorageArtwork(): Artwork? {
 }
 
 private fun SourceAccountId.toLegacyStorageIdOrNull(): StorageId? {
-    return value
-        .takeIf { accountId -> accountId.startsWith(LEGACY_STORAGE_ACCOUNT_PREFIX) }
-        ?.removePrefix(LEGACY_STORAGE_ACCOUNT_PREFIX)
-        ?.toLongOrNull()
-        ?.let(::StorageId)
+    return toStorageRouteIdOrNull()?.let(::StorageId)
 }
 
-private const val LEGACY_STORAGE_ACCOUNT_PREFIX = "storage:"
 private val UNKNOWN_LEGACY_STORAGE_SOURCE_ID = SourceId("legacy-storage")

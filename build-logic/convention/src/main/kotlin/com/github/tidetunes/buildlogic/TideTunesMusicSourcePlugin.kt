@@ -11,7 +11,6 @@ class TideTunesMusicSourcePlugin : Plugin<Project> {
     override fun apply(target: Project) {
         with(target) {
             plugins.apply("com.github.tidetunes.convention.kmp.library")
-            plugins.apply("com.github.tidetunes.convention.cmp.library")
         }
     }
 }

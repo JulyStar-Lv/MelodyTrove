@@ -4,6 +4,12 @@ import com.github.tidetunes.core.domain.model.MediaId
 import com.github.tidetunes.core.domain.model.MediaType
 import com.github.tidetunes.core.domain.model.SourceAccountId
 import com.github.tidetunes.source.api.BuiltInSourceIds
+import com.github.tidetunes.source.api.LegacyStorageConnectionRequest
+import com.github.tidetunes.source.api.LegacyStorageConnectionTester
+import com.github.tidetunes.source.api.LegacyStorageDirectoryLister
+import com.github.tidetunes.source.api.LegacyStorageKind
+import com.github.tidetunes.source.api.LegacyStoragePlaybackResolver
+import com.github.tidetunes.source.api.LegacyStorageSearchProvider
 import com.github.tidetunes.source.api.LocalSourceConfiguration
 import com.github.tidetunes.source.api.MusicSource
 import com.github.tidetunes.source.api.OneDriveSourceConfiguration
@@ -18,6 +24,7 @@ import com.github.tidetunes.source.api.SourcePlaybackFailureReason
 import com.github.tidetunes.source.api.SourcePlaybackResult
 import com.github.tidetunes.source.api.SourceSearchResult
 import com.github.tidetunes.source.api.WebDavSourceConfiguration
+import com.github.tidetunes.source.api.legacyStorageTrackMediaId
 import com.github.tidetunes.source.local.LocalMusicSource
 import com.github.tidetunes.source.onedrive.OneDriveMusicSource
 import com.github.tidetunes.source.webdav.WebDavMusicSource
@@ -28,10 +35,8 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import uniffi.tidetunes_core.ArgUpsertStorage
 import uniffi.tidetunes_core.ListStorageEntryChildrenResp
 import uniffi.tidetunes_core.Storage
-import uniffi.tidetunes_core.StorageConnectionTestResult
 import uniffi.tidetunes_core.StorageEntry
 import uniffi.tidetunes_core.StorageId
 import uniffi.tidetunes_core.StorageType
@@ -39,11 +44,11 @@ import uniffi.tidetunes_core.StorageType
 class LegacyStorageMusicSourceTest {
     @Test
     fun webDavAuthenticationUsesLegacyStorageConnectionTest() = runBlocking {
-        var captured: ArgUpsertStorage? = null
+        var captured: LegacyStorageConnectionRequest? = null
         val source = WebDavMusicSource(
-            connectionTester = LegacyStorageConnectionTester { arg ->
-                captured = arg
-                StorageConnectionTestResult.SUCCESS
+            connectionTester = LegacyStorageConnectionTester { request ->
+                captured = request
+                SourceAuthResult.Success
             },
             directoryLister = unusedDirectoryLister(),
             playbackResolver = unusedPlaybackResolver(),
@@ -61,23 +66,22 @@ class LegacyStorageMusicSourceTest {
         )
 
         assertEquals(SourceAuthResult.Success, result)
-        val arg = assertNotNull(captured)
-        assertNull(arg.id)
-        assertEquals("https://dav.example.com/music", arg.addr)
-        assertEquals("NAS", arg.alias)
-        assertEquals("alice", arg.username)
-        assertEquals("secret-password", arg.password)
-        assertFalse(arg.isAnonymous)
-        assertEquals(StorageType.WEBDAV, arg.typ)
+        val request = assertNotNull(captured)
+        assertEquals("https://dav.example.com/music", request.address)
+        assertEquals("NAS", request.alias)
+        assertEquals("alice", request.username)
+        assertEquals("secret-password", request.password)
+        assertFalse(request.isAnonymous)
+        assertEquals(LegacyStorageKind.WebDav, request.kind)
     }
 
     @Test
     fun oneDriveAuthenticationMapsLegacyFailure() = runBlocking {
-        var captured: ArgUpsertStorage? = null
+        var captured: LegacyStorageConnectionRequest? = null
         val source = OneDriveMusicSource(
-            connectionTester = LegacyStorageConnectionTester { arg ->
-                captured = arg
-                StorageConnectionTestResult.UNAUTHORIZED
+            connectionTester = LegacyStorageConnectionTester { request ->
+                captured = request
+                SourceAuthResult.Failure(SourceAuthFailureReason.Unauthorized)
             },
             directoryLister = unusedDirectoryLister(),
             playbackResolver = unusedPlaybackResolver(),
@@ -96,14 +100,13 @@ class LegacyStorageMusicSourceTest {
             SourceAuthResult.Failure(SourceAuthFailureReason.Unauthorized),
             result,
         )
-        val arg = assertNotNull(captured)
-        assertNull(arg.id)
-        assertEquals("drive-123", arg.addr)
-        assertEquals("OneDrive", arg.alias)
-        assertEquals("", arg.username)
-        assertEquals("refresh-token", arg.password)
-        assertFalse(arg.isAnonymous)
-        assertEquals(StorageType.ONE_DRIVE, arg.typ)
+        val request = assertNotNull(captured)
+        assertEquals("drive-123", request.address)
+        assertEquals("OneDrive", request.alias)
+        assertEquals("", request.username)
+        assertEquals("refresh-token", request.password)
+        assertFalse(request.isAnonymous)
+        assertEquals(LegacyStorageKind.OneDrive, request.kind)
     }
 
     @Test
@@ -150,9 +153,9 @@ class LegacyStorageMusicSourceTest {
     @Test
     fun musicSourcesListWithExpectedLegacyStorageTypes() = runBlocking {
         val accountId = SourceAccountId("storage:42")
-        val captured = mutableListOf<StorageType>()
-        val directoryLister = LegacyStorageDirectoryLister { _, _, expectedType ->
-            captured += expectedType
+        val captured = mutableListOf<LegacyStorageKind>()
+        val directoryLister = LegacyStorageDirectoryLister { _, _, expectedKind ->
+            captured += expectedKind
             SourceListResult.Success(emptyList())
         }
 
@@ -169,7 +172,7 @@ class LegacyStorageMusicSourceTest {
         ).list(accountId, "Albums")
 
         assertEquals(
-            listOf(StorageType.LOCAL, StorageType.WEBDAV, StorageType.ONE_DRIVE),
+            listOf(LegacyStorageKind.Local, LegacyStorageKind.WebDav, LegacyStorageKind.OneDrive),
             captured,
         )
     }
@@ -177,11 +180,11 @@ class LegacyStorageMusicSourceTest {
     @Test
     fun builtInStorageSourcesAdvertiseSearchAndDelegateToLegacySearchProvider() = runBlocking {
         val accountId = SourceAccountId("storage:42")
-        val captured = mutableListOf<Pair<StorageType, String>>()
-        val searchProvider = LegacyStorageSearchProvider { _, query, limit, expectedType, sourceId ->
+        val captured = mutableListOf<Pair<LegacyStorageKind, String>>()
+        val searchProvider = LegacyStorageSearchProvider { _, query, limit, expectedKind, sourceId ->
             assertEquals("moon", query)
             assertEquals(5, limit)
-            captured += expectedType to sourceId.value
+            captured += expectedKind to sourceId.value
             SourceSearchResult.Success(emptyList())
         }
         val sources: List<MusicSource> = listOf(
@@ -213,9 +216,9 @@ class LegacyStorageMusicSourceTest {
         }
         assertEquals(
             listOf(
-                StorageType.LOCAL to BuiltInSourceIds.Local.value,
-                StorageType.WEBDAV to BuiltInSourceIds.WebDav.value,
-                StorageType.ONE_DRIVE to BuiltInSourceIds.OneDrive.value,
+                LegacyStorageKind.Local to BuiltInSourceIds.Local.value,
+                LegacyStorageKind.WebDav to BuiltInSourceIds.WebDav.value,
+                LegacyStorageKind.OneDrive to BuiltInSourceIds.OneDrive.value,
             ),
             captured,
         )
@@ -224,18 +227,18 @@ class LegacyStorageMusicSourceTest {
     @Test
     fun musicSourcesResolvePlaybackWithExpectedLegacyStorageTypes() = runBlocking {
         val accountId = SourceAccountId("storage:42")
-        val captured = mutableListOf<Triple<SourceAccountId, String, StorageType>>()
+        val captured = mutableListOf<Triple<SourceAccountId, String, LegacyStorageKind>>()
         val playbackResolver = object : LegacyStoragePlaybackResolver {
             override suspend fun resolve(
                 accountId: SourceAccountId,
                 path: String,
-                expectedStorageType: StorageType,
+                expectedStorageKind: LegacyStorageKind,
             ): SourcePlaybackResult {
-                captured += Triple(accountId, path, expectedStorageType)
+                captured += Triple(accountId, path, expectedStorageKind)
                 return SourcePlaybackResult.Success(
                     PlaybackResource(
-                        uri = "http://127.0.0.1/${expectedStorageType.name}",
-                        isLocal = expectedStorageType == StorageType.LOCAL,
+                        uri = "http://127.0.0.1/${expectedStorageKind.name}",
+                        isLocal = expectedStorageKind == LegacyStorageKind.Local,
                     )
                 )
             }
@@ -268,9 +271,9 @@ class LegacyStorageMusicSourceTest {
 
         assertEquals(
             listOf(
-                Triple(accountId, "/Local.flac", StorageType.LOCAL),
-                Triple(accountId, "/Music/WebDAV.mp3", StorageType.WEBDAV),
-                Triple(accountId, "/Cloud/OneDrive.m4a", StorageType.ONE_DRIVE),
+                Triple(accountId, "/Local.flac", LegacyStorageKind.Local),
+                Triple(accountId, "/Music/WebDAV.mp3", LegacyStorageKind.WebDav),
+                Triple(accountId, "/Cloud/OneDrive.m4a", LegacyStorageKind.OneDrive),
             ),
             captured,
         )
@@ -284,7 +287,7 @@ class LegacyStorageMusicSourceTest {
             override suspend fun resolve(
                 accountId: SourceAccountId,
                 path: String,
-                expectedStorageType: StorageType,
+                expectedStorageKind: LegacyStorageKind,
             ): SourcePlaybackResult {
                 resolveCalls += 1
                 return SourcePlaybackResult.Failure(SourcePlaybackFailureReason.Unavailable)
@@ -344,7 +347,7 @@ class LegacyStorageMusicSourceTest {
         val result = resolver.resolve(
             accountId = SourceAccountId("storage:42"),
             path = "/Music/Track.flac",
-            expectedStorageType = StorageType.WEBDAV,
+            expectedStorageKind = LegacyStorageKind.WebDav,
         )
         val resource = (result as SourcePlaybackResult.Success).resource
 
@@ -376,7 +379,7 @@ class LegacyStorageMusicSourceTest {
             resolver.resolve(
                 accountId = SourceAccountId("storage:42"),
                 path = "/Music/Track.mp3",
-                expectedStorageType = StorageType.WEBDAV,
+                expectedStorageKind = LegacyStorageKind.WebDav,
             ),
         )
         assertEquals(0, createCalls)
@@ -451,7 +454,7 @@ class LegacyStorageMusicSourceTest {
     }
 
     private fun unusedConnectionTester() = LegacyStorageConnectionTester {
-        StorageConnectionTestResult.OTHER_ERROR
+        SourceAuthResult.Failure(SourceAuthFailureReason.Unknown)
     }
 
     private fun unusedDirectoryLister() = LegacyStorageDirectoryLister { _, _, _ ->
@@ -462,7 +465,7 @@ class LegacyStorageMusicSourceTest {
         override suspend fun resolve(
             accountId: SourceAccountId,
             path: String,
-            expectedStorageType: StorageType,
+            expectedStorageKind: LegacyStorageKind,
         ): SourcePlaybackResult {
             return SourcePlaybackResult.Failure(SourcePlaybackFailureReason.Unavailable)
         }

@@ -2,6 +2,7 @@ package com.github.tidetunes.source.storage
 
 import com.github.tidetunes.core.domain.model.SourceAccountId
 import com.github.tidetunes.source.api.BuiltInSourceIds
+import com.github.tidetunes.source.api.LegacyStorageKind
 import com.github.tidetunes.source.api.SourceSearchFailureReason
 import com.github.tidetunes.source.api.SourceSearchResult
 import kotlinx.coroutines.runBlocking
@@ -33,7 +34,7 @@ class LiveStorageSearchProviderTest {
             accountId = SourceAccountId("storage:1"),
             query = "blues",
             limit = 10,
-            expectedStorageType = StorageType.LOCAL,
+            expectedStorageKind = LegacyStorageKind.Local,
             sourceId = BuiltInSourceIds.Local,
         )
 
@@ -55,7 +56,7 @@ class LiveStorageSearchProviderTest {
             accountId = SourceAccountId("storage:1"),
             query = "zzz_no_match",
             limit = 10,
-            expectedStorageType = StorageType.LOCAL,
+            expectedStorageKind = LegacyStorageKind.Local,
             sourceId = BuiltInSourceIds.Local,
         )
 
@@ -76,7 +77,7 @@ class LiveStorageSearchProviderTest {
             accountId = SourceAccountId("storage:1"),
             query = "song",
             limit = 2,
-            expectedStorageType = StorageType.LOCAL,
+            expectedStorageKind = LegacyStorageKind.Local,
             sourceId = BuiltInSourceIds.Local,
         )
 
@@ -99,7 +100,7 @@ class LiveStorageSearchProviderTest {
             accountId = SourceAccountId("storage:1"),
             query = "mp3",
             limit = 10,
-            expectedStorageType = StorageType.LOCAL,
+            expectedStorageKind = LegacyStorageKind.Local,
             sourceId = BuiltInSourceIds.Local,
         )
 
@@ -115,7 +116,7 @@ class LiveStorageSearchProviderTest {
             accountId = SourceAccountId("storage:1"),
             query = "song",
             limit = 10,
-            expectedStorageType = StorageType.WEBDAV,
+            expectedStorageKind = LegacyStorageKind.WebDav,
             sourceId = BuiltInSourceIds.WebDav,
         )
 
@@ -130,7 +131,7 @@ class LiveStorageSearchProviderTest {
             accountId = SourceAccountId("storage:1"),
             query = "   ",
             limit = 10,
-            expectedStorageType = StorageType.LOCAL,
+            expectedStorageKind = LegacyStorageKind.Local,
             sourceId = BuiltInSourceIds.Local,
         )
 
@@ -138,12 +139,12 @@ class LiveStorageSearchProviderTest {
     }
 
     private fun providerWithFiles(
-        storageId: Long,
+        storageIdValue: Long,
         entriesByPath: Map<String, List<StorageEntry>>,
     ): LiveStorageSearchProvider {
         val directoryLister = object : StorageDirectoryLister {
             override suspend fun listDirectory(
-                id: StorageId,
+                storageId: StorageId,
                 path: String,
             ): ListStorageEntryChildrenResp {
                 val normalized = if (path == "/") "/" else path.trimEnd('/')
@@ -152,9 +153,9 @@ class LiveStorageSearchProviderTest {
             }
         }
         val storageLookup = LiveStorageLookup { id ->
-            if (id.value == storageId) {
+            if (id.value == storageIdValue) {
                 Storage(
-                    id = StorageId(storageId),
+                    id = StorageId(storageIdValue),
                     addr = "/test",
                     alias = "Test",
                     username = "",

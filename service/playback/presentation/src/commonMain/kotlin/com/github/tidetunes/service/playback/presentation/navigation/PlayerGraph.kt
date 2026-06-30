@@ -1,0 +1,21 @@
+package com.github.tidetunes.service.playback.presentation.navigation
+
+import com.github.tidetunes.core.presentation.navigation.MusicGraph
+import com.github.tidetunes.service.playback.presentation.nowplaying.NowPlayingRoot
+import com.github.tidetunes.service.playback.presentation.sleep.TimeToPauseModal
+
+import androidx.navigation.NavGraphBuilder
+import androidx.navigation.compose.composable
+
+fun NavGraphBuilder.playerGraph(
+    onNavigateBack: () -> Unit,
+    onNavigateToLyricImport: () -> Unit,
+) {
+    composable<MusicGraph.NowPlaying> {
+        NowPlayingRoot(
+            onNavigateBack = onNavigateBack,
+            onNavigateToLyricImport = onNavigateToLyricImport,
+        )
+        TimeToPauseModal()
+    }
+}

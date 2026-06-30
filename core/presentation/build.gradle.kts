@@ -30,9 +30,11 @@ kotlin {
             implementation(compose.components.resources)
             implementation(compose.animation)
             implementation(libs.miuix.ui)
+            implementation(libs.koin.core)
             implementation(libs.koin.compose)
             implementation(libs.koin.compose.viewmodel)
             implementation(libs.kotlinx.coroutines.core)
+            implementation(libs.kotlinx.serialization.json)
             implementation(libs.kotlinx.collections.immutable)
         }
         androidMain.dependencies {

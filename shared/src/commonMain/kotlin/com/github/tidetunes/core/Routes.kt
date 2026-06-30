@@ -5,9 +5,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
-import com.github.tidetunes.navigation.MusicGraph
-import com.github.tidetunes.navigation.NEW_STORAGE_ID
-import com.github.tidetunes.navigation.routeIsHome
+import com.github.tidetunes.core.presentation.navigation.MusicGraph
+import com.github.tidetunes.core.presentation.navigation.NEW_STORAGE_ID
+import com.github.tidetunes.core.presentation.navigation.routeIsHome
 
 fun RouteHome(): MusicGraph.Home {
     return MusicGraph.Home

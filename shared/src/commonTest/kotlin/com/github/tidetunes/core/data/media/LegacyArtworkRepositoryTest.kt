@@ -6,7 +6,7 @@ import com.github.tidetunes.core.domain.model.SourceAccountId
 import com.github.tidetunes.database.ArtworkEntity
 import com.github.tidetunes.database.TrackEntity
 import com.github.tidetunes.source.api.BuiltInSourceIds
-import com.github.tidetunes.source.storage.legacyStorageArtworkMediaId
+import com.github.tidetunes.source.api.legacyStorageArtworkMediaId
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals

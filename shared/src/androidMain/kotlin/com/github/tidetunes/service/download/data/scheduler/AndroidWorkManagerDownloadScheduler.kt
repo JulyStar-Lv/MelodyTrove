@@ -18,10 +18,10 @@ import com.github.tidetunes.service.download.domain.DownloadTaskRepository
 import com.github.tidetunes.service.download.domain.DownloadTaskScheduler
 import com.github.tidetunes.service.download.domain.canTransitionTo
 import com.github.tidetunes.source.api.BuiltInSourceIds
+import com.github.tidetunes.source.api.LegacyStoragePlaybackResolver
 import com.github.tidetunes.source.api.MusicSourceRegistry
 import com.github.tidetunes.source.api.PlaybackResource
 import com.github.tidetunes.source.api.SourcePlaybackResult
-import com.github.tidetunes.source.storage.LegacyStoragePlaybackResolver
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive

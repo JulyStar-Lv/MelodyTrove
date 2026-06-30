@@ -14,9 +14,10 @@ import com.github.tidetunes.source.api.SourceConfiguration
 import com.github.tidetunes.source.api.SourceListResult
 import com.github.tidetunes.source.api.SourcePlaybackFailureReason
 import com.github.tidetunes.source.api.SourcePlaybackResult
+import com.github.tidetunes.source.api.LegacyStorageKind
+import com.github.tidetunes.source.api.LegacyStoragePlaybackResolver
+import com.github.tidetunes.source.api.legacyStorageTrackMediaId
 import com.github.tidetunes.source.storage.LegacyStorageLookup
-import com.github.tidetunes.source.storage.LegacyStoragePlaybackResolver
-import com.github.tidetunes.source.storage.legacyStorageTrackMediaId
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -90,7 +91,7 @@ class PlaybackResourceResolverTest {
                 override suspend fun resolve(
                     accountId: SourceAccountId,
                     path: String,
-                    expectedStorageType: StorageType,
+                    expectedStorageKind: LegacyStorageKind,
                 ): SourcePlaybackResult {
                     return SourcePlaybackResult.Failure(SourcePlaybackFailureReason.Unavailable)
                 }
@@ -135,7 +136,7 @@ class PlaybackResourceResolverTest {
         override suspend fun resolve(
             accountId: SourceAccountId,
             path: String,
-            expectedStorageType: StorageType,
+            expectedStorageKind: LegacyStorageKind,
         ): SourcePlaybackResult {
             return SourcePlaybackResult.Failure(SourcePlaybackFailureReason.Unavailable)
         }

@@ -1,12 +1,21 @@
 package com.github.tidetunes.source.storage
 
+import com.github.tidetunes.source.api.LegacyStorageConnectionRequest
 import com.github.tidetunes.source.api.SourceAuthFailureReason
 import com.github.tidetunes.source.api.SourceAuthResult
 import uniffi.tidetunes_core.ArgUpsertStorage
 import uniffi.tidetunes_core.StorageConnectionTestResult
 
-fun interface LegacyStorageConnectionTester {
-    suspend fun test(arg: ArgUpsertStorage): StorageConnectionTestResult
+internal fun LegacyStorageConnectionRequest.toArgUpsertStorage(): ArgUpsertStorage {
+    return ArgUpsertStorage(
+        id = null,
+        addr = address,
+        alias = alias,
+        username = username,
+        password = password,
+        isAnonymous = isAnonymous,
+        typ = kind.toStorageType(),
+    )
 }
 
 internal fun StorageConnectionTestResult.toSourceAuthResult(): SourceAuthResult {

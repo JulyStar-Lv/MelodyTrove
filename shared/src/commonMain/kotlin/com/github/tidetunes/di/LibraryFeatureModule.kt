@@ -9,16 +9,12 @@ import com.github.tidetunes.core.domain.repository.LibraryRepository
 import com.github.tidetunes.core.domain.repository.BrowseRepository
 import com.github.tidetunes.core.data.BrowseRepositoryImpl
 import com.github.tidetunes.core.data.LibraryRepositoryImpl
+import com.github.tidetunes.core.data.LegacyEditPlaylistGateway
 import com.github.tidetunes.core.data.PlaylistImportTargetImpl
 import com.github.tidetunes.core.data.PlaylistRepositoryImpl
-import com.github.tidetunes.feature.playlist.presentation.PlaylistMetaToEdit
-import com.github.tidetunes.core.data.StorageRepositoryImpl
-import com.github.tidetunes.core.data.UpdatePlaylistRequest
-import com.github.tidetunes.core.data.toSourceNodeSelection
-import com.github.tidetunes.source.api.ImportRepository
 import com.github.tidetunes.source.api.PlaylistImportTarget
-import com.github.tidetunes.feature.importing.data.ImportRepositoryImpl
 import com.github.tidetunes.core.domain.repository.PlaylistRepository
+import com.github.tidetunes.feature.playlist.domain.EditPlaylistGateway
 import com.github.tidetunes.feature.onboarding.di.onboardingFeatureModule
 import com.github.tidetunes.feature.queue.di.queueFeatureModule
 import com.github.tidetunes.core.data.TrackBrowserRepositoryImpl
@@ -27,7 +23,6 @@ import com.github.tidetunes.feature.browse.di.browseFeatureDiModule
 import com.github.tidetunes.feature.radio.di.radioFeatureDiModule
 import com.github.tidetunes.feature.recentlyadded.di.recentlyAddedFeatureDiModule
 import com.github.tidetunes.feature.recentlyplayed.di.recentlyPlayedFeatureDiModule
-import com.github.tidetunes.feature.playlist.presentation.EditPlaylistVM
 import com.github.tidetunes.feature.library.di.libraryFeatureDiModule
 import com.github.tidetunes.core.data.AlbumDetailRepositoryImpl
 import com.github.tidetunes.core.data.ArtistDetailRepositoryImpl
@@ -39,7 +34,6 @@ import com.github.tidetunes.feature.album.di.albumFeatureDiModule
 import com.github.tidetunes.feature.artist.di.artistFeatureDiModule
 import com.github.tidetunes.feature.lyrics.di.lyricsFeatureDiModule
 import com.github.tidetunes.feature.playlist.di.playlistsFeatureDiModule
-import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
 val libraryFeatureModule = module {
@@ -58,41 +52,12 @@ val libraryFeatureModule = module {
     single<LyricsRepository> { LyricsRepositoryImpl(get(), get()) }
     single<AlbumDetailRepository> { AlbumDetailRepositoryImpl(get(), get(), get()) }
     single<ArtistDetailRepository> { ArtistDetailRepositoryImpl(get(), get(), get()) }
-    single<PlaylistRepository> { PlaylistRepositoryImpl(get(), get(), get(), get(), get()) }
+    single { PlaylistRepositoryImpl(get(), get(), get(), get(), get()) }
+    single<PlaylistRepository> { get<PlaylistRepositoryImpl>() }
+    single<EditPlaylistGateway> { LegacyEditPlaylistGateway(get(), get()) }
     single<PlaylistImportTarget> { PlaylistImportTargetImpl(get()) }
-    single<ImportRepository> { ImportRepositoryImpl() }
 
     includes(playlistsFeatureDiModule)
-
-    viewModel { parameters ->
-        val playlistRepo = get<PlaylistRepositoryImpl>()
-        val storageRepo = get<StorageRepositoryImpl>()
-        EditPlaylistVM(
-            importRepository = get<ImportRepository>(),
-            onGetPlaylistMetaToEdit = { id ->
-                playlistRepo.playlists.value
-                    .find { it.meta.id.value == id }
-                    ?.let { item ->
-                        PlaylistMetaToEdit(
-                            title = item.meta.title,
-                            coverSelection = item.meta.cover?.toSourceNodeSelection(
-                                storageRepo.storages.value
-                            ),
-                        )
-                    }
-            },
-            onUpdatePlaylistRequest = { id, title, cover ->
-                playlistRepo.editPlaylist(
-                    UpdatePlaylistRequest(
-                        id = id,
-                        title = title,
-                        cover = cover,
-                    )
-                )
-            },
-            savedStateHandle = parameters.get(),
-        )
-    }
     includes(libraryFeatureDiModule)
     includes(radioFeatureDiModule)
     includes(recentlyAddedFeatureDiModule)

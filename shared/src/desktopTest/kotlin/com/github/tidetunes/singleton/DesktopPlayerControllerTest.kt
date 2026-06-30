@@ -26,6 +26,8 @@ import com.github.tidetunes.service.playback.domain.PlaybackEngineLoadRequest
 import com.github.tidetunes.service.playback.domain.PlaybackEngineLoadResult
 import com.github.tidetunes.service.playback.domain.PlaybackPosition
 import com.github.tidetunes.source.api.BuiltInSourceIds
+import com.github.tidetunes.source.api.LegacyStorageKind
+import com.github.tidetunes.source.api.LegacyStoragePlaybackResolver
 import com.github.tidetunes.source.api.MusicSource
 import com.github.tidetunes.source.api.MusicSourceDescriptor
 import com.github.tidetunes.source.api.MusicSourceRegistry
@@ -39,7 +41,6 @@ import com.github.tidetunes.source.api.SourceListResult
 import com.github.tidetunes.source.api.SourcePlaybackFailureReason
 import com.github.tidetunes.source.api.SourcePlaybackResult
 import com.github.tidetunes.source.storage.LegacyStorageLookup
-import com.github.tidetunes.source.storage.LegacyStoragePlaybackResolver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -193,6 +194,9 @@ class DesktopPlayerControllerTest {
                     _scope = scope,
                     playlistDao = database.playlistDao(),
                     roomLibraryStore = roomLibraryStore,
+                    storageLookup = LegacyStorageLookup {
+                        storage(id = STORAGE_ID, type = StorageType.WEBDAV)
+                    },
                 ),
                 storageRepository = storageRepository,
                 roomLibraryStore = roomLibraryStore,
@@ -403,7 +407,7 @@ private class RecordingLegacyPlaybackResolver : LegacyStoragePlaybackResolver {
     override suspend fun resolve(
         accountId: SourceAccountId,
         path: String,
-        expectedStorageType: StorageType,
+        expectedStorageKind: LegacyStorageKind,
     ): SourcePlaybackResult {
         return SourcePlaybackResult.Failure(SourcePlaybackFailureReason.Unavailable)
     }

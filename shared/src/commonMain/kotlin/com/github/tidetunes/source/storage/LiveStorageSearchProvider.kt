@@ -2,14 +2,16 @@ package com.github.tidetunes.source.storage
 
 import com.github.tidetunes.core.domain.model.SourceAccountId
 import com.github.tidetunes.core.domain.model.SourceId
+import com.github.tidetunes.source.api.LegacyStorageKind
+import com.github.tidetunes.source.api.LegacyStorageSearchProvider
 import com.github.tidetunes.source.api.SourceMediaItem
 import com.github.tidetunes.source.api.SourceSearchFailureReason
 import com.github.tidetunes.source.api.SourceSearchResult
+import com.github.tidetunes.source.api.legacyStorageTrackMediaId
 import uniffi.tidetunes_core.ListStorageEntryChildrenResp
 import uniffi.tidetunes_core.Storage
 import uniffi.tidetunes_core.StorageEntry
 import uniffi.tidetunes_core.StorageId
-import uniffi.tidetunes_core.StorageType
 
 internal fun interface LiveStorageLookup {
     suspend fun storageForRust(storageId: StorageId): Storage?
@@ -23,7 +25,7 @@ internal class LiveStorageSearchProvider(
         accountId: SourceAccountId,
         query: String,
         limit: Int,
-        expectedStorageType: StorageType,
+        expectedStorageKind: LegacyStorageKind,
         sourceId: SourceId,
     ): SourceSearchResult {
         val normalizedQuery = query.trim().lowercase()
@@ -35,6 +37,7 @@ internal class LiveStorageSearchProvider(
             ?: return SourceSearchResult.Failure(SourceSearchFailureReason.UnsupportedAccount)
         val storage = storageLookup.storageForRust(storageId)
             ?: return SourceSearchResult.Failure(SourceSearchFailureReason.UnsupportedAccount)
+        val expectedStorageType = expectedStorageKind.toStorageType()
         if (storage.typ != expectedStorageType) {
             return SourceSearchResult.Failure(SourceSearchFailureReason.UnsupportedAccount)
         }

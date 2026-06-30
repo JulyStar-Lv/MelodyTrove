@@ -36,6 +36,7 @@ kotlin {
             implementation(libs.koin.compose.viewmodel)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.collections.immutable)
+            implementation(libs.androidx.navigation.compose)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))

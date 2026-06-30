@@ -5,9 +5,9 @@ import com.github.tidetunes.source.api.MusicSourceRegistry
 import com.github.tidetunes.source.api.PlaybackResource
 import com.github.tidetunes.source.api.SourcePlaybackFailureReason
 import com.github.tidetunes.source.api.SourcePlaybackResult
+import com.github.tidetunes.source.api.LegacyStoragePlaybackResolver
 import com.github.tidetunes.source.storage.LegacyStorageLookup
-import com.github.tidetunes.source.storage.LegacyStoragePlaybackResolver
-import com.github.tidetunes.source.storage.legacyStorageTrackMediaId
+import com.github.tidetunes.source.api.legacyStorageTrackMediaId
 import com.github.tidetunes.source.storage.toLegacyStorageSourceAccountId
 import uniffi.tidetunes_core.Music
 import uniffi.tidetunes_core.StorageType

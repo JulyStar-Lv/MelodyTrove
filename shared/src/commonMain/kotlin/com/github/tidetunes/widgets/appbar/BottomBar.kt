@@ -15,8 +15,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,10 +23,7 @@ import androidx.compose.ui.unit.dp
 
 import com.github.tidetunes.core.presentation.components.dropShadow
 import com.github.tidetunes.navigation.HomeTab
-import com.github.tidetunes.service.playback.presentation.PlayerVM
-import com.github.tidetunes.service.playback.presentation.miniplayer.MiniPlayer
 import org.jetbrains.compose.resources.painterResource
-import org.koin.compose.viewmodel.koinViewModel
 
 fun getBottomBarSpace(
     isPlaying: Boolean,
@@ -53,19 +48,11 @@ fun BottomBarSpacer(
 fun BoxScope.BottomBar(
     currentTab: HomeTab,
     onTabSelected: (HomeTab) -> Unit,
-    onOpenNowPlaying: () -> Unit,
+    miniPlayerContent: @Composable () -> Unit,
     showChrome: Boolean,
     scaffoldPadding: PaddingValues,
-    playerVM: PlayerVM = koinViewModel(),
 ) {
-    val playbackState by playerVM.playbackState.collectAsState()
-
-    val hasCurrentMusic = playbackState.currentItem != null
-
-    val showBottomBar = showChrome
-    val showMiniPlayer = hasCurrentMusic && showChrome
-
-    if (!showBottomBar && !showMiniPlayer) {
+    if (!showChrome) {
         Box(modifier = Modifier
             .fillMaxWidth()
             .height(scaffoldPadding.calculateBottomPadding())
@@ -86,42 +73,36 @@ fun BoxScope.BottomBar(
             .background(MaterialTheme.colorScheme.surface)
             .fillMaxWidth()
     ) {
-        if (showMiniPlayer) {
-            MiniPlayer(
-                onOpenNowPlaying = onOpenNowPlaying,
-            )
-        }
-        if (showBottomBar) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(60.dp)
-            ) {
-                for (tab in HomeTab.entries) {
-                    val isSelected = currentTab == tab
-                    val tint = if (isSelected) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.surfaceVariant
-                    }
+        miniPlayerContent()
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(60.dp)
+        ) {
+            for (tab in HomeTab.entries) {
+                val isSelected = currentTab == tab
+                val tint = if (isSelected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant
+                }
 
-                    Box(modifier = Modifier
-                        .weight(1.0f)
-                        .fillMaxHeight()
-                        .align(Alignment.CenterVertically)
-                        .clickable {
-                            onTabSelected(tab)
-                        }) {
-                        Icon(
-                            painter = painterResource(tab.painterRes),
-                            tint = tint,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .width(20.dp)
-                                .height(20.dp)
-                                .align(Alignment.Center)
-                        )
-                    }
+                Box(modifier = Modifier
+                    .weight(1.0f)
+                    .fillMaxHeight()
+                    .align(Alignment.CenterVertically)
+                    .clickable {
+                        onTabSelected(tab)
+                    }) {
+                    Icon(
+                        painter = painterResource(tab.painterRes),
+                        tint = tint,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .width(20.dp)
+                            .height(20.dp)
+                            .align(Alignment.Center)
+                    )
                 }
             }
         }

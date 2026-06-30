@@ -2,6 +2,8 @@ package com.github.tidetunes.source.storage
 
 import com.github.tidetunes.core.domain.model.SourceAccountId
 import com.github.tidetunes.singleton.Bridge
+import com.github.tidetunes.source.api.LegacyStorageKind
+import com.github.tidetunes.source.api.LegacyStoragePlaybackResolver
 import com.github.tidetunes.source.api.PlaybackResource
 import com.github.tidetunes.source.api.SourcePlaybackFailureReason
 import com.github.tidetunes.source.api.SourcePlaybackResult
@@ -28,18 +30,6 @@ interface LegacyPlaybackSession {
     fun shutdown()
 }
 
-interface LegacyStoragePlaybackResolver {
-    suspend fun resolve(
-        accountId: SourceAccountId,
-        path: String,
-        expectedStorageType: StorageType,
-    ): SourcePlaybackResult
-
-    suspend fun release(uri: String)
-
-    suspend fun releaseAll()
-}
-
 class RetainedLegacyStoragePlaybackResolver(
     private val storageLookup: LegacyStorageLookup,
     private val sessionFactory: LegacyPlaybackSessionFactory,
@@ -50,8 +40,9 @@ class RetainedLegacyStoragePlaybackResolver(
     override suspend fun resolve(
         accountId: SourceAccountId,
         path: String,
-        expectedStorageType: StorageType,
+        expectedStorageKind: LegacyStorageKind,
     ): SourcePlaybackResult {
+        val expectedStorageType = expectedStorageKind.toStorageType()
         val storageId = accountId.toLegacyStorageIdOrNull()
             ?: return SourcePlaybackResult.Failure(SourcePlaybackFailureReason.UnsupportedAccount)
         val storage = storageLookup.storageForPlayback(storageId)
@@ -75,7 +66,7 @@ class RetainedLegacyStoragePlaybackResolver(
             PlaybackResource(
                 uri = uri,
                 mimeType = mimeTypeFromPath(path),
-                isLocal = expectedStorageType == StorageType.LOCAL,
+                isLocal = expectedStorageKind == LegacyStorageKind.Local,
             )
         )
     }

@@ -15,6 +15,10 @@ data class OneDriveDriveInfo(
     val name: String,
 )
 
+fun storageSourceAccountId(storageId: Long): SourceAccountId {
+    return SourceAccountId("$STORAGE_ACCOUNT_PREFIX$storageId")
+}
+
 fun SourceAccountId.toStorageRouteIdOrNull(): Long? {
     return value
         .takeIf { it.startsWith(STORAGE_ACCOUNT_PREFIX) }

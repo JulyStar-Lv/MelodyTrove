@@ -4,34 +4,14 @@ import com.github.tidetunes.core.domain.model.SourceAccountId
 import com.github.tidetunes.core.domain.model.SourceId
 import com.github.tidetunes.database.SourceTrackSearchRow
 import com.github.tidetunes.database.TrackDao
+import com.github.tidetunes.source.api.LegacyStorageKind
+import com.github.tidetunes.source.api.LegacyStorageSearchProvider
 import com.github.tidetunes.source.api.SourceMediaItem
 import com.github.tidetunes.source.api.SourceSearchFailureReason
 import com.github.tidetunes.source.api.SourceSearchResult
+import com.github.tidetunes.source.api.legacyStorageTrackMediaId
 import uniffi.tidetunes_core.Storage
 import uniffi.tidetunes_core.StorageId
-import uniffi.tidetunes_core.StorageType
-
-fun interface LegacyStorageSearchProvider {
-    suspend fun search(
-        accountId: SourceAccountId,
-        query: String,
-        limit: Int,
-        expectedStorageType: StorageType,
-        sourceId: SourceId,
-    ): SourceSearchResult
-}
-
-object UnsupportedLegacyStorageSearchProvider : LegacyStorageSearchProvider {
-    override suspend fun search(
-        accountId: SourceAccountId,
-        query: String,
-        limit: Int,
-        expectedStorageType: StorageType,
-        sourceId: SourceId,
-    ): SourceSearchResult {
-        return SourceSearchResult.Failure(SourceSearchFailureReason.Unsupported)
-    }
-}
 
 class RoomLegacyStorageSearchProvider(
     private val storageLookup: suspend (StorageId) -> Storage?,
@@ -41,7 +21,7 @@ class RoomLegacyStorageSearchProvider(
         accountId: SourceAccountId,
         query: String,
         limit: Int,
-        expectedStorageType: StorageType,
+        expectedStorageKind: LegacyStorageKind,
         sourceId: SourceId,
     ): SourceSearchResult {
         val normalizedQuery = query.trim()
@@ -53,6 +33,7 @@ class RoomLegacyStorageSearchProvider(
             ?: return SourceSearchResult.Failure(SourceSearchFailureReason.UnsupportedAccount)
         val storage = storageLookup(storageId)
             ?: return SourceSearchResult.Failure(SourceSearchFailureReason.UnsupportedAccount)
+        val expectedStorageType = expectedStorageKind.toStorageType()
         if (storage.typ != expectedStorageType) {
             return SourceSearchResult.Failure(SourceSearchFailureReason.UnsupportedAccount)
         }

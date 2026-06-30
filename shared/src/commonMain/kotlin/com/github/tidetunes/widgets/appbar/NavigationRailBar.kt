@@ -16,8 +16,6 @@ import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,10 +23,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.github.tidetunes.core.presentation.components.dropShadow
 import com.github.tidetunes.navigation.HomeTab
-import com.github.tidetunes.service.playback.presentation.PlayerVM
-import com.github.tidetunes.service.playback.presentation.miniplayer.MiniPlayer
 import org.jetbrains.compose.resources.painterResource
-import org.koin.compose.viewmodel.koinViewModel
 
 fun getNavigationRailWidth(): Dp = 80.dp
 
@@ -36,13 +31,9 @@ fun getNavigationRailWidth(): Dp = 80.dp
 fun NavigationRailBar(
     currentTab: HomeTab,
     onTabSelected: (HomeTab) -> Unit,
-    onOpenNowPlaying: () -> Unit,
-    playerVM: PlayerVM = koinViewModel(),
+    miniPlayerContent: @Composable () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val playbackState by playerVM.playbackState.collectAsState()
-    val hasCurrentMusic = playbackState.currentItem != null
-
     Column(
         modifier = modifier
             .width(getNavigationRailWidth())
@@ -55,11 +46,7 @@ fun NavigationRailBar(
             .clip(RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp))
             .background(MaterialTheme.colorScheme.surface),
     ) {
-        if (hasCurrentMusic) {
-            MiniPlayer(
-                onOpenNowPlaying = onOpenNowPlaying,
-            )
-        }
+        miniPlayerContent()
         NavigationRail(
             modifier = Modifier.weight(1f),
         ) {

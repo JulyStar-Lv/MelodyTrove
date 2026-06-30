@@ -11,6 +11,7 @@ import com.github.tidetunes.database.TideTunesDatabase
 import com.github.tidetunes.database.TideTunesDatabaseConstructor
 import com.github.tidetunes.database.TrackEntity
 import com.github.tidetunes.source.api.BuiltInSourceIds
+import com.github.tidetunes.source.api.LegacyStorageKind
 import com.github.tidetunes.source.api.SourceSearchFailureReason
 import com.github.tidetunes.source.api.SourceSearchResult
 import kotlinx.coroutines.Dispatchers
@@ -83,7 +84,7 @@ class RoomLegacyStorageSearchProviderIntegrationTest {
             accountId = SourceAccountId("storage:1"),
             query = "moon",
             limit = 10,
-            expectedStorageType = StorageType.WEBDAV,
+            expectedStorageKind = LegacyStorageKind.WebDav,
             sourceId = BuiltInSourceIds.WebDav,
         )
 
@@ -111,7 +112,7 @@ class RoomLegacyStorageSearchProviderIntegrationTest {
                 accountId = SourceAccountId("storage:1"),
                 query = "moon",
                 limit = 10,
-                expectedStorageType = StorageType.WEBDAV,
+                expectedStorageKind = LegacyStorageKind.WebDav,
                 sourceId = BuiltInSourceIds.WebDav,
             ),
         )
