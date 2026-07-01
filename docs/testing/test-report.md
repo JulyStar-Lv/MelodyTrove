@@ -14,7 +14,7 @@ checks were provided at runtime and are not stored in this repository.
 | iOS shared compile | `./gradlew :shared:compileKotlinIosSimulatorArm64` | Passed |
 | Rust core tests | `cargo test -p tidetunes-core` | Passed; 7 tests |
 | Rust core compile | `cargo check -p tidetunes-core` | Passed |
-| redb code scan | `rg -n "redb|DatabaseServer|database_server|tidetunes-legacy|LegacyLibraryMirror|ctUpsertStorage|ctRemoveStorage|ctListStorage\\(" shared/src rust-libs/tidetunes-core rust-libs/Cargo.toml rust-libs/Cargo.lock -g '!**/build/**' -g '!**/target/**'` | No matches |
+| redb code scan | `rg -n "redb|DatabaseServer|database_server|tidetunes-legacy|LegacyLibraryMirror|ctUpsertStorage|ctRemoveStorage|ctListStorage\\(" shared/src rust-libs/core rust-libs/Cargo.toml rust-libs/Cargo.lock -g '!**/build/**' -g '!**/target/**'` | No matches |
 | Rust formatting | `cargo fmt --manifest-path rust-libs/Cargo.toml --all -- --check` | Passed |
 | Rust clippy | `cargo clippy --manifest-path rust-libs/Cargo.toml --workspace --all-targets -- -D warnings` | Passed |
 | Rust tests | `cargo test --manifest-path rust-libs/Cargo.toml --workspace` | Passed; includes Rust playback gateway, remote scan, metadata, order-key, remote-storage, and Desktop libmpv runtime empty-resource coverage |

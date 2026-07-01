@@ -2,14 +2,18 @@ package com.github.tidetunes.widgets.appbar
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -23,15 +27,16 @@ import com.github.tidetunes.core.presentation.components.dropShadow
 import com.github.tidetunes.navigation.HomeTab
 import org.jetbrains.compose.resources.painterResource
 import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 fun getBottomBarSpace(
     isPlaying: Boolean,
     scaffoldPadding: PaddingValues
 ): Dp {
-    var total = 60.dp + scaffoldPadding.calculateBottomPadding()
+    var total = 64.dp + scaffoldPadding.calculateBottomPadding()
     if (isPlaying) {
-        total += 124.dp
+        total += 80.dp
     }
     return total
 }
@@ -69,15 +74,15 @@ fun BoxScope.BottomBar(
                 (-4).dp,
                 8.dp,
             )
-            .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp, bottomStart = 0.dp, bottomEnd = 0.dp))
-            .background(MiuixTheme.colorScheme.surface)
+            .clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomStart = 0.dp, bottomEnd = 0.dp))
+            .background(MiuixTheme.colorScheme.surfaceContainer)
             .fillMaxWidth()
     ) {
         miniPlayerContent()
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(60.dp)
+                .height(64.dp)
         ) {
             for (tab in HomeTab.entries) {
                 val isSelected = currentTab == tab
@@ -87,21 +92,28 @@ fun BoxScope.BottomBar(
                     MiuixTheme.colorScheme.onSurfaceVariantActions
                 }
 
-                Box(modifier = Modifier
+                Column(modifier = Modifier
                     .weight(1.0f)
                     .fillMaxHeight()
-                    .align(Alignment.CenterVertically)
+                    .padding(top = 7.dp, bottom = 6.dp)
                     .clickable {
                         onTabSelected(tab)
-                    }) {
+                    },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
                     Icon(
                         painter = painterResource(tab.painterRes),
                         tint = tint,
                         contentDescription = null,
-                        modifier = Modifier
-                            .width(20.dp)
-                            .height(20.dp)
-                            .align(Alignment.Center)
+                        modifier = Modifier.size(20.dp),
+                    )
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        text = tab.label,
+                        color = tint,
+                        style = MiuixTheme.textStyles.footnote2,
+                        maxLines = 1,
                     )
                 }
             }

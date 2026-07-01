@@ -1,10 +1,12 @@
 package com.github.tidetunes.service.playback.presentation.miniplayer
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -13,16 +15,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
-import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -42,6 +41,10 @@ import tidetunes.service.playback.presentation.generated.resources.icon_pause
 import tidetunes.service.playback.presentation.generated.resources.icon_play
 import tidetunes.service.playback.presentation.generated.resources.icon_play_next
 import tidetunes.service.playback.presentation.generated.resources.icon_stop
+import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
+import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
@@ -61,70 +64,46 @@ private fun MiniPlayerCore(
     onNext: () -> Unit,
 ) {
     Row(
-        modifier = Modifier.clickable { onClick() }.fillMaxWidth().padding(30.dp).height(64.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .height(64.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(MiuixTheme.colorScheme.surfaceContainerHigh)
+            .clickable { onClick() }
+            .padding(horizontal = 10.dp),
+        horizontalArrangement = Arrangement.Start,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         MusicCover(
             modifier = Modifier
-                .clip(RoundedCornerShape(10.dp))
-                .size(60.dp),
+                .clip(RoundedCornerShape(12.dp))
+                .size(44.dp),
             artwork = cover,
         )
-        Box(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(10.dp))
         Column(
-            modifier = Modifier.fillMaxHeight(),
-            horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+            verticalArrangement = Arrangement.Center,
         ) {
-            Row(
+            Text(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    modifier = Modifier.weight(1f),
-                    text = title,
-                    style = TextStyle(fontSize = 16.sp),
-                    overflow = TextOverflow.Ellipsis,
-                    maxLines = 1,
-                )
-                Box(modifier = Modifier.width(16.dp))
-                Row(
-                    modifier = Modifier.wrapContentWidth(),
-                ) {
-                    if (!isPlaying) {
-                        TideTunesIconButton(
-                            sizeType = TideTunesIconButtonSize.Medium,
-                            buttonType = TideTunesIconButtonType.Default,
-                            disabled = loading,
-                            painter = painterResource(Res.drawable.icon_play),
-                            onClick = onPlay,
-                        )
-                    } else {
-                        TideTunesIconButton(
-                            sizeType = TideTunesIconButtonSize.Medium,
-                            buttonType = TideTunesIconButtonType.Default,
-                            painter = painterResource(Res.drawable.icon_pause),
-                            onClick = onPause,
-                        )
-                    }
-                    TideTunesIconButton(
-                        sizeType = TideTunesIconButtonSize.Medium,
-                        buttonType = TideTunesIconButtonType.Default,
-                        painter = painterResource(Res.drawable.icon_play_next),
-                        disabled = !canNext,
-                        onClick = onNext,
-                    )
-                    TideTunesIconButton(
-                        sizeType = TideTunesIconButtonSize.Medium,
-                        buttonType = TideTunesIconButtonType.Default,
-                        painter = painterResource(Res.drawable.icon_stop),
-                        onClick = onStop,
-                    )
-                }
-            }
-            Box(modifier = Modifier.height(4.dp))
+                text = title,
+                style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold),
+                color = MiuixTheme.colorScheme.onSurface,
+                overflow = TextOverflow.Ellipsis,
+                maxLines = 1,
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = totalDuration,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                fontSize = 10.sp,
+                maxLines = 1,
+            )
+            Spacer(modifier = Modifier.height(6.dp))
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(999.dp))
@@ -139,13 +118,45 @@ private fun MiniPlayerCore(
                             currentDurationMS.toFloat() / totalDurationMS.toFloat()
                         },
                     colors = ProgressIndicatorDefaults.progressIndicatorColors(
-                        foregroundColor = MiuixTheme.colorScheme.onSurface,
+                        foregroundColor = MiuixTheme.colorScheme.primary,
                     ),
                 )
             }
-            Text(
-                text = totalDuration,
-                fontSize = 9.sp,
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        Row(
+            modifier = Modifier.wrapContentWidth(),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (!isPlaying) {
+                TideTunesIconButton(
+                    sizeType = TideTunesIconButtonSize.Medium,
+                    buttonType = TideTunesIconButtonType.Primary,
+                    disabled = loading,
+                    painter = painterResource(Res.drawable.icon_play),
+                    onClick = onPlay,
+                )
+            } else {
+                TideTunesIconButton(
+                    sizeType = TideTunesIconButtonSize.Medium,
+                    buttonType = TideTunesIconButtonType.Primary,
+                    painter = painterResource(Res.drawable.icon_pause),
+                    onClick = onPause,
+                )
+            }
+            TideTunesIconButton(
+                sizeType = TideTunesIconButtonSize.Small,
+                buttonType = TideTunesIconButtonType.Default,
+                painter = painterResource(Res.drawable.icon_play_next),
+                disabled = !canNext,
+                onClick = onNext,
+            )
+            TideTunesIconButton(
+                sizeType = TideTunesIconButtonSize.Small,
+                buttonType = TideTunesIconButtonType.Default,
+                painter = painterResource(Res.drawable.icon_stop),
+                onClick = onStop,
             )
         }
     }

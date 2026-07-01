@@ -69,6 +69,36 @@ class RoomLibraryIntegrationTest {
     }
 
     @Test
+    fun migrationFiveToSixCreatesFtsTableWithRoomExpectedContentOption() {
+        val connection = BundledSQLiteDriver().open(":memory:")
+        try {
+            connection.execute(
+                """
+                CREATE TABLE track (
+                    id INTEGER NOT NULL PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    artist TEXT,
+                    albumArtist TEXT,
+                    composer TEXT
+                )
+                """.trimIndent()
+            )
+            MIGRATION_5_6.migrate(connection)
+
+            val createSql = connection.prepare(
+                "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'track_fts'"
+            ).use { statement ->
+                assertTrue(statement.step())
+                statement.getText(0)
+            }
+
+            assertTrue("content=`track`" in createSql)
+        } finally {
+            connection.close()
+        }
+    }
+
+    @Test
     fun roomLibraryStoreCreatesPlaylistTracksAndRemoteLocWithoutLegacyDatabase() =
         withDatabase { database ->
             seedStorageAndFolder(database)

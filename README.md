@@ -26,4 +26,4 @@ License
 ----
 
 - The majority of this project is licensed under the GPL-3.0 license.
-- The [tidetunes-order-key](./rust-libs/tidetunes-order-key) is under either the Apache-2.0 or the MIT license.
+- The [tidetunes-order-key](./rust-libs/order-key) is under either the Apache-2.0 or the MIT license.

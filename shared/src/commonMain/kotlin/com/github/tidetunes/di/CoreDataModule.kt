@@ -21,6 +21,7 @@ val coreDataModule = module {
     single { get<TideTunesDatabase>().selectedFolderDao() }
     single { get<TideTunesDatabase>().remoteFileDao() }
     single { get<TideTunesDatabase>().trackDao() }
+    single { get<TideTunesDatabase>().trackFtsDao() }
     single { get<TideTunesDatabase>().playlistDao() }
     single { get<TideTunesDatabase>().metadataDao() }
     single { get<TideTunesDatabase>().syncDao() }

@@ -109,7 +109,7 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
                 artist,
                 albumArtist,
                 composer,
-                content=track
+                content=`track`
             )
             """.trimIndent()
         ).use { statement ->

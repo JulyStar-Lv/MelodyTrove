@@ -4,9 +4,9 @@ import androidx.compose.ui.graphics.Color
 import top.yukonga.miuix.kmp.theme.Colors
 
 internal val TideTunesLightColors = Colors(
-    primary = Color(0xFF2E7CF6),
+    primary = Color(0xFFFF2D78),
     onPrimary = Color.White,
-    primaryVariant = Color(0xFF6C5CE7),
+    primaryVariant = Color(0xFF7C3AED),
     onPrimaryVariant = Color.White,
     error = Color(0xFFEF4444),
     onError = Color.White,
@@ -17,7 +17,7 @@ internal val TideTunesLightColors = Colors(
     disabledPrimaryButton = Color(0xFFB8B8C1),
     disabledOnPrimaryButton = Color.White,
     disabledPrimarySlider = Color(0xFFB8B8C1),
-    primaryContainer = Color(0xFF2E7CF6),
+    primaryContainer = Color(0xFFFF2D78),
     onPrimaryContainer = Color.White,
     secondary = Color(0xFFEFEFF2),
     onSecondary = Color(0xFF1A1A1F),
@@ -55,14 +55,14 @@ internal val TideTunesLightColors = Colors(
     dividerLine = Color(0xFFEFEFF2),
     windowDimming = Color.Black.copy(alpha = 0.32f),
     sliderKeyPoint = Color(0xFFB8B8C1).copy(alpha = 0.3f),
-    sliderKeyPointForeground = Color(0xFF2E7CF6),
+    sliderKeyPointForeground = Color(0xFFFF2D78),
     sliderBackground = Color.Black.copy(alpha = 0.08f),
 )
 
 internal val TideTunesDarkColors = Colors(
-    primary = Color(0xFF78A9FF),
+    primary = Color(0xFFFF6BA3),
     onPrimary = Color(0xFF0B0B0F),
-    primaryVariant = Color(0xFF8B7CEC),
+    primaryVariant = Color(0xFFB68CFF),
     onPrimaryVariant = Color.White,
     error = Color(0xFFEF4444),
     onError = Color.White,
@@ -73,7 +73,7 @@ internal val TideTunesDarkColors = Colors(
     disabledPrimaryButton = Color(0xFF45454E),
     disabledOnPrimaryButton = Color(0xFF7D7D88),
     disabledPrimarySlider = Color(0xFF45454E),
-    primaryContainer = Color(0xFF78A9FF),
+    primaryContainer = Color(0xFFFF6BA3),
     onPrimaryContainer = Color(0xFF0B0B0F),
     secondary = Color(0xFF2A2A35),
     onSecondary = Color(0xFFF5F5F7),
@@ -111,6 +111,6 @@ internal val TideTunesDarkColors = Colors(
     dividerLine = Color(0xFF1F1F28),
     windowDimming = Color.Black.copy(alpha = 0.7f),
     sliderKeyPoint = Color(0xFF7D7D88).copy(alpha = 0.35f),
-    sliderKeyPointForeground = Color(0xFF78A9FF),
+    sliderKeyPointForeground = Color(0xFFFF6BA3),
     sliderBackground = Color.White.copy(alpha = 0.12f),
 )

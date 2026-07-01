@@ -39,14 +39,8 @@ fun HomePage(
     val onOpenNowPlaying = {
         globalNavController.navigate(MusicGraph.NowPlaying)
     }
-    val onNavigateToImport = { type: String ->
-        globalNavController.navigate(MusicGraph.Import(type))
-    }
     val onNavigateToDownloads = {
         globalNavController.navigate(MusicGraph.Downloads)
-    }
-    val onNavigateToEditStorage = { id: Long ->
-        globalNavController.navigate(MusicGraph.EditStorage(id))
     }
     val onNavigateToLog = {
         globalNavController.navigate(MusicGraph.Log)
@@ -60,12 +54,10 @@ fun HomePage(
         )
     }
 
-    var currentTab by remember { mutableStateOf(HomeTab.PLAYLISTS) }
+    var currentTab by remember { mutableStateOf(HomeTab.HOME) }
 
-    val playlistsNavController = rememberNavController()
     val libraryNavController = rememberNavController()
     val searchNavController = rememberNavController()
-    val dashboardNavController = rememberNavController()
     val settingsNavController = rememberNavController()
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -76,17 +68,15 @@ fun HomePage(
         val tabContent: @Composable (HomeTab) -> Unit = { tab ->
             HomeTabContent(
                 currentTab = tab,
-                playlistsNavController = playlistsNavController,
                 libraryNavController = libraryNavController,
                 searchNavController = searchNavController,
-                dashboardNavController = dashboardNavController,
                 settingsNavController = settingsNavController,
                 scaffoldPadding = scaffoldPadding,
-                onNavigateToImport = onNavigateToImport,
                 onNavigateToDownloads = onNavigateToDownloads,
-                onNavigateToEditStorage = onNavigateToEditStorage,
                 onNavigateToLog = onNavigateToLog,
                 onNavigateToDebugMore = onNavigateToDebugMore,
+                onNavigateToLibrary = { currentTab = HomeTab.LIBRARY },
+                onNavigateToSearch = { currentTab = HomeTab.SEARCH },
                 onOpenNowPlaying = onOpenNowPlaying,
             )
         }

@@ -46,7 +46,7 @@ kotlin {
             implementation(project(":feature:settings"))
             implementation(project(":feature:playlist"))
             implementation(project(":feature:sources"))
-            implementation(project(":feature:dashboard"))
+            implementation(project(":feature:home"))
             implementation(project(":feature:importing"))
             implementation(project(":feature:onboarding"))
             implementation(project(":feature:queue"))
@@ -112,7 +112,7 @@ room {
 }
 
 cargo {
-    packageDirectory = layout.projectDirectory.dir("../rust-libs/tidetunes-core")
+    packageDirectory = layout.projectDirectory.dir("../rust-libs/core")
     builds.jvm {
         embedRustLibrary = rustTarget == GobleyHost.current.rustTarget
     }
