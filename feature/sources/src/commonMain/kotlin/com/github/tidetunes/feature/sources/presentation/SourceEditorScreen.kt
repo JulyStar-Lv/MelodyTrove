@@ -15,9 +15,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -131,14 +131,14 @@ private fun StorageBlock(
     onSelect: () -> Unit,
 ) {
     val bgColor = if (isActive) {
-        MaterialTheme.colorScheme.primary
+        MiuixTheme.colorScheme.primary
     } else {
-        MaterialTheme.colorScheme.surfaceVariant
+        MiuixTheme.colorScheme.surfaceVariant
     }
     val tint = if (isActive) {
-        MaterialTheme.colorScheme.surface
+        MiuixTheme.colorScheme.surface
     } else {
-        MaterialTheme.colorScheme.onSurface
+        MiuixTheme.colorScheme.onSurface
     }
 
     Box(
@@ -266,7 +266,7 @@ private fun OneDriveConfig(
                         vertical = 2.dp,
                     ),
                     text = stringResource(Res.string.storage_edit_onedrive_should_auth),
-                    color = MaterialTheme.colorScheme.error,
+                    color = MiuixTheme.colorScheme.error,
                     fontSize = 11.sp,
                 )
             }
@@ -290,7 +290,7 @@ private fun OneDriveConfig(
                 if (state.drivesLoading) {
                     Text(
                         text = stringResource(Res.string.storage_edit_onedrive_drive_loading),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         fontSize = 12.sp,
                     )
                 }
@@ -312,7 +312,7 @@ private fun OneDriveConfig(
                 if (validation.addressEmpty) {
                     Text(
                         text = stringResource(Res.string.storage_edit_onedrive_drive_required),
-                        color = MaterialTheme.colorScheme.error,
+                        color = MiuixTheme.colorScheme.error,
                         fontSize = 11.sp,
                     )
                 }
@@ -332,21 +332,21 @@ fun SourceEditorScreen(
         SourceConnectionTestStatus.None -> null
         SourceConnectionTestStatus.Testing -> TideTunesIconButtonColors(
             buttonBg = Color.Transparent,
-            iconTint = MaterialTheme.colorScheme.tertiary,
+            iconTint = MiuixTheme.colorScheme.onTertiaryContainer,
         )
         SourceConnectionTestStatus.Success -> TideTunesIconButtonColors(
             buttonBg = Color.Transparent,
-            iconTint = MaterialTheme.colorScheme.primary,
+            iconTint = MiuixTheme.colorScheme.primary,
         )
         SourceConnectionTestStatus.Error -> TideTunesIconButtonColors(
             buttonBg = Color.Transparent,
-            iconTint = MaterialTheme.colorScheme.error,
+            iconTint = MiuixTheme.colorScheme.error,
         )
     }
 
     Column(
         modifier = Modifier
-            .background(MaterialTheme.colorScheme.surface)
+            .background(MiuixTheme.colorScheme.surface)
             .fillMaxSize(),
     ) {
         Row(

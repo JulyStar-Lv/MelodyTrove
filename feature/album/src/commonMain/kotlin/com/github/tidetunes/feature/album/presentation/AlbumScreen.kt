@@ -14,8 +14,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -120,7 +120,7 @@ private fun AlbumHeader(
         Spacer(Modifier.height(12.dp))
         Text(
             text = title,
-            style = MaterialTheme.typography.headlineSmall,
+            style = MiuixTheme.textStyles.title3,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
@@ -128,8 +128,8 @@ private fun AlbumHeader(
             Spacer(Modifier.height(4.dp))
             Text(
                 text = artist,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body1,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -162,8 +162,8 @@ private fun AlbumTrackRow(
         if (trackLabel.isNotEmpty()) {
             Text(
                 text = trackLabel,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.footnote1,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 modifier = Modifier.width(36.dp),
             )
         } else {
@@ -175,7 +175,7 @@ private fun AlbumTrackRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = track.title,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MiuixTheme.textStyles.body2,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -186,8 +186,8 @@ private fun AlbumTrackRow(
         track.durationMs?.let { ms ->
             Text(
                 text = durationLabel(ms),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.footnote1,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             )
         }
 

@@ -6,6 +6,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
 
 class LyricsStateTest {
 
@@ -66,5 +68,38 @@ class LyricsStateTest {
         assertEquals("Lost Song", state.trackTitle)
         assertEquals("Ghost", state.trackArtist)
         assertEquals("Not found", state.error)
+    }
+
+    @Test
+    fun `wordTimedLines defaults to empty`() {
+        val state = LyricsState()
+
+        assertEquals(persistentListOf(), state.wordTimedLines)
+    }
+
+    @Test
+    fun `wordTimedLyricLine carries duration text and tokens`() {
+        val line = WordTimedLyricLine(
+            duration = 5000L.milliseconds,
+            text = "Hello world",
+            words = persistentListOf(
+                WordTimedToken(
+                    text = "Hello",
+                    startOffset = Duration.ZERO,
+                    duration = 1000L.milliseconds,
+                ),
+                WordTimedToken(
+                    text = " world",
+                    startOffset = 1000L.milliseconds,
+                    duration = 4000L.milliseconds,
+                ),
+            ),
+        )
+
+        assertEquals("Hello world", line.text)
+        assertEquals(5000L, line.duration.inWholeMilliseconds)
+        assertEquals(2, line.words.size)
+        assertEquals("Hello", line.words[0].text)
+        assertEquals(0L, line.words[0].startOffset.inWholeMilliseconds)
     }
 }

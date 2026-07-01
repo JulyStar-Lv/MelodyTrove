@@ -13,9 +13,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,7 +50,7 @@ private fun Title(title: String) {
             modifier = Modifier
                 .fillMaxWidth()
                 .height(1.dp)
-                .background(MaterialTheme.colorScheme.onSurfaceVariant)
+                .background(MiuixTheme.colorScheme.onSurfaceVariantSummary)
         )
     }
 }
@@ -83,7 +83,7 @@ private fun Item(
             if (content != null) {
                 Text(
                     text = content,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     fontSize = 12.sp,
                 )
             }
@@ -94,6 +94,7 @@ private fun Item(
 @Composable
 fun SettingsScreen(
     appVersion: String = "",
+    playbackState: PlaybackSettingsState = PlaybackSettingsState(),
     onAction: (SettingsAction) -> Unit,
 ) {
     val gitUrl = "https://github.com/hpp2334/ease-music-player"
@@ -117,6 +118,27 @@ fun SettingsScreen(
             content = null,
             onClick = { onAction(SettingsAction.NavigateToDebugMore) }
         )
+        if (playbackState.gaplessAvailable ||
+            playbackState.crossfadeAvailable ||
+            playbackState.replayGainAvailable
+        ) {
+            PlaybackSettingsSection(
+                state = playbackState,
+                onAction = { pa ->
+                    when (pa) {
+                        is PlaybackSettingsAction.SetGaplessEnabled ->
+                            onAction(SettingsAction.SetGaplessEnabled(pa.enabled))
+                        is PlaybackSettingsAction.SetCrossfadeDurationMs ->
+                            onAction(SettingsAction.SetCrossfadeDurationMs(pa.durationMs))
+                        is PlaybackSettingsAction.SetReplayGainMode ->
+                            onAction(SettingsAction.SetReplayGainMode(pa.mode))
+                        is PlaybackSettingsAction.SetReplayGainPreampDb ->
+                            onAction(SettingsAction.SetReplayGainPreampDb(pa.preampDb))
+                        PlaybackSettingsAction.NavigateBack -> Unit
+                    }
+                },
+            )
+        }
         Title(title = stringResource(Res.string.setting_about))
         Item(
             iconPainter = painterResource(Res.drawable.icon_github),

@@ -10,14 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,10 +17,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 // --- AppTopBar ---
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppTopBar(
     title: String,
@@ -36,26 +33,38 @@ fun AppTopBar(
     navigationIcon: @Composable (() -> Unit)? = null,
     actions: @Composable (() -> Unit)? = null,
 ) {
-    TopAppBar(
-        title = {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier.size(48.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            navigationIcon?.invoke()
+        }
+        Box(
+            modifier = Modifier.weight(1f),
+            contentAlignment = Alignment.CenterStart,
+        ) {
             Text(
                 text = title,
+                style = MiuixTheme.textStyles.title3,
+                color = MiuixTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-        },
-        navigationIcon = {
-            navigationIcon?.invoke()
-        },
-        actions = {
+        }
+        Row(
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             actions?.invoke()
-        },
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Color.Transparent,
-            titleContentColor = MaterialTheme.colorScheme.onSurface,
-        ),
-        modifier = modifier,
-    )
+        }
+    }
 }
 
 // --- AppIconButton ---
@@ -67,7 +76,7 @@ fun AppIconButton(
     contentDescription: String?,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    tint: Color = MaterialTheme.colorScheme.onSurface,
+    tint: Color = MiuixTheme.colorScheme.onSurface,
 ) {
     IconButton(
         onClick = onClick,
@@ -99,8 +108,8 @@ fun AppSectionHeader(
     ) {
         Text(
             text = title,
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MiuixTheme.textStyles.subtitle,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
         )
         action?.invoke()
     }
@@ -118,8 +127,11 @@ fun AppLoadingIndicator(
     ) {
         CircularProgressIndicator(
             modifier = Modifier.size(32.dp),
-            color = MaterialTheme.colorScheme.primary,
+            colors = ProgressIndicatorDefaults.progressIndicatorColors(
+                foregroundColor = MiuixTheme.colorScheme.primary,
+            ),
             strokeWidth = 3.dp,
+            size = 32.dp,
         )
     }
 }
@@ -142,8 +154,8 @@ fun AppEmptyState(
         ) {
             Text(
                 text = message,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.body1,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             )
             action?.let {
                 Spacer(Modifier.height(12.dp))
@@ -171,8 +183,8 @@ fun AppErrorState(
         ) {
             Text(
                 text = message,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.error,
+                style = MiuixTheme.textStyles.body1,
+                color = MiuixTheme.colorScheme.error,
             )
             if (onRetry != null) {
                 Spacer(Modifier.height(12.dp))

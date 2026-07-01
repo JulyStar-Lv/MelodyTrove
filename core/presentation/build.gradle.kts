@@ -26,7 +26,6 @@ kotlin {
             implementation(project(":core:domain"))
             implementation(compose.runtime)
             implementation(compose.foundation)
-            implementation(compose.material3)
             implementation(compose.components.resources)
             implementation(compose.animation)
             implementation(libs.miuix.ui)
@@ -45,7 +44,7 @@ kotlin {
 
 android {
     namespace = "com.github.tidetunes.core.presentation"
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig {
         minSdk = 29
     }

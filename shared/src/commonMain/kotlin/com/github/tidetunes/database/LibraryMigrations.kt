@@ -99,3 +99,29 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
         }
     }
 }
+
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.prepare(
+            """
+            CREATE VIRTUAL TABLE IF NOT EXISTS track_fts USING fts4(
+                title,
+                artist,
+                albumArtist,
+                composer,
+                content=track
+            )
+            """.trimIndent()
+        ).use { statement ->
+            statement.step()
+        }
+
+        connection.prepare(
+            """
+            INSERT INTO track_fts(track_fts) VALUES('rebuild')
+            """.trimIndent()
+        ).use { statement ->
+            statement.step()
+        }
+    }
+}

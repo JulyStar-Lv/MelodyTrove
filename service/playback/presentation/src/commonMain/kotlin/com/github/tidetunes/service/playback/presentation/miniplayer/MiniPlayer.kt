@@ -13,9 +13,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -131,14 +132,15 @@ private fun MiniPlayerCore(
             ) {
                 LinearProgressIndicator(
                     modifier = Modifier.fillMaxWidth(),
-                    progress = {
+                    progress =
                         if (totalDurationMS == 0uL) {
                             0f
                         } else {
                             currentDurationMS.toFloat() / totalDurationMS.toFloat()
-                        }
-                    },
-                    color = MaterialTheme.colorScheme.onSurface,
+                        },
+                    colors = ProgressIndicatorDefaults.progressIndicatorColors(
+                        foregroundColor = MiuixTheme.colorScheme.onSurface,
+                    ),
                 )
             }
             Text(

@@ -9,6 +9,8 @@ import com.github.tidetunes.core.domain.repository.PermissionChecker
 import com.github.tidetunes.service.playback.data.PlayerController
 import com.github.tidetunes.service.download.data.scheduler.DesktopCoroutineDownloadScheduler
 import com.github.tidetunes.service.download.domain.DownloadTaskScheduler
+import com.github.tidetunes.service.playback.data.DesktopAdvancedPlaybackController
+import com.github.tidetunes.service.playback.domain.AdvancedPlaybackController
 import org.koin.core.module.Module
 import org.koin.dsl.module
 
@@ -35,4 +37,5 @@ actual val platformModule: Module = module {
         )
     }
     single<PermissionChecker> { DesktopPermissionChecker() }
+    single<AdvancedPlaybackController> { DesktopAdvancedPlaybackController() }
 }

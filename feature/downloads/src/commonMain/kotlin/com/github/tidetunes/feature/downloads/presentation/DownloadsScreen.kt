@@ -12,10 +12,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
+import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,7 +52,7 @@ fun DownloadsScreen(
     ) {
         Text(
             text = stringResource(Res.string.downloads_title),
-            color = MaterialTheme.colorScheme.primary,
+            color = MiuixTheme.colorScheme.primary,
             fontSize = 20.sp,
         )
         if (state.tasks.isEmpty()) {
@@ -61,7 +62,7 @@ fun DownloadsScreen(
             ) {
                 Text(
                     text = stringResource(Res.string.downloads_empty),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     fontSize = 14.sp,
                 )
             }
@@ -94,7 +95,7 @@ private fun DownloadTaskRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .background(MiuixTheme.colorScheme.surfaceVariant)
             .padding(16.dp, 12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -106,20 +107,20 @@ private fun DownloadTaskRow(
             Icon(
                 painter = painterResource(Res.drawable.icon_download),
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = MiuixTheme.colorScheme.primary,
                 modifier = Modifier.size(24.dp),
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = task.title,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = MiuixTheme.colorScheme.onSurface,
                     fontSize = 14.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = task.subtitle,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     fontSize = 12.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -127,7 +128,7 @@ private fun DownloadTaskRow(
             }
             Text(
                 text = task.statusLabel,
-                color = MaterialTheme.colorScheme.primary,
+                color = MiuixTheme.colorScheme.primary,
                 fontSize = 11.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -141,9 +142,11 @@ private fun DownloadTaskRow(
                     .clip(RoundedCornerShape(999.dp)),
             ) {
                 LinearProgressIndicator(
-                    progress = { progress },
+                    progress = progress,
                     modifier = Modifier.fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.primary,
+                    colors = ProgressIndicatorDefaults.progressIndicatorColors(
+                        foregroundColor = MiuixTheme.colorScheme.primary,
+                    ),
                 )
             }
         }
@@ -156,7 +159,7 @@ private fun DownloadTaskRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = task.progressLabel,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     fontSize = 12.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -164,7 +167,7 @@ private fun DownloadTaskRow(
                 task.errorMessage?.let { message ->
                     Text(
                         text = message,
-                        color = MaterialTheme.colorScheme.error,
+                        color = MiuixTheme.colorScheme.error,
                         fontSize = 12.sp,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,

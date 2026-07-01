@@ -12,9 +12,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,6 +28,8 @@ import org.jetbrains.compose.resources.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun ImportCover(
@@ -62,7 +61,7 @@ fun ImportCover(
                     .clickable {
                         onRemove()
                     }
-                    .background(MaterialTheme.colorScheme.error)
+                    .background(MiuixTheme.colorScheme.error)
                     .width(20.dp)
                     .height(20.dp),
                 contentAlignment = Alignment.Center
@@ -70,7 +69,7 @@ fun ImportCover(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(999.dp))
-                        .background(MaterialTheme.colorScheme.surface)
+                        .background(MiuixTheme.colorScheme.surface)
                         .width(8.dp)
                         .height(2.dp)
                 )
@@ -88,7 +87,7 @@ fun ImportCover(
                     .clickable {
                         onAdd()
                     }
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .background(MiuixTheme.colorScheme.surfaceVariant)
                     .width(80.dp)
                     .height(80.dp),
                 contentAlignment = Alignment.Center,
@@ -98,7 +97,7 @@ fun ImportCover(
                         .size(20.dp),
                     painter = painterResource(Res.drawable.icon_plus),
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 )
             }
         }

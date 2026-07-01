@@ -20,8 +20,8 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -82,7 +82,7 @@ fun PlaylistScreen(
 ) {
     Box(
         modifier = modifier
-            .background(MaterialTheme.colorScheme.surface)
+            .background(MiuixTheme.colorScheme.surface)
             .fillMaxSize(),
     ) {
         Column {
@@ -310,24 +310,24 @@ private fun ReorderableCollectionItemScope.PlaylistItem(
     }
 
     val color = if (playing) {
-        MaterialTheme.colorScheme.primary
+        MiuixTheme.colorScheme.primary
     } else {
-        MaterialTheme.colorScheme.onSurface
+        MiuixTheme.colorScheme.onSurface
     }
     val bgColor = if (playing) {
-        MaterialTheme.colorScheme.secondary
+        MiuixTheme.colorScheme.secondary
     } else {
         Color.Transparent
     }
     val durationColor = if (playing) {
-        MaterialTheme.colorScheme.primary
+        MiuixTheme.colorScheme.primary
     } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
+        MiuixTheme.colorScheme.onSurfaceVariantSummary
     }
     val dragHandleColor = if (playing) {
-        MaterialTheme.colorScheme.primary
+        MiuixTheme.colorScheme.primary
     } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
+        MiuixTheme.colorScheme.onSurfaceVariantSummary
     }
 
     LaunchedEffect(currentSwipingTrackId) {

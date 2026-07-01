@@ -28,7 +28,7 @@ kotlin {
             implementation(project(":service:download:domain"))
             implementation(compose.runtime)
             implementation(compose.foundation)
-            implementation(compose.material3)
+            implementation(libs.miuix.ui)
             implementation(compose.components.resources)
             implementation(libs.koin.core)
             implementation(libs.koin.compose)
@@ -49,7 +49,7 @@ kotlin {
 
 android {
     namespace = "com.github.tidetunes.feature.search"
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig {
         minSdk = 29
     }

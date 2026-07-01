@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,6 +19,8 @@ import tidetunes.core.presentation.generated.resources.confirm_dialog_title
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun ConfirmDialog(
@@ -37,12 +37,12 @@ fun ConfirmDialog(
         Column(
             modifier = Modifier
                 .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.surface)
+                .background(MiuixTheme.colorScheme.surfaceContainer)
                 .padding(24.dp, 24.dp),
         ) {
             Text(
                 text = stringResource(Res.string.confirm_dialog_title),
-                color = MaterialTheme.colorScheme.error,
+                color = MiuixTheme.colorScheme.error,
             )
             Box(modifier = Modifier.height(4.dp))
             content()

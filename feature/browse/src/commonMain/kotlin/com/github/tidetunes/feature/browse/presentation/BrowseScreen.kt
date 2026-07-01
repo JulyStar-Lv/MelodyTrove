@@ -18,9 +18,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,6 +28,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.github.tidetunes.core.presentation.components.AppEmptyState
 import com.github.tidetunes.core.presentation.components.AppErrorState
+import com.github.tidetunes.core.presentation.components.AppChip
 import com.github.tidetunes.core.presentation.components.AppLoadingIndicator
 import com.github.tidetunes.core.presentation.components.AppSectionHeader
 import com.github.tidetunes.core.presentation.components.AppTopBar
@@ -91,10 +91,9 @@ fun BrowseScreen(
                             verticalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             state.genres.forEach { genre ->
-                                FilterChip(
-                                    selected = false,
+                                AppChip(
+                                    label = genre,
                                     onClick = { onAction(BrowseAction.NavigateToGenre(genre)) },
-                                    label = { Text(genre) },
                                 )
                             }
                         }
@@ -123,9 +122,9 @@ private fun BrowseAlbumCard(
             ArtworkImage(artwork = album.artwork, modifier = Modifier.fillMaxSize())
         }
         Spacer(Modifier.height(8.dp))
-        Text(text = album.name, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Text(text = album.name, style = MiuixTheme.textStyles.body2, maxLines = 2, overflow = TextOverflow.Ellipsis)
         album.year?.let { year ->
-            Text(text = "$year · ${album.trackCount} tracks", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+            Text(text = "$year · ${album.trackCount} tracks", style = MiuixTheme.textStyles.footnote1, color = MiuixTheme.colorScheme.onSurfaceVariantSummary, maxLines = 1)
         }
     }
 }
@@ -142,12 +141,12 @@ private fun BrowseArtistCard(
         ) {
             Text(
                 text = artist.name.take(1).uppercase(),
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onPrimary,
+                style = MiuixTheme.textStyles.title2,
+                color = MiuixTheme.colorScheme.onPrimary,
             )
         }
         Spacer(Modifier.height(8.dp))
-        Text(text = artist.name, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(text = "${artist.trackCount} tracks", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(text = artist.name, style = MiuixTheme.textStyles.body2, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(text = "${artist.trackCount} tracks", style = MiuixTheme.textStyles.footnote1, color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
     }
 }

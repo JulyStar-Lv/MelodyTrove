@@ -3,8 +3,6 @@ package com.github.tidetunes.core.presentation.media
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.SpanStyle
@@ -16,6 +14,8 @@ import androidx.compose.ui.unit.sp
 import com.github.tidetunes.core.domain.model.LyricLine
 import com.github.tidetunes.core.domain.model.LyricWord
 import kotlin.time.Duration
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 /**
  * Position within a single lyric line for word-by-word animation.
@@ -33,13 +33,13 @@ enum class LyricWordState {
  * Animation target colour for each word state.
  */
 @Composable
-private fun activeColor() = MaterialTheme.colorScheme.primary
+private fun activeColor() = MiuixTheme.colorScheme.primary
 
 @Composable
-private fun completedColor() = MaterialTheme.colorScheme.onSurface
+private fun completedColor() = MiuixTheme.colorScheme.onSurface
 
 @Composable
-private fun inactiveColor() = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+private fun inactiveColor() = MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.5f)
 
 /**
  * Animated lyric line that highlights individual words as playback progresses.

@@ -11,8 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,23 +57,23 @@ fun QueueScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = item.title,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = if (item.isCurrent) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.onSurface,
+                                style = MiuixTheme.textStyles.body2,
+                                color = if (item.isCurrent) MiuixTheme.colorScheme.primary
+                                    else MiuixTheme.colorScheme.onSurface,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
                             item.artist?.let {
-                                Text(text = it, style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                Text(text = it, style = MiuixTheme.textStyles.footnote1,
+                                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                                     maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
                         Spacer(Modifier.width(8.dp))
                         item.durationMs?.let {
                             Text(text = durationLabel(it),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                style = MiuixTheme.textStyles.footnote1,
+                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
                         }
                         Spacer(Modifier.width(8.dp))
                         TideTunesTextButton(

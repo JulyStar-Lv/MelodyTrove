@@ -29,7 +29,7 @@ kotlin {
             implementation(project(":service:download:domain"))
             implementation(libs.runtime)
             implementation(libs.foundation)
-            implementation(libs.material3)
+            implementation(libs.miuix.ui)
             implementation(libs.components.resources)
             implementation(libs.animation)
             implementation(libs.androidx.navigation.compose)
@@ -49,7 +49,7 @@ kotlin {
 
 android {
     namespace = "com.github.tidetunes.feature.playlist"
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig {
         minSdk = 29
     }

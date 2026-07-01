@@ -11,9 +11,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.basic.Surface
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,15 +40,15 @@ fun OnboardingScreen(
 
         Text(
             text = page.title,
-            style = MaterialTheme.typography.headlineMedium,
+            style = MiuixTheme.textStyles.title2,
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(16.dp))
         Text(
             text = page.description,
-            style = MaterialTheme.typography.bodyLarge,
+            style = MiuixTheme.textStyles.body1,
             textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
         )
 
         Spacer(Modifier.height(48.dp))
@@ -63,9 +63,9 @@ fun OnboardingScreen(
                     modifier = Modifier.size(if (index == state.currentPage) 12.dp else 8.dp),
                     shape = CircleShape,
                     color = if (index == state.currentPage)
-                        MaterialTheme.colorScheme.primary
+                        MiuixTheme.colorScheme.primary
                     else
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                        MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.3f),
                 ) {}
                 if (index < OnboardingPage.entries.size - 1) {
                     Spacer(Modifier.width(8.dp))

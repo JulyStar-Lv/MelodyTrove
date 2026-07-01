@@ -4,7 +4,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -19,6 +18,7 @@ import org.jetbrains.compose.resources.painterResource
 import org.koin.compose.koinInject
 import tidetunes.core.presentation.generated.resources.Res
 import tidetunes.core.presentation.generated.resources.cover_default_image
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun ArtworkImage(
@@ -48,7 +48,7 @@ fun ArtworkImage(
         } else {
             Image(
                 modifier = Modifier
-                    .background(MaterialTheme.colorScheme.onSurfaceVariant)
+                    .background(MiuixTheme.colorScheme.onSurfaceVariantSummary)
                     .fillMaxSize(),
                 bitmap = bitmap!!,
                 contentDescription = null,

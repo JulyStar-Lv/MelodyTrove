@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -24,6 +22,8 @@ import androidx.compose.ui.unit.dp
 import com.github.tidetunes.core.presentation.components.dropShadow
 import com.github.tidetunes.navigation.HomeTab
 import org.jetbrains.compose.resources.painterResource
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 fun getBottomBarSpace(
     isPlaying: Boolean,
@@ -64,13 +64,13 @@ fun BoxScope.BottomBar(
         modifier = Modifier
             .align(Alignment.BottomStart)
             .dropShadow(
-                MaterialTheme.colorScheme.surfaceVariant,
+                MiuixTheme.colorScheme.surfaceVariant,
                 0.dp,
                 (-4).dp,
                 8.dp,
             )
             .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp, bottomStart = 0.dp, bottomEnd = 0.dp))
-            .background(MaterialTheme.colorScheme.surface)
+            .background(MiuixTheme.colorScheme.surface)
             .fillMaxWidth()
     ) {
         miniPlayerContent()
@@ -82,9 +82,9 @@ fun BoxScope.BottomBar(
             for (tab in HomeTab.entries) {
                 val isSelected = currentTab == tab
                 val tint = if (isSelected) {
-                    MaterialTheme.colorScheme.primary
+                    MiuixTheme.colorScheme.primary
                 } else {
-                    MaterialTheme.colorScheme.surfaceVariant
+                    MiuixTheme.colorScheme.onSurfaceVariantActions
                 }
 
                 Box(modifier = Modifier

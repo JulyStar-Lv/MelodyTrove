@@ -1,54 +1,107 @@
 package com.github.tidetunes.core.presentation.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import top.yukonga.miuix.kmp.theme.ColorSchemeMode
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.theme.ThemeController
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Color(0xFF2E89B0),
-    secondary = Color(0xFFC9EBFA),
-    tertiary = Pink80,
-    surfaceVariant = Color(0xFF303030)
-)
+enum class TideTunesThemeMode {
+    FollowSystem,
+    Light,
+    Dark,
+}
 
-private val LightColorScheme = lightColorScheme(
-    primary = Color(0xFF2E89B0),
-    secondary = Color(0xFFC9EBFA),
-    tertiary = Pink40,
-    surfaceVariant = Color(0xFFE3E3E3)
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    */
-)
-
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun TideTunesTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit
+    dynamicColor: Boolean = false,
+    themeMode: TideTunesThemeMode = TideTunesThemeMode.FollowSystem,
+    content: @Composable () -> Unit,
 ) {
-    val colorScheme = when {
-//        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-//            val context = LocalContext.current
-//            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-//        }
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+    val colorSchemeMode = when (themeMode) {
+        TideTunesThemeMode.FollowSystem -> ColorSchemeMode.System
+        TideTunesThemeMode.Light -> ColorSchemeMode.Light
+        TideTunesThemeMode.Dark -> ColorSchemeMode.Dark
     }
+    val controller = remember(colorSchemeMode, darkTheme) {
+        ThemeController(
+            colorSchemeMode = colorSchemeMode,
+            lightColors = TideTunesLightColors,
+            darkColors = TideTunesDarkColors,
+            isDark = darkTheme,
+        )
+    }
+    val textStyles = remember { tideTunesTextStyles() }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    MiuixTheme(
+        controller = controller,
+        textStyles = textStyles,
+    ) {
+        CompositionLocalProvider(
+            LocalTideTunesSpacing provides TideTunesSpacing(),
+            LocalTideTunesShapes provides TideTunesShapes(),
+            LocalTideTunesMotion provides TideTunesMotion(),
+            content = content,
+        )
+    }
 }
+
+object TideTunesTokens {
+    val spacing: TideTunesSpacing
+        @Composable @ReadOnlyComposable
+        get() = LocalTideTunesSpacing.current
+
+    val shapes: TideTunesShapes
+        @Composable @ReadOnlyComposable
+        get() = LocalTideTunesShapes.current
+
+    val motion: TideTunesMotion
+        @Composable @ReadOnlyComposable
+        get() = LocalTideTunesMotion.current
+}
+
+@Immutable
+data class TideTunesSpacing(
+    val none: Dp = 0.dp,
+    val xxs: Dp = 4.dp,
+    val xs: Dp = 8.dp,
+    val sm: Dp = 12.dp,
+    val md: Dp = 16.dp,
+    val lg: Dp = 24.dp,
+    val xl: Dp = 32.dp,
+    val xxl: Dp = 48.dp,
+)
+
+@Immutable
+data class TideTunesShapes(
+    val none: Dp = 0.dp,
+    val xxs: Dp = 4.dp,
+    val xs: Dp = 8.dp,
+    val sm: Dp = 12.dp,
+    val md: Dp = 16.dp,
+    val lg: Dp = 20.dp,
+    val xl: Dp = 28.dp,
+    val full: Dp = 999.dp,
+)
+
+@Immutable
+data class TideTunesMotion(
+    val instantMillis: Int = 0,
+    val fastMillis: Int = 100,
+    val standardMillis: Int = 180,
+    val emphasizedMillis: Int = 280,
+    val playerExpandMillis: Int = 380,
+)
+
+private val LocalTideTunesSpacing = staticCompositionLocalOf { TideTunesSpacing() }
+private val LocalTideTunesShapes = staticCompositionLocalOf { TideTunesShapes() }
+private val LocalTideTunesMotion = staticCompositionLocalOf { TideTunesMotion() }

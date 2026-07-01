@@ -3,12 +3,6 @@ package com.github.tidetunes.core.presentation.components
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -23,6 +17,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.sp
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.IconButton
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun SimpleFormText(
@@ -41,7 +39,7 @@ fun SimpleFormText(
                 letterSpacing = 1.sp,
             )
         }
-        TextField(
+        AppTextField(
             modifier = Modifier
                 .fillMaxWidth(),
             value = value,
@@ -83,20 +81,18 @@ fun FormText(
         label = label
     ) {
         if (!isPassword) {
-            TextField(
+            AppTextField(
                 modifier = Modifier
                     .fillMaxWidth(),
                 value = value,
                 onValueChange = onChange,
-                isError = error != null,
             )
         } else {
-            TextField(
+            AppTextField(
                 modifier = Modifier
                     .fillMaxWidth(),
                 value = value,
                 onValueChange = onChange,
-                isError = error != null,
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 trailingIcon = {
@@ -117,7 +113,7 @@ fun FormText(
         if (error != null) {
             Text(
                 text = stringResource(error),
-                color = MaterialTheme.colorScheme.error,
+                color = MiuixTheme.colorScheme.error,
                 fontSize = 10.sp,
             )
         }
@@ -133,7 +129,7 @@ fun FormSwitch(
     FormWidget(
         label = label
     ) {
-        Switch(
+        AppSwitch(
             checked = value,
             onCheckedChange = onChange
         )

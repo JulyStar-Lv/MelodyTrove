@@ -23,9 +23,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -275,19 +275,19 @@ private fun MusicSlider(
                     .height(sliderHeight)
                     .offset(0.dp, (sliderContainerHeight - sliderHeight) / 2)
                     .clip(RoundedCornerShape(10.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .background(MiuixTheme.colorScheme.surfaceVariant)
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(bufferRate)
                         .fillMaxHeight()
-                        .background(MaterialTheme.colorScheme.secondary)
+                        .background(MiuixTheme.colorScheme.secondary)
                 )
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(durationRate)
                         .fillMaxHeight()
-                        .background(MaterialTheme.colorScheme.primary)
+                        .background(MiuixTheme.colorScheme.primary)
                 )
             }
             Box(
@@ -298,7 +298,7 @@ private fun MusicSlider(
                     )
                     .size(handleSize)
                     .clip(RoundedCornerShape(999.dp))
-                    .background(MaterialTheme.colorScheme.primary)
+                    .background(MiuixTheme.colorScheme.primary)
             )
         }
         Row(
@@ -329,7 +329,7 @@ private fun CoverImage(artwork: Artwork?) {
         ArtworkImage(
             modifier = Modifier
                 .dropShadow(
-                    color = MaterialTheme.colorScheme.surfaceVariant,
+                    color = MiuixTheme.colorScheme.surfaceVariant,
                     offsetX = 0.dp,
                     offsetY = 0.dp,
                     blurRadius = 16.dp
@@ -380,7 +380,7 @@ private fun LyricsPanel(
                     modifier = Modifier.size(64.dp),
                     painter = painterResource(Res.drawable.icon_lyrics),
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.surfaceVariant
+                    tint = MiuixTheme.colorScheme.surfaceVariant
                 )
                 Box(modifier = Modifier.height(4.dp))
                 if (lyricLoadedState == LyricsLoadState.Missing) {
@@ -440,8 +440,8 @@ private fun LyricsPanel(
                         ) {
                             Text(
                                 text = lyric.text,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodyLarge,
+                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                style = MiuixTheme.textStyles.body1,
                                 modifier = Modifier.align(Alignment.CenterStart),
                             )
                         }
@@ -627,9 +627,9 @@ private fun MusicPanel(
             },
             overrideColors = TideTunesIconButtonColors(
                 iconTint = if (isSleepTimerEnabled) {
-                    MaterialTheme.colorScheme.primary
+                    MiuixTheme.colorScheme.primary
                 } else {
-                    MaterialTheme.colorScheme.onSurface
+                    MiuixTheme.colorScheme.onSurface
                 },
                 buttonBg = Color.Transparent,
             ),
@@ -655,7 +655,7 @@ private fun MusicPanel(
                 disabled = controls.isLoading,
                 overrideColors = if (controls.isLoading) {
                     TideTunesIconButtonColors(
-                        buttonDisabledBg = MaterialTheme.colorScheme.secondary,
+                        buttonDisabledBg = MiuixTheme.colorScheme.secondary,
                     )
                 } else {
                     null
@@ -721,7 +721,7 @@ fun NowPlayingScreen(
                         palette.darkMuted,
                         palette.muted,
                         palette.vibrant,
-                        MaterialTheme.colorScheme.surface,
+                        MiuixTheme.colorScheme.surface,
                     ),
                 ),
             )
@@ -764,7 +764,7 @@ fun NowPlayingScreen(
                 Text(
                     text = currentTrack?.title ?: "",
                     maxLines = 3,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = MiuixTheme.colorScheme.onSurface,
                     fontSize = 20.sp,
                     modifier = Modifier.padding(0.dp, 10.dp)
                 )

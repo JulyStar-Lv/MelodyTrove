@@ -62,19 +62,6 @@ class PlayerRepository(
     private val _currentTrackInfo = MutableStateFlow<CurrentTrackInfo?>(null)
     val currentTrackInfo = _currentTrackInfo.asStateFlow()
 
-    init {
-        _scope.launch {
-            appPreferencesRepository.playMode.collect { _playMode.value = it }
-        }
-        _scope.launch {
-            previousMusic.collect { prev -> _previousArtwork.value = prev?.cover?.toArtwork() }
-        }
-        _scope.launch {
-            nextMusic.collect { next -> _nextArtwork.value = next?.cover?.toArtwork() }
-        }
-        reload()
-    }
-
     val previousMusic = combine(playMode, _musicIndex, _playlist) {
         playMode, musicIndex, playlist ->
             if (musicIndex == -1 || playlist == null || playlist.musics.size == 0) {
@@ -117,6 +104,19 @@ class PlayerRepository(
             playlist.musics[i]
         }
     }.stateIn(_scope, SharingStarted.Eagerly, null)
+
+    init {
+        _scope.launch {
+            appPreferencesRepository.playMode.collect { _playMode.value = it }
+        }
+        _scope.launch {
+            previousMusic.collect { prev -> _previousArtwork.value = prev?.cover?.toArtwork() }
+        }
+        _scope.launch {
+            nextMusic.collect { next -> _nextArtwork.value = next?.cover?.toArtwork() }
+        }
+        reload()
+    }
 
     fun setIsPlaying(playing: Boolean) {
         _playing.value = playing

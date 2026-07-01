@@ -1,18 +1,14 @@
 package com.github.tidetunes.core.presentation.components
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.ButtonColors
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
+import top.yukonga.miuix.kmp.basic.TextButton
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 enum class TideTunesTextButtonType {
     Primary,
@@ -35,28 +31,27 @@ fun TideTunesTextButton(
     disabled: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
-    val fontSize = when (size) {
-        TideTunesTextButtonSize.Small -> 10.sp
-        TideTunesTextButtonSize.Medium -> 14.sp
-    }
-    val buttonColors = when(type) {
-        TideTunesTextButtonType.Default -> ButtonDefaults.textButtonColors().copy(
-            contentColor = MaterialTheme.colorScheme.onSurface
+    val buttonColors = when (type) {
+        TideTunesTextButtonType.Default -> ButtonDefaults.textButtonColors(
+            color = Color.Transparent,
+            textColor = MiuixTheme.colorScheme.onSurface,
         )
         TideTunesTextButtonType.Primary -> {
-            ButtonDefaults.textButtonColors().copy(
-                contentColor = MaterialTheme.colorScheme.primary
+            ButtonDefaults.textButtonColors(
+                color = Color.Transparent,
+                textColor = MiuixTheme.colorScheme.primary,
             )
         }
         TideTunesTextButtonType.PrimaryVariant -> {
-            ButtonDefaults.textButtonColors().copy(
-                contentColor = MaterialTheme.colorScheme.surface,
-                containerColor = MaterialTheme.colorScheme.primary
+            ButtonDefaults.textButtonColors(
+                color = MiuixTheme.colorScheme.primary,
+                textColor = MiuixTheme.colorScheme.onPrimary,
             )
         }
         TideTunesTextButtonType.Error -> {
-            ButtonDefaults.textButtonColors().copy(
-                contentColor = MaterialTheme.colorScheme.error
+            ButtonDefaults.textButtonColors(
+                color = Color.Transparent,
+                textColor = MiuixTheme.colorScheme.error,
             )
         }
     }
@@ -65,13 +60,10 @@ fun TideTunesTextButton(
         modifier = modifier.padding(0.dp),
         colors = buttonColors,
         onClick = onClick,
-        enabled = !disabled
-    ) {
-        Text(
-            text = text,
-            fontSize = fontSize,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
+        enabled = !disabled,
+        text = text,
+        insideMargin = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+        minHeight = if (size == TideTunesTextButtonSize.Small) 28.dp else 36.dp,
+        minWidth = 0.dp,
+    )
 }

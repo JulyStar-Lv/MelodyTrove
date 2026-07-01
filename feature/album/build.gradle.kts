@@ -26,7 +26,7 @@ kotlin {
             implementation(project(":core:presentation"))
             implementation(libs.runtime)
             implementation(libs.foundation)
-            implementation(libs.material3)
+            implementation(libs.miuix.ui)
             implementation(libs.kotlinx.collections.immutable)
             implementation(libs.koin.core)
             implementation(libs.koin.compose.viewmodel)
@@ -44,7 +44,7 @@ kotlin {
 
 android {
     namespace = "com.github.tidetunes.feature.album"
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig {
         minSdk = 29
     }

@@ -25,7 +25,7 @@ kotlin {
             implementation(project(":core:presentation"))
             implementation(compose.runtime)
             implementation(compose.foundation)
-            implementation(compose.material3)
+            implementation(libs.miuix.ui)
             implementation(libs.koin.core)
             implementation(libs.koin.compose)
             implementation(libs.koin.compose.viewmodel)
@@ -42,7 +42,7 @@ kotlin {
 
 android {
     namespace = "com.github.tidetunes.feature.onboarding"
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig {
         minSdk = 29
     }

@@ -27,8 +27,9 @@ import kotlinx.coroutines.Dispatchers
         DownloadTaskEntity::class,
         PlaylistEntity::class,
         PlaylistTrackCrossRef::class,
+        TrackFts::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 @ConstructedBy(TideTunesDatabaseConstructor::class)
@@ -41,8 +42,7 @@ abstract class TideTunesDatabase : RoomDatabase() {
     abstract fun metadataDao(): MetadataDao
     abstract fun syncDao(): SyncDao
     abstract fun downloadTaskDao(): DownloadTaskDao
-
-
+    abstract fun trackFtsDao(): TrackFtsDao
 }
 
 @Suppress("KotlinNoActualForExpect")
@@ -60,6 +60,6 @@ fun buildDatabase(): TideTunesDatabase {
         .addMigrations(MIGRATION_2_3)
         .addMigrations(MIGRATION_3_4)
         .addMigrations(MIGRATION_4_5)
+        .addMigrations(MIGRATION_5_6)
         .build()
 }
-

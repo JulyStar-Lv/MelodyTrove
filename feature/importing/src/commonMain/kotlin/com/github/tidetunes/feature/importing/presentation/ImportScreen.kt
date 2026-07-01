@@ -21,10 +21,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.FloatingActionButton
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -76,7 +76,7 @@ private fun ImportEntriesSkeleton() {
         width: Dp,
         height: Dp,
     ) {
-        val color = MaterialTheme.colorScheme.surfaceVariant
+        val color = MiuixTheme.colorScheme.surfaceVariant
         Box(modifier = Modifier
             .width(width)
             .height(height)
@@ -211,9 +211,9 @@ private fun ImportEntries(
         disabled: Boolean,
     ) {
         val color = if (!disabled) {
-            MaterialTheme.colorScheme.onSurface
+            MiuixTheme.colorScheme.onSurface
         } else {
-            MaterialTheme.colorScheme.surfaceVariant
+            MiuixTheme.colorScheme.surfaceVariant
         }
         Text(
             text = text,
@@ -284,8 +284,7 @@ private fun ImportEntries(
         }
         if (state.selectionMode == ImportSelectionMode.CurrentDirectory) {
             FloatingActionButton(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.surface,
+                containerColor = MiuixTheme.colorScheme.primary,
                 onClick = {
                     onAction(ImportAction.FinishCurrentDirectory)
                 },
@@ -296,12 +295,12 @@ private fun ImportEntries(
                 Icon(
                     painter = painterResource(Res.drawable.icon_yes),
                     contentDescription = null,
+                    tint = MiuixTheme.colorScheme.onPrimary,
                 )
             }
         } else if (state.selectedCount > 0) {
             FloatingActionButton(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.surface,
+                containerColor = MiuixTheme.colorScheme.primary,
                 onClick = {
                     onAction(ImportAction.FinishSelection)
                 },
@@ -312,6 +311,7 @@ private fun ImportEntries(
                 Icon(
                     painter = painterResource(Res.drawable.icon_yes),
                     contentDescription = null,
+                    tint = MiuixTheme.colorScheme.onPrimary,
                 )
             }
         }
@@ -333,14 +333,14 @@ private fun ImportStorages(
             val selected = state.selectedStorageAccountId == item.accountId
 
             val bgColor = if (selected) {
-                MaterialTheme.colorScheme.primary
+                MiuixTheme.colorScheme.primary
             } else {
-                MaterialTheme.colorScheme.surfaceVariant
+                MiuixTheme.colorScheme.surfaceVariant
             }
             val textColor = if (selected) {
                 Color.White
             } else {
-                MaterialTheme.colorScheme.onSurface
+                MiuixTheme.colorScheme.onSurface
             }
 
             Box(
@@ -419,7 +419,7 @@ private fun ImportMusicsWarningImpl(
                 Icon(
                     painter = iconPainter,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.surface,
+                    tint = MiuixTheme.colorScheme.surface,
                     modifier = Modifier
                         .align(Alignment.Center)
                 )
@@ -468,7 +468,7 @@ private fun ImportMusicsError(
     ImportMusicsWarningImpl(
         title = title,
         subTitle = desc,
-        color = MaterialTheme.colorScheme.error,
+        color = MiuixTheme.colorScheme.error,
         iconPainter = painterResource(Res.drawable.icon_warning),
         onClick = {
             onAction(ImportAction.RecoverFromLoadError)
@@ -496,7 +496,7 @@ fun ImportScreen(
     }
     Column(
         modifier = Modifier
-            .background(MaterialTheme.colorScheme.surface)
+            .background(MiuixTheme.colorScheme.surface)
             .fillMaxSize()
     ) {
         Row(

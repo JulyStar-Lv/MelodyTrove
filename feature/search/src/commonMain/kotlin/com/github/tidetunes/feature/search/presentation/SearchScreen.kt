@@ -13,17 +13,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.github.tidetunes.core.presentation.components.AppChip
+import com.github.tidetunes.core.presentation.components.AppTextField
 import com.github.tidetunes.core.presentation.components.TideTunesTextButton
 import com.github.tidetunes.core.presentation.components.TideTunesTextButtonSize
 import com.github.tidetunes.core.presentation.components.TideTunesTextButtonType
@@ -52,17 +52,15 @@ fun SearchScreen(
     ) {
         Text(
             text = stringResource(Res.string.search_title),
-            color = MaterialTheme.colorScheme.primary,
+            color = MiuixTheme.colorScheme.primary,
             fontSize = 20.sp,
         )
-        OutlinedTextField(
+        AppTextField(
             value = state.query,
             onValueChange = { query -> onAction(SearchAction.QueryChanged(query)) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
-            label = {
-                Text(text = stringResource(Res.string.search_hint))
-            },
+            label = stringResource(Res.string.search_hint),
         )
         if (state.suggestions.isNotEmpty()) {
             SearchSuggestions(
@@ -74,7 +72,7 @@ fun SearchScreen(
         if (state.failedSourceCount > 0) {
             Text(
                 text = "${state.failedSourceCount} ${stringResource(Res.string.search_remote_failures)}",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 fontSize = 12.sp,
             )
         }
@@ -97,7 +95,7 @@ private fun SearchSuggestions(
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = title,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             fontSize = 12.sp,
         )
         FlowRow(
@@ -105,15 +103,9 @@ private fun SearchSuggestions(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             suggestions.forEach { suggestion ->
-                AssistChip(
+                AppChip(
+                    label = suggestion,
                     onClick = { onSelect(suggestion) },
-                    label = {
-                        Text(
-                            text = suggestion,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    },
                 )
             }
         }
@@ -143,7 +135,7 @@ private fun SearchContent(
             ) {
                 Text(
                     text = stringResource(Res.string.search_empty),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     fontSize = 14.sp,
                 )
             }
@@ -155,7 +147,7 @@ private fun SearchContent(
             ) {
                 Text(
                     text = stringResource(Res.string.search_remote_failures),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     fontSize = 14.sp,
                 )
             }
@@ -202,14 +194,14 @@ private fun SearchTrackRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = track.title,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = MiuixTheme.colorScheme.onSurface,
                 fontSize = 14.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = track.artist ?: track.sourceLabel,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 fontSize = 12.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -226,14 +218,14 @@ private fun SearchTrackRow(
             }
             Text(
                 text = track.sourceLabel,
-                color = MaterialTheme.colorScheme.primary,
+                color = MiuixTheme.colorScheme.primary,
                 fontSize = 11.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = track.durationMs.durationText(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 fontSize = 12.sp,
             )
         }

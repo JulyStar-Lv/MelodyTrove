@@ -8,8 +8,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -19,14 +17,16 @@ import tidetunes.core.presentation.generated.resources.Res
 import tidetunes.core.presentation.generated.resources.icon_yes
 import org.jetbrains.compose.resources.painterResource
 import androidx.compose.ui.unit.dp
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun TideTunesCheckbox(
     value: Boolean,
     onChange: (value: Boolean) -> Unit
 ) {
-    val borderColor = if (value) { MaterialTheme.colorScheme.primary } else { MaterialTheme.colorScheme.onSurface }
-    val bgColor = if (value) { MaterialTheme.colorScheme.primary } else { Color.Transparent }
+    val borderColor = if (value) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurface
+    val bgColor = if (value) MiuixTheme.colorScheme.primary else Color.Transparent
 
     Box(
         modifier = Modifier
@@ -40,7 +40,7 @@ fun TideTunesCheckbox(
         if (value) {
             Icon(
                 painter = painterResource(Res.drawable.icon_yes),
-                tint = MaterialTheme.colorScheme.surface,
+                tint = MiuixTheme.colorScheme.surface,
                 contentDescription = null,
                 modifier = Modifier.width(6.dp)
             )

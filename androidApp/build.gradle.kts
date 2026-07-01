@@ -17,7 +17,7 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.github.tidetunes"
-    compileSdk = 36
+    compileSdk = 37
 
     lint {
         abortOnError = false
@@ -97,6 +97,8 @@ kotlin {
 
 dependencies {
     implementation(project(":shared"))
+    implementation(project(":core:domain"))
+    implementation(project(":service:playback:domain"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -104,7 +106,6 @@ dependencies {
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3)
     implementation(libs.koin.android)
     implementation(libs.koin.core)
     implementation(libs.media3.exoplayer)

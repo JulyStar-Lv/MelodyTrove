@@ -10,5 +10,6 @@ val settingsFeatureModule = module {
     includes(corePresentationModule)
     includes(settingsFeatureDiModule)
 
-    single<ToastRepository> { ToastRepositoryImpl(get()) }
+    single { ToastRepositoryImpl(get()) }
+    single<ToastRepository> { get<ToastRepositoryImpl>() }
 }

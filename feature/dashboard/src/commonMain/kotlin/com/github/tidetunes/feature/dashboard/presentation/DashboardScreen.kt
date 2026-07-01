@@ -14,9 +14,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,7 +50,7 @@ private val paddingY = 12.dp
 private fun Title(title: String) {
     Text(
         text = title,
-        color = MaterialTheme.colorScheme.primary,
+        color = MiuixTheme.colorScheme.primary,
         fontSize = 14.sp,
     )
 }
@@ -133,14 +133,14 @@ private fun SleepModeBlock(
     onOpenTimer: () -> Unit,
 ) {
     val blockBg = if (enabled) {
-        MaterialTheme.colorScheme.secondary
+        MiuixTheme.colorScheme.secondary
     } else {
-        MaterialTheme.colorScheme.surfaceVariant
+        MiuixTheme.colorScheme.surfaceVariant
     }
     val tint = if (enabled) {
-        MaterialTheme.colorScheme.primary
+        MiuixTheme.colorScheme.primary
     } else {
-        MaterialTheme.colorScheme.onSurface
+        MiuixTheme.colorScheme.onSurface
     }
 
     Box(
@@ -208,19 +208,19 @@ private fun ImportJobRow(
     onCancel: () -> Unit,
 ) {
     val bgColor = if (job.hasError) {
-        MaterialTheme.colorScheme.errorContainer
+        MiuixTheme.colorScheme.errorContainer
     } else {
-        MaterialTheme.colorScheme.surfaceVariant
+        MiuixTheme.colorScheme.surfaceVariant
     }
     val titleColor = if (job.hasError) {
-        MaterialTheme.colorScheme.onErrorContainer
+        MiuixTheme.colorScheme.onErrorContainer
     } else {
-        MaterialTheme.colorScheme.onSurface
+        MiuixTheme.colorScheme.onSurface
     }
     val detailColor = if (job.hasError) {
-        MaterialTheme.colorScheme.onErrorContainer
+        MiuixTheme.colorScheme.onErrorContainer
     } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
+        MiuixTheme.colorScheme.onSurfaceVariantSummary
     }
 
     Column(
@@ -256,7 +256,7 @@ private fun ImportJobRow(
                 ) {
                     Text(
                         text = stringResource(Res.string.dashboard_import_pause),
-                        color = MaterialTheme.colorScheme.primary,
+                        color = MiuixTheme.colorScheme.primary,
                         fontSize = 12.sp,
                         modifier = Modifier.clickable(onClick = onPause),
                     )
@@ -264,7 +264,7 @@ private fun ImportJobRow(
                 if (job.canResume) {
                     Text(
                         text = stringResource(Res.string.dashboard_import_resume),
-                        color = MaterialTheme.colorScheme.primary,
+                        color = MiuixTheme.colorScheme.primary,
                         fontSize = 12.sp,
                         modifier = Modifier.clickable(onClick = onResume),
                     )
@@ -272,7 +272,7 @@ private fun ImportJobRow(
                 if (job.canRetry) {
                     Text(
                         text = stringResource(Res.string.dashboard_import_retry),
-                        color = MaterialTheme.colorScheme.primary,
+                        color = MiuixTheme.colorScheme.primary,
                         fontSize = 12.sp,
                         modifier = Modifier.clickable(onClick = onRetry),
                     )
@@ -280,7 +280,7 @@ private fun ImportJobRow(
                 if (job.isActive) {
                     Text(
                         text = stringResource(Res.string.dashboard_import_cancel),
-                        color = MaterialTheme.colorScheme.primary,
+                        color = MiuixTheme.colorScheme.primary,
                         fontSize = 12.sp,
                         modifier = Modifier.clickable(onClick = onCancel),
                     )
@@ -326,7 +326,7 @@ private fun DownloadsBlock(
             .padding(paddingX, paddingY)
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .background(MiuixTheme.colorScheme.surfaceVariant)
             .clickable(onClick = onClick)
             .padding(16.dp, 14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -335,12 +335,12 @@ private fun DownloadsBlock(
             modifier = Modifier.size(28.dp),
             painter = painterResource(Res.drawable.icon_download),
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
+            tint = MiuixTheme.colorScheme.primary,
         )
         Box(modifier = Modifier.padding(8.dp))
         Text(
             text = stringResource(Res.string.dashboard_downloads),
-            color = MaterialTheme.colorScheme.onSurface,
+            color = MiuixTheme.colorScheme.onSurface,
             fontSize = 14.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

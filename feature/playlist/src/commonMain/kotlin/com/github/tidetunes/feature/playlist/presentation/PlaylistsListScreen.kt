@@ -17,10 +17,10 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.FloatingActionButton
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -105,7 +105,7 @@ fun PlaylistsListScreen(
             }
             if (state.mode == PlaylistsListMode.Adjust) {
                 FloatingActionButton(
-                    containerColor = MaterialTheme.colorScheme.primary,
+                    containerColor = MiuixTheme.colorScheme.primary,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(32.dp),
@@ -173,7 +173,7 @@ private fun ReorderableCollectionItemScope.PlaylistItem(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(20.dp))
-                    .background(MaterialTheme.colorScheme.onSurfaceVariant)
+                    .background(MiuixTheme.colorScheme.onSurfaceVariantSummary)
                     .size(136.dp),
             ) {
                 if (playlist.cover == null) {
@@ -211,7 +211,7 @@ private fun ReorderableCollectionItemScope.PlaylistItem(
                     .align(Alignment.TopStart)
                     .size(24.dp)
                     .clip(RoundedCornerShape(4.dp))
-                    .background(MaterialTheme.colorScheme.primary),
+                    .background(MiuixTheme.colorScheme.primary),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(

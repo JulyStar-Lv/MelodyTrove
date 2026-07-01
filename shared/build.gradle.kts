@@ -23,7 +23,7 @@ kotlin {
         iosSimulatorArm64(),
     ).forEach { iosTarget ->
         iosTarget.binaries.framework {
-            baseName = "TideTuneShared"
+            baseName = "TideTunesShared"
             isStatic = true
             binaryOption("bundleId", "com.github.tidetune.shared")
         }
@@ -59,9 +59,9 @@ kotlin {
             implementation(project(":feature:recentlyadded"))
             implementation(project(":feature:recentlyplayed"))
             implementation(project(":service:librarysync:domain"))
+            implementation(project(":service:librarysync:data"))
             implementation(libs.runtime)
             implementation(libs.foundation)
-            implementation(libs.material3)
             implementation(libs.components.resources)
             implementation(libs.animation)
             implementation(libs.androidx.navigation.compose)
@@ -120,7 +120,7 @@ cargo {
 
 android {
     namespace = "com.github.tidetunes.shared"
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig {
         minSdk = 29
         ndk.abiFilters += setOf("arm64-v8a", "x86_64")

@@ -12,9 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,6 +22,9 @@ import androidx.compose.ui.unit.dp
 import com.github.tidetunes.core.presentation.components.dropShadow
 import com.github.tidetunes.navigation.HomeTab
 import org.jetbrains.compose.resources.painterResource
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 fun getSidebarWidth(): Dp = 248.dp
 
@@ -39,19 +39,19 @@ fun SidebarBar(
         modifier = modifier
             .width(getSidebarWidth())
             .dropShadow(
-                MaterialTheme.colorScheme.surfaceVariant,
+                MiuixTheme.colorScheme.surfaceVariant,
                 4.dp,
                 0.dp,
                 8.dp,
             )
             .clip(RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp))
-            .background(MaterialTheme.colorScheme.surface)
+            .background(MiuixTheme.colorScheme.surface)
             .padding(horizontal = 12.dp, vertical = 16.dp),
     ) {
         Text(
             text = "TideTunes",
-            color = MaterialTheme.colorScheme.onSurface,
-            style = MaterialTheme.typography.titleLarge,
+            color = MiuixTheme.colorScheme.onSurface,
+            style = MiuixTheme.textStyles.title2,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
         )
@@ -75,14 +75,14 @@ private fun SidebarItem(
     onClick: () -> Unit,
 ) {
     val contentColor = if (selected) {
-        MaterialTheme.colorScheme.primary
+        MiuixTheme.colorScheme.primary
     } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
+        MiuixTheme.colorScheme.onSurfaceVariantSummary
     }
     val backgroundColor = if (selected) {
-        MaterialTheme.colorScheme.secondary
+        MiuixTheme.colorScheme.secondaryContainer
     } else {
-        MaterialTheme.colorScheme.surface
+        MiuixTheme.colorScheme.surface
     }
 
     Row(
@@ -107,7 +107,7 @@ private fun SidebarItem(
         Text(
             text = tab.label,
             color = contentColor,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MiuixTheme.textStyles.body2,
             maxLines = 1,
         )
     }

@@ -15,9 +15,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,7 +59,7 @@ fun CreatePlaylistScreen(
         Column(
             modifier = Modifier
                 .clip(RoundedCornerShape(16.dp))
-                .background(MaterialTheme.colorScheme.surface)
+                .background(MiuixTheme.colorScheme.surface)
                 .padding(24.dp, 24.dp),
         ) {
             Row {
@@ -124,7 +124,7 @@ private fun Tab(
     isActive: Boolean,
     onClick: () -> Unit,
 ) {
-    val activeColor = MaterialTheme.colorScheme.primary
+    val activeColor = MiuixTheme.colorScheme.primary
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -160,7 +160,7 @@ private fun FullImportSection(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(6.dp))
                 .clickable { onAction(CreatePlaylistAction.PrepareImport) }
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .background(MiuixTheme.colorScheme.surfaceVariant)
                 .padding(0.dp, 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {

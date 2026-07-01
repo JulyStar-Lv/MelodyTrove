@@ -18,8 +18,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -151,7 +151,7 @@ private fun ArtistHeader(
         Spacer(Modifier.height(12.dp))
         Text(
             text = name,
-            style = MaterialTheme.typography.headlineSmall,
+            style = MiuixTheme.textStyles.title3,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
@@ -181,15 +181,15 @@ private fun AlbumCard(
         Spacer(Modifier.height(8.dp))
         Text(
             text = album.name,
-            style = MaterialTheme.typography.bodyMedium,
+            style = MiuixTheme.textStyles.body2,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
         album.year?.let { year ->
             Text(
                 text = year.toString(),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.footnote1,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 maxLines = 1,
             )
         }
@@ -222,8 +222,8 @@ private fun ArtistTrackRow(
         if (trackLabel.isNotEmpty()) {
             Text(
                 text = trackLabel,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.footnote1,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 modifier = Modifier.width(36.dp),
             )
         } else {
@@ -235,15 +235,15 @@ private fun ArtistTrackRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = track.title,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MiuixTheme.textStyles.body2,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             track.albumName?.let { album ->
                 Text(
                     text = album,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = if (onAlbumClick != null) {
@@ -260,8 +260,8 @@ private fun ArtistTrackRow(
         track.durationMs?.let { ms ->
             Text(
                 text = durationLabel(ms),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MiuixTheme.textStyles.footnote1,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             )
         }
 

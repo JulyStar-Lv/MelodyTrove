@@ -17,12 +17,12 @@ import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.MoreExecutors
 import com.github.tidetunes.core.KeepBackendService
 import com.github.tidetunes.core.PlaybackService
+import com.github.tidetunes.core.data.StorageRepositoryImpl
 import com.github.tidetunes.di.AppInitializer
 import com.github.tidetunes.di.initKoin
 import com.github.tidetunes.platform.appContext
 import com.github.tidetunes.singleton.PermissionRepository
 import com.github.tidetunes.singleton.PlayerControllerRepository
-import com.github.tidetunes.singleton.StorageRepository
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
 import uniffi.tidetunes_core.tidetunesLog
@@ -30,7 +30,7 @@ import kotlin.system.exitProcess
 
 class MainActivity : ComponentActivity() {
     private val playerControllerRepository: PlayerControllerRepository by inject()
-    private val storageRepository: StorageRepository by inject()
+    private val storageRepository: StorageRepositoryImpl by inject()
     private val permissionRepository: PermissionRepository by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {

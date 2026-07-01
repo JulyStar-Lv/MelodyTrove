@@ -94,6 +94,7 @@ class RoomSearchRepositoryIntegrationTest {
     private fun repository(database: TideTunesDatabase): RoomSearchRepository {
         return RoomSearchRepository(
             trackDao = database.trackDao(),
+            trackFtsDao = database.trackFtsDao(),
             storageLookup = LegacyStorageLookup { null },
         )
     }

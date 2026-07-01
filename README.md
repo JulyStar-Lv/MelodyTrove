@@ -1,17 +1,11 @@
 # TideTunes
-
-TideTunes is a lightweight music player, written in Rust and Jetpack Compose.
+TideTunes is a Kotlin Multiplatform / Compose Multiplatform music app for Android, iOS, and Desktop.
 
 Features
 ----
 
 - WebDAV and OneDrive support
 - Playlist-based, music cover and lyric support
-
-ScreenShot
-----
-
-![screenshot](./docs/Screenshots.webp)
 
 Roadmap
 ----
@@ -23,7 +17,9 @@ Roadmap
 Motivation
 ----
 
-The primary purpose of this application is to explore application development with Rust. For more details, please see [motivation](./docs/motivation.md) document.
+TideTunes is a Kotlin Multiplatform / Compose Multiplatform music app targeting
+Android, iOS, and Desktop. Rust provides remote storage access, metadata parsing,
+and desktop audio decoding.
 
 
 License

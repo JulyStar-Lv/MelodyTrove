@@ -8,8 +8,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -26,6 +24,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.compose.viewmodel.koinViewModel
 import com.github.tidetunes.core.presentation.overlay.ToastVM
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun ToastFrame(
@@ -58,12 +58,12 @@ fun ToastFrame(
                 modifier = Modifier
                     .padding(bottom = 48.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(MaterialTheme.colorScheme.inverseSurface)
+                    .background(MiuixTheme.colorScheme.onBackground.copy(alpha = 0.92f))
                     .padding(horizontal = 24.dp, vertical = 12.dp)
             ) {
                 Text(
                     text = message,
-                    color = MaterialTheme.colorScheme.inverseOnSurface,
+                    color = MiuixTheme.colorScheme.background,
                     fontSize = 14.sp,
                     textAlign = TextAlign.Center,
                 )

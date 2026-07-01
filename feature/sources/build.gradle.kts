@@ -28,7 +28,7 @@ kotlin {
             implementation(project(":service:librarysync:domain"))
             implementation(compose.runtime)
             implementation(compose.foundation)
-            implementation(compose.material3)
+            implementation(libs.miuix.ui)
             implementation(compose.components.resources)
             implementation(libs.androidx.navigation.compose)
             implementation(libs.koin.core)
@@ -42,7 +42,7 @@ kotlin {
 
 android {
     namespace = "com.github.tidetunes.feature.sources"
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig {
         minSdk = 29
     }
