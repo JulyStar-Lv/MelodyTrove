@@ -2,6 +2,8 @@ package com.github.tidetunes.service.librarysync.data
 
 import com.github.tidetunes.core.domain.model.SourceAccountId
 import com.github.tidetunes.domain.importing.RemoteLibraryImportResult
+import com.github.tidetunes.service.librarysync.domain.DEFAULT_LIBRARY_SYNC_BATCH_SIZE
+import com.github.tidetunes.service.librarysync.domain.DEFAULT_LIBRARY_SYNC_METADATA_CONCURRENCY
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncRequest
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncStatus
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncTask
@@ -301,8 +303,8 @@ class LegacyLibrarySyncControllerTest {
         selectedFolderCanonicalPath: String = "/Music",
         selectedFolderDisplayPath: String? = null,
         scanId: String? = null,
-        metadataConcurrency: UInt = 4u,
-        importBatchSize: Int = 100,
+        metadataConcurrency: UInt = DEFAULT_LIBRARY_SYNC_METADATA_CONCURRENCY,
+        importBatchSize: Int = DEFAULT_LIBRARY_SYNC_BATCH_SIZE,
     ): LibrarySyncRequest {
         return LibrarySyncRequest(
             accountId = accountId,

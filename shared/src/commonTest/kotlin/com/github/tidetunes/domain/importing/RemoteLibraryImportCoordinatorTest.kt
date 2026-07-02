@@ -115,7 +115,7 @@ class RemoteLibraryImportCoordinatorTest {
         assertEquals(1_007, prepared.size)
         assertEquals("/Music/Album/track-0000.mp3", prepared.first().path)
         assertEquals("/Music/z.flac", prepared.last().path)
-        assertEquals(11, batches.size)
+        assertEquals(6, batches.size)
         assertTrue(batches.all { it.size <= DEFAULT_IMPORT_BATCH_SIZE })
     }
 

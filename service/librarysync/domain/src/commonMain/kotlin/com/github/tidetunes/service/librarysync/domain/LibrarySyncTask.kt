@@ -33,6 +33,18 @@ data class LibrarySyncTask(
     val hasError: Boolean
         get() = failedCount > 0 || !errorMessage.isNullOrBlank()
 
+    val processedCount: Long
+        get() = importedCount + skippedCount + failedCount
+
+    val pendingCount: Long
+        get() = (scannedCount - processedCount).coerceAtLeast(0)
+
+    val successfulCount: Long
+        get() = importedCount + skippedCount
+
+    val hasProgress: Boolean
+        get() = scannedCount > 0L || processedCount > 0L
+
     val isActive: Boolean
         get() = status.isActive
 

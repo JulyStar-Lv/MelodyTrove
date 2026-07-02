@@ -2,6 +2,7 @@ package com.github.tidetunes.service.librarysync.domain
 
 import com.github.tidetunes.core.domain.model.SourceAccountId
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
@@ -24,6 +25,21 @@ class LibrarySyncTaskTest {
         assertTrue(task(failedCount = 1, errorMessage = null).hasError)
         assertTrue(task(failedCount = 0, errorMessage = "timeout").hasError)
         assertFalse(task(failedCount = 0, errorMessage = null).hasError)
+    }
+
+    @Test
+    fun taskExposesDerivedProgressCountsForUi() {
+        val task = task(
+            scannedCount = 500,
+            importedCount = 320,
+            skippedCount = 120,
+            failedCount = 5,
+        )
+
+        assertEquals(445, task.processedCount)
+        assertEquals(55, task.pendingCount)
+        assertEquals(440, task.successfulCount)
+        assertTrue(task.hasProgress)
     }
 
     @Test
@@ -55,6 +71,8 @@ class LibrarySyncTaskTest {
         folderPath: String = "/Music",
         status: LibrarySyncStatus = LibrarySyncStatus.Running,
         scannedCount: Long = 1,
+        importedCount: Long = 1,
+        skippedCount: Long = 0,
         failedCount: Long = 0,
         errorMessage: String? = null,
     ): LibrarySyncTask {
@@ -67,8 +85,8 @@ class LibrarySyncTaskTest {
             folderDisplayPath = folderPath,
             status = status,
             scannedCount = scannedCount,
-            importedCount = 1,
-            skippedCount = 0,
+            importedCount = importedCount,
+            skippedCount = skippedCount,
             failedCount = failedCount,
             checkpoint = null,
             errorMessage = errorMessage,

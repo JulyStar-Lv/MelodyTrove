@@ -130,3 +130,9 @@ android {
         targetCompatibility = JavaVersion.VERSION_21
     }
 }
+
+tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
+    val liveWebDavEnabled = providers.systemProperty("tidetunes.liveWebdav.enabled").orElse("false")
+    inputs.property("tidetunes.liveWebdav.enabled", liveWebDavEnabled)
+    systemProperty("tidetunes.liveWebdav.enabled", liveWebDavEnabled.get())
+}

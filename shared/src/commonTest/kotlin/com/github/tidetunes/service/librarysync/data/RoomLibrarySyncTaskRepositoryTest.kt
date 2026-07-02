@@ -23,10 +23,13 @@ class RoomLibrarySyncTaskRepositoryTest {
         assertEquals("/Music", task.folderPath)
         assertEquals("Music", task.folderDisplayPath)
         assertEquals(LibrarySyncStatus.CompletedWithErrors, task.status)
-        assertEquals(10, task.scannedCount)
+        assertEquals(11, task.scannedCount)
         assertEquals(8, task.importedCount)
         assertEquals(2, task.skippedCount)
         assertEquals(1, task.failedCount)
+        assertEquals(11, task.processedCount)
+        assertEquals(0, task.pendingCount)
+        assertEquals(10, task.successfulCount)
         assertEquals("/Music/A.flac", task.checkpoint)
         assertEquals(null, task.errorMessage)
         assertTrue(task.hasError)
@@ -57,7 +60,7 @@ class RoomLibrarySyncTaskRepositoryTest {
                 id = "scan-1",
                 libraryRootId = 7,
                 status = status,
-                scannedCount = 10,
+                scannedCount = 11,
                 importedCount = 8,
                 skippedCount = 2,
                 failedCount = 1,

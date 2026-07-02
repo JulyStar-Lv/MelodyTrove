@@ -31,7 +31,7 @@ data class LibrarySyncRequest(
     val selectedFolderCanonicalPath: String,
     val selectedFolderDisplayPath: String? = null,
     val scanId: String? = null,
-    val metadataConcurrency: UInt = 4u,
+    val metadataConcurrency: UInt = DEFAULT_LIBRARY_SYNC_METADATA_CONCURRENCY,
     val importBatchSize: Int = DEFAULT_LIBRARY_SYNC_BATCH_SIZE,
 ) {
     init {
@@ -60,7 +60,8 @@ data class LibrarySyncResult(
     val failedCount: Long,
 )
 
-const val DEFAULT_LIBRARY_SYNC_BATCH_SIZE = 100
+const val DEFAULT_LIBRARY_SYNC_BATCH_SIZE = 200
 const val DEFAULT_LIBRARY_SYNC_TASK_LIMIT = 5
 const val MAX_LIBRARY_SYNC_IMPORT_BATCH_SIZE = 500
+const val DEFAULT_LIBRARY_SYNC_METADATA_CONCURRENCY = 8u
 const val MAX_LIBRARY_SYNC_METADATA_CONCURRENCY = 16u

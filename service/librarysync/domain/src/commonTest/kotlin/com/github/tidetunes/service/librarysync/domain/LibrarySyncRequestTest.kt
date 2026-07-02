@@ -10,7 +10,7 @@ class LibrarySyncRequestTest {
     fun requestKeepsBoundedDefaultsAlignedWithLegacyImporter() {
         val request = request()
 
-        assertEquals(4u, request.metadataConcurrency)
+        assertEquals(DEFAULT_LIBRARY_SYNC_METADATA_CONCURRENCY, request.metadataConcurrency)
         assertEquals(DEFAULT_LIBRARY_SYNC_BATCH_SIZE, request.importBatchSize)
     }
 
@@ -39,7 +39,7 @@ class LibrarySyncRequestTest {
     private fun request(
         selectedFolderCanonicalPath: String = "/Music",
         scanId: String? = null,
-        metadataConcurrency: UInt = 4u,
+        metadataConcurrency: UInt = DEFAULT_LIBRARY_SYNC_METADATA_CONCURRENCY,
         importBatchSize: Int = DEFAULT_LIBRARY_SYNC_BATCH_SIZE,
     ): LibrarySyncRequest {
         return LibrarySyncRequest(

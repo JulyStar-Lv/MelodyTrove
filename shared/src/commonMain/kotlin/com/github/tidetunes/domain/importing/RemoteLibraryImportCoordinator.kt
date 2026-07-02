@@ -48,7 +48,7 @@ data class RemoteLibraryImportRequest(
     val selectedFolderDisplayPath: String? = null,
     val entries: List<StorageEntry>,
     val scanId: String? = null,
-    val metadataConcurrency: UInt = 4u,
+    val metadataConcurrency: UInt = DEFAULT_METADATA_CONCURRENCY,
     val importBatchSize: Int = DEFAULT_IMPORT_BATCH_SIZE,
 )
 
@@ -92,7 +92,7 @@ class RemoteLibraryImportCoordinator(
         selectedFolderCanonicalPath: String,
         selectedFolderDisplayPath: String? = null,
         scanId: String? = null,
-        metadataConcurrency: UInt = 4u,
+        metadataConcurrency: UInt = DEFAULT_METADATA_CONCURRENCY,
         importBatchSize: Int = DEFAULT_IMPORT_BATCH_SIZE,
     ): RemoteLibraryImportResult {
         validateImportSettings(metadataConcurrency, importBatchSize)
@@ -159,7 +159,7 @@ class RemoteLibraryImportCoordinator(
         selectedFolderCanonicalPath: String,
         selectedFolderDisplayPath: String? = null,
         scanId: String? = null,
-        metadataConcurrency: UInt = 4u,
+        metadataConcurrency: UInt = DEFAULT_METADATA_CONCURRENCY,
         importBatchSize: Int = DEFAULT_IMPORT_BATCH_SIZE,
     ): RemoteLibraryImportResult {
         validateImportSettings(metadataConcurrency, importBatchSize)
@@ -327,7 +327,7 @@ class RemoteLibraryImportCoordinator(
         selectedFolderCanonicalPath: String,
         selectedFolderDisplayPath: String? = null,
         scanId: String? = null,
-        metadataConcurrency: UInt = 4u,
+        metadataConcurrency: UInt = DEFAULT_METADATA_CONCURRENCY,
         importBatchSize: Int = DEFAULT_IMPORT_BATCH_SIZE,
         deltaLink: String? = null,
     ): RemoteLibraryImportResult {
@@ -1669,7 +1669,8 @@ private val supportedMusicExtensions = setOf(
     "aiff",
 )
 
-internal const val DEFAULT_IMPORT_BATCH_SIZE = 100
+internal const val DEFAULT_IMPORT_BATCH_SIZE = 200
+internal const val DEFAULT_METADATA_CONCURRENCY = 8u
 private const val DURATION_MATCH_TOLERANCE_MS = 2_000L
 private const val MAX_IMPORT_BATCH_SIZE = 500
 private const val MAX_REMOTE_ID_QUERY_SIZE = 500
