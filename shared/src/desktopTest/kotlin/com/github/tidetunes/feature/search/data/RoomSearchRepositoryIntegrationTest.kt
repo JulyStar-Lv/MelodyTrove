@@ -2,12 +2,15 @@ package com.github.tidetunes.feature.search.data
 
 import androidx.room.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
-import com.github.tidetunes.database.RemoteFileEntity
-import com.github.tidetunes.database.SelectedFolderEntity
-import com.github.tidetunes.database.StorageEntity
+import com.github.tidetunes.database.LibraryRootEntity
+import com.github.tidetunes.database.ProviderTypes
+import com.github.tidetunes.database.SourceAccountEntity
+import com.github.tidetunes.database.SourceItemEntity
+import com.github.tidetunes.database.SourceItemTypes
 import com.github.tidetunes.database.TideTunesDatabase
 import com.github.tidetunes.database.TideTunesDatabaseConstructor
 import com.github.tidetunes.database.TrackEntity
+import com.github.tidetunes.database.TrackSourceRefEntity
 import com.github.tidetunes.source.storage.LegacyStorageLookup
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -18,18 +21,22 @@ class RoomSearchRepositoryIntegrationTest {
     @Test
     fun searchLocalLibraryMatchesTrackFieldsAndSkipsDeletedRemoteFiles() = withDatabase { database ->
         val folderId = seedStorageAndFolder(database)
-        database.remoteFileDao().upsertAll(
-            listOf(
-                remoteFile(id = 10, folderId = folderId, path = "/Music/moon.flac"),
-                remoteFile(id = 11, folderId = folderId, path = "/Music/deleted-moon.flac", isDeleted = true),
-            ),
-        )
         database.trackDao().upsertAll(
             listOf(
-                track(id = 1, remoteFileId = 10, title = "Moon", artist = "Luna"),
-                track(id = 2, remoteFileId = null, title = "Moonlight Sonata", composer = "Beethoven"),
-                track(id = 3, remoteFileId = 11, title = "Deleted Moon", artist = "Luna"),
+                track(id = 1, title = "Moon", artist = "Luna"),
+                track(id = 2, title = "Moonlight Sonata", composer = "Beethoven"),
+                track(id = 3, title = "Deleted Moon", artist = "Luna"),
             ),
+        )
+        seedSourceRef(database, trackId = 1, rootId = folderId, path = "/Music/moon.flac")
+        seedSourceRef(database, trackId = 2, rootId = folderId, path = "/Music/moonlight.flac")
+        seedSourceRef(
+            database,
+            trackId = 3,
+            rootId = folderId,
+            path = "/Music/deleted-moon.flac",
+            isDeleted = true,
+            isAvailable = false,
         )
 
         val results = repository(database).searchLocalLibrary("moon")
@@ -41,13 +48,17 @@ class RoomSearchRepositoryIntegrationTest {
 
     @Test
     fun searchLocalLibraryTreatsSqlWildcardCharactersLiterally() = withDatabase { database ->
+        val folderId = seedStorageAndFolder(database)
         database.trackDao().upsertAll(
             listOf(
-                track(id = 1, remoteFileId = null, title = "100% Real"),
-                track(id = 2, remoteFileId = null, title = "100x Real"),
-                track(id = 3, remoteFileId = null, title = "100_ Real"),
+                track(id = 1, title = "100% Real"),
+                track(id = 2, title = "100x Real"),
+                track(id = 3, title = "100_ Real"),
             ),
         )
+        seedSourceRef(database, trackId = 1, rootId = folderId, path = "/Music/percent.flac")
+        seedSourceRef(database, trackId = 2, rootId = folderId, path = "/Music/x.flac")
+        seedSourceRef(database, trackId = 3, rootId = folderId, path = "/Music/underscore.flac")
 
         val results = repository(database).searchLocalLibrary("100%")
 
@@ -57,20 +68,25 @@ class RoomSearchRepositoryIntegrationTest {
     @Test
     fun suggestLocalLibraryUsesTrackFieldsAndSkipsDeletedRemoteFiles() = withDatabase { database ->
         val folderId = seedStorageAndFolder(database)
-        database.remoteFileDao().upsertAll(
-            listOf(
-                remoteFile(id = 20, folderId = folderId, path = "/Music/moon.flac"),
-                remoteFile(id = 21, folderId = folderId, path = "/Music/deleted-moon.flac", isDeleted = true),
-            ),
-        )
         database.trackDao().upsertAll(
             listOf(
-                track(id = 1, remoteFileId = 20, title = "Moon", artist = "Luna"),
-                track(id = 2, remoteFileId = null, title = "Moonlight Sonata", composer = "Momo"),
-                track(id = 3, remoteFileId = 21, title = "Moon Deleted"),
-                track(id = 4, remoteFileId = null, title = "Sun", artist = "Moon"),
+                track(id = 1, title = "Moon", artist = "Luna"),
+                track(id = 2, title = "Moonlight Sonata", composer = "Momo"),
+                track(id = 3, title = "Moon Deleted"),
+                track(id = 4, title = "Sun", artist = "Moon"),
             ),
         )
+        seedSourceRef(database, trackId = 1, rootId = folderId, path = "/Music/moon.flac")
+        seedSourceRef(database, trackId = 2, rootId = folderId, path = "/Music/moonlight.flac")
+        seedSourceRef(
+            database,
+            trackId = 3,
+            rootId = folderId,
+            path = "/Music/deleted-moon.flac",
+            isDeleted = true,
+            isAvailable = false,
+        )
+        seedSourceRef(database, trackId = 4, rootId = folderId, path = "/Music/sun.flac")
 
         val suggestions = repository(database).suggestLocalLibrary("mo", limit = 10)
 
@@ -100,69 +116,89 @@ class RoomSearchRepositoryIntegrationTest {
     }
 
     private suspend fun seedStorageAndFolder(database: TideTunesDatabase): Long {
-        database.storageDao().upsert(
-            StorageEntity(
+        database.sourceAccountDao().upsert(
+            SourceAccountEntity(
                 id = 1,
-                type = "WEBDAV",
+                providerType = ProviderTypes.WebDav,
                 displayName = "Test",
-                baseUrl = "https://example.invalid/dav",
+                endpoint = "https://example.invalid/dav",
+                externalAccountId = null,
                 credentialRef = "test-credential",
-                username = "",
-                isAnonymous = true,
-                musicCount = 0,
+                priority = 0,
+                enabled = true,
                 createdAt = 1,
                 updatedAt = 1,
             ),
         )
-        database.selectedFolderDao().upsert(
-            SelectedFolderEntity(
-                storageId = 1,
-                remoteId = "folder-1",
+        database.libraryRootDao().upsert(
+            LibraryRootEntity(
+                id = 1,
+                sourceAccountId = 1,
+                providerRootId = "folder-1",
                 canonicalPath = "/Music",
-                displayPath = "/Music",
-                deltaLink = null,
-                lastSyncAt = null,
+                displayName = "/Music",
                 syncStatus = "RUNNING",
+                syncCursor = null,
+                lastSyncAt = null,
+                createdAt = 1,
+                updatedAt = 1,
             ),
         )
-        return requireNotNull(database.selectedFolderDao().findByPath(1, "/Music")).id
+        return requireNotNull(database.libraryRootDao().findByPath(1, "/Music")).id
     }
 
-    private fun remoteFile(
-        id: Long,
-        folderId: Long,
+    private suspend fun seedSourceRef(
+        database: TideTunesDatabase,
+        trackId: Long,
+        rootId: Long,
         path: String,
         isDeleted: Boolean = false,
-    ) = RemoteFileEntity(
+        isAvailable: Boolean = !isDeleted,
+    ) {
+        database.sourceItemDao().upsertAll(
+            listOf(sourceItem(id = trackId, rootId = rootId, path = path, isDeleted = isDeleted)),
+        )
+        database.trackSourceRefDao().upsertAll(
+            listOf(trackSourceRef(trackId = trackId, sourceItemId = trackId, isAvailable = isAvailable)),
+        )
+    }
+
+    private fun sourceItem(
+        id: Long,
+        rootId: Long,
+        path: String,
+        isDeleted: Boolean,
+    ) = SourceItemEntity(
         id = id,
-        storageId = 1,
-        selectedFolderId = folderId,
-        remoteId = "item-$id",
-        parentRemoteId = "folder-1",
+        sourceAccountId = 1,
+        libraryRootId = rootId,
+        itemType = SourceItemTypes.Track,
+        providerItemId = "item-$id",
+        parentProviderItemId = "folder-1",
         canonicalPath = path,
         displayPath = path,
-        fileName = path.substringAfterLast('/'),
-        extension = "flac",
+        displayName = path.substringAfterLast('/'),
         mimeType = "audio/flac",
-        size = 1_000,
+        sizeBytes = 1_000,
         etag = "\"etag-$id\"",
-        ctag = null,
-        createdAt = 1,
-        modifiedAt = 1,
+        revision = null,
+        createdAtRemote = 1,
+        modifiedAtRemote = 1,
         contentHash = null,
+        audioFingerprint = null,
         isDeleted = isDeleted,
+        firstSyncedAt = 1,
+        lastSyncedAt = 1,
         lastSeenScanId = "scan-1",
     )
 
     private fun track(
         id: Long,
-        remoteFileId: Long?,
         title: String,
         artist: String? = null,
         composer: String? = null,
     ) = TrackEntity(
         id = id,
-        remoteFileId = remoteFileId,
         title = title,
         sortTitle = null,
         albumId = null,
@@ -188,5 +224,31 @@ class RoomSearchRepositoryIntegrationTest {
         createdAt = 1,
         updatedAt = 1,
         artist = artist,
+    )
+
+    private fun trackSourceRef(
+        trackId: Long,
+        sourceItemId: Long,
+        isAvailable: Boolean,
+    ) = TrackSourceRefEntity(
+        trackId = trackId,
+        sourceItemId = sourceItemId,
+        role = "primary",
+        matchMethod = "test",
+        matchConfidence = 100,
+        isPreferred = true,
+        isAvailable = isAvailable,
+        isDownloaded = false,
+        playable = true,
+        downloadable = true,
+        codec = "FLAC",
+        container = "FLAC",
+        bitRate = 900_000,
+        sampleRate = 48_000,
+        bitsPerSample = 24,
+        channels = 2,
+        lossless = true,
+        createdAt = 1,
+        updatedAt = 1,
     )
 }

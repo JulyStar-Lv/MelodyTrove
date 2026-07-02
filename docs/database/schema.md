@@ -1,142 +1,111 @@
-# TideTunes Room KMP schema
+# TideTunes Room KMP Schema
 
-Date: 2026-06-27
+Date: 2026-07-01
 
 The shared Room database is `tidetunes.db`. Android, iOS, and Desktop use
-platform-specific builders with bundled SQLite. Schema versions 1 through 4 are
+platform-specific builders with bundled SQLite. Schema versions 1 through 7 are
 exported under
 `shared/schemas/com.github.tidetunes.database.TideTunesDatabase/`.
 
 ## Ownership
 
-- Room is the UI-facing source of truth.
-- Rust owns remote access, bounded range reads, metadata parsing, and scanning.
-- KMP repositories translate Rust results into Room transactions.
-- Credentials are never stored in Room. `StorageEntity.credentialRef` points to
-  Android Keystore, iOS Keychain, or the Desktop operating-system credential
-  store.
+- Room is the UI-facing source of truth for library, playlist, sync, and
+  download state.
+- Canonical library tables are source-agnostic. Tracks, albums, artists, genres,
+  lyrics, artwork, raw metadata, playlists, and downloads are not owned by any
+  provider.
+- `RemoteLibraryImportCoordinator` is the write boundary from source scan data
+  into canonical Room tables.
+- Source adapters authenticate, browse, scan, and resolve playback resources;
+  they do not write canonical DAOs directly.
+- Rust owns remote access, bounded range reads, metadata parsing, and scanning,
+  but it does not open or own an app database.
+- Credentials, access tokens, cookies, signed URLs, playback headers, and
+  temporary loopback URLs are never persisted in Room.
 
-## Tables
+## Current Tables
 
 | Table | Purpose | Important constraints |
 | --- | --- | --- |
-| `storage` | Local, WebDAV, and OneDrive configuration | Indexed by type; unique credential reference |
-| `selected_folder` | User-selected import roots and sync state | Unique storage/remote ID and storage/path pairs |
-| `remote_file` | Stable remote file inventory | Unique storage/remote ID and storage/path pairs; indexed deletion and scan markers |
-| `track` | Normalized audio metadata and properties | One track per remote file; album/title indexes |
-| `album`, `artist`, `genre` | Normalized library dimensions | Unique normalized names |
+| `source_account` | Local, WebDAV, OneDrive, and future provider account metadata | Provider type, display name, endpoint/account hints, credential reference only |
+| `library_root` | User-selected import roots and root-level sync state | Unique source-account/provider-root and source-account/path identities |
+| `source_item` | Provider inventory item identity and file facts | Unique source-account/provider-item and source-account/path identities; deletion and scan markers |
+| `source_item_property` | Extensible provider-specific item attributes | Key/value rows scoped to one source item |
+| `track_source_ref` | Relationship between canonical tracks and playable source items | One source item maps to one canonical track; availability/download/preference flags |
+| `source_sync_cursor` | Delta or scan checkpoint state | One cursor per source account, library root, and cursor type |
+| `source_error` | Persisted source/import errors | Scoped to account, root, and optionally source item |
+| `track` | Canonical normalized audio metadata | No provider ownership fields; indexed title, ISRC, MusicBrainz IDs |
+| `album`, `artist`, `genre` | Canonical library dimensions | Unique normalized names |
 | `track_artist`, `album_artist`, `track_genre` | Ordered many-to-many metadata | Foreign-key cascades |
-| `artwork` | Paths and hashes for extracted artwork | Artwork bytes stay outside Room |
+| `artwork` | Extracted artwork cache metadata | Artwork bytes stay outside Room |
 | `lyrics` | Embedded or sidecar lyrics | One current lyric row per track |
 | `raw_metadata` | Unmapped source tags | Indexed by track and tag key |
-| `import_job` | Resumable import progress and errors | Indexed active status and folder |
-| `sync_cursor` | OneDrive delta/WebDAV scan checkpoints | One cursor per selected folder |
+| `import_job` | Resumable import progress and errors | References `library_root` |
 | `download_task` | Offline download task state and progress | Unique source/media/remote ID; indexed status and update time |
 | `playlist`, `playlist_track` | User playlists and stable ordering | Foreign-key cascades and ordered indexes |
 
-## Room-only persistence
+The live schema no longer contains `storage`, `selected_folder`, `remote_file`,
+or `sync_cursor`. Those tables are read only by historical migration code.
+`TrackEntity` also no longer has `remoteFileId`, `sourceStorageId`, or
+`sourcePath`.
 
-Room is now the only app database for relational library data. Storage
-definitions, selected folders, remote-file inventory, tracks, playlists,
-playlist order, and lyrics are read and written through Room DAOs.
+## Import Coordinator
 
-Lightweight UI preferences that do not need relational queries, such as
-`playMode`, live in KMP Preferences DataStore instead of Room.
+`RemoteLibraryImportCoordinator.scanAndImportFolder` consumes Rust
+`RemoteMusicScanSession` batches and writes Room transactions:
 
-Rust no longer opens or owns an app database. KMP code passes a Room-derived
-`Storage` DTO to Rust when it needs remote directory listing, metadata reads,
-asset streaming, OneDrive delta pages, or range playback. Tracks created from
-direct playlist imports keep `sourceStorageId` and `sourcePath` so playback and
-asset reads can resolve the remote location without a legacy Rust row.
+1. Ensure a `source_account` and `library_root`.
+2. Create or update the `import_job`.
+3. Compare incoming `StorageEntry` values with `source_item` rows by canonical
+   path and stable provider item ID.
+4. Skip unchanged source items using size plus ETag, falling back to modified
+   time when the source has no ETag.
+5. Read metadata only for changed items through Rust metadata APIs.
+6. Upsert `source_item`, canonical `track`, normalized album/artist/genre
+   relationships, lyrics, artwork metadata, raw tags, and `track_source_ref`.
+7. Mark missing source items and their refs unavailable only after a complete
+   snapshot finishes.
+8. Advance `source_sync_cursor` and final `import_job` state in the same
+   bounded persistence path.
 
-## Remote import coordinator
+Canonical track matching prefers MusicBrainz recording ID, then ISRC plus
+duration, then strict title/artist/album/duration metadata. A track can have
+multiple source refs across accounts/providers, while each source item points
+to one canonical track.
 
-`RemoteLibraryImportCoordinator` is the KMP write boundary for a complete remote
-folder snapshot. Its `scanAndImportFolder` path starts Rust
-`RemoteMusicScanSession` and consumes bounded batches while the recursive
-`Depth: 1` traversal is still running. It:
+## Playback Resolution
 
-- ensures the selected folder exists in `selected_folder`;
-- creates the `RUNNING` `import_job` before remote enumeration;
-- compares incoming `StorageEntry` values with existing `remote_file` rows using
-  size plus ETag, falling back to Last-Modified when the server has no ETag;
-- resolves stable `remoteId` matches after path lookup so ordinary OneDrive
-  rename/move operations retain the `remote_file` and `track` identities;
-- skips unchanged files without re-reading metadata;
-- reads metadata for changed files through Rust `MetadataRepository.readBatch`;
-- persists normalized album, track/album artist, and genre relationships;
-- stores embedded lyrics in `lyrics` and bounded text tags in `raw_metadata`;
-- defaults to 100-file batches, bounding SQLite `IN` queries, FFI DTOs, memory,
-  and transaction duration;
-- commits changed files, tracks, and updated `import_job` counters/checkpoint
-  after each batch;
-- marks rows missing from the complete snapshot as deleted and advances
-  `sync_cursor` only after Rust reports the scan complete;
-- leaves existing rows undeleted when a scan is cancelled or interrupted.
+Playback resolves through persisted source references, not provider fields on
+`track`:
 
-`SyncDao.observeRecentJobs()` feeds `ImportStatusRepository`,
-`ImportStatusVM`, and the Dashboard. The UI therefore observes persisted import
-counts, failures, checkpoint names, completion state, and cancellation state
-from Room rather than from an in-memory scanner callback.
+```text
+TrackEntity
+  -> TrackSourceRefEntity
+  -> SourceItemEntity
+  -> MusicSource.resolvePlayback(...)
+  -> transient PlaybackResource
+```
 
-`TrackDao.observeAll()` and paged reads hide tracks whose `remote_file` row is
-marked deleted, while direct playlist-import tracks with `remoteFileId = null`
-remain visible through their `sourceStorageId` and `sourcePath`.
+`PlaybackResourceResolver` orders available refs by downloaded/local/preferred
+and audio quality hints. The returned URI, headers, cookies, and expiration
+metadata remain transient and are released through the playback resolver.
 
-Desktop bundled-SQLite integration tests exercise generated DAO code rather
-than mocks. They cover upsert, stable-ID path moves, deletion visibility,
-restoration, writer-transaction rollback, and a 50,000-file/50,000-track
-batched import followed by paged reads.
+## Visibility And Deletion
 
-## Migration 1 to 2
+Ordinary library/search queries require an available `track_source_ref`.
+When a source item disappears or an account is unavailable, the app marks the
+source item/ref unavailable. It does not delete canonical tracks, metadata, or
+user playlist data as part of source disappearance.
 
-`MIGRATION_1_2` adds nullable standardized metadata columns to `track` without
-destructive migration:
+## Migrations
 
-- primary artist, lyricist, conductor, copyright, and publisher;
-- original release date, BPM, musical key, and ISRC;
-- MusicBrainz recording, track, release, release-group, artist,
-  release-artist, and work IDs;
-- ReplayGain track/album gain and peak values.
-
-The migration is registered in the shared database builder and is directly
-tested against bundled SQLite.
-
-## Migration 2 to 3
-
-`MIGRATION_2_3` adds the Room-only playback fields:
-
-- `track.sourceStorageId`
-- `track.sourcePath`
-- `playlist.coverStorageId`
-- `playlist.coverPath`
-
-The fields are nullable so imported library tracks can continue resolving
-through `remote_file`, while direct playlist-import tracks can resolve their
-remote location without any Rust database row.
-
-`LibraryRepository` maps `TrackDao.observeAll()` into UI-facing
-`LibraryTrackItem` values. `LibraryVM` and `LibrarySubpage` observe that Room
-flow, so the library tab does not depend on remote scanner output or generated
-FFI calls.
-
-The current UI entry point is the storage edit screen. For an existing storage,
-the Library action opens the shared import picker in current-directory mode.
-Confirming the current directory calls `scanAndImportFolder`, so the directory
-selection flow now reaches Room persistence instead of returning a transient
-file list only.
-
-## Migration 3 to 4
-
-`MIGRATION_3_4` adds the offline download task state table:
-
-- `download_task.id`
-- source media ID fields: `sourceId`, `mediaType`, `remoteId`
-- display metadata: `title`, `artist`, `album`, `durationMs`, `mimeType`
-- progress and result state: `status`, `downloadedBytes`, `totalBytes`,
-  `localPath`, `errorMessage`
-- timestamps: `createdAt`, `updatedAt`
-
-The table keeps download scheduling state in Room before platform-specific
-download workers are wired. It does not store credentials or transient playback
-URLs.
+- `MIGRATION_1_2` adds standardized metadata columns to `track`.
+- `MIGRATION_2_3` adds old nullable playback columns used by the previous Room
+  schema line.
+- `MIGRATION_3_4` adds `download_task`.
+- `MIGRATION_4_5` adds playlist cover location columns.
+- `MIGRATION_5_6` adds Room FTS4 support for local search.
+- `MIGRATION_6_7` creates `source_account`, `library_root`, `source_item`,
+  `source_item_property`, `track_source_ref`, `source_sync_cursor`, and
+  `source_error`; rebuilds `track` and `import_job`; migrates old storage,
+  selected-folder, remote-file, and sync-cursor data; then drops the old tables.

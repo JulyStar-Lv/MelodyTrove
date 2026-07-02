@@ -129,7 +129,7 @@ val sourceDataModule = module {
     single { RemoteScannerRepository(get(), get()) }
     single {
         RemoteLibraryImportCoordinator(
-            get(), get(), get(), get(), get(), get(), get(), get(), get()
+            get(), get(), get(), get(), get(), get(), get()
         )
     }
 }

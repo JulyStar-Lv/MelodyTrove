@@ -27,8 +27,9 @@ The resulting refresh token is stored through the platform credential store:
 - Desktop: the operating system credential command supported by the current
   platform.
 
-Room stores only the storage row and credential reference. Rust receives the
-credential in memory when the backend is initialized.
+Room stores only the `source_account` credential reference and non-secret
+account hints. Rust receives the credential in memory when the backend is
+initialized.
 
 ## Graph access
 
@@ -49,7 +50,8 @@ download URLs are not persisted.
 
 ## Delta synchronization
 
-The selected folder keeps its DriveItem ID and final Graph deltaLink in Room.
+The `library_root` keeps the selected folder DriveItem ID, while
+`source_sync_cursor` keeps the final Graph deltaLink in Room.
 The synchronization sequence is:
 
 1. Before the first complete scan, request `token=latest`.
@@ -98,6 +100,6 @@ Automated Rust tests verify:
 - rejection of untrusted delta cursor hosts.
 
 Android, Desktop shared code, Kotlin/Native iOS, and the iOS Simulator app build
-all compile with the generated UniFFI API. Room tests verify stable-ID deletion
-visibility and transactional cursor persistence. No live Microsoft
-authorization or delta run was performed during this stage.
+all compile with the generated UniFFI API. Room tests verify stable-ID
+source-item deletion visibility and transactional cursor persistence. No live
+Microsoft authorization or delta run was performed during this stage.

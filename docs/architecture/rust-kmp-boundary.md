@@ -77,15 +77,16 @@ EditStorageVM.prepareImportLibraryFolder
        - compare size + ETag or Last-Modified fingerprints
        - MetadataRepository.readBatch(concurrency = 2..4 typical, 4 default)
        - Room transaction
-            - upsert changed remote_file rows
-            - mark unchanged rows as seen
+            - upsert changed source_item rows
+            - mark unchanged source items as seen
             - upsert album, artist, genre, and relationship rows
             - upsert normalized track metadata
+            - upsert track_source_ref rows
             - replace embedded lyrics and bounded raw text tags
             - persist import_job counters and checkpoint
   -> after the Rust session reports done:
-       - mark files not seen by this scan as deleted
-       - persist sync_cursor and final import_job status
+       - mark source items not seen by this scan as deleted/unavailable
+       - persist source_sync_cursor and final import_job status
   -> SyncDao.observeRecentJobs
   -> ImportStatusRepository / ImportStatusVM
   -> Dashboard import status and cancellation action
@@ -111,10 +112,10 @@ listing future instead of waiting for the remote timeout. Missing remote rows
 are marked deleted only after the scanner reports a complete snapshot.
 
 For OneDrive and other backends with stable item IDs, a rename or move reuses
-the existing `remote_file` primary key. If size and ETag/Last-Modified are
-unchanged, the coordinator updates only the path inventory and skips metadata
+the existing `source_item` primary key. If size and ETag/Last-Modified are
+unchanged, the coordinator updates only the source inventory and skips metadata
 Range reads. If the item revision also changed, metadata is refreshed while the
-existing `track` primary key and creation timestamp are retained.
+existing canonical `track` primary key and creation timestamp are retained.
 
 The coordinator also accepts an already-built complete snapshot for tests and
 future delta implementations; that path uses the same bounded batch writer. The

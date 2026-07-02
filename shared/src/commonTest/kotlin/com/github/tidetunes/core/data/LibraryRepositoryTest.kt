@@ -38,7 +38,6 @@ class LibraryRepositoryTest {
         composer: String?,
     ) = TrackEntity(
         id = 99,
-        remoteFileId = 7,
         title = "Song",
         sortTitle = null,
         albumId = null,

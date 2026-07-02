@@ -16,7 +16,6 @@ import com.github.tidetunes.feature.importing.presentation.ImportState
 import com.github.tidetunes.feature.importing.presentation.ImportStorageAccountUi
 import com.github.tidetunes.feature.importing.presentation.importState
 import com.github.tidetunes.feature.importing.presentation.toImportLoadState
-import com.github.tidetunes.source.api.BuiltInSourceIds
 import com.github.tidetunes.source.api.MusicSourceRegistry
 import com.github.tidetunes.source.api.SourceDirectorySelection
 import com.github.tidetunes.source.api.SourceListResult
@@ -393,10 +392,11 @@ class ImportVM constructor(
     }
 
     private fun currentDirectoryRemoteId(account: StorageAccountInfo): String? {
-        if (currentPath() == "/" && account.isOneDrive) {
-            return "root"
+        val path = currentPath()
+        if (path == "/") {
+            return sourceRegistry.sourceOrNull(account.sourceId)?.rootDirectoryRemoteId
         }
-        return directoryRemoteIds[currentPath()]
+        return directoryRemoteIds[path]
     }
 
     private fun pushCurrentToUndoStack() {

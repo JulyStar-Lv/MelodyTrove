@@ -48,10 +48,10 @@ val libraryFeatureModule = module {
     single<ArtworkImageLoader> { RepositoryArtworkImageLoader(get()) }
     single<LibraryRepository> { LibraryRepositoryImpl(get(), get(), get()) }
     single<BrowseRepository> { BrowseRepositoryImpl(get(), get()) }
-    single<TrackBrowserRepository> { TrackBrowserRepositoryImpl(get(), get(), get()) }
+    single<TrackBrowserRepository> { TrackBrowserRepositoryImpl(get(), get()) }
     single<LyricsRepository> { LyricsRepositoryImpl(get(), get()) }
-    single<AlbumDetailRepository> { AlbumDetailRepositoryImpl(get(), get(), get()) }
-    single<ArtistDetailRepository> { ArtistDetailRepositoryImpl(get(), get(), get()) }
+    single<AlbumDetailRepository> { AlbumDetailRepositoryImpl(get(), get()) }
+    single<ArtistDetailRepository> { ArtistDetailRepositoryImpl(get(), get()) }
     single { PlaylistRepositoryImpl(get(), get(), get(), get(), get()) }
     single<PlaylistRepository> { get<PlaylistRepositoryImpl>() }
     single<EditPlaylistGateway> { LegacyEditPlaylistGateway(get(), get()) }

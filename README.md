@@ -6,6 +6,20 @@ Features
 
 - WebDAV and OneDrive support
 - Playlist-based, music cover and lyric support
+- Unified Room KMP library on Android, iOS, and Desktop
+- Source-agnostic canonical tracks with multi-source playback references
+
+Architecture
+----
+
+TideTunes uses one shared Room database as the app-facing library source of
+truth. Source accounts, library roots, source items, and track-source
+references are stored separately from canonical tracks, albums, artists, genres,
+lyrics, artwork metadata, playlists, and downloads.
+
+Source adapters handle auth, browse, scan, and playback-resource resolution.
+The import coordinator is the write boundary into Room, and transient playback
+URLs, headers, tokens, and cookies are not persisted.
 
 Roadmap
 ----

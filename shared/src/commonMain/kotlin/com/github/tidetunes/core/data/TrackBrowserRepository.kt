@@ -4,13 +4,10 @@ import com.github.tidetunes.core.domain.model.DomainTrackBrowserItem
 import com.github.tidetunes.core.domain.repository.TrackBrowserRepository
 import com.github.tidetunes.database.MetadataDao
 import com.github.tidetunes.database.TrackDao
-import com.github.tidetunes.source.storage.LegacyStorageLookup
-import com.github.tidetunes.source.storage.legacyStorageTrackMediaIdOrNull
 
 class TrackBrowserRepositoryImpl(
     private val trackDao: TrackDao,
     private val metadataDao: MetadataDao,
-    private val storageLookup: LegacyStorageLookup,
 ) : TrackBrowserRepository {
 
     override suspend fun findTracksByGenre(
@@ -38,13 +35,9 @@ class TrackBrowserRepositoryImpl(
             durationMs = durationMs,
             trackNumber = trackNumber,
             discNumber = discNumber,
-            mediaId = legacyStorageTrackMediaIdOrNull(
-                storageLookup = storageLookup,
-                sourceStorageId = sourceStorageId,
-                sourcePath = sourcePath,
-            ),
+            mediaId = null,
             albumId = albumId,
-            canDownload = sourceStorageId != null && sourcePath != null,
+            canDownload = false,
         )
     }
 }

@@ -22,9 +22,12 @@ interface TrackFtsDao {
         SELECT t.*
         FROM track t
         JOIN track_fts fts ON t.id = fts.rowid
-        LEFT JOIN remote_file rf ON rf.id = t.remoteFileId
         WHERE track_fts MATCH :matchQuery
-          AND (t.remoteFileId IS NULL OR rf.isDeleted = 0)
+          AND EXISTS (
+              SELECT 1 FROM track_source_ref ref
+              WHERE ref.trackId = t.id
+                AND ref.isAvailable = 1
+          )
         ORDER BY fts.rowid
         LIMIT :limit
         """

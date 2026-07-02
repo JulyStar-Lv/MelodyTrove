@@ -17,9 +17,10 @@ import org.koin.dsl.module
 val coreDataModule = module {
     single { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
     single { buildDatabase() }
-    single { get<TideTunesDatabase>().storageDao() }
-    single { get<TideTunesDatabase>().selectedFolderDao() }
-    single { get<TideTunesDatabase>().remoteFileDao() }
+    single { get<TideTunesDatabase>().sourceAccountDao() }
+    single { get<TideTunesDatabase>().libraryRootDao() }
+    single { get<TideTunesDatabase>().sourceItemDao() }
+    single { get<TideTunesDatabase>().trackSourceRefDao() }
     single { get<TideTunesDatabase>().trackDao() }
     single { get<TideTunesDatabase>().trackFtsDao() }
     single { get<TideTunesDatabase>().playlistDao() }
@@ -30,5 +31,5 @@ val coreDataModule = module {
     single { AppPreferencesRepository(get()) }
     single { createCredentialStore() }
     single { Bridge(getAppDocumentDir(), getAppCacheDir(), get()) }
-    single { RoomLibraryStore(get(), get(), get(), get(), get()) }
+    single { RoomLibraryStore(get(), get(), get(), get(), get(), get()) }
 }

@@ -1,7 +1,6 @@
 package com.github.tidetunes.database
 
 import androidx.room.Dao
-import androidx.room.Index
 import kotlinx.coroutines.flow.Flow
 import androidx.room.Embedded
 import androidx.room.Insert
@@ -11,126 +10,16 @@ import androidx.room.Transaction
 import androidx.room.Upsert
 
 @Dao
-interface StorageDao {
-    @Query("SELECT * FROM storage ORDER BY displayName COLLATE NOCASE")
-    fun observeAll(): Flow<List<StorageEntity>>
-
-    @Query("SELECT * FROM storage WHERE id = :id")
-    suspend fun get(id: Long): StorageEntity?
-
-    @Query("SELECT MAX(id) FROM storage")
-    suspend fun maxId(): Long?
-
-    @Upsert
-    suspend fun upsert(storage: StorageEntity)
-
-    @Query("DELETE FROM storage WHERE id = :id")
-    suspend fun delete(id: Long)
-}
-
-@Dao
-interface SelectedFolderDao {
-    @Query("SELECT * FROM selected_folder WHERE storageId = :storageId ORDER BY displayPath")
-    fun observeForStorage(storageId: Long): Flow<List<SelectedFolderEntity>>
-
-    @Query(
-        "SELECT * FROM selected_folder " +
-            "WHERE storageId = :storageId AND canonicalPath = :canonicalPath LIMIT 1"
-    )
-    suspend fun findByPath(
-        storageId: Long,
-        canonicalPath: String,
-    ): SelectedFolderEntity?
-
-    @Upsert
-    suspend fun upsert(folder: SelectedFolderEntity): Long
-
-    @Query("DELETE FROM selected_folder WHERE id = :id")
-    suspend fun delete(id: Long)
-}
-
-@Dao
-interface RemoteFileDao {
-    @Query("SELECT * FROM remote_file WHERE id = :id")
-    suspend fun get(id: Long): RemoteFileEntity?
-
-    @Query(
-        "SELECT * FROM remote_file " +
-            "WHERE storageId = :storageId AND canonicalPath = :canonicalPath LIMIT 1"
-    )
-    suspend fun findByPath(storageId: Long, canonicalPath: String): RemoteFileEntity?
-
-    @Query(
-        "SELECT * FROM remote_file " +
-            "WHERE storageId = :storageId AND canonicalPath IN (:canonicalPaths)"
-    )
-    suspend fun findByPaths(
-        storageId: Long,
-        canonicalPaths: List<String>,
-    ): List<RemoteFileEntity>
-
-    @Query(
-        "SELECT * FROM remote_file " +
-            "WHERE storageId = :storageId AND remoteId IN (:remoteIds)"
-    )
-    suspend fun findByRemoteIds(
-        storageId: Long,
-        remoteIds: List<String>,
-    ): List<RemoteFileEntity>
-
-    @Query("SELECT COUNT(*) FROM remote_file WHERE selectedFolderId = :selectedFolderId")
-    suspend fun countForFolder(selectedFolderId: Long): Long
-
-    @Upsert
-    suspend fun upsertAll(files: List<RemoteFileEntity>): List<Long>
-
-    @Query(
-        "UPDATE remote_file SET lastSeenScanId = :scanId, isDeleted = 0 " +
-            "WHERE id IN (:ids)"
-    )
-    suspend fun markSeen(
-        ids: List<Long>,
-        scanId: String,
-    )
-
-    @Query(
-        "UPDATE remote_file SET isDeleted = 1 " +
-            "WHERE selectedFolderId = :selectedFolderId AND lastSeenScanId != :scanId"
-    )
-    suspend fun markMissingDeleted(selectedFolderId: Long, scanId: String)
-
-    @Query(
-        "UPDATE remote_file SET isDeleted = 1 " +
-            "WHERE storageId = :storageId AND remoteId IN (:remoteIds)"
-    )
-    suspend fun markDeletedByRemoteIds(
-        storageId: Long,
-        remoteIds: List<String>,
-    ): Int
-
-    @Transaction
-    suspend fun applyScanBatch(
-        changedFiles: List<RemoteFileEntity>,
-        unchangedIds: List<Long>,
-        scanId: String,
-    ) {
-        if (changedFiles.isNotEmpty()) {
-            upsertAll(changedFiles)
-        }
-        if (unchangedIds.isNotEmpty()) {
-            markSeen(unchangedIds, scanId)
-        }
-    }
-}
-
-@Dao
 interface TrackDao {
     @Query(
         """
         SELECT t.*
         FROM track t
-        LEFT JOIN remote_file rf ON rf.id = t.remoteFileId
-        WHERE t.remoteFileId IS NULL OR rf.isDeleted = 0
+        WHERE EXISTS (
+            SELECT 1 FROM track_source_ref ref
+            WHERE ref.trackId = t.id
+              AND ref.isAvailable = 1
+        )
         ORDER BY t.title COLLATE NOCASE
         """
     )
@@ -140,8 +29,11 @@ interface TrackDao {
         """
         SELECT t.*
         FROM track t
-        LEFT JOIN remote_file rf ON rf.id = t.remoteFileId
-        WHERE t.remoteFileId IS NULL OR rf.isDeleted = 0
+        WHERE EXISTS (
+            SELECT 1 FROM track_source_ref ref
+            WHERE ref.trackId = t.id
+              AND ref.isAvailable = 1
+        )
         ORDER BY t.title COLLATE NOCASE
         LIMIT :limit OFFSET :offset
         """
@@ -155,8 +47,12 @@ interface TrackDao {
         """
         SELECT t.*
         FROM track t
-        LEFT JOIN remote_file rf ON rf.id = t.remoteFileId
-        WHERE t.albumId = :albumId AND (t.remoteFileId IS NULL OR rf.isDeleted = 0)
+        WHERE t.albumId = :albumId
+          AND EXISTS (
+              SELECT 1 FROM track_source_ref ref
+              WHERE ref.trackId = t.id
+                AND ref.isAvailable = 1
+          )
         ORDER BY t.discNumber ASC, t.trackNumber ASC, t.title COLLATE NOCASE
         """
     )
@@ -169,8 +65,11 @@ interface TrackDao {
         """
         SELECT t.*
         FROM track t
-        LEFT JOIN remote_file rf ON rf.id = t.remoteFileId
-        WHERE t.remoteFileId IS NULL OR rf.isDeleted = 0
+        WHERE EXISTS (
+            SELECT 1 FROM track_source_ref ref
+            WHERE ref.trackId = t.id
+              AND ref.isAvailable = 1
+        )
         ORDER BY t.createdAt DESC LIMIT :limit
         """
     )
@@ -180,8 +79,12 @@ interface TrackDao {
         """
         SELECT t.*
         FROM track t
-        LEFT JOIN remote_file rf ON rf.id = t.remoteFileId
-        WHERE t.lastPlayedAt IS NOT NULL AND (t.remoteFileId IS NULL OR rf.isDeleted = 0)
+        WHERE t.lastPlayedAt IS NOT NULL
+          AND EXISTS (
+              SELECT 1 FROM track_source_ref ref
+              WHERE ref.trackId = t.id
+                AND ref.isAvailable = 1
+          )
         ORDER BY t.lastPlayedAt DESC LIMIT :limit
         """
     )
@@ -192,17 +95,42 @@ interface TrackDao {
         SELECT t.*
         FROM track t
         JOIN track_artist ta ON ta.trackId = t.id
-        LEFT JOIN remote_file rf ON rf.id = t.remoteFileId
-        WHERE ta.artistId = :artistId AND (t.remoteFileId IS NULL OR rf.isDeleted = 0)
+        WHERE ta.artistId = :artistId
+          AND EXISTS (
+              SELECT 1 FROM track_source_ref ref
+              WHERE ref.trackId = t.id
+                AND ref.isAvailable = 1
+          )
         ORDER BY t.year ASC, t.albumId ASC, t.discNumber ASC, t.trackNumber ASC, t.title COLLATE NOCASE
         """
     )
     suspend fun findTracksByArtistId(artistId: Long): List<TrackEntity>
 
-    @Query("SELECT COUNT(*) FROM track t LEFT JOIN remote_file rf ON rf.id = t.remoteFileId WHERE t.albumId = :albumId AND (t.remoteFileId IS NULL OR rf.isDeleted = 0)")
+    @Query(
+        """
+        SELECT COUNT(*) FROM track t
+        WHERE t.albumId = :albumId
+          AND EXISTS (
+              SELECT 1 FROM track_source_ref ref
+              WHERE ref.trackId = t.id
+                AND ref.isAvailable = 1
+          )
+        """
+    )
     suspend fun countTracksByAlbumId(albumId: Long): Int
 
-    @Query("SELECT COUNT(*) FROM track t JOIN track_artist ta ON ta.trackId = t.id LEFT JOIN remote_file rf ON rf.id = t.remoteFileId WHERE ta.artistId = :artistId AND (t.remoteFileId IS NULL OR rf.isDeleted = 0)")
+    @Query(
+        """
+        SELECT COUNT(*) FROM track t
+        JOIN track_artist ta ON ta.trackId = t.id
+        WHERE ta.artistId = :artistId
+          AND EXISTS (
+              SELECT 1 FROM track_source_ref ref
+              WHERE ref.trackId = t.id
+                AND ref.isAvailable = 1
+          )
+        """
+    )
     suspend fun countTracksByArtistId(artistId: Long): Int
 
 
@@ -212,23 +140,83 @@ interface TrackDao {
         FROM track t
         JOIN track_genre tg ON tg.trackId = t.id
         JOIN genre g ON g.id = tg.genreId
-        LEFT JOIN remote_file rf ON rf.id = t.remoteFileId
-        WHERE g.name = :genreName AND (t.remoteFileId IS NULL OR rf.isDeleted = 0)
+        WHERE g.name = :genreName
+          AND EXISTS (
+              SELECT 1 FROM track_source_ref ref
+              WHERE ref.trackId = t.id
+                AND ref.isAvailable = 1
+          )
         ORDER BY t.title COLLATE NOCASE
         LIMIT :limit
         """
     )
     suspend fun findTracksByGenre(genreName: String, limit: Int): List<TrackEntity>
 
-    @Query("SELECT * FROM track WHERE remoteFileId IN (:remoteFileIds)")
-    suspend fun findByRemoteFileIds(remoteFileIds: List<Long>): List<TrackEntity>
+    @Query(
+        """
+        SELECT t.*
+        FROM track t
+        JOIN track_source_ref ref ON ref.trackId = t.id
+        WHERE ref.sourceItemId IN (:sourceItemIds)
+          AND ref.isAvailable = 1
+        """
+    )
+    suspend fun findBySourceItemIds(sourceItemIds: List<Long>): List<TrackEntity>
+
+    @Query(
+        """
+        SELECT * FROM track
+        WHERE musicBrainzRecordingId = :recordingId
+          AND musicBrainzRecordingId IS NOT NULL
+        LIMIT 2
+        """
+    )
+    suspend fun findByMusicBrainzRecordingId(recordingId: String): List<TrackEntity>
+
+    @Query(
+        """
+        SELECT * FROM track
+        WHERE isrc = :isrc
+          AND isrc IS NOT NULL
+          AND durationMs BETWEEN :minDurationMs AND :maxDurationMs
+        LIMIT 2
+        """
+    )
+    suspend fun findByIsrcWithinDuration(
+        isrc: String,
+        minDurationMs: Long,
+        maxDurationMs: Long,
+    ): List<TrackEntity>
 
     @Query(
         """
         SELECT t.*
         FROM track t
-        LEFT JOIN remote_file rf ON rf.id = t.remoteFileId
-        WHERE (t.remoteFileId IS NULL OR rf.isDeleted = 0)
+        LEFT JOIN album a ON a.id = t.albumId
+        WHERE lower(trim(t.title)) = :titleKey
+          AND lower(trim(COALESCE(t.artist, ''))) = :artistKey
+          AND lower(trim(COALESCE(a.name, ''))) = :albumKey
+          AND t.durationMs BETWEEN :minDurationMs AND :maxDurationMs
+        LIMIT 2
+        """
+    )
+    suspend fun findByStrictMetadata(
+        titleKey: String,
+        artistKey: String,
+        albumKey: String,
+        minDurationMs: Long,
+        maxDurationMs: Long,
+    ): List<TrackEntity>
+
+    @Query(
+        """
+        SELECT t.*
+        FROM track t
+        WHERE EXISTS (
+              SELECT 1 FROM track_source_ref ref
+              WHERE ref.trackId = t.id
+                AND ref.isAvailable = 1
+          )
           AND (
               t.title COLLATE NOCASE LIKE :containsQuery ESCAPE '\'
               OR t.artist COLLATE NOCASE LIKE :containsQuery ESCAPE '\'
@@ -255,14 +243,18 @@ interface TrackDao {
     @Query(
         """
         SELECT t.*,
-               COALESCE(NULLIF(t.sourcePath, ''), rf.displayPath, rf.canonicalPath) AS resolvedSourcePath,
+               item.id AS sourceItemId,
+               item.sourceAccountId AS sourceAccountId,
+               COALESCE(item.displayPath, item.canonicalPath) AS resolvedSourcePath,
                a.name AS resolvedAlbum
         FROM track t
-        LEFT JOIN remote_file rf ON rf.id = t.remoteFileId
+        JOIN track_source_ref ref ON ref.trackId = t.id
+        JOIN source_item item ON item.id = ref.sourceItemId
         LEFT JOIN album a ON a.id = t.albumId
-        WHERE (t.sourceStorageId = :storageId OR rf.storageId = :storageId)
-          AND (t.remoteFileId IS NULL OR rf.isDeleted = 0)
-          AND TRIM(COALESCE(NULLIF(t.sourcePath, ''), rf.displayPath, rf.canonicalPath)) != ''
+        WHERE item.sourceAccountId = :sourceAccountId
+          AND ref.isAvailable = 1
+          AND item.isDeleted = 0
+          AND TRIM(COALESCE(item.displayPath, item.canonicalPath, '')) != ''
           AND (
               t.title COLLATE NOCASE LIKE :containsQuery ESCAPE '\'
               OR t.artist COLLATE NOCASE LIKE :containsQuery ESCAPE '\'
@@ -280,7 +272,7 @@ interface TrackDao {
         """
     )
     suspend fun searchBySourceStorage(
-        storageId: Long,
+        sourceAccountId: Long,
         query: String,
         prefixQuery: String,
         containsQuery: String,
@@ -300,8 +292,11 @@ interface TrackDao {
                            ELSE 20
                        END AS score
                 FROM track t
-                LEFT JOIN remote_file rf ON rf.id = t.remoteFileId
-                WHERE (t.remoteFileId IS NULL OR rf.isDeleted = 0)
+                WHERE EXISTS (
+                        SELECT 1 FROM track_source_ref ref
+                        WHERE ref.trackId = t.id
+                          AND ref.isAvailable = 1
+                    )
                   AND t.title COLLATE NOCASE LIKE :containsQuery ESCAPE '\'
                 UNION ALL
                 SELECT t.artist AS suggestion,
@@ -311,8 +306,11 @@ interface TrackDao {
                            ELSE 21
                        END AS score
                 FROM track t
-                LEFT JOIN remote_file rf ON rf.id = t.remoteFileId
-                WHERE (t.remoteFileId IS NULL OR rf.isDeleted = 0)
+                WHERE EXISTS (
+                        SELECT 1 FROM track_source_ref ref
+                        WHERE ref.trackId = t.id
+                          AND ref.isAvailable = 1
+                    )
                   AND t.artist COLLATE NOCASE LIKE :containsQuery ESCAPE '\'
                 UNION ALL
                 SELECT t.albumArtist AS suggestion,
@@ -322,8 +320,11 @@ interface TrackDao {
                            ELSE 22
                        END AS score
                 FROM track t
-                LEFT JOIN remote_file rf ON rf.id = t.remoteFileId
-                WHERE (t.remoteFileId IS NULL OR rf.isDeleted = 0)
+                WHERE EXISTS (
+                        SELECT 1 FROM track_source_ref ref
+                        WHERE ref.trackId = t.id
+                          AND ref.isAvailable = 1
+                    )
                   AND t.albumArtist COLLATE NOCASE LIKE :containsQuery ESCAPE '\'
                 UNION ALL
                 SELECT t.composer AS suggestion,
@@ -333,8 +334,11 @@ interface TrackDao {
                            ELSE 23
                        END AS score
                 FROM track t
-                LEFT JOIN remote_file rf ON rf.id = t.remoteFileId
-                WHERE (t.remoteFileId IS NULL OR rf.isDeleted = 0)
+                WHERE EXISTS (
+                        SELECT 1 FROM track_source_ref ref
+                        WHERE ref.trackId = t.id
+                          AND ref.isAvailable = 1
+                    )
                   AND t.composer COLLATE NOCASE LIKE :containsQuery ESCAPE '\'
             ) AS rawSuggestions
             WHERE TRIM(suggestion) != ''
@@ -366,6 +370,8 @@ interface TrackDao {
 
 data class SourceTrackSearchRow(
     @Embedded val track: TrackEntity,
+    val sourceItemId: Long,
+    val sourceAccountId: Long,
     val resolvedSourcePath: String,
     val resolvedAlbum: String?,
 )
@@ -388,8 +394,8 @@ data class PlaylistTrackRow(
     val sortOrder: Long,
     val title: String,
     val durationMs: Long?,
-    val remoteFileId: Long?,
-    val sourceStorageId: Long?,
+    val sourceItemId: Long?,
+    val sourceAccountId: Long?,
     val sourcePath: String?,
 )
 
@@ -413,9 +419,13 @@ interface PlaylistDao {
     @Query(
         """
         SELECT pt.playlistId, pt.trackId, pt.sortOrder, t.title, t.durationMs,
-               t.remoteFileId, t.sourceStorageId, t.sourcePath
+               item.id AS sourceItemId,
+               item.sourceAccountId AS sourceAccountId,
+               COALESCE(item.displayPath, item.canonicalPath) AS sourcePath
         FROM playlist_track pt
         JOIN track t ON t.id = pt.trackId
+        LEFT JOIN track_source_ref ref ON ref.trackId = t.id AND ref.isPreferred = 1 AND ref.isAvailable = 1
+        LEFT JOIN source_item item ON item.id = ref.sourceItemId AND item.isDeleted = 0
         WHERE pt.playlistId = :playlistId
         ORDER BY pt.sortOrder, pt.trackId
         """
@@ -494,8 +504,12 @@ interface MetadataDao {
         FROM album a
         JOIN album_artist aa ON aa.albumId = a.id
         JOIN track t ON t.albumId = a.id
-        LEFT JOIN remote_file rf ON rf.id = t.remoteFileId
-        WHERE aa.artistId = :artistId AND (t.remoteFileId IS NULL OR rf.isDeleted = 0)
+        WHERE aa.artistId = :artistId
+          AND EXISTS (
+              SELECT 1 FROM track_source_ref ref
+              WHERE ref.trackId = t.id
+                AND ref.isAvailable = 1
+          )
         ORDER BY a.year ASC, a.name COLLATE NOCASE
         """
     )
@@ -506,8 +520,11 @@ interface MetadataDao {
         SELECT DISTINCT a.*
         FROM album a
         JOIN track t ON t.albumId = a.id
-        LEFT JOIN remote_file rf ON rf.id = t.remoteFileId
-        WHERE t.remoteFileId IS NULL OR rf.isDeleted = 0
+        WHERE EXISTS (
+            SELECT 1 FROM track_source_ref ref
+            WHERE ref.trackId = t.id
+              AND ref.isAvailable = 1
+        )
         ORDER BY a.name COLLATE NOCASE
         LIMIT :limit
         """
@@ -520,8 +537,11 @@ interface MetadataDao {
         FROM artist ar
         JOIN track_artist ta ON ta.artistId = ar.id
         JOIN track t ON t.id = ta.trackId
-        LEFT JOIN remote_file rf ON rf.id = t.remoteFileId
-        WHERE t.remoteFileId IS NULL OR rf.isDeleted = 0
+        WHERE EXISTS (
+            SELECT 1 FROM track_source_ref ref
+            WHERE ref.trackId = t.id
+              AND ref.isAvailable = 1
+        )
         ORDER BY ar.name COLLATE NOCASE
         LIMIT :limit
         """
@@ -534,8 +554,11 @@ interface MetadataDao {
         FROM genre g
         JOIN track_genre tg ON tg.genreId = g.id
         JOIN track t ON t.id = tg.trackId
-        LEFT JOIN remote_file rf ON rf.id = t.remoteFileId
-        WHERE t.remoteFileId IS NULL OR rf.isDeleted = 0
+        WHERE EXISTS (
+            SELECT 1 FROM track_source_ref ref
+            WHERE ref.trackId = t.id
+              AND ref.isAvailable = 1
+        )
         ORDER BY g.name COLLATE NOCASE
         LIMIT :limit
         """
@@ -637,10 +660,12 @@ interface SyncDao {
 
     @Query(
         """
-        SELECT j.*, sf.storageId AS folderStorageId, sf.remoteId AS folderRemoteId,
-               sf.canonicalPath AS folderCanonicalPath, sf.displayPath AS folderDisplayPath
+        SELECT j.*, root.sourceAccountId AS sourceAccountId,
+               root.providerRootId AS providerRootId,
+               root.canonicalPath AS canonicalPath,
+               root.displayName AS displayName
         FROM import_job j
-        JOIN selected_folder sf ON sf.id = j.selectedFolderId
+        JOIN library_root root ON root.id = j.libraryRootId
         WHERE j.status IN ('QUEUED', 'RUNNING', 'PAUSED')
         ORDER BY j.createdAt
         """
@@ -649,10 +674,12 @@ interface SyncDao {
 
     @Query(
         """
-        SELECT j.*, sf.storageId AS folderStorageId, sf.remoteId AS folderRemoteId,
-               sf.canonicalPath AS folderCanonicalPath, sf.displayPath AS folderDisplayPath
+        SELECT j.*, root.sourceAccountId AS sourceAccountId,
+               root.providerRootId AS providerRootId,
+               root.canonicalPath AS canonicalPath,
+               root.displayName AS displayName
         FROM import_job j
-        JOIN selected_folder sf ON sf.id = j.selectedFolderId
+        JOIN library_root root ON root.id = j.libraryRootId
         ORDER BY j.updatedAt DESC LIMIT :limit
         """
     )
@@ -660,10 +687,12 @@ interface SyncDao {
 
     @Query(
         """
-        SELECT j.*, sf.storageId AS folderStorageId, sf.remoteId AS folderRemoteId,
-               sf.canonicalPath AS folderCanonicalPath, sf.displayPath AS folderDisplayPath
+        SELECT j.*, root.sourceAccountId AS sourceAccountId,
+               root.providerRootId AS providerRootId,
+               root.canonicalPath AS canonicalPath,
+               root.displayName AS displayName
         FROM import_job j
-        JOIN selected_folder sf ON sf.id = j.selectedFolderId
+        JOIN library_root root ON root.id = j.libraryRootId
         WHERE j.id = :jobId
         """
     )
@@ -673,22 +702,22 @@ interface SyncDao {
         """
         SELECT COUNT(*)
         FROM import_job j
-        JOIN selected_folder sf ON sf.id = j.selectedFolderId
-        WHERE sf.storageId = :storageId
+        JOIN library_root root ON root.id = j.libraryRootId
+        WHERE root.sourceAccountId = :sourceAccountId
           AND j.status IN ('QUEUED', 'RUNNING', 'PAUSED')
           AND (:excludedJobId = '' OR j.id != :excludedJobId)
         """
     )
-    suspend fun activeJobCountForStorage(storageId: Long, excludedJobId: String): Int
+    suspend fun activeJobCountForStorage(sourceAccountId: Long, excludedJobId: String): Int
 
     @Query("UPDATE import_job SET status = 'PAUSED', updatedAt = :now WHERE id = :jobId")
     suspend fun markJobPaused(jobId: String, now: Long): Int
 
     @Query(
         """
-        UPDATE selected_folder
+        UPDATE library_root
         SET syncStatus = 'PAUSED', lastSyncAt = :now
-        WHERE id = (SELECT selectedFolderId FROM import_job WHERE id = :jobId)
+        WHERE id = (SELECT libraryRootId FROM import_job WHERE id = :jobId)
         """
     )
     suspend fun markSelectedFolderPausedForJob(jobId: String, now: Long): Int
@@ -698,9 +727,9 @@ interface SyncDao {
 
     @Query(
         """
-        UPDATE selected_folder
+        UPDATE library_root
         SET syncStatus = 'IDLE', lastSyncAt = :now
-        WHERE id = (SELECT selectedFolderId FROM import_job WHERE id = :jobId)
+        WHERE id = (SELECT libraryRootId FROM import_job WHERE id = :jobId)
         """
     )
     suspend fun markSelectedFolderCancelledForJob(jobId: String, now: Long): Int
@@ -709,10 +738,20 @@ interface SyncDao {
     suspend fun upsertJob(job: ImportJobEntity)
 
     @Upsert
-    suspend fun upsertCursor(cursor: SyncCursorEntity)
+    suspend fun upsertCursor(cursor: SourceSyncCursorEntity)
 
-    @Query("SELECT * FROM sync_cursor WHERE selectedFolderId = :selectedFolderId")
-    suspend fun getCursor(selectedFolderId: Long): SyncCursorEntity?
+    @Query(
+        """
+        SELECT * FROM source_sync_cursor
+        WHERE libraryRootId = :libraryRootId
+          AND cursorType = :cursorType
+        LIMIT 1
+        """
+    )
+    suspend fun getCursor(
+        libraryRootId: Long,
+        cursorType: String = "delta",
+    ): SourceSyncCursorEntity?
 }
 
 @Dao

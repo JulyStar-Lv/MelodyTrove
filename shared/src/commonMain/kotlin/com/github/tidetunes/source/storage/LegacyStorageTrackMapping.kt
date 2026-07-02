@@ -11,11 +11,7 @@ import uniffi.tidetunes_core.StorageType
 suspend fun TrackEntity.toLegacyStorageTrackMediaIdOrNull(
     storageLookup: LegacyStorageLookup,
 ): MediaId? {
-    return legacyStorageTrackMediaIdOrNull(
-        storageLookup = storageLookup,
-        sourceStorageId = sourceStorageId,
-        sourcePath = sourcePath,
-    )
+    return null
 }
 
 suspend fun legacyStorageTrackMediaIdOrNull(

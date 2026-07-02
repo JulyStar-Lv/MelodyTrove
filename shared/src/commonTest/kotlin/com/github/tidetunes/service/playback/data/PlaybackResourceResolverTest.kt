@@ -3,6 +3,13 @@ package com.github.tidetunes.service.playback.data
 import com.github.tidetunes.core.domain.model.MediaId
 import com.github.tidetunes.core.domain.model.SourceAccountId
 import com.github.tidetunes.core.domain.model.SourceId
+import com.github.tidetunes.database.ProviderTypes
+import com.github.tidetunes.database.SourceAccountEntity
+import com.github.tidetunes.database.SourceItemEntity
+import com.github.tidetunes.database.SourceItemTypes
+import com.github.tidetunes.database.TrackSourcePlaybackCandidate
+import com.github.tidetunes.database.TrackSourceRefDao
+import com.github.tidetunes.database.TrackSourceRefEntity
 import com.github.tidetunes.source.api.BuiltInSourceIds
 import com.github.tidetunes.source.api.MusicSource
 import com.github.tidetunes.source.api.MusicSourceDescriptor
@@ -41,6 +48,7 @@ class PlaybackResourceResolverTest {
             storageLookup = LegacyStorageLookup {
                 storage(id = 42, typ = StorageType.WEBDAV)
             },
+            trackSourceRefDao = fakeTrackSourceRefDao(),
             sourceRegistry = MusicSourceRegistry(listOf(source)),
             legacyStoragePlaybackResolver = unusedPlaybackResolver(),
         )
@@ -62,6 +70,38 @@ class PlaybackResourceResolverTest {
     }
 
     @Test
+    fun resolvesRoomSourceCandidateBeforeLegacyLocation() = runBlocking {
+        var capturedMediaId: MediaId? = null
+        val source = fakeMusicSource(BuiltInSourceIds.WebDav) { mediaId ->
+            capturedMediaId = mediaId
+            SourcePlaybackResult.Success(PlaybackResource(uri = "http://127.0.0.1/candidate.flac"))
+        }
+        val resolver = PlaybackResourceResolver(
+            storageLookup = LegacyStorageLookup { null },
+            trackSourceRefDao = fakeTrackSourceRefDao(
+                candidate(path = "/Music/Candidate.flac"),
+            ),
+            sourceRegistry = MusicSourceRegistry(listOf(source)),
+            legacyStoragePlaybackResolver = unusedPlaybackResolver(),
+        )
+
+        val result = resolver.resolve(music(storageId = 1, path = "/Legacy/Track.flac"))
+
+        assertEquals(
+            SourcePlaybackResult.Success(PlaybackResource(uri = "http://127.0.0.1/candidate.flac")),
+            result,
+        )
+        assertEquals(
+            legacyStorageTrackMediaId(
+                sourceId = BuiltInSourceIds.WebDav,
+                accountId = SourceAccountId("storage:42"),
+                path = "/Music/Candidate.flac",
+            ),
+            capturedMediaId,
+        )
+    }
+
+    @Test
     fun missingStorageFailsBeforeCallingSource() = runBlocking {
         var sourceCalls = 0
         val source = fakeMusicSource(BuiltInSourceIds.Local) {
@@ -70,6 +110,7 @@ class PlaybackResourceResolverTest {
         }
         val resolver = PlaybackResourceResolver(
             storageLookup = LegacyStorageLookup { null },
+            trackSourceRefDao = fakeTrackSourceRefDao(),
             sourceRegistry = MusicSourceRegistry(listOf(source)),
             legacyStoragePlaybackResolver = unusedPlaybackResolver(),
         )
@@ -86,6 +127,7 @@ class PlaybackResourceResolverTest {
         val released = mutableListOf<String>()
         val resolver = PlaybackResourceResolver(
             storageLookup = LegacyStorageLookup { null },
+            trackSourceRefDao = fakeTrackSourceRefDao(),
             sourceRegistry = MusicSourceRegistry(emptyList()),
             legacyStoragePlaybackResolver = object : LegacyStoragePlaybackResolver {
                 override suspend fun resolve(
@@ -176,5 +218,94 @@ class PlaybackResourceResolverTest {
         isAnonymous = true,
         typ = typ,
         musicCount = 0u,
+    )
+
+    private fun fakeTrackSourceRefDao(
+        vararg candidates: TrackSourcePlaybackCandidate,
+    ) = object : TrackSourceRefDao {
+        override suspend fun findByTrackId(trackId: Long): List<TrackSourceRefEntity> {
+            return emptyList()
+        }
+
+        override suspend fun findBySourceItemIds(sourceItemIds: List<Long>): List<TrackSourceRefEntity> {
+            return emptyList()
+        }
+
+        override suspend fun countForTrack(trackId: Long): Int {
+            return 0
+        }
+
+        override suspend fun upsertAll(refs: List<TrackSourceRefEntity>) = Unit
+
+        override suspend fun markAvailableBySourceItemIds(sourceItemIds: List<Long>, now: Long) = Unit
+
+        override suspend fun markUnavailableBySourceItemIds(sourceItemIds: List<Long>, now: Long) = Unit
+
+        override suspend fun markUnavailableForDeletedSourceItems(libraryRootId: Long, now: Long) = Unit
+
+        override suspend fun playbackCandidates(trackId: Long): List<TrackSourcePlaybackCandidate> {
+            return candidates.toList()
+        }
+    }
+
+    private fun candidate(
+        path: String,
+    ) = TrackSourcePlaybackCandidate(
+        ref = TrackSourceRefEntity(
+            trackId = 7,
+            sourceItemId = 100,
+            role = "primary",
+            matchMethod = "source_identity",
+            matchConfidence = 100,
+            isPreferred = true,
+            isAvailable = true,
+            isDownloaded = false,
+            playable = true,
+            downloadable = true,
+            codec = null,
+            container = null,
+            bitRate = null,
+            sampleRate = null,
+            bitsPerSample = null,
+            channels = null,
+            lossless = null,
+            createdAt = 1,
+            updatedAt = 2,
+        ),
+        item = SourceItemEntity(
+            id = 100,
+            sourceAccountId = 42,
+            libraryRootId = 2,
+            itemType = SourceItemTypes.Track,
+            providerItemId = "item-100",
+            parentProviderItemId = null,
+            canonicalPath = path,
+            displayPath = path,
+            displayName = path.substringAfterLast('/'),
+            mimeType = "audio/flac",
+            sizeBytes = 100,
+            etag = null,
+            revision = null,
+            createdAtRemote = null,
+            modifiedAtRemote = null,
+            contentHash = null,
+            audioFingerprint = null,
+            isDeleted = false,
+            firstSyncedAt = 1,
+            lastSyncedAt = 2,
+            lastSeenScanId = "scan-1",
+        ),
+        account = SourceAccountEntity(
+            id = 42,
+            providerType = ProviderTypes.WebDav,
+            displayName = "NAS",
+            endpoint = null,
+            externalAccountId = null,
+            credentialRef = null,
+            priority = 0,
+            enabled = true,
+            createdAt = 1,
+            updatedAt = 2,
+        ),
     )
 }

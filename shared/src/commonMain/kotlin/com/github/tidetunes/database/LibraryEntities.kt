@@ -5,101 +5,6 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 
 @Entity(
-    tableName = "storage",
-    indices = [
-        Index(value = ["type"]),
-        Index(value = ["credentialRef"], unique = true),
-    ],
-)
-data class StorageEntity(
-    val type: String,
-    val displayName: String,
-    val baseUrl: String,
-    val driveId: String? = null,
-    val credentialRef: String,
-    val username: String = "",
-    val isAnonymous: Boolean,
-    val musicCount: Long,
-    val createdAt: Long,
-    val updatedAt: Long,
-    @androidx.room.PrimaryKey val id: Long,
-)
-
-@Entity(
-    tableName = "selected_folder",
-    foreignKeys = [
-        ForeignKey(
-            entity = StorageEntity::class,
-            parentColumns = ["id"],
-            childColumns = ["storageId"],
-            onDelete = ForeignKey.CASCADE,
-        ),
-    ],
-    indices = [
-        Index(value = ["storageId"]),
-        Index(value = ["storageId", "remoteId"], unique = true),
-        Index(value = ["storageId", "canonicalPath"], unique = true),
-    ],
-)
-data class SelectedFolderEntity(
-    @androidx.room.PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val storageId: Long,
-    val remoteId: String?,
-    val canonicalPath: String,
-    val displayPath: String,
-    val deltaLink: String?,
-    val lastSyncAt: Long?,
-    val syncStatus: String,
-)
-
-@Entity(
-    tableName = "remote_file",
-    foreignKeys = [
-        ForeignKey(
-            entity = StorageEntity::class,
-            parentColumns = ["id"],
-            childColumns = ["storageId"],
-            onDelete = ForeignKey.CASCADE,
-        ),
-        ForeignKey(
-            entity = SelectedFolderEntity::class,
-            parentColumns = ["id"],
-            childColumns = ["selectedFolderId"],
-            onDelete = ForeignKey.CASCADE,
-        ),
-    ],
-    indices = [
-        Index(value = ["storageId"]),
-        Index(value = ["selectedFolderId"]),
-        Index(value = ["storageId", "remoteId"], unique = true),
-        Index(value = ["storageId", "canonicalPath"], unique = true),
-        Index(value = ["parentRemoteId"]),
-        Index(value = ["isDeleted"]),
-        Index(value = ["lastSeenScanId"]),
-    ],
-)
-data class RemoteFileEntity(
-    @androidx.room.PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val storageId: Long,
-    val selectedFolderId: Long,
-    val remoteId: String?,
-    val parentRemoteId: String?,
-    val canonicalPath: String,
-    val displayPath: String,
-    val fileName: String,
-    val extension: String,
-    val mimeType: String?,
-    val size: Long?,
-    val etag: String?,
-    val ctag: String?,
-    val createdAt: Long?,
-    val modifiedAt: Long?,
-    val contentHash: String?,
-    val isDeleted: Boolean,
-    val lastSeenScanId: String,
-)
-
-@Entity(
     tableName = "album",
     indices = [Index(value = ["normalizedName"], unique = true)],
 )
@@ -135,31 +40,15 @@ data class GenreEntity(
 
 @Entity(
     tableName = "track",
-    foreignKeys = [
-        ForeignKey(
-            entity = RemoteFileEntity::class,
-            parentColumns = ["id"],
-            childColumns = ["remoteFileId"],
-            onDelete = ForeignKey.CASCADE,
-        ),
-        ForeignKey(
-            entity = AlbumEntity::class,
-            parentColumns = ["id"],
-            childColumns = ["albumId"],
-            onDelete = ForeignKey.SET_NULL,
-        ),
-    ],
     indices = [
-        Index(value = ["remoteFileId"], unique = true),
         Index(value = ["albumId"]),
         Index(value = ["title"]),
+        Index(value = ["musicBrainzRecordingId"]),
+        Index(value = ["isrc"]),
     ],
 )
 data class TrackEntity(
     @androidx.room.PrimaryKey val id: Long,
-    val remoteFileId: Long?,
-    val sourceStorageId: Long? = null,
-    val sourcePath: String? = null,
     val title: String,
     val sortTitle: String?,
     val albumId: Long?,

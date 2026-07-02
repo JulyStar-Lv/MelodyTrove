@@ -99,6 +99,56 @@ class RoomLibraryIntegrationTest {
     }
 
     @Test
+    fun migrationSixToSevenMovesLegacySourceTablesToUnifiedSourceSchema() {
+        val connection = BundledSQLiteDriver().open(":memory:")
+        try {
+            createLegacyV6SourceSchema(connection)
+            MIGRATION_6_7.migrate(connection)
+
+            val trackColumns = columns(connection, "track")
+            assertTrue("remoteFileId" !in trackColumns)
+            assertTrue("sourceStorageId" !in trackColumns)
+            assertTrue("sourcePath" !in trackColumns)
+
+            val tableNames = tableNames(connection)
+            assertTrue("storage" !in tableNames)
+            assertTrue("selected_folder" !in tableNames)
+            assertTrue("remote_file" !in tableNames)
+            assertTrue("sync_cursor" !in tableNames)
+
+            assertEquals("webdav", singleText(connection, "SELECT providerType FROM source_account WHERE id = 1"))
+            assertEquals("/Music", singleText(connection, "SELECT canonicalPath FROM library_root WHERE id = 11"))
+            assertEquals(
+                "/Music/Song.flac",
+                singleText(connection, "SELECT canonicalPath FROM source_item WHERE id = 20"),
+            )
+            assertEquals(
+                "1",
+                singleText(
+                    connection,
+                    """
+                    SELECT CAST(COUNT(*) AS TEXT)
+                    FROM track_source_ref
+                    WHERE trackId = 10
+                      AND sourceItemId = 20
+                      AND isAvailable = 1
+                    """.trimIndent(),
+                ),
+            )
+            assertEquals(
+                "11",
+                singleText(connection, "SELECT CAST(libraryRootId AS TEXT) FROM import_job WHERE id = 'job-1'"),
+            )
+            assertEquals(
+                "cursor-1",
+                singleText(connection, "SELECT cursorValue FROM source_sync_cursor WHERE libraryRootId = 11"),
+            )
+        } finally {
+            connection.close()
+        }
+    }
+
+    @Test
     fun roomLibraryStoreCreatesPlaylistTracksAndRemoteLocWithoutLegacyDatabase() =
         withDatabase { database ->
             seedStorageAndFolder(database)
@@ -123,9 +173,11 @@ class RoomLibraryIntegrationTest {
 
             val musicId = playlist.musics.single().meta.id
             val track = assertNotNull(database.trackDao().get(musicId.value))
-            assertNull(track.remoteFileId)
-            assertEquals(1, track.sourceStorageId)
-            assertEquals("/Music/Track.flac", track.sourcePath)
+            val ref = database.trackSourceRefDao().findByTrackId(track.id).single()
+            val sourceItem = assertNotNull(database.sourceItemDao().get(ref.sourceItemId))
+            assertEquals(1, sourceItem.sourceAccountId)
+            assertEquals("/Music/Track.flac", sourceItem.canonicalPath)
+            assertTrue(ref.isAvailable)
 
             val music = assertNotNull(store.getMusic(musicId))
             assertEquals(StorageEntryLoc(StorageId(1), "/Music/Track.flac"), music.loc)
@@ -134,17 +186,15 @@ class RoomLibraryIntegrationTest {
 
     @Test
     fun roomLibraryStoreUpdatesDurationAndRemovesLyricsInRoom() = withDatabase { database ->
+        val rootId = seedStorageAndFolder(database)
         val store = roomLibraryStore(database)
         database.trackDao().upsertAll(
             listOf(
-                track(
-                    id = 201,
-                    remoteFileId = null,
-                    sourceStorageId = 1,
-                    sourcePath = "/Music/song.flac",
-                )
+                track(id = 201)
             )
         )
+        val item = seedSourceItem(database, rootId = rootId, id = 201, path = "/Music/song.flac")
+        database.trackSourceRefDao().upsertAll(listOf(trackSourceRef(trackId = 201, sourceItemId = item.id)))
         database.metadataDao().upsertLyrics(
             listOf(
                 LyricsEntity(
@@ -172,18 +222,20 @@ class RoomLibraryIntegrationTest {
     @Test
     fun upsertMoveDeleteAndRestoreStayConsistent() = withDatabase { database ->
         val folderId = seedStorageAndFolder(database)
-        val remoteFileDao = database.remoteFileDao()
+        val sourceItemDao = database.sourceItemDao()
+        val trackSourceRefDao = database.trackSourceRefDao()
         val trackDao = database.trackDao()
-        val insertedId = remoteFileDao.upsertAll(
-            listOf(remoteFile(folderId = folderId, path = "/Music/Old/song.flac")),
+        val insertedId = sourceItemDao.upsertAll(
+            listOf(sourceItem(rootId = folderId, path = "/Music/Old/song.flac")),
         ).single()
-        val inserted = assertNotNull(remoteFileDao.findByPath(1, "/Music/Old/song.flac"))
+        val inserted = assertNotNull(sourceItemDao.findByPath(1, "/Music/Old/song.flac"))
         assertEquals(insertedId, inserted.id)
 
-        trackDao.upsertAll(listOf(track(id = 101, remoteFileId = inserted.id)))
+        trackDao.upsertAll(listOf(track(id = 101)))
+        trackSourceRefDao.upsertAll(listOf(trackSourceRef(trackId = 101, sourceItemId = inserted.id)))
         assertEquals(1, trackDao.count())
 
-        remoteFileDao.upsertAll(
+        sourceItemDao.upsertAll(
             listOf(
                 inserted.copy(
                     canonicalPath = "/Music/New/song.flac",
@@ -193,15 +245,17 @@ class RoomLibraryIntegrationTest {
             ),
         )
 
-        assertNull(remoteFileDao.findByPath(1, "/Music/Old/song.flac"))
-        val moved = assertNotNull(remoteFileDao.findByPath(1, "/Music/New/song.flac"))
+        assertNull(sourceItemDao.findByPath(1, "/Music/Old/song.flac"))
+        val moved = assertNotNull(sourceItemDao.findByPath(1, "/Music/New/song.flac"))
         assertEquals(inserted.id, moved.id)
-        assertEquals(101, trackDao.findByRemoteFileIds(listOf(moved.id)).single().id)
+        assertEquals(101, trackDao.findBySourceItemIds(listOf(moved.id)).single().id)
 
-        remoteFileDao.markMissingDeleted(folderId, "scan-other")
+        sourceItemDao.markMissingDeleted(folderId, "scan-other", now = 2)
+        trackSourceRefDao.markUnavailableForDeletedSourceItems(folderId, now = 2)
         assertTrue(trackDao.page(limit = 10, offset = 0).isEmpty())
 
-        remoteFileDao.markSeen(listOf(moved.id), "scan-restored")
+        sourceItemDao.markSeen(listOf(moved.id), "scan-restored", now = 3)
+        trackSourceRefDao.markAvailableBySourceItemIds(listOf(moved.id), now = 3)
         assertEquals(listOf(101L), trackDao.page(limit = 10, offset = 0).map { it.id })
     }
 
@@ -209,33 +263,38 @@ class RoomLibraryIntegrationTest {
     fun deltaDeletionUsesStableRemoteIdAndCursorAdvancesTransactionally() =
         withDatabase { database ->
             val folderId = seedStorageAndFolder(database)
-            val remoteFileDao = database.remoteFileDao()
+            val sourceItemDao = database.sourceItemDao()
+            val trackSourceRefDao = database.trackSourceRefDao()
             val syncDao = database.syncDao()
-            val fileId = remoteFileDao.upsertAll(
+            val fileId = sourceItemDao.upsertAll(
                 listOf(
-                    remoteFile(
-                        folderId = folderId,
+                    sourceItem(
+                        rootId = folderId,
                         path = "/Music/Before.flac",
                         remoteId = "drive-item-1",
                     ),
                 ),
             ).single()
-            database.trackDao().upsertAll(listOf(track(id = 101, remoteFileId = fileId)))
+            database.trackDao().upsertAll(listOf(track(id = 101)))
+            trackSourceRefDao.upsertAll(listOf(trackSourceRef(trackId = 101, sourceItemId = fileId)))
 
             database.useWriterConnection { connection ->
                 connection.immediateTransaction {
                     assertEquals(
                         1,
-                        remoteFileDao.markDeletedByRemoteIds(
-                            storageId = 1,
-                            remoteIds = listOf("drive-item-1"),
+                        sourceItemDao.markDeletedByProviderItemIds(
+                            sourceAccountId = 1,
+                            providerItemIds = listOf("drive-item-1"),
+                            now = 100,
                         ),
                     )
+                    trackSourceRefDao.markUnavailableForDeletedSourceItems(folderId, now = 100)
                     syncDao.upsertCursor(
-                        SyncCursorEntity(
-                            selectedFolderId = folderId,
-                            deltaLink = "https://graph.microsoft.com/delta/final",
-                            continuationToken = null,
+                        SourceSyncCursorEntity(
+                            sourceAccountId = 1,
+                            libraryRootId = folderId,
+                            cursorType = "delta",
+                            cursorValue = "https://graph.microsoft.com/delta/final",
                             lastScanId = "delta-1",
                             lastSyncAt = 100,
                         ),
@@ -246,7 +305,7 @@ class RoomLibraryIntegrationTest {
             assertTrue(database.trackDao().page(limit = 10, offset = 0).isEmpty())
             assertEquals(
                 "https://graph.microsoft.com/delta/final",
-                syncDao.getCursor(folderId)?.deltaLink,
+                syncDao.getCursor(folderId)?.cursorValue,
             )
         }
 
@@ -256,8 +315,8 @@ class RoomLibraryIntegrationTest {
         val failure = runCatching {
             database.useWriterConnection { connection ->
                 connection.immediateTransaction {
-                    database.remoteFileDao().upsertAll(
-                        listOf(remoteFile(folderId = folderId, path = "/Music/rollback.flac")),
+                    database.sourceItemDao().upsertAll(
+                        listOf(sourceItem(rootId = folderId, path = "/Music/rollback.flac")),
                     )
                     error("force rollback")
                 }
@@ -265,17 +324,16 @@ class RoomLibraryIntegrationTest {
         }.exceptionOrNull()
 
         assertIs<IllegalStateException>(failure)
-        assertNull(database.remoteFileDao().findByPath(1, "/Music/rollback.flac"))
-        assertEquals(0, database.remoteFileDao().countForFolder(folderId))
+        assertNull(database.sourceItemDao().findByPath(1, "/Music/rollback.flac"))
+        assertEquals(0, database.sourceItemDao().countForLibraryRoot(folderId))
     }
 
     @Test
     fun lyricsAndRawMetadataCanBeReplacedTransactionally() = withDatabase { database ->
         val folderId = seedStorageAndFolder(database)
-        database.remoteFileDao().upsertAll(
-            listOf(remoteFile(id = 1, folderId = folderId, path = "/Music/song.flac")),
-        )
-        database.trackDao().upsertAll(listOf(track(id = 1, remoteFileId = 1)))
+        database.trackDao().upsertAll(listOf(track(id = 1)))
+        val item = seedSourceItem(database, rootId = folderId, id = 1, path = "/Music/song.flac")
+        database.trackSourceRefDao().upsertAll(listOf(trackSourceRef(trackId = 1, sourceItemId = item.id)))
         val metadataDao = database.metadataDao()
 
         database.useWriterConnection { connection ->
@@ -380,9 +438,6 @@ class RoomLibraryIntegrationTest {
     @Test
     fun normalizedDimensionsAndRelationshipsPersist() = withDatabase { database ->
         val folderId = seedStorageAndFolder(database)
-        database.remoteFileDao().upsertAll(
-            listOf(remoteFile(id = 1, folderId = folderId, path = "/Music/song.flac")),
-        )
         val metadataDao = database.metadataDao()
         metadataDao.insertAlbums(
             listOf(
@@ -411,8 +466,10 @@ class RoomLibraryIntegrationTest {
         ).associateBy { it.normalizedName }
         val genre = metadataDao.findGenresByNormalizedNames(listOf("jazz")).single()
         database.trackDao().upsertAll(
-            listOf(track(id = 1, remoteFileId = 1).copy(albumId = album.id)),
+            listOf(track(id = 1).copy(albumId = album.id)),
         )
+        val item = seedSourceItem(database, rootId = folderId, id = 1, path = "/Music/song.flac")
+        database.trackSourceRefDao().upsertAll(listOf(trackSourceRef(trackId = 1, sourceItemId = item.id)))
         metadataDao.upsertTrackArtists(
             listOf(
                 TrackArtistCrossRef(1, artists.getValue("primary").id, 0),
@@ -441,26 +498,30 @@ class RoomLibraryIntegrationTest {
         repeat(total / batchSize) { batchIndex ->
             val first = batchIndex * batchSize + 1
             val files = (first until first + batchSize).map { index ->
-                remoteFile(
+                sourceItem(
                     id = index.toLong(),
-                    folderId = folderId,
+                    rootId = folderId,
                     path = "/Music/track-${index.toString().padStart(5, '0')}.flac",
                     remoteId = "item-$index",
                 )
             }
             val tracks = files.map { file ->
-                track(id = file.id, remoteFileId = file.id)
+                track(id = file.id)
+            }
+            val refs = files.map { file ->
+                trackSourceRef(trackId = file.id, sourceItemId = file.id)
             }
             database.useWriterConnection { connection ->
                 connection.immediateTransaction {
-                    database.remoteFileDao().upsertAll(files)
+                    database.sourceItemDao().upsertAll(files)
                     database.trackDao().upsertAll(tracks)
+                    database.trackSourceRefDao().upsertAll(refs)
                 }
             }
         }
 
         val elapsedMs = (System.nanoTime() - startedAt) / 1_000_000
-        assertEquals(total.toLong(), database.remoteFileDao().countForFolder(folderId))
+        assertEquals(total.toLong(), database.sourceItemDao().countForLibraryRoot(folderId))
         assertEquals(total.toLong(), database.trackDao().count())
         val lastPage = database.trackDao().page(limit = 200, offset = total - 200)
         assertEquals(200, lastPage.size)
@@ -485,76 +546,89 @@ class RoomLibraryIntegrationTest {
     private fun roomLibraryStore(database: TideTunesDatabase) = RoomLibraryStore(
         database = database,
         trackDao = database.trackDao(),
-        remoteFileDao = database.remoteFileDao(),
+        sourceItemDao = database.sourceItemDao(),
+        trackSourceRefDao = database.trackSourceRefDao(),
         playlistDao = database.playlistDao(),
         metadataDao = database.metadataDao(),
     )
 
     private suspend fun seedStorageAndFolder(database: TideTunesDatabase): Long {
-        database.storageDao().upsert(
-            StorageEntity(
+        database.sourceAccountDao().upsert(
+            SourceAccountEntity(
                 id = 1,
-                type = "WEBDAV",
+                providerType = ProviderTypes.WebDav,
                 displayName = "Test",
-                baseUrl = "https://example.invalid/dav",
+                endpoint = "https://example.invalid/dav",
+                externalAccountId = null,
                 credentialRef = "test-credential",
-                username = "",
-                isAnonymous = true,
-                musicCount = 0,
+                priority = 0,
+                enabled = true,
                 createdAt = 1,
                 updatedAt = 1,
             ),
         )
-        database.selectedFolderDao().upsert(
-            SelectedFolderEntity(
-                storageId = 1,
-                remoteId = "folder-1",
+        database.libraryRootDao().upsert(
+            LibraryRootEntity(
+                id = 1,
+                sourceAccountId = 1,
+                providerRootId = "folder-1",
                 canonicalPath = "/Music",
-                displayPath = "/Music",
-                deltaLink = null,
-                lastSyncAt = null,
+                displayName = "/Music",
                 syncStatus = "RUNNING",
+                syncCursor = null,
+                lastSyncAt = null,
+                createdAt = 1,
+                updatedAt = 1,
             ),
         )
-        return assertNotNull(database.selectedFolderDao().findByPath(1, "/Music")).id
+        return assertNotNull(database.libraryRootDao().findByPath(1, "/Music")).id
     }
 
-    private fun remoteFile(
-        folderId: Long,
+    private suspend fun seedSourceItem(
+        database: TideTunesDatabase,
+        rootId: Long,
+        id: Long,
+        path: String,
+        remoteId: String = "item-$id",
+        isDeleted: Boolean = false,
+    ): SourceItemEntity {
+        val item = sourceItem(rootId = rootId, path = path, id = id, remoteId = remoteId, isDeleted = isDeleted)
+        database.sourceItemDao().upsertAll(listOf(item))
+        return assertNotNull(database.sourceItemDao().get(id))
+    }
+
+    private fun sourceItem(
+        rootId: Long,
         path: String,
         id: Long = 0,
         remoteId: String = "item-1",
-    ) = RemoteFileEntity(
+        isDeleted: Boolean = false,
+    ) = SourceItemEntity(
         id = id,
-        storageId = 1,
-        selectedFolderId = folderId,
-        remoteId = remoteId,
-        parentRemoteId = "folder-1",
+        sourceAccountId = 1,
+        libraryRootId = rootId,
+        itemType = SourceItemTypes.Track,
+        providerItemId = remoteId,
+        parentProviderItemId = "folder-1",
         canonicalPath = path,
         displayPath = path,
-        fileName = path.substringAfterLast('/'),
-        extension = "flac",
+        displayName = path.substringAfterLast('/'),
         mimeType = "audio/flac",
-        size = 1_000,
+        sizeBytes = 1_000,
         etag = "\"etag-$remoteId\"",
-        ctag = null,
-        createdAt = 1,
-        modifiedAt = 1,
+        revision = null,
+        createdAtRemote = 1,
+        modifiedAtRemote = 1,
         contentHash = null,
-        isDeleted = false,
+        audioFingerprint = null,
+        isDeleted = isDeleted,
+        firstSyncedAt = 1,
+        lastSyncedAt = 1,
         lastSeenScanId = "scan-1",
     )
 
-    private fun track(
-        id: Long,
-        remoteFileId: Long?,
-        sourceStorageId: Long? = null,
-        sourcePath: String? = null,
-    ) = TrackEntity(
+    private fun track(id: Long) = TrackEntity(
         id = id,
-        remoteFileId = remoteFileId,
-        sourceStorageId = sourceStorageId,
-        sourcePath = sourcePath,
         title = "Track ${id.toString().padStart(5, '0')}",
         sortTitle = null,
         albumId = null,
@@ -576,6 +650,32 @@ class RoomLibraryIntegrationTest {
         channelLayout = null,
         codec = "FLAC",
         container = "FLAC",
+        lossless = true,
+        createdAt = 1,
+        updatedAt = 1,
+    )
+
+    private fun trackSourceRef(
+        trackId: Long,
+        sourceItemId: Long,
+        isAvailable: Boolean = true,
+    ) = TrackSourceRefEntity(
+        trackId = trackId,
+        sourceItemId = sourceItemId,
+        role = "primary",
+        matchMethod = "test",
+        matchConfidence = 100,
+        isPreferred = true,
+        isAvailable = isAvailable,
+        isDownloaded = false,
+        playable = true,
+        downloadable = true,
+        codec = "FLAC",
+        container = "FLAC",
+        bitRate = 900_000,
+        sampleRate = 48_000,
+        bitsPerSample = 24,
+        channels = 2,
         lossless = true,
         createdAt = 1,
         updatedAt = 1,
@@ -609,6 +709,212 @@ class RoomLibraryIntegrationTest {
             while (statement.step()) {
                 add(statement.getText(1))
             }
+        }
+    }
+
+    private fun tableNames(connection: SQLiteConnection): Set<String> = buildSet {
+        connection.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").use { statement ->
+            while (statement.step()) {
+                add(statement.getText(0))
+            }
+        }
+    }
+
+    private fun singleText(connection: SQLiteConnection, sql: String): String {
+        return connection.prepare(sql).use { statement ->
+            assertTrue(statement.step())
+            statement.getText(0)
+        }
+    }
+
+    private fun createLegacyV6SourceSchema(connection: SQLiteConnection) {
+        listOf(
+            """
+            CREATE TABLE storage (
+                id INTEGER NOT NULL PRIMARY KEY,
+                type TEXT NOT NULL,
+                displayName TEXT NOT NULL,
+                driveId TEXT,
+                baseUrl TEXT,
+                credentialRef TEXT,
+                createdAt INTEGER NOT NULL,
+                updatedAt INTEGER NOT NULL
+            )
+            """.trimIndent(),
+            """
+            CREATE TABLE selected_folder (
+                id INTEGER NOT NULL PRIMARY KEY,
+                storageId INTEGER NOT NULL,
+                remoteId TEXT,
+                canonicalPath TEXT,
+                displayPath TEXT,
+                syncStatus TEXT NOT NULL,
+                deltaLink TEXT,
+                lastSyncAt INTEGER
+            )
+            """.trimIndent(),
+            """
+            CREATE TABLE remote_file (
+                id INTEGER NOT NULL PRIMARY KEY,
+                storageId INTEGER NOT NULL,
+                selectedFolderId INTEGER,
+                remoteId TEXT,
+                parentRemoteId TEXT,
+                canonicalPath TEXT,
+                displayPath TEXT,
+                fileName TEXT NOT NULL,
+                mimeType TEXT,
+                size INTEGER,
+                etag TEXT,
+                ctag TEXT,
+                createdAt INTEGER,
+                modifiedAt INTEGER,
+                contentHash TEXT,
+                isDeleted INTEGER NOT NULL,
+                lastSeenScanId TEXT
+            )
+            """.trimIndent(),
+            """
+            CREATE TABLE sync_cursor (
+                id INTEGER NOT NULL PRIMARY KEY,
+                selectedFolderId INTEGER NOT NULL,
+                deltaLink TEXT,
+                continuationToken TEXT,
+                lastScanId TEXT,
+                lastSyncAt INTEGER
+            )
+            """.trimIndent(),
+            """
+            CREATE TABLE import_job (
+                id TEXT NOT NULL PRIMARY KEY,
+                selectedFolderId INTEGER NOT NULL,
+                status TEXT NOT NULL,
+                scannedCount INTEGER NOT NULL,
+                importedCount INTEGER NOT NULL,
+                skippedCount INTEGER NOT NULL,
+                failedCount INTEGER NOT NULL,
+                checkpoint TEXT,
+                errorMessage TEXT,
+                createdAt INTEGER NOT NULL,
+                updatedAt INTEGER NOT NULL
+            )
+            """.trimIndent(),
+            """
+            CREATE TABLE track (
+                id INTEGER NOT NULL PRIMARY KEY,
+                title TEXT NOT NULL,
+                sortTitle TEXT,
+                albumId INTEGER,
+                albumArtist TEXT,
+                composer TEXT,
+                comment TEXT,
+                grouping TEXT,
+                durationMs INTEGER,
+                discNumber INTEGER,
+                discTotal INTEGER,
+                trackNumber INTEGER,
+                trackTotal INTEGER,
+                year INTEGER,
+                date TEXT,
+                sampleRate INTEGER,
+                bitRate INTEGER,
+                bitsPerSample INTEGER,
+                channels INTEGER,
+                channelLayout TEXT,
+                codec TEXT,
+                container TEXT,
+                lossless INTEGER,
+                createdAt INTEGER NOT NULL,
+                updatedAt INTEGER NOT NULL,
+                lastPlayedAt INTEGER,
+                artist TEXT,
+                lyricist TEXT,
+                conductor TEXT,
+                copyright TEXT,
+                publisher TEXT,
+                originalReleaseDate TEXT,
+                bpm REAL,
+                musicalKey TEXT,
+                isrc TEXT,
+                musicBrainzRecordingId TEXT,
+                musicBrainzTrackId TEXT,
+                musicBrainzReleaseId TEXT,
+                musicBrainzReleaseGroupId TEXT,
+                musicBrainzArtistId TEXT,
+                musicBrainzReleaseArtistId TEXT,
+                musicBrainzWorkId TEXT,
+                replayGainTrackGain REAL,
+                replayGainTrackPeak REAL,
+                replayGainAlbumGain REAL,
+                replayGainAlbumPeak REAL,
+                remoteFileId INTEGER,
+                sourceStorageId INTEGER,
+                sourcePath TEXT
+            )
+            """.trimIndent(),
+            """
+            INSERT INTO storage(
+                id, type, displayName, driveId, baseUrl, credentialRef, createdAt, updatedAt
+            ) VALUES (
+                1, 'WEBDAV', 'Archive', NULL, 'https://example.invalid/dav', 'cred-1', 1, 2
+            )
+            """.trimIndent(),
+            """
+            INSERT INTO selected_folder(
+                id, storageId, remoteId, canonicalPath, displayPath, syncStatus, deltaLink, lastSyncAt
+            ) VALUES (
+                11, 1, 'folder-1', '/Music', 'Music', 'COMPLETED', 'delta-1', 3
+            )
+            """.trimIndent(),
+            """
+            INSERT INTO remote_file(
+                id, storageId, selectedFolderId, remoteId, parentRemoteId, canonicalPath,
+                displayPath, fileName, mimeType, size, etag, ctag, createdAt, modifiedAt,
+                contentHash, isDeleted, lastSeenScanId
+            ) VALUES (
+                20, 1, 11, 'file-1', 'folder-1', '/Music/Song.flac',
+                '/Music/Song.flac', 'Song.flac', 'audio/flac', 1000, 'etag-1', 'rev-1',
+                4, 5, 'hash-1', 0, 'scan-1'
+            )
+            """.trimIndent(),
+            """
+            INSERT INTO sync_cursor(
+                id, selectedFolderId, deltaLink, continuationToken, lastScanId, lastSyncAt
+            ) VALUES (
+                30, 11, 'cursor-1', NULL, 'scan-1', 6
+            )
+            """.trimIndent(),
+            """
+            INSERT INTO import_job(
+                id, selectedFolderId, status, scannedCount, importedCount, skippedCount,
+                failedCount, checkpoint, errorMessage, createdAt, updatedAt
+            ) VALUES (
+                'job-1', 11, 'COMPLETED', 1, 1, 0, 0, NULL, NULL, 7, 8
+            )
+            """.trimIndent(),
+            """
+            INSERT INTO track(
+                id, title, sortTitle, albumId, albumArtist, composer, comment, grouping,
+                durationMs, discNumber, discTotal, trackNumber, trackTotal, year, date,
+                sampleRate, bitRate, bitsPerSample, channels, channelLayout, codec,
+                container, lossless, createdAt, updatedAt, lastPlayedAt, artist,
+                lyricist, conductor, copyright, publisher, originalReleaseDate, bpm,
+                musicalKey, isrc, musicBrainzRecordingId, musicBrainzTrackId,
+                musicBrainzReleaseId, musicBrainzReleaseGroupId, musicBrainzArtistId,
+                musicBrainzReleaseArtistId, musicBrainzWorkId, replayGainTrackGain,
+                replayGainTrackPeak, replayGainAlbumGain, replayGainAlbumPeak,
+                remoteFileId, sourceStorageId, sourcePath
+            ) VALUES (
+                10, 'Song', NULL, NULL, 'Album Artist', 'Composer', NULL, NULL,
+                180000, 1, 1, 1, 10, 2026, '2026', 48000, 900000, 24,
+                2, NULL, 'FLAC', 'FLAC', 1, 9, 10, NULL, 'Artist',
+                NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'ISRC1',
+                'mbid-1', NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                NULL, NULL, NULL, 20, 1, '/Music/Song.flac'
+            )
+            """.trimIndent(),
+        ).forEach { sql ->
+            connection.execute(sql)
         }
     }
 

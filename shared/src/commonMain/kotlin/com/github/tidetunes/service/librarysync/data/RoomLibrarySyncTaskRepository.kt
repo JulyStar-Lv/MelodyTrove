@@ -38,7 +38,7 @@ internal class RoomLibrarySyncTaskRepository(
     ): Boolean {
         val storageId = accountId.toLegacyStorageIdOrNull() ?: return false
         return syncDao.activeJobCountForStorage(
-            storageId = storageId.value,
+            sourceAccountId = storageId.value,
             excludedJobId = excludingTaskId.orEmpty(),
         ) > 0
     }
@@ -65,11 +65,11 @@ internal class RoomLibrarySyncTaskRepository(
 internal fun ImportJobWithFolder.toLibrarySyncTask(): LibrarySyncTask {
     return LibrarySyncTask(
         id = job.id,
-        accountId = StorageId(folderStorageId).toLegacyStorageSourceAccountId(),
-        selectedFolderId = job.selectedFolderId,
-        selectedFolderRemoteId = folderRemoteId,
-        folderPath = folderCanonicalPath,
-        folderDisplayPath = folderDisplayPath,
+        accountId = StorageId(sourceAccountId).toLegacyStorageSourceAccountId(),
+        selectedFolderId = job.libraryRootId,
+        selectedFolderRemoteId = providerRootId,
+        folderPath = canonicalPath.orEmpty(),
+        folderDisplayPath = displayName,
         status = job.status.toLibrarySyncStatus(),
         scannedCount = job.scannedCount,
         importedCount = job.importedCount,

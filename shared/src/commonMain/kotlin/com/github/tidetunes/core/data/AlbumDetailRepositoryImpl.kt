@@ -5,13 +5,10 @@ import com.github.tidetunes.core.domain.model.DomainTrackBrowserItem
 import com.github.tidetunes.core.domain.repository.AlbumDetailRepository
 import com.github.tidetunes.database.MetadataDao
 import com.github.tidetunes.database.TrackDao
-import com.github.tidetunes.source.storage.LegacyStorageLookup
-import com.github.tidetunes.source.storage.legacyStorageTrackMediaIdOrNull
 
 class AlbumDetailRepositoryImpl(
     private val metadataDao: MetadataDao,
     private val trackDao: TrackDao,
-    private val storageLookup: LegacyStorageLookup,
 ) : AlbumDetailRepository {
 
     override suspend fun loadAlbumDetail(albumId: Long): DomainAlbumDetail {
@@ -31,13 +28,9 @@ class AlbumDetailRepositoryImpl(
                     durationMs = track.durationMs,
                     trackNumber = track.trackNumber,
                     discNumber = track.discNumber,
-                    mediaId = legacyStorageTrackMediaIdOrNull(
-                        storageLookup = storageLookup,
-                        sourceStorageId = track.sourceStorageId,
-                        sourcePath = track.sourcePath,
-                    ),
+                    mediaId = null,
                     albumId = track.albumId,
-                    canDownload = track.sourceStorageId != null && track.sourcePath != null,
+                    canDownload = false,
                 )
             },
         )

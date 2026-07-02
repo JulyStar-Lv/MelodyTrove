@@ -15,10 +15,16 @@ import com.github.tidetunes.core.domain.model.MediaId
 import com.github.tidetunes.core.domain.model.SourceAccountId
 import com.github.tidetunes.database.PlaylistEntity
 import com.github.tidetunes.database.PlaylistTrackCrossRef
-import com.github.tidetunes.database.StorageEntity
+import com.github.tidetunes.database.ProviderTypes
+import com.github.tidetunes.database.SourceAccountEntity
+import com.github.tidetunes.database.SourceItemEntity
+import com.github.tidetunes.database.SourceItemTypes
 import com.github.tidetunes.database.TideTunesDatabase
 import com.github.tidetunes.database.TideTunesDatabaseConstructor
 import com.github.tidetunes.database.TrackEntity
+import com.github.tidetunes.database.TrackSourcePlaybackCandidate
+import com.github.tidetunes.database.TrackSourceRefDao
+import com.github.tidetunes.database.TrackSourceRefEntity
 import com.github.tidetunes.core.data.datastore.AppPreferencesRepository
 import com.github.tidetunes.core.data.datastore.createAppDataStore
 import com.github.tidetunes.service.playback.data.PlaybackResourceResolver
@@ -152,7 +158,8 @@ class DesktopPlayerControllerTest {
             val roomLibraryStore = RoomLibraryStore(
                 database = database,
                 trackDao = database.trackDao(),
-                remoteFileDao = database.remoteFileDao(),
+                sourceItemDao = database.sourceItemDao(),
+                trackSourceRefDao = database.trackSourceRefDao(),
                 playlistDao = database.playlistDao(),
                 metadataDao = database.metadataDao(),
             )
@@ -164,7 +171,7 @@ class DesktopPlayerControllerTest {
                     toastRepository = toastRepository,
                 ),
                 scope = scope,
-                storageDao = database.storageDao(),
+                sourceAccountDao = database.sourceAccountDao(),
                 credentialStore = InMemoryCredentialStore(),
             )
             val playerRepository = PlayerRepository(
@@ -183,6 +190,7 @@ class DesktopPlayerControllerTest {
                 storageLookup = LegacyStorageLookup {
                     storage(id = STORAGE_ID, type = StorageType.WEBDAV)
                 },
+                trackSourceRefDao = EmptyTrackSourceRefDao,
                 sourceRegistry = MusicSourceRegistry(listOf(source)),
                 legacyStoragePlaybackResolver = playbackResolver,
             )
@@ -222,16 +230,16 @@ class DesktopPlayerControllerTest {
     }
 
     private suspend fun seedLibrary(database: TideTunesDatabase) {
-        database.storageDao().upsert(
-            StorageEntity(
+        database.sourceAccountDao().upsert(
+            SourceAccountEntity(
                 id = STORAGE_ID,
-                type = StorageType.WEBDAV.name,
+                providerType = ProviderTypes.WebDav,
                 displayName = "WebDAV",
-                baseUrl = "https://example.invalid/dav",
+                endpoint = "https://example.invalid/dav",
+                externalAccountId = null,
                 credentialRef = "storage-$STORAGE_ID",
-                username = "",
-                isAnonymous = true,
-                musicCount = 1,
+                priority = 0,
+                enabled = true,
                 createdAt = 1,
                 updatedAt = 1,
             )
@@ -240,9 +248,6 @@ class DesktopPlayerControllerTest {
             listOf(
                 TrackEntity(
                     id = TRACK_ID,
-                    remoteFileId = null,
-                    sourceStorageId = STORAGE_ID,
-                    sourcePath = TRACK_PATH,
                     title = TRACK_TITLE,
                     sortTitle = null,
                     albumId = null,
@@ -268,6 +273,58 @@ class DesktopPlayerControllerTest {
                     createdAt = 1,
                     updatedAt = 1,
                     artist = "Luna",
+                )
+            )
+        )
+        database.sourceItemDao().upsertAll(
+            listOf(
+                SourceItemEntity(
+                    id = TRACK_ID,
+                    sourceAccountId = STORAGE_ID,
+                    libraryRootId = null,
+                    itemType = SourceItemTypes.Track,
+                    providerItemId = "item-$TRACK_ID",
+                    parentProviderItemId = null,
+                    canonicalPath = TRACK_PATH,
+                    displayPath = TRACK_PATH,
+                    displayName = TRACK_PATH.substringAfterLast('/'),
+                    mimeType = "audio/flac",
+                    sizeBytes = 1_000,
+                    etag = "\"etag-$TRACK_ID\"",
+                    revision = null,
+                    createdAtRemote = 1,
+                    modifiedAtRemote = 1,
+                    contentHash = null,
+                    audioFingerprint = null,
+                    isDeleted = false,
+                    firstSyncedAt = 1,
+                    lastSyncedAt = 1,
+                    lastSeenScanId = "scan-1",
+                )
+            )
+        )
+        database.trackSourceRefDao().upsertAll(
+            listOf(
+                TrackSourceRefEntity(
+                    trackId = TRACK_ID,
+                    sourceItemId = TRACK_ID,
+                    role = "primary",
+                    matchMethod = "test",
+                    matchConfidence = 100,
+                    isPreferred = true,
+                    isAvailable = true,
+                    isDownloaded = false,
+                    playable = true,
+                    downloadable = true,
+                    codec = null,
+                    container = null,
+                    bitRate = null,
+                    sampleRate = null,
+                    bitsPerSample = null,
+                    channels = null,
+                    lossless = null,
+                    createdAt = 1,
+                    updatedAt = 1,
                 )
             )
         )
@@ -417,6 +474,32 @@ private class RecordingLegacyPlaybackResolver : LegacyStoragePlaybackResolver {
     }
 
     override suspend fun releaseAll() = Unit
+}
+
+private object EmptyTrackSourceRefDao : TrackSourceRefDao {
+    override suspend fun findByTrackId(trackId: Long): List<TrackSourceRefEntity> {
+        return emptyList()
+    }
+
+    override suspend fun findBySourceItemIds(sourceItemIds: List<Long>): List<TrackSourceRefEntity> {
+        return emptyList()
+    }
+
+    override suspend fun countForTrack(trackId: Long): Int {
+        return 0
+    }
+
+    override suspend fun upsertAll(refs: List<TrackSourceRefEntity>) = Unit
+
+    override suspend fun markAvailableBySourceItemIds(sourceItemIds: List<Long>, now: Long) = Unit
+
+    override suspend fun markUnavailableBySourceItemIds(sourceItemIds: List<Long>, now: Long) = Unit
+
+    override suspend fun markUnavailableForDeletedSourceItems(libraryRootId: Long, now: Long) = Unit
+
+    override suspend fun playbackCandidates(trackId: Long): List<TrackSourcePlaybackCandidate> {
+        return emptyList()
+    }
 }
 
 private class InMemoryCredentialStore : CredentialStore {

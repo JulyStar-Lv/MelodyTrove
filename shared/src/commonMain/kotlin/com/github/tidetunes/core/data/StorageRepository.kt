@@ -12,9 +12,10 @@ import com.github.tidetunes.core.domain.model.SourceEditorType
 import com.github.tidetunes.core.domain.model.storageSourceAccountId
 import com.github.tidetunes.core.domain.model.toStorageRouteIdOrNull
 import com.github.tidetunes.core.domain.repository.StorageRepository
-import com.github.tidetunes.database.StorageDao
 import com.github.tidetunes.singleton.Bridge
-import com.github.tidetunes.database.StorageEntity
+import com.github.tidetunes.database.ProviderTypes
+import com.github.tidetunes.database.SourceAccountDao
+import com.github.tidetunes.database.SourceAccountEntity
 
 import com.github.tidetunes.platform.currentTimeMillis
 import com.github.tidetunes.core.data.security.CredentialStore
@@ -42,7 +43,7 @@ import uniffi.tidetunes_core.StorageType
 class StorageRepositoryImpl(
     private val bridge: Bridge,
     private val scope: CoroutineScope,
-    private val storageDao: StorageDao,
+    private val sourceAccountDao: SourceAccountDao,
     private val credentialStore: CredentialStore,
 ) : StorageRepository {
     private val _oauthRefreshToken = MutableStateFlow("")
@@ -62,7 +63,7 @@ class StorageRepositoryImpl(
             ensureLocalStorage()
         }
         scope.launch {
-            storageDao.observeAll().collect { entities ->
+            sourceAccountDao.observeAll().collect { entities ->
                 _storages.value = entities.map { entity ->
                     entity.toStorage(password = "")
                 }
@@ -122,28 +123,31 @@ class StorageRepositoryImpl(
 
     suspend fun upsertStorage(arg: ArgUpsertStorage) {
         val normalized = arg.normalized()
-        val id = normalized.id ?: StorageId((storageDao.maxId() ?: 0L) + 1L)
+        val id = normalized.id ?: StorageId((sourceAccountDao.maxId() ?: 0L) + 1L)
         val now = currentTimeMillis()
-        val previous = storageDao.get(id.value)
+        val previous = sourceAccountDao.get(id.value)
         val credential = StoredCredential(
             username = normalized.username,
             secret = normalized.password,
             isAnonymous = normalized.isAnonymous,
         )
         credentialStore.save(id.value, credential)
-        storageDao.upsert(
-            StorageEntity(
+        sourceAccountDao.upsert(
+            SourceAccountEntity(
                 id = id.value,
-                type = normalized.typ.name,
+                providerType = normalized.typ.toProviderType(),
                 displayName = normalized.alias.ifBlank {
                     if (normalized.typ == StorageType.LOCAL) "Local" else normalized.addr
                 },
-                baseUrl = if (normalized.typ == StorageType.ONE_DRIVE) "" else normalized.addr,
-                driveId = if (normalized.typ == StorageType.ONE_DRIVE) normalized.addr.ifBlank { null } else null,
+                endpoint = normalized.addr.takeIf { it.isNotBlank() },
+                externalAccountId = if (normalized.typ == StorageType.ONE_DRIVE) {
+                    normalized.addr.ifBlank { null }
+                } else {
+                    null
+                },
                 credentialRef = previous?.credentialRef ?: "storage-${id.value}",
-                username = normalized.username,
-                isAnonymous = normalized.isAnonymous,
-                musicCount = previous?.musicCount ?: 0L,
+                priority = previous?.priority ?: 0,
+                enabled = true,
                 createdAt = previous?.createdAt ?: now,
                 updatedAt = now,
             )
@@ -157,7 +161,7 @@ class StorageRepositoryImpl(
     suspend fun remove(id: StorageId) {
         _preRemoveStorageEvent.emit(id)
         credentialStore.delete(id.value)
-        storageDao.delete(id.value)
+        sourceAccountDao.delete(id.value)
         _onRemoveStorageEvent.emit(Unit)
     }
 
@@ -166,47 +170,46 @@ class StorageRepositoryImpl(
     }
 
     suspend fun loadCredential(id: StorageId): StoredCredential? {
-        if (storageDao.get(id.value)?.type == StorageType.LOCAL.name) return null
+        if (sourceAccountDao.get(id.value)?.providerType == ProviderTypes.Local) return null
         return credentialStore.load(id.value)
     }
 
     suspend fun storageForRust(id: StorageId): Storage? {
-        val entity = storageDao.get(id.value) ?: return null
+        val entity = sourceAccountDao.get(id.value) ?: return null
         val credential = loadCredential(id)
         return entity.toStorage(password = credential?.secret.orEmpty())
             .copyCredential(credential)
     }
 
     private suspend fun ensureLocalStorage() {
-        if (storageDao.get(LOCAL_STORAGE_ID) != null) return
+        if (sourceAccountDao.get(LOCAL_STORAGE_ID) != null) return
         val now = currentTimeMillis()
-        storageDao.upsert(
-            StorageEntity(
+        sourceAccountDao.upsert(
+            SourceAccountEntity(
                 id = LOCAL_STORAGE_ID,
-                type = StorageType.LOCAL.name,
+                providerType = ProviderTypes.Local,
                 displayName = "Local",
-                baseUrl = "",
-                driveId = null,
+                endpoint = null,
+                externalAccountId = null,
                 credentialRef = "storage-$LOCAL_STORAGE_ID",
-                username = "",
-                isAnonymous = true,
-                musicCount = 0,
+                priority = 0,
+                enabled = true,
                 createdAt = now,
                 updatedAt = now,
             )
         )
     }
 
-    private fun StorageEntity.toStorage(password: String): Storage {
+    private fun SourceAccountEntity.toStorage(password: String): Storage {
         return Storage(
             id = StorageId(id),
-            addr = driveId ?: baseUrl,
+            addr = externalAccountId ?: endpoint.orEmpty(),
             alias = displayName,
-            username = username,
+            username = "",
             password = password,
-            isAnonymous = isAnonymous,
-            typ = StorageType.valueOf(type),
-            musicCount = musicCount.coerceAtLeast(0).toULong(),
+            isAnonymous = providerType == ProviderTypes.Local,
+            typ = providerType.toStorageType(),
+            musicCount = 0u,
         )
     }
 
@@ -292,6 +295,23 @@ class StorageRepositoryImpl(
         return alias.ifBlank { addr }
     }
 
+}
+
+private fun StorageType.toProviderType(): String {
+    return when (this) {
+        StorageType.LOCAL -> ProviderTypes.Local
+        StorageType.WEBDAV -> ProviderTypes.WebDav
+        StorageType.ONE_DRIVE -> ProviderTypes.OneDrive
+    }
+}
+
+private fun String.toStorageType(): StorageType {
+    return when (this) {
+        ProviderTypes.Local -> StorageType.LOCAL
+        ProviderTypes.WebDav -> StorageType.WEBDAV
+        ProviderTypes.OneDrive -> StorageType.ONE_DRIVE
+        else -> StorageType.WEBDAV
+    }
 }
 
 private const val PENDING_ONEDRIVE_OAUTH_CREDENTIAL_ID = Long.MIN_VALUE

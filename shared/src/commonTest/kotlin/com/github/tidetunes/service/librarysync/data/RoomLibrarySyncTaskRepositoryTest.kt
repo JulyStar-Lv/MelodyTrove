@@ -55,7 +55,7 @@ class RoomLibrarySyncTaskRepositoryTest {
         return ImportJobWithFolder(
             job = ImportJobEntity(
                 id = "scan-1",
-                selectedFolderId = 7,
+                libraryRootId = 7,
                 status = status,
                 scannedCount = 10,
                 importedCount = 8,
@@ -66,10 +66,10 @@ class RoomLibrarySyncTaskRepositoryTest {
                 createdAt = 100,
                 updatedAt = 200,
             ),
-            folderStorageId = 42,
-            folderRemoteId = "folder-42",
-            folderCanonicalPath = "/Music",
-            folderDisplayPath = "Music",
+            sourceAccountId = 42,
+            providerRootId = "folder-42",
+            canonicalPath = "/Music",
+            displayName = "Music",
         )
     }
 }

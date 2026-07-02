@@ -40,6 +40,7 @@ class OneDriveMusicSource(
         SourceCapability.Download,
         SourceCapability.IncrementalSync,
     )
+    override val rootDirectoryRemoteId: String? = "root"
 
     override suspend fun authenticate(configuration: SourceConfiguration): SourceAuthResult {
         if (configuration !is OneDriveSourceConfiguration) {

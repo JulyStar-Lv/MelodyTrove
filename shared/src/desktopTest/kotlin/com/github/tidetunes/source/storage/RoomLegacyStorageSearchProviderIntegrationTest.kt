@@ -4,12 +4,15 @@ import androidx.room.Room
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.github.tidetunes.core.domain.model.MediaType
 import com.github.tidetunes.core.domain.model.SourceAccountId
-import com.github.tidetunes.database.RemoteFileEntity
-import com.github.tidetunes.database.SelectedFolderEntity
-import com.github.tidetunes.database.StorageEntity
+import com.github.tidetunes.database.LibraryRootEntity
+import com.github.tidetunes.database.ProviderTypes
+import com.github.tidetunes.database.SourceAccountEntity
+import com.github.tidetunes.database.SourceItemEntity
+import com.github.tidetunes.database.SourceItemTypes
 import com.github.tidetunes.database.TideTunesDatabase
 import com.github.tidetunes.database.TideTunesDatabaseConstructor
 import com.github.tidetunes.database.TrackEntity
+import com.github.tidetunes.database.TrackSourceRefEntity
 import com.github.tidetunes.source.api.BuiltInSourceIds
 import com.github.tidetunes.source.api.LegacyStorageKind
 import com.github.tidetunes.source.api.SourceSearchFailureReason
@@ -29,45 +32,47 @@ class RoomLegacyStorageSearchProviderIntegrationTest {
     fun searchesIndexedTracksForExpectedStorageOnly() = withDatabase { database ->
         val webDavFolderId = seedStorageAndFolder(database, storageId = 1, type = StorageType.WEBDAV)
         val oneDriveFolderId = seedStorageAndFolder(database, storageId = 2, type = StorageType.ONE_DRIVE)
-        database.remoteFileDao().upsertAll(
-            listOf(
-                remoteFile(
-                    id = 101,
-                    storageId = 1,
-                    folderId = webDavFolderId,
-                    path = "/Music/Moon.flac",
-                    isDeleted = false,
-                ),
-                remoteFile(
-                    id = 102,
-                    storageId = 1,
-                    folderId = webDavFolderId,
-                    path = "/Music/Sun.flac",
-                    isDeleted = false,
-                ),
-                remoteFile(
-                    id = 103,
-                    storageId = 1,
-                    folderId = webDavFolderId,
-                    path = "/Music/Deleted Moon.flac",
-                    isDeleted = true,
-                ),
-                remoteFile(
-                    id = 201,
-                    storageId = 2,
-                    folderId = oneDriveFolderId,
-                    path = "/Cloud/Moon.flac",
-                    isDeleted = false,
-                ),
-            )
-        )
         database.trackDao().upsertAll(
             listOf(
-                track(id = 1, remoteFileId = 101, sourceStorageId = 1, title = "Moonlight"),
-                track(id = 2, remoteFileId = 102, sourceStorageId = 1, title = "Sunrise"),
-                track(id = 3, remoteFileId = 103, sourceStorageId = 1, title = "Deleted Moon"),
-                track(id = 4, remoteFileId = 201, sourceStorageId = 2, title = "Moon Cloud"),
+                track(id = 1, title = "Moonlight"),
+                track(id = 2, title = "Sunrise"),
+                track(id = 3, title = "Deleted Moon"),
+                track(id = 4, title = "Moon Cloud"),
             )
+        )
+        seedSourceRef(
+            database,
+            trackId = 1,
+            sourceItemId = 101,
+            storageId = 1,
+            rootId = webDavFolderId,
+            path = "/Music/Moon.flac",
+        )
+        seedSourceRef(
+            database,
+            trackId = 2,
+            sourceItemId = 102,
+            storageId = 1,
+            rootId = webDavFolderId,
+            path = "/Music/Sun.flac",
+        )
+        seedSourceRef(
+            database,
+            trackId = 3,
+            sourceItemId = 103,
+            storageId = 1,
+            rootId = webDavFolderId,
+            path = "/Music/Deleted Moon.flac",
+            isDeleted = true,
+            isAvailable = false,
+        )
+        seedSourceRef(
+            database,
+            trackId = 4,
+            sourceItemId = 201,
+            storageId = 2,
+            rootId = oneDriveFolderId,
+            path = "/Cloud/Moon.flac",
         )
         val provider = RoomLegacyStorageSearchProvider(
             storageLookup = { storageId ->
@@ -137,73 +142,91 @@ class RoomLegacyStorageSearchProviderIntegrationTest {
         storageId: Long,
         type: StorageType,
     ): Long {
-        database.storageDao().upsert(
-            StorageEntity(
+        database.sourceAccountDao().upsert(
+            SourceAccountEntity(
                 id = storageId,
-                type = type.name,
+                providerType = type.toProviderType(),
                 displayName = "Storage $storageId",
-                baseUrl = "",
-                driveId = null,
+                endpoint = "",
+                externalAccountId = null,
                 credentialRef = "storage-$storageId",
-                username = "",
-                isAnonymous = true,
-                musicCount = 0,
+                priority = 0,
+                enabled = true,
                 createdAt = 1,
                 updatedAt = 1,
             )
         )
         val path = "/Root-$storageId"
-        database.selectedFolderDao().upsert(
-            SelectedFolderEntity(
-                storageId = storageId,
-                remoteId = "folder-$storageId",
+        database.libraryRootDao().upsert(
+            LibraryRootEntity(
+                id = storageId,
+                sourceAccountId = storageId,
+                providerRootId = "folder-$storageId",
                 canonicalPath = path,
-                displayPath = path,
-                deltaLink = null,
-                lastSyncAt = null,
+                displayName = path,
                 syncStatus = "COMPLETED",
+                syncCursor = null,
+                lastSyncAt = null,
+                createdAt = 1,
+                updatedAt = 1,
             )
         )
-        return assertNotNull(database.selectedFolderDao().findByPath(storageId, path)).id
+        return assertNotNull(database.libraryRootDao().findByPath(storageId, path)).id
     }
 
-    private fun remoteFile(
+    private suspend fun seedSourceRef(
+        database: TideTunesDatabase,
+        trackId: Long,
+        sourceItemId: Long,
+        storageId: Long,
+        rootId: Long,
+        path: String,
+        isDeleted: Boolean = false,
+        isAvailable: Boolean = !isDeleted,
+    ) {
+        database.sourceItemDao().upsertAll(
+            listOf(sourceItem(sourceItemId, storageId, rootId, path, isDeleted)),
+        )
+        database.trackSourceRefDao().upsertAll(
+            listOf(trackSourceRef(trackId, sourceItemId, isAvailable)),
+        )
+    }
+
+    private fun sourceItem(
         id: Long,
         storageId: Long,
-        folderId: Long,
+        rootId: Long,
         path: String,
         isDeleted: Boolean,
-    ) = RemoteFileEntity(
+    ) = SourceItemEntity(
         id = id,
-        storageId = storageId,
-        selectedFolderId = folderId,
-        remoteId = "item-$id",
-        parentRemoteId = "folder-$storageId",
+        sourceAccountId = storageId,
+        libraryRootId = rootId,
+        itemType = SourceItemTypes.Track,
+        providerItemId = "item-$id",
+        parentProviderItemId = "folder-$storageId",
         canonicalPath = path,
         displayPath = path,
-        fileName = path.substringAfterLast('/'),
-        extension = path.substringAfterLast('.', missingDelimiterValue = ""),
+        displayName = path.substringAfterLast('/'),
         mimeType = "audio/flac",
-        size = 1_000,
+        sizeBytes = 1_000,
         etag = "\"etag-$id\"",
-        ctag = null,
-        createdAt = 1,
-        modifiedAt = 1,
+        revision = null,
+        createdAtRemote = 1,
+        modifiedAtRemote = 1,
         contentHash = null,
+        audioFingerprint = null,
         isDeleted = isDeleted,
+        firstSyncedAt = 1,
+        lastSyncedAt = 1,
         lastSeenScanId = "scan-1",
     )
 
     private fun track(
         id: Long,
-        remoteFileId: Long,
-        sourceStorageId: Long,
         title: String,
     ) = TrackEntity(
         id = id,
-        remoteFileId = remoteFileId,
-        sourceStorageId = sourceStorageId,
-        sourcePath = null,
         title = title,
         sortTitle = null,
         albumId = null,
@@ -230,6 +253,40 @@ class RoomLegacyStorageSearchProviderIntegrationTest {
         updatedAt = 1,
         artist = "Luna",
     )
+
+    private fun trackSourceRef(
+        trackId: Long,
+        sourceItemId: Long,
+        isAvailable: Boolean,
+    ) = TrackSourceRefEntity(
+        trackId = trackId,
+        sourceItemId = sourceItemId,
+        role = "primary",
+        matchMethod = "test",
+        matchConfidence = 100,
+        isPreferred = true,
+        isAvailable = isAvailable,
+        isDownloaded = false,
+        playable = true,
+        downloadable = true,
+        codec = null,
+        container = null,
+        bitRate = null,
+        sampleRate = null,
+        bitsPerSample = null,
+        channels = null,
+        lossless = null,
+        createdAt = 1,
+        updatedAt = 1,
+    )
+
+    private fun StorageType.toProviderType(): String {
+        return when (this) {
+            StorageType.LOCAL -> ProviderTypes.Local
+            StorageType.WEBDAV -> ProviderTypes.WebDav
+            StorageType.ONE_DRIVE -> ProviderTypes.OneDrive
+        }
+    }
 
     private fun storage(
         id: Long,

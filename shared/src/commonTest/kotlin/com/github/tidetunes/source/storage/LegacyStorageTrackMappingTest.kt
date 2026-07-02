@@ -12,21 +12,14 @@ import uniffi.tidetunes_core.StorageType
 
 class LegacyStorageTrackMappingTest {
     @Test
-    fun mapsRoomTrackSourceFieldsToLegacyStorageMediaId() = runBlocking {
-        val mediaId = track(
-            sourceStorageId = 2,
-            sourcePath = "/Music/Song.flac",
-        ).toLegacyStorageTrackMediaIdOrNull(
+    fun roomTrackNoLongerCarriesLegacyStorageMediaId() = runBlocking {
+        val mediaId = track().toLegacyStorageTrackMediaIdOrNull(
             LegacyStorageLookup { storageId ->
                 storage(id = storageId.value, typ = StorageType.WEBDAV)
             }
         )
 
-        assertEquals(BuiltInSourceIds.WebDav, mediaId?.sourceId)
-        assertEquals(
-            "legacy-storage-track:storage%3A2:%2FMusic%2FSong.flac",
-            mediaId?.remoteId,
-        )
+        assertNull(mediaId)
     }
 
     @Test
@@ -57,16 +50,7 @@ class LegacyStorageTrackMappingTest {
     @Test
     fun missingSourceFieldsDoNotCreateMediaId() = runBlocking {
         assertNull(
-            track(
-                sourceStorageId = null,
-                sourcePath = "/Music/Song.flac",
-            ).toLegacyStorageTrackMediaIdOrNull(LegacyStorageLookup { null })
-        )
-        assertNull(
-            track(
-                sourceStorageId = 2,
-                sourcePath = " ",
-            ).toLegacyStorageTrackMediaIdOrNull(LegacyStorageLookup { null })
+            track().toLegacyStorageTrackMediaIdOrNull(LegacyStorageLookup { null })
         )
         assertNull(
             legacyStorageTrackMediaIdOrNull(
@@ -91,14 +75,8 @@ class LegacyStorageTrackMappingTest {
         musicCount = 0u,
     )
 
-    private fun track(
-        sourceStorageId: Long?,
-        sourcePath: String?,
-    ) = TrackEntity(
+    private fun track() = TrackEntity(
         id = 99,
-        remoteFileId = 7,
-        sourceStorageId = sourceStorageId,
-        sourcePath = sourcePath,
         title = "Song",
         sortTitle = null,
         albumId = null,

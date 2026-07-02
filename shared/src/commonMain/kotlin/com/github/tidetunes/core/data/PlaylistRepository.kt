@@ -180,11 +180,11 @@ internal suspend fun DaoPlaylistTrackRow.toDomainRow(
         title = title,
         durationMs = durationMs,
         sortOrder = sortOrder,
-        sourceStorageId = sourceStorageId,
+        sourceStorageId = sourceAccountId,
         sourcePath = sourcePath,
         mediaId = legacyStorageTrackMediaIdOrNull(
             storageLookup = storageLookup,
-            sourceStorageId = sourceStorageId,
+            sourceStorageId = sourceAccountId,
             sourcePath = sourcePath,
         ),
     )

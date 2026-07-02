@@ -203,9 +203,6 @@ class LegacyArtworkRepositoryTest {
     ): TrackEntity {
         return TrackEntity(
             id = id,
-            remoteFileId = null,
-            sourceStorageId = 1,
-            sourcePath = "/Music/$id.flac",
             title = "Track $id",
             sortTitle = null,
             albumId = albumId,

@@ -8,22 +8,22 @@ import com.github.tidetunes.database.ArtworkEntity
 import com.github.tidetunes.database.ArtistEntity
 import com.github.tidetunes.database.GenreEntity
 import com.github.tidetunes.database.ImportJobEntity
+import com.github.tidetunes.database.LibraryRootEntity
 import com.github.tidetunes.database.LyricsEntity
 import com.github.tidetunes.database.MetadataDao
+import com.github.tidetunes.database.ProviderTypes
 import com.github.tidetunes.database.RawMetadataEntity
-import com.github.tidetunes.database.RemoteFileDao
-import com.github.tidetunes.database.RemoteFileEntity
-import com.github.tidetunes.database.SelectedFolderDao
-import com.github.tidetunes.database.SelectedFolderEntity
-import com.github.tidetunes.database.SyncCursorEntity
+import com.github.tidetunes.database.SourceAccountEntity
+import com.github.tidetunes.database.SourceItemEntity
+import com.github.tidetunes.database.SourceItemTypes
+import com.github.tidetunes.database.SourceSyncCursorEntity
 import com.github.tidetunes.database.SyncDao
 import com.github.tidetunes.database.TideTunesDatabase
 import com.github.tidetunes.database.TrackDao
 import com.github.tidetunes.database.TrackArtistCrossRef
 import com.github.tidetunes.database.TrackEntity
 import com.github.tidetunes.database.TrackGenreCrossRef
-import com.github.tidetunes.database.hasSameRemoteContent
-import com.github.tidetunes.database.hasSameRemoteRevision
+import com.github.tidetunes.database.TrackSourceRefEntity
 import com.github.tidetunes.platform.currentTimeMillis
 import com.github.tidetunes.source.storage.MetadataRepository
 import com.github.tidetunes.source.storage.RemoteScannerRepository
@@ -64,8 +64,6 @@ data class RemoteLibraryImportResult(
 
 class RemoteLibraryImportCoordinator(
     private val database: TideTunesDatabase,
-    private val selectedFolderDao: SelectedFolderDao,
-    private val remoteFileDao: RemoteFileDao,
     private val trackDao: TrackDao,
     private val metadataDao: MetadataDao,
     private val syncDao: SyncDao,
@@ -146,7 +144,7 @@ class RemoteLibraryImportCoordinator(
             markImportStopOrFailure(
                 error = error,
                 operation = operation,
-                folder = execution.folder,
+                root = execution.libraryRoot,
                 job = currentJob,
             )
             throw error
@@ -166,7 +164,7 @@ class RemoteLibraryImportCoordinator(
     ): RemoteLibraryImportResult {
         validateImportSettings(metadataConcurrency, importBatchSize)
         val canonicalPath = normalizeRemotePath(selectedFolderCanonicalPath)
-        val folder = selectedFolderDao.findByPath(storageId, canonicalPath)
+        val root = database.libraryRootDao().findByPath(storageId, canonicalPath)
             ?: return scanAndInitializeOneDriveFolder(
                 storageId = storageId,
                 selectedFolderRemoteId = selectedFolderRemoteId,
@@ -176,7 +174,7 @@ class RemoteLibraryImportCoordinator(
                 metadataConcurrency = metadataConcurrency,
                 importBatchSize = importBatchSize,
             )
-        val cursor = syncDao.getCursor(folder.id)?.deltaLink ?: folder.deltaLink
+        val cursor = syncDao.getCursor(root.id)?.cursorValue ?: root.syncCursor
             ?: return scanAndInitializeOneDriveFolder(
                 storageId = storageId,
                 selectedFolderRemoteId = selectedFolderRemoteId,
@@ -247,8 +245,8 @@ class RemoteLibraryImportCoordinator(
                 .map { it.remoteId }
                 .distinct()
                 .chunked(MAX_REMOTE_ID_QUERY_SIZE)
-                .flatMap { remoteFileDao.findByRemoteIds(storageId, it) }
-                .mapNotNull { file -> file.remoteId?.let { it to file } }
+                .flatMap { database.sourceItemDao().findByProviderItemIds(storageId, it) }
+                .mapNotNull { item -> item.providerItemId?.let { it to item } }
                 .toMap()
             operation.throwIfStopRequested()
             val deletedRemoteIds = delta.items.mapNotNull { item ->
@@ -260,13 +258,27 @@ class RemoteLibraryImportCoordinator(
                 }
             }.distinct()
             if (deletedRemoteIds.isNotEmpty()) {
+                val now = currentTimeMillis()
                 val deletedCount = deletedRemoteIds
                     .chunked(MAX_REMOTE_ID_QUERY_SIZE)
-                    .sumOf { remoteFileDao.markDeletedByRemoteIds(storageId, it) }
+                    .sumOf {
+                        database.sourceItemDao().markDeletedByProviderItemIds(storageId, it, now)
+                    }
+                val deletedSourceItemIds = deletedRemoteIds
+                    .chunked(MAX_REMOTE_ID_QUERY_SIZE)
+                    .flatMap { ids ->
+                        database.sourceItemDao()
+                            .findByProviderItemIds(storageId, ids)
+                    }
+                    .map { it.id }
+                if (deletedSourceItemIds.isNotEmpty()) {
+                    database.trackSourceRefDao()
+                        .markUnavailableBySourceItemIds(deletedSourceItemIds, now)
+                }
                 changedCount += deletedCount
                 currentJob = currentJob.copy(
                     scannedCount = currentJob.scannedCount + deletedRemoteIds.size,
-                    updatedAt = currentTimeMillis(),
+                    updatedAt = now,
                 )
                 syncDao.upsertJob(currentJob)
             }
@@ -300,7 +312,7 @@ class RemoteLibraryImportCoordinator(
             markImportStopOrFailure(
                 error = error,
                 operation = operation,
-                folder = execution.folder,
+                root = execution.libraryRoot,
                 job = currentJob,
             )
             throw error
@@ -335,7 +347,7 @@ class RemoteLibraryImportCoordinator(
         var scanSession: RemoteMusicScanSession? = null
 
         return try {
-            val previousCursor = syncDao.getCursor(execution.folder.id)
+            val previousCursor = syncDao.getCursor(execution.libraryRoot.id)
             val seenPaths = mutableSetOf<String>()
             var changedCount = 0L
             operation.throwIfStopRequested()
@@ -376,14 +388,14 @@ class RemoteLibraryImportCoordinator(
                 execution = execution,
                 previousCursor = previousCursor,
                 currentJob = currentJob,
-                deltaLink = deltaLink ?: execution.folder.deltaLink,
+                deltaLink = deltaLink ?: execution.libraryRoot.syncCursor,
             )
             importResult(execution, currentJob, changedCount)
         } catch (error: Throwable) {
             markImportStopOrFailure(
                 error = error,
                 operation = operation,
-                folder = execution.folder,
+                root = execution.libraryRoot,
                 job = currentJob,
             )
             throw error
@@ -424,7 +436,7 @@ class RemoteLibraryImportCoordinator(
             markImportStopOrFailure(
                 error = error,
                 operation = operation,
-                folder = execution.folder,
+                root = execution.libraryRoot,
                 job = currentJob,
             )
             throw error
@@ -441,7 +453,7 @@ class RemoteLibraryImportCoordinator(
         currentJob: ImportJobEntity,
     ): Pair<RemoteLibraryImportResult, ImportJobEntity> {
         operation.throwIfStopRequested()
-        val previousCursor = syncDao.getCursor(execution.folder.id)
+        val previousCursor = syncDao.getCursor(execution.libraryRoot.id)
         operation.throwIfStopRequested()
         val musicEntries = prepareMusicEntries(request.storageId, request.entries)
         var changedCount = 0L
@@ -464,7 +476,7 @@ class RemoteLibraryImportCoordinator(
             execution = execution,
             previousCursor = previousCursor,
             currentJob = job,
-            deltaLink = deltaLink ?: execution.folder.deltaLink,
+            deltaLink = deltaLink ?: execution.libraryRoot.syncCursor,
         )
         return importResult(execution, job, changedCount) to job
     }
@@ -475,23 +487,25 @@ class RemoteLibraryImportCoordinator(
         currentJob: ImportJobEntity,
         entries: List<StorageEntry>,
     ): ImportBatchResult {
+        val now = currentTimeMillis()
         val batchPaths = entries.map { normalizeRemotePath(it.path) }
-        val existing = remoteFileDao
+        val existing = database.sourceItemDao()
             .findByPaths(request.storageId, batchPaths)
             .associateBy { it.canonicalPath }
         val remoteIds = entries.mapNotNull { it.remoteId }.distinct()
         val existingByRemoteId = if (remoteIds.isEmpty()) {
             emptyMap()
         } else {
-            remoteFileDao
-                .findByRemoteIds(request.storageId, remoteIds)
-                .mapNotNull { file -> file.remoteId?.let { it to file } }
+            database.sourceItemDao()
+                .findByProviderItemIds(request.storageId, remoteIds)
+                .mapNotNull { item -> item.providerItemId?.let { it to item } }
                 .toMap()
         }
         val plan = planRemoteLibraryImport(
             storageId = request.storageId,
-            selectedFolderId = execution.folder.id,
+            libraryRootId = execution.libraryRoot.id,
             scanId = execution.scanId,
+            now = now,
             entries = entries,
             existing = existing,
             existingByRemoteId = existingByRemoteId,
@@ -518,61 +532,82 @@ class RemoteLibraryImportCoordinator(
                 normalizeRemotePath(it.path) !in metadataReturnedPaths
             } +
             metadataResults.count { it.metadata == null }
-        val now = currentTimeMillis()
         lateinit var updatedJob: ImportJobEntity
 
         database.useWriterConnection { connection ->
             connection.immediateTransaction {
-                remoteFileDao.applyScanBatch(
-                    changedFiles = plan.changedFiles,
+                database.sourceItemDao().applyScanBatch(
+                    changedItems = plan.changedItems,
                     unchangedIds = plan.unchangedFileIds,
                     scanId = execution.scanId,
+                    now = now,
                 )
-                val remoteRows = if (plan.changedFiles.isEmpty()) {
+                val sourceRows = if (plan.changedItems.isEmpty()) {
                     emptyMap()
                 } else {
-                    remoteFileDao
+                    database.sourceItemDao()
                         .findByPaths(
                             request.storageId,
-                            plan.changedFiles.map { it.canonicalPath },
+                            plan.changedItems.mapNotNull { it.canonicalPath },
                         )
                         .associateBy { it.canonicalPath }
-                }
-                val existingTracksByRemoteFileId = if (remoteRows.isEmpty()) {
-                    emptyMap()
-                } else {
-                    trackDao
-                        .findByRemoteFileIds(remoteRows.values.map { it.id })
-                        .mapNotNull { track ->
-                            track.remoteFileId?.let { remoteFileId -> remoteFileId to track }
-                        }
-                        .toMap()
                 }
                 val trackMetadata = plan.changedEntries.mapNotNull { entry ->
                     val path = normalizeRemotePath(entry.path)
                     val metadata = metadataByPath[path] ?: return@mapNotNull null
-                    val remoteFile = remoteRows[path] ?: return@mapNotNull null
-                    Triple(entry, metadata, remoteFile)
+                    val sourceItem = sourceRows[path] ?: return@mapNotNull null
+                    SourceImportRow(entry, metadata, sourceItem)
                 }
-                val albumsByName = ensureAlbums(trackMetadata.map { it.second })
-                val artistsByName = ensureArtists(trackMetadata.map { it.second })
-                val genresByName = ensureGenres(trackMetadata.map { it.second })
-                val trackContexts = trackMetadata.map { (entry, metadata, remoteFile) ->
+                val albumsByName = ensureAlbums(trackMetadata.map { it.metadata })
+                val artistsByName = ensureArtists(trackMetadata.map { it.metadata })
+                val genresByName = ensureGenres(trackMetadata.map { it.metadata })
+                val existingRefsBySourceItemId = if (trackMetadata.isEmpty()) {
+                    emptyMap()
+                } else {
+                    database.trackSourceRefDao()
+                        .findBySourceItemIds(trackMetadata.map { it.sourceItem.id })
+                        .associateBy { it.sourceItemId }
+                }
+                val existingTracksById = if (existingRefsBySourceItemId.isEmpty()) {
+                    emptyMap()
+                } else {
+                    trackDao.findByIds(existingRefsBySourceItemId.values.map { it.trackId })
+                        .associateBy { it.id }
+                }
+                val trackContexts = trackMetadata.map { row ->
+                    val entry = row.entry
+                    val metadata = row.metadata
+                    val sourceItem = row.sourceItem
+                    val existingTrack = existingRefsBySourceItemId[sourceItem.id]
+                        ?.let { existingTracksById[it.trackId] }
+                        ?: findCanonicalTrack(metadata, sourceItem)
                     val track = buildTrackEntity(
                         entry = entry,
                         metadata = metadata,
-                        remoteFile = remoteFile,
+                        sourceItem = sourceItem,
                         now = now,
-                        existingTrack = existingTracksByRemoteFileId[remoteFile.id],
+                        existingTrack = existingTrack,
                         albumId = metadata.album
                             ?.let(::normalizeMetadataName)
                             ?.let(albumsByName::get)
                             ?.id,
                     )
-                    TrackMetadataContext(track, metadata)
+                    TrackMetadataContext(track, metadata, sourceItem)
                 }
                 val tracks = trackContexts.map { it.track }
                 trackDao.upsertAll(tracks)
+                val sourceRefs = trackContexts.map { context ->
+                    buildTrackSourceRefEntity(
+                        track = context.track,
+                        sourceItem = context.sourceItem,
+                        metadata = context.metadata,
+                        now = now,
+                        existingRef = existingRefsBySourceItemId[context.sourceItem.id],
+                    )
+                }
+                if (sourceRefs.isNotEmpty()) {
+                    database.trackSourceRefDao().upsertAll(sourceRefs)
+                }
                 val trackIds = tracks.map { it.id }
                 if (trackIds.isNotEmpty()) {
                     metadataDao.deleteTrackArtistsForTracks(trackIds)
@@ -624,11 +659,6 @@ class RemoteLibraryImportCoordinator(
                 if (albumArtists.isNotEmpty()) {
                     metadataDao.upsertAlbumArtists(albumArtists)
                 }
-                val tracksByRemoteFileId = tracks
-                    .mapNotNull { track ->
-                        track.remoteFileId?.let { remoteFileId -> remoteFileId to track }
-                    }
-                    .toMap()
                 val artwork = trackContexts
                     .mapNotNull { context ->
                         buildArtworkEntity(
@@ -641,17 +671,14 @@ class RemoteLibraryImportCoordinator(
                 if (artwork.isNotEmpty()) {
                     metadataDao.upsertArtwork(artwork)
                 }
-                val lyrics = trackMetadata.mapNotNull { (_, metadata, remoteFile) ->
-                    val track = tracksByRemoteFileId[remoteFile.id] ?: return@mapNotNull null
-                    buildLyricsEntity(track.id, metadata, now)
+                val lyrics = trackContexts.mapNotNull { context ->
+                    buildLyricsEntity(context.track.id, context.metadata, now)
                 }
                 if (lyrics.isNotEmpty()) {
                     metadataDao.upsertLyrics(lyrics)
                 }
-                val rawMetadata = trackMetadata.flatMap { (_, metadata, remoteFile) ->
-                    val track = tracksByRemoteFileId[remoteFile.id]
-                        ?: return@flatMap emptyList()
-                    buildRawMetadataEntities(track.id, metadata)
+                val rawMetadata = trackContexts.flatMap { context ->
+                    buildRawMetadataEntities(context.track.id, context.metadata)
                 }
                 if (rawMetadata.isNotEmpty()) {
                     metadataDao.upsertRawMetadata(rawMetadata)
@@ -673,6 +700,38 @@ class RemoteLibraryImportCoordinator(
             job = updatedJob,
             changedCount = plan.changedCount.toLong(),
         )
+    }
+
+    private suspend fun findCanonicalTrack(
+        metadata: RemoteMetadata,
+        sourceItem: SourceItemEntity,
+    ): TrackEntity? {
+        val recordingId = metadata.musicbrainzRecordingId?.takeIf { it.isNotBlank() }
+        if (recordingId != null) {
+            trackDao.findByMusicBrainzRecordingId(recordingId).singleOrNull()?.let { return it }
+        }
+
+        val durationMs = metadata.durationMs.toLongOrNull() ?: return null
+        val isrc = metadata.isrc?.takeIf { it.isNotBlank() }
+        if (isrc != null) {
+            trackDao.findByIsrcWithinDuration(
+                isrc = isrc,
+                minDurationMs = durationMs - DURATION_MATCH_TOLERANCE_MS,
+                maxDurationMs = durationMs + DURATION_MATCH_TOLERANCE_MS,
+            ).singleOrNull()?.let { return it }
+        }
+
+        val title = metadata.title?.takeIf { it.isNotBlank() }
+            ?: sourceItem.displayName.substringBeforeLast('.')
+        if (title.hasVersionToken()) return null
+
+        return trackDao.findByStrictMetadata(
+            titleKey = title.normalizedMatchKey(),
+            artistKey = metadata.artist.normalizedMatchKey(),
+            albumKey = metadata.album.normalizedMatchKey(),
+            minDurationMs = durationMs - DURATION_MATCH_TOLERANCE_MS,
+            maxDurationMs = durationMs + DURATION_MATCH_TOLERANCE_MS,
+        ).singleOrNull()
     }
 
     private suspend fun ensureAlbums(
@@ -737,7 +796,7 @@ class RemoteLibraryImportCoordinator(
 
     private suspend fun completeImport(
         execution: ImportExecution,
-        previousCursor: SyncCursorEntity?,
+        previousCursor: SourceSyncCursorEntity?,
         currentJob: ImportJobEntity,
         deltaLink: String?,
     ): ImportJobEntity {
@@ -752,27 +811,35 @@ class RemoteLibraryImportCoordinator(
         )
         database.useWriterConnection { connection ->
             connection.immediateTransaction {
-                remoteFileDao.markMissingDeleted(execution.folder.id, execution.scanId)
+                database.sourceItemDao().markMissingDeleted(
+                    libraryRootId = execution.libraryRoot.id,
+                    scanId = execution.scanId,
+                    now = now,
+                )
+                database.trackSourceRefDao()
+                    .markUnavailableForDeletedSourceItems(execution.libraryRoot.id, now)
                 syncDao.upsertCursor(
-                    SyncCursorEntity(
+                    SourceSyncCursorEntity(
                         id = previousCursor?.id ?: 0,
-                        selectedFolderId = execution.folder.id,
-                        deltaLink = deltaLink,
-                        continuationToken = null,
+                        sourceAccountId = execution.libraryRoot.sourceAccountId,
+                        libraryRootId = execution.libraryRoot.id,
+                        cursorType = "delta",
+                        cursorValue = deltaLink,
                         lastScanId = execution.scanId,
                         lastSyncAt = now,
                     )
                 )
                 syncDao.upsertJob(completedJob)
-                selectedFolderDao.upsert(
-                    execution.folder.copy(
-                        deltaLink = deltaLink,
+                database.libraryRootDao().upsert(
+                    execution.libraryRoot.copy(
+                        syncCursor = deltaLink,
                         syncStatus = if (completedJob.failedCount == 0L) {
-                            SelectedFolderSyncStatus.SYNCED
+                            LibraryRootSyncStatus.SYNCED
                         } else {
-                            SelectedFolderSyncStatus.SYNCED_WITH_ERRORS
+                            LibraryRootSyncStatus.SYNCED_WITH_ERRORS
                         },
                         lastSyncAt = now,
+                        updatedAt = now,
                     )
                 )
             }
@@ -786,7 +853,7 @@ class RemoteLibraryImportCoordinator(
         deltaLink: String,
     ): ImportJobEntity {
         val now = currentTimeMillis()
-        val previousCursor = syncDao.getCursor(execution.folder.id)
+        val previousCursor = syncDao.getCursor(execution.libraryRoot.id)
         val completedJob = currentJob.copy(
             status = if (currentJob.failedCount == 0L) {
                 ImportJobStatus.COMPLETED
@@ -798,25 +865,27 @@ class RemoteLibraryImportCoordinator(
         database.useWriterConnection { connection ->
             connection.immediateTransaction {
                 syncDao.upsertCursor(
-                    SyncCursorEntity(
+                    SourceSyncCursorEntity(
                         id = previousCursor?.id ?: 0,
-                        selectedFolderId = execution.folder.id,
-                        deltaLink = deltaLink,
-                        continuationToken = null,
+                        sourceAccountId = execution.libraryRoot.sourceAccountId,
+                        libraryRootId = execution.libraryRoot.id,
+                        cursorType = "delta",
+                        cursorValue = deltaLink,
                         lastScanId = execution.scanId,
                         lastSyncAt = now,
                     )
                 )
                 syncDao.upsertJob(completedJob)
-                selectedFolderDao.upsert(
-                    execution.folder.copy(
-                        deltaLink = deltaLink,
+                database.libraryRootDao().upsert(
+                    execution.libraryRoot.copy(
+                        syncCursor = deltaLink,
                         syncStatus = if (completedJob.failedCount == 0L) {
-                            SelectedFolderSyncStatus.SYNCED
+                            LibraryRootSyncStatus.SYNCED
                         } else {
-                            SelectedFolderSyncStatus.SYNCED_WITH_ERRORS
+                            LibraryRootSyncStatus.SYNCED_WITH_ERRORS
                         },
                         lastSyncAt = now,
+                        updatedAt = now,
                     )
                 )
             }
@@ -891,7 +960,7 @@ class RemoteLibraryImportCoordinator(
     ): RemoteLibraryImportResult {
         return RemoteLibraryImportResult(
             scanId = execution.scanId,
-            selectedFolderId = execution.folder.id,
+            selectedFolderId = execution.libraryRoot.id,
             scannedCount = job.scannedCount,
             changedCount = changedCount,
             skippedCount = job.skippedCount,
@@ -902,11 +971,12 @@ class RemoteLibraryImportCoordinator(
 
     private suspend fun startImport(request: RemoteLibraryImportRequest): ImportExecution {
         val startedAt = currentTimeMillis()
-        val folder = ensureSelectedFolder(request, startedAt)
-        val scanId = request.scanId ?: "scan-${folder.id}-$startedAt"
+        ensureSourceAccount(request.storageId, startedAt)
+        val libraryRoot = ensureLibraryRoot(request, startedAt)
+        val scanId = request.scanId ?: "scan-${libraryRoot.id}-$startedAt"
         val job = ImportJobEntity(
             id = scanId,
-            selectedFolderId = folder.id,
+            libraryRootId = libraryRoot.id,
             status = ImportJobStatus.RUNNING,
             scannedCount = 0,
             importedCount = 0,
@@ -918,7 +988,7 @@ class RemoteLibraryImportCoordinator(
             updatedAt = startedAt,
         )
         syncDao.upsertJob(job)
-        return ImportExecution(folder, scanId, job)
+        return ImportExecution(libraryRoot, scanId, job)
     }
 
     private suspend fun startTrackedImport(
@@ -928,13 +998,13 @@ class RemoteLibraryImportCoordinator(
         return try {
             execution to registerActiveOperation(execution)
         } catch (error: Throwable) {
-            markImportFailed(execution.folder, execution.job, error)
+            markImportFailed(execution.libraryRoot, execution.job, error)
             throw error
         }
     }
 
     private suspend fun markImportFailed(
-        folder: SelectedFolderEntity,
+        root: LibraryRootEntity,
         job: ImportJobEntity,
         error: Throwable,
     ) {
@@ -946,16 +1016,17 @@ class RemoteLibraryImportCoordinator(
                 updatedAt = now,
             )
         )
-        selectedFolderDao.upsert(
-            folder.copy(
-                syncStatus = SelectedFolderSyncStatus.FAILED,
+        database.libraryRootDao().upsert(
+            root.copy(
+                syncStatus = LibraryRootSyncStatus.FAILED,
                 lastSyncAt = now,
+                updatedAt = now,
             )
         )
     }
 
     private suspend fun markImportCancelled(
-        folder: SelectedFolderEntity,
+        root: LibraryRootEntity,
         job: ImportJobEntity,
     ) {
         val now = currentTimeMillis()
@@ -966,16 +1037,17 @@ class RemoteLibraryImportCoordinator(
                 updatedAt = now,
             )
         )
-        selectedFolderDao.upsert(
-            folder.copy(
-                syncStatus = SelectedFolderSyncStatus.CANCELLED,
+        database.libraryRootDao().upsert(
+            root.copy(
+                syncStatus = LibraryRootSyncStatus.CANCELLED,
                 lastSyncAt = now,
+                updatedAt = now,
             )
         )
     }
 
     private suspend fun markImportPaused(
-        folder: SelectedFolderEntity,
+        root: LibraryRootEntity,
         job: ImportJobEntity,
     ) {
         val now = currentTimeMillis()
@@ -986,10 +1058,11 @@ class RemoteLibraryImportCoordinator(
                 updatedAt = now,
             )
         )
-        selectedFolderDao.upsert(
-            folder.copy(
-                syncStatus = SelectedFolderSyncStatus.PAUSED,
+        database.libraryRootDao().upsert(
+            root.copy(
+                syncStatus = LibraryRootSyncStatus.PAUSED,
                 lastSyncAt = now,
+                updatedAt = now,
             )
         )
     }
@@ -997,18 +1070,18 @@ class RemoteLibraryImportCoordinator(
     private suspend fun markImportStopOrFailure(
         error: Throwable,
         operation: ActiveImportOperation,
-        folder: SelectedFolderEntity,
+        root: LibraryRootEntity,
         job: ImportJobEntity,
     ) {
         withContext(NonCancellable) {
             if (error is CancellationException || error is ImportCancelledException) {
                 if (operation.isPauseRequested()) {
-                    markImportPaused(folder, job)
+                    markImportPaused(root, job)
                 } else {
-                    markImportCancelled(folder, job)
+                    markImportCancelled(root, job)
                 }
             } else {
-                markImportFailed(folder, job, error)
+                markImportFailed(root, job, error)
             }
         }
     }
@@ -1037,30 +1110,56 @@ class RemoteLibraryImportCoordinator(
         }
     }
 
-    private suspend fun ensureSelectedFolder(
+    private suspend fun ensureSourceAccount(storageId: Long, now: Long): SourceAccountEntity {
+        val existing = database.sourceAccountDao().get(storageId)
+        val account = SourceAccountEntity(
+            id = storageId,
+            providerType = existing?.providerType ?: ProviderTypes.WebDav,
+            displayName = existing?.displayName ?: "Source $storageId",
+            endpoint = existing?.endpoint,
+            externalAccountId = existing?.externalAccountId,
+            credentialRef = existing?.credentialRef ?: "storage-$storageId",
+            priority = existing?.priority ?: 0,
+            enabled = existing?.enabled ?: true,
+            createdAt = existing?.createdAt ?: now,
+            updatedAt = now,
+        )
+        database.sourceAccountDao().upsert(account)
+        return database.sourceAccountDao().get(storageId)
+            ?: error("source account was not persisted")
+    }
+
+    private suspend fun ensureLibraryRoot(
         request: RemoteLibraryImportRequest,
         now: Long,
-    ): SelectedFolderEntity {
+    ): LibraryRootEntity {
         val canonicalPath = normalizeRemotePath(request.selectedFolderCanonicalPath)
-        val existing = selectedFolderDao.findByPath(request.storageId, canonicalPath)
-        val folder = SelectedFolderEntity(
+        val existing = database.libraryRootDao()
+            .findByPath(request.storageId, canonicalPath)
+            ?: request.selectedFolderRemoteId?.let { remoteId ->
+                database.libraryRootDao().findByProviderRootId(request.storageId, remoteId)
+            }
+        val root = LibraryRootEntity(
             id = existing?.id ?: 0,
-            storageId = request.storageId,
-            remoteId = request.selectedFolderRemoteId ?: existing?.remoteId,
+            sourceAccountId = request.storageId,
+            providerRootId = request.selectedFolderRemoteId ?: existing?.providerRootId,
             canonicalPath = canonicalPath,
-            displayPath = request.selectedFolderDisplayPath ?: existing?.displayPath ?: canonicalPath,
-            deltaLink = existing?.deltaLink,
+            displayName = request.selectedFolderDisplayPath ?: existing?.displayName ?: canonicalPath,
+            syncStatus = LibraryRootSyncStatus.RUNNING,
+            syncCursor = existing?.syncCursor,
             lastSyncAt = existing?.lastSyncAt,
-            syncStatus = SelectedFolderSyncStatus.RUNNING,
+            createdAt = existing?.createdAt ?: now,
+            updatedAt = now,
         )
-        selectedFolderDao.upsert(folder)
-        return selectedFolderDao.findByPath(request.storageId, canonicalPath)
-            ?: error("selected folder was not persisted")
+        database.libraryRootDao().upsert(root)
+        return database.libraryRootDao().findByPath(request.storageId, canonicalPath)
+            ?: root.providerRootId?.let { database.libraryRootDao().findByProviderRootId(request.storageId, it) }
+            ?: error("library root was not persisted")
     }
 }
 
 private data class ImportExecution(
-    val folder: SelectedFolderEntity,
+    val libraryRoot: LibraryRootEntity,
     val scanId: String,
     val job: ImportJobEntity,
 )
@@ -1073,6 +1172,13 @@ private data class ImportBatchResult(
 private data class TrackMetadataContext(
     val track: TrackEntity,
     val metadata: RemoteMetadata,
+    val sourceItem: SourceItemEntity,
+)
+
+private data class SourceImportRow(
+    val entry: StorageEntry,
+    val metadata: RemoteMetadata,
+    val sourceItem: SourceItemEntity,
 )
 
 private data class OneDriveDeltaSnapshot(
@@ -1193,7 +1299,7 @@ private fun validateImportSettings(
 internal data class RemoteLibraryImportPlan(
     val changedEntries: List<StorageEntry>,
     val metadataEntries: List<StorageEntry>,
-    val changedFiles: List<RemoteFileEntity>,
+    val changedItems: List<SourceItemEntity>,
     val unchangedFileIds: List<Long>,
     val changedCount: Int,
     val metadataSkippedCount: Int,
@@ -1202,15 +1308,16 @@ internal data class RemoteLibraryImportPlan(
 
 internal fun planRemoteLibraryImport(
     storageId: Long,
-    selectedFolderId: Long,
+    libraryRootId: Long,
     scanId: String,
+    now: Long,
     entries: List<StorageEntry>,
-    existing: Map<String, RemoteFileEntity>,
-    existingByRemoteId: Map<String, RemoteFileEntity> = emptyMap(),
+    existing: Map<String?, SourceItemEntity>,
+    existingByRemoteId: Map<String, SourceItemEntity> = emptyMap(),
 ): RemoteLibraryImportPlan {
     val changedEntries = mutableListOf<StorageEntry>()
     val metadataEntries = mutableListOf<StorageEntry>()
-    val changedFiles = mutableListOf<RemoteFileEntity>()
+    val changedItems = mutableListOf<SourceItemEntity>()
     val unchangedFileIds = mutableListOf<Long>()
     var changedCount = 0
     var metadataSkippedCount = 0
@@ -1220,26 +1327,28 @@ internal fun planRemoteLibraryImport(
         val canonicalPath = normalizeRemotePath(entry.path)
         val previous = existing[canonicalPath]
             ?: entry.remoteId?.let(existingByRemoteId::get)
-        val sameRemoteIdentity = previous?.remoteId == null ||
+        val sameRemoteIdentity = previous?.providerItemId == null ||
             entry.remoteId == null ||
-            previous.remoteId == entry.remoteId
-        if (previous != null && sameRemoteIdentity && previous.hasSameRemoteContent(entry)) {
+            previous.providerItemId == entry.remoteId
+        val sameCanonicalPath = previous?.canonicalPath == canonicalPath
+        if (previous != null && sameRemoteIdentity && sameCanonicalPath && previous.hasSameSourceContent(entry)) {
             unchangedFileIds.add(previous.id)
             metadataSkippedCount += 1
             return@forEach
         }
         if (
             previous != null &&
-            previous.remoteId != null &&
-            previous.remoteId == entry.remoteId &&
-            previous.hasSameRemoteRevision(entry)
+            previous.providerItemId != null &&
+            previous.providerItemId == entry.remoteId &&
+            previous.hasSameSourceRevision(entry)
         ) {
-            buildRemoteFileEntity(
+            buildSourceItemEntity(
                 entry = entry,
-                selectedFolderId = selectedFolderId,
+                libraryRootId = libraryRootId,
                 scanId = scanId,
+                now = now,
                 existing = previous,
-            )?.let(changedFiles::add)
+            )?.let(changedItems::add)
             changedCount += 1
             metadataSkippedCount += 1
             return@forEach
@@ -1247,21 +1356,22 @@ internal fun planRemoteLibraryImport(
 
         changedCount += 1
         changedEntries.add(entry)
-        val remoteFile = buildRemoteFileEntity(
+        val sourceItem = buildSourceItemEntity(
             entry = entry,
-            selectedFolderId = selectedFolderId,
+            libraryRootId = libraryRootId,
             scanId = scanId,
+            now = now,
             existing = previous,
         )
-        if (remoteFile == null) {
+        if (sourceItem == null) {
             unreadableChangedCount += 1
         } else {
-            changedFiles.add(remoteFile)
+            changedItems.add(sourceItem)
         }
         val size = entry.size
-        if (remoteFile != null && (size == null || size == 0uL)) {
+        if (sourceItem != null && (size == null || size == 0uL)) {
             unreadableChangedCount += 1
-        } else if (remoteFile != null) {
+        } else if (sourceItem != null) {
             metadataEntries.add(entry)
         }
     }
@@ -1269,7 +1379,7 @@ internal fun planRemoteLibraryImport(
     return RemoteLibraryImportPlan(
         changedEntries = changedEntries,
         metadataEntries = metadataEntries,
-        changedFiles = changedFiles,
+        changedItems = changedItems,
         unchangedFileIds = unchangedFileIds,
         changedCount = changedCount,
         metadataSkippedCount = metadataSkippedCount,
@@ -1280,7 +1390,7 @@ internal fun planRemoteLibraryImport(
 internal fun buildTrackEntity(
     entry: StorageEntry,
     metadata: RemoteMetadata,
-    remoteFile: RemoteFileEntity,
+    sourceItem: SourceItemEntity,
     now: Long,
     existingTrack: TrackEntity? = null,
     albumId: Long? = null,
@@ -1288,11 +1398,8 @@ internal fun buildTrackEntity(
     return TrackEntity(
         id = existingTrack?.id
             ?: stableTrackId(entry.storageId.value, normalizeRemotePath(entry.path)),
-        remoteFileId = remoteFile.id,
-        sourceStorageId = entry.storageId.value,
-        sourcePath = normalizeRemotePath(entry.path),
         title = metadata.title?.takeIf { it.isNotBlank() }
-            ?: remoteFile.fileName.substringBeforeLast('.'),
+            ?: sourceItem.displayName.substringBeforeLast('.'),
         sortTitle = null,
         albumId = albumId,
         albumArtist = metadata.albumArtist,
@@ -1336,6 +1443,36 @@ internal fun buildTrackEntity(
         replayGainTrackPeak = metadata.replayGainTrackPeak,
         replayGainAlbumGain = metadata.replayGainAlbumGain,
         replayGainAlbumPeak = metadata.replayGainAlbumPeak,
+    )
+}
+
+internal fun buildTrackSourceRefEntity(
+    track: TrackEntity,
+    sourceItem: SourceItemEntity,
+    metadata: RemoteMetadata,
+    now: Long,
+    existingRef: TrackSourceRefEntity? = null,
+): TrackSourceRefEntity {
+    return TrackSourceRefEntity(
+        trackId = track.id,
+        sourceItemId = sourceItem.id,
+        role = existingRef?.role ?: "primary",
+        matchMethod = existingRef?.matchMethod ?: "source_identity",
+        matchConfidence = existingRef?.matchConfidence ?: 100,
+        isPreferred = existingRef?.isPreferred ?: true,
+        isAvailable = !sourceItem.isDeleted,
+        isDownloaded = existingRef?.isDownloaded ?: false,
+        playable = true,
+        downloadable = true,
+        codec = metadata.codec ?: track.codec,
+        container = metadata.container ?: track.container,
+        bitRate = (metadata.audioBitrate ?: metadata.overallBitrate)?.toInt() ?: track.bitRate,
+        sampleRate = metadata.sampleRate?.toInt() ?: track.sampleRate,
+        bitsPerSample = metadata.bitDepth?.toInt() ?: track.bitsPerSample,
+        channels = metadata.channels?.toInt() ?: track.channels,
+        lossless = metadata.lossless ?: track.lossless,
+        createdAt = existingRef?.createdAt ?: now,
+        updatedAt = now,
     )
 }
 
@@ -1389,36 +1526,58 @@ internal fun buildRawMetadataEntities(
     }
 }
 
-private fun buildRemoteFileEntity(
+private fun buildSourceItemEntity(
     entry: StorageEntry,
-    selectedFolderId: Long,
+    libraryRootId: Long,
     scanId: String,
-    existing: RemoteFileEntity?,
-): RemoteFileEntity? {
+    now: Long,
+    existing: SourceItemEntity?,
+): SourceItemEntity? {
     val size = entry.size
     if (size != null && size > Long.MAX_VALUE.toULong()) return null
     val canonicalPath = normalizeRemotePath(entry.path)
     val fileName = entry.name.ifBlank { canonicalPath.substringAfterLast('/').ifBlank { canonicalPath } }
-    return RemoteFileEntity(
+    return SourceItemEntity(
         id = existing?.id ?: 0,
-        storageId = entry.storageId.value,
-        selectedFolderId = selectedFolderId,
-        remoteId = entry.remoteId,
-        parentRemoteId = entry.parentRemoteId,
+        sourceAccountId = entry.storageId.value,
+        libraryRootId = libraryRootId,
+        itemType = SourceItemTypes.Track,
+        providerItemId = entry.remoteId,
+        parentProviderItemId = entry.parentRemoteId,
         canonicalPath = canonicalPath,
         displayPath = canonicalPath,
-        fileName = fileName,
-        extension = fileName.substringAfterLast('.', missingDelimiterValue = "").lowercase(),
+        displayName = fileName,
         mimeType = entry.mimeType,
-        size = size?.toLong(),
+        sizeBytes = size?.toLong(),
         etag = entry.etag,
-        ctag = entry.ctag,
-        createdAt = entry.createdAt,
-        modifiedAt = entry.modifiedAt,
+        revision = entry.ctag,
+        createdAtRemote = entry.createdAt,
+        modifiedAtRemote = entry.modifiedAt,
         contentHash = null,
+        audioFingerprint = null,
         isDeleted = false,
+        firstSyncedAt = existing?.firstSyncedAt ?: now,
+        lastSyncedAt = now,
         lastSeenScanId = scanId,
     )
+}
+
+private fun SourceItemEntity.hasSameSourceContent(entry: StorageEntry): Boolean {
+    val size = entry.size?.toLongOrNull()
+    if (sizeBytes != size) return false
+    val entryEtag = entry.etag
+    return if (!entryEtag.isNullOrBlank() && !etag.isNullOrBlank()) {
+        etag == entryEtag
+    } else {
+        modifiedAtRemote == entry.modifiedAt
+    }
+}
+
+private fun SourceItemEntity.hasSameSourceRevision(entry: StorageEntry): Boolean {
+    val entryEtag = entry.etag
+    val entryRevision = entry.ctag
+    return (!entryEtag.isNullOrBlank() && etag == entryEtag) ||
+        (!entryRevision.isNullOrBlank() && revision == entryRevision)
 }
 
 internal fun isSupportedMusicEntry(entry: StorageEntry): Boolean {
@@ -1464,6 +1623,15 @@ private fun normalizeMetadataName(value: String): String {
     return value.trim().lowercase()
 }
 
+private fun String?.normalizedMatchKey(): String {
+    return this?.trim()?.lowercase()?.replace(Regex("\\s+"), " ") ?: ""
+}
+
+private fun String.hasVersionToken(): Boolean {
+    val value = normalizedMatchKey()
+    return versionTokens.any { token -> value.contains(token) }
+}
+
 private fun ULong.toLongOrNull(): Long? {
     if (this > Long.MAX_VALUE.toULong()) return null
     return toLong()
@@ -1478,7 +1646,7 @@ private object ImportJobStatus {
     const val FAILED = "FAILED"
 }
 
-private object SelectedFolderSyncStatus {
+private object LibraryRootSyncStatus {
     const val PAUSED = "PAUSED"
     const val RUNNING = "RUNNING"
     const val SYNCED = "SYNCED"
@@ -1502,7 +1670,21 @@ private val supportedMusicExtensions = setOf(
 )
 
 internal const val DEFAULT_IMPORT_BATCH_SIZE = 100
+private const val DURATION_MATCH_TOLERANCE_MS = 2_000L
 private const val MAX_IMPORT_BATCH_SIZE = 500
 private const val MAX_REMOTE_ID_QUERY_SIZE = 500
 private const val MAX_DELTA_PAGES = 1_000
 private const val MAX_DELTA_ITEMS = 100_000
+
+private val versionTokens = listOf(
+    "live",
+    "remaster",
+    "remix",
+    "acoustic",
+    "instrumental",
+    "karaoke",
+    "demo",
+    "radio edit",
+    "extended mix",
+    "cover",
+)

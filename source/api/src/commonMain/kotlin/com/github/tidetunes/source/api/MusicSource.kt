@@ -7,6 +7,8 @@ import com.github.tidetunes.core.domain.model.SourceId
 interface MusicSource {
     val descriptor: MusicSourceDescriptor
     val capabilities: Set<SourceCapability>
+    val rootDirectoryRemoteId: String?
+        get() = null
 
     suspend fun authenticate(configuration: SourceConfiguration): SourceAuthResult
 

@@ -270,9 +270,27 @@ Room KMP remains in `shared`.
 - Database: `TideTunesDatabase`
 - Driver: `BundledSQLiteDriver`
 - Schema path: `shared/schemas/com.github.tidetunes.database.TideTunesDatabase/`
-- Key areas: storage accounts, selected folders, remote files, tracks, albums, artists, genres, artwork, lyrics, raw metadata, import jobs, sync cursors, downloads, playlists.
+- Current schema version: 7
+- Source identity tables: `source_account`, `library_root`, `source_item`, `source_item_property`, `track_source_ref`, `source_sync_cursor`, `source_error`
+- Canonical library tables: `track`, `album`, `artist`, `genre`, joins, `artwork`, `lyrics`, `raw_metadata`, `playlist`, `playlist_track`, `download_task`, `import_job`
 
 Room remains the source of truth for library pages. Presentation modules receive mapped immutable UI state, not Room entities.
+
+The live schema is source-agnostic. It no longer contains provider-specific
+library tables such as `storage`, `selected_folder`, `remote_file`, or
+`sync_cursor`, and `TrackEntity` no longer stores `remoteFileId`,
+`sourceStorageId`, or `sourcePath`. Those names appear only in historical
+migrations or compatibility domain DTOs.
+
+Source adapters authenticate, browse, scan, and resolve playback resources.
+They do not write canonical DAOs directly. `RemoteLibraryImportCoordinator` is
+the write boundary that converts source scan output into `source_item`,
+canonical metadata rows, and `track_source_ref`.
+
+Playback resolves through `TrackEntity -> TrackSourceRefEntity ->
+SourceItemEntity -> MusicSource.resolvePlayback(...)`. Temporary URIs,
+headers, cookies, tokens, and signed URLs remain transient and are not written
+to Room.
 
 ## 9. Platform Architecture
 

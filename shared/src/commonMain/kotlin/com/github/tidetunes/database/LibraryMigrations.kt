@@ -125,3 +125,389 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
         }
     }
 }
+
+val MIGRATION_6_7 = object : Migration(6, 7) {
+    override fun migrate(connection: SQLiteConnection) {
+        sourceSchemaV7Statements.forEach { sql ->
+            connection.prepare(sql).use { statement ->
+                statement.step()
+            }
+        }
+    }
+}
+
+private val sourceSchemaV7Statements = listOf(
+    "PRAGMA foreign_keys=OFF",
+    """
+    CREATE TABLE IF NOT EXISTS source_account (
+        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+        providerType TEXT NOT NULL,
+        displayName TEXT NOT NULL,
+        endpoint TEXT,
+        externalAccountId TEXT,
+        credentialRef TEXT,
+        priority INTEGER NOT NULL,
+        enabled INTEGER NOT NULL,
+        createdAt INTEGER NOT NULL,
+        updatedAt INTEGER NOT NULL
+    )
+    """.trimIndent(),
+    "CREATE INDEX IF NOT EXISTS index_source_account_providerType ON source_account(providerType)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS index_source_account_credentialRef ON source_account(credentialRef)",
+    """
+    INSERT OR IGNORE INTO source_account(
+        id, providerType, displayName, endpoint, externalAccountId, credentialRef,
+        priority, enabled, createdAt, updatedAt
+    )
+    SELECT id,
+           CASE type WHEN 'LOCAL' THEN 'local' WHEN 'WEBDAV' THEN 'webdav'
+                     WHEN 'ONE_DRIVE' THEN 'onedrive' ELSE lower(type) END,
+           displayName,
+           CASE WHEN type = 'ONE_DRIVE' THEN NULLIF(driveId, '') ELSE NULLIF(baseUrl, '') END,
+           NULLIF(driveId, ''),
+           credentialRef,
+           0,
+           1,
+           createdAt,
+           updatedAt
+    FROM storage
+    """.trimIndent(),
+    """
+    CREATE TABLE IF NOT EXISTS library_root (
+        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+        sourceAccountId INTEGER NOT NULL,
+        providerRootId TEXT,
+        canonicalPath TEXT,
+        displayName TEXT NOT NULL,
+        syncStatus TEXT NOT NULL,
+        syncCursor TEXT,
+        lastSyncAt INTEGER,
+        createdAt INTEGER NOT NULL,
+        updatedAt INTEGER NOT NULL,
+        FOREIGN KEY(sourceAccountId) REFERENCES source_account(id) ON UPDATE NO ACTION ON DELETE CASCADE
+    )
+    """.trimIndent(),
+    "CREATE INDEX IF NOT EXISTS index_library_root_sourceAccountId ON library_root(sourceAccountId)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS index_library_root_sourceAccountId_providerRootId ON library_root(sourceAccountId, providerRootId)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS index_library_root_sourceAccountId_canonicalPath ON library_root(sourceAccountId, canonicalPath)",
+    """
+    INSERT OR IGNORE INTO library_root(
+        id, sourceAccountId, providerRootId, canonicalPath, displayName, syncStatus,
+        syncCursor, lastSyncAt, createdAt, updatedAt
+    )
+    SELECT id, storageId, remoteId, canonicalPath,
+           COALESCE(NULLIF(displayPath, ''), canonicalPath),
+           syncStatus, deltaLink, lastSyncAt,
+           COALESCE(lastSyncAt, 0), COALESCE(lastSyncAt, 0)
+    FROM selected_folder
+    """.trimIndent(),
+    """
+    CREATE TABLE IF NOT EXISTS source_item (
+        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+        sourceAccountId INTEGER NOT NULL,
+        libraryRootId INTEGER,
+        itemType TEXT NOT NULL,
+        providerItemId TEXT,
+        parentProviderItemId TEXT,
+        canonicalPath TEXT,
+        displayPath TEXT,
+        displayName TEXT NOT NULL,
+        mimeType TEXT,
+        sizeBytes INTEGER,
+        etag TEXT,
+        revision TEXT,
+        createdAtRemote INTEGER,
+        modifiedAtRemote INTEGER,
+        contentHash TEXT,
+        audioFingerprint TEXT,
+        isDeleted INTEGER NOT NULL,
+        firstSyncedAt INTEGER NOT NULL,
+        lastSyncedAt INTEGER NOT NULL,
+        lastSeenScanId TEXT,
+        FOREIGN KEY(sourceAccountId) REFERENCES source_account(id) ON UPDATE NO ACTION ON DELETE CASCADE,
+        FOREIGN KEY(libraryRootId) REFERENCES library_root(id) ON UPDATE NO ACTION ON DELETE CASCADE
+    )
+    """.trimIndent(),
+    "CREATE INDEX IF NOT EXISTS index_source_item_sourceAccountId ON source_item(sourceAccountId)",
+    "CREATE INDEX IF NOT EXISTS index_source_item_libraryRootId ON source_item(libraryRootId)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS index_source_item_sourceAccountId_providerItemId ON source_item(sourceAccountId, providerItemId)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS index_source_item_sourceAccountId_canonicalPath ON source_item(sourceAccountId, canonicalPath)",
+    "CREATE INDEX IF NOT EXISTS index_source_item_parentProviderItemId ON source_item(parentProviderItemId)",
+    "CREATE INDEX IF NOT EXISTS index_source_item_itemType ON source_item(itemType)",
+    "CREATE INDEX IF NOT EXISTS index_source_item_isDeleted ON source_item(isDeleted)",
+    "CREATE INDEX IF NOT EXISTS index_source_item_lastSeenScanId ON source_item(lastSeenScanId)",
+    "CREATE INDEX IF NOT EXISTS index_source_item_contentHash ON source_item(contentHash)",
+    "CREATE INDEX IF NOT EXISTS index_source_item_audioFingerprint ON source_item(audioFingerprint)",
+    """
+    INSERT OR IGNORE INTO source_item(
+        id, sourceAccountId, libraryRootId, itemType, providerItemId, parentProviderItemId,
+        canonicalPath, displayPath, displayName, mimeType, sizeBytes, etag, revision,
+        createdAtRemote, modifiedAtRemote, contentHash, audioFingerprint, isDeleted,
+        firstSyncedAt, lastSyncedAt, lastSeenScanId
+    )
+    SELECT id, storageId, selectedFolderId, 'track', remoteId, parentRemoteId,
+           canonicalPath, displayPath, fileName, mimeType, size, etag, ctag,
+           createdAt, modifiedAt, contentHash, NULL, isDeleted,
+           COALESCE(modifiedAt, createdAt, 0), COALESCE(modifiedAt, createdAt, 0),
+           lastSeenScanId
+    FROM remote_file
+    """.trimIndent(),
+    """
+    INSERT OR IGNORE INTO source_item(
+        id, sourceAccountId, libraryRootId, itemType, providerItemId, parentProviderItemId,
+        canonicalPath, displayPath, displayName, mimeType, sizeBytes, etag, revision,
+        createdAtRemote, modifiedAtRemote, contentHash, audioFingerprint, isDeleted,
+        firstSyncedAt, lastSyncedAt, lastSeenScanId
+    )
+    SELECT CASE WHEN t.id = 0 THEN -9223372036854775807 ELSE -ABS(t.id) END,
+           t.sourceStorageId, NULL, 'track', NULL, NULL, t.sourcePath, t.sourcePath,
+           COALESCE(NULLIF(substr(t.sourcePath, length(rtrim(t.sourcePath, replace(t.sourcePath, '/', ''))) + 1), ''), t.title),
+           NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0,
+           t.createdAt, t.updatedAt, NULL
+    FROM track t
+    WHERE t.remoteFileId IS NULL
+      AND t.sourceStorageId IS NOT NULL
+      AND TRIM(COALESCE(t.sourcePath, '')) != ''
+    """.trimIndent(),
+    """
+    CREATE TABLE IF NOT EXISTS source_item_property (
+        sourceItemId INTEGER NOT NULL,
+        propertyKey TEXT NOT NULL,
+        stringValue TEXT,
+        longValue INTEGER,
+        doubleValue REAL,
+        booleanValue INTEGER,
+        PRIMARY KEY(sourceItemId, propertyKey),
+        FOREIGN KEY(sourceItemId) REFERENCES source_item(id) ON UPDATE NO ACTION ON DELETE CASCADE
+    )
+    """.trimIndent(),
+    "CREATE INDEX IF NOT EXISTS index_source_item_property_sourceItemId ON source_item_property(sourceItemId)",
+    """
+    CREATE TABLE IF NOT EXISTS track_source_ref (
+        trackId INTEGER NOT NULL,
+        sourceItemId INTEGER NOT NULL,
+        role TEXT NOT NULL,
+        matchMethod TEXT NOT NULL,
+        matchConfidence INTEGER NOT NULL,
+        isPreferred INTEGER NOT NULL,
+        isAvailable INTEGER NOT NULL,
+        isDownloaded INTEGER NOT NULL,
+        playable INTEGER NOT NULL,
+        downloadable INTEGER NOT NULL,
+        codec TEXT,
+        container TEXT,
+        bitRate INTEGER,
+        sampleRate INTEGER,
+        bitsPerSample INTEGER,
+        channels INTEGER,
+        lossless INTEGER,
+        createdAt INTEGER NOT NULL,
+        updatedAt INTEGER NOT NULL,
+        PRIMARY KEY(trackId, sourceItemId),
+        FOREIGN KEY(trackId) REFERENCES track(id) ON UPDATE NO ACTION ON DELETE CASCADE,
+        FOREIGN KEY(sourceItemId) REFERENCES source_item(id) ON UPDATE NO ACTION ON DELETE CASCADE
+    )
+    """.trimIndent(),
+    "CREATE INDEX IF NOT EXISTS index_track_source_ref_trackId ON track_source_ref(trackId)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS index_track_source_ref_sourceItemId ON track_source_ref(sourceItemId)",
+    "CREATE INDEX IF NOT EXISTS index_track_source_ref_isPreferred ON track_source_ref(isPreferred)",
+    "CREATE INDEX IF NOT EXISTS index_track_source_ref_isAvailable ON track_source_ref(isAvailable)",
+    "CREATE INDEX IF NOT EXISTS index_track_source_ref_isDownloaded ON track_source_ref(isDownloaded)",
+    """
+    INSERT OR IGNORE INTO track_source_ref(
+        trackId, sourceItemId, role, matchMethod, matchConfidence, isPreferred,
+        isAvailable, isDownloaded, playable, downloadable, codec, container,
+        bitRate, sampleRate, bitsPerSample, channels, lossless, createdAt, updatedAt
+    )
+    SELECT t.id, rf.id, 'primary', 'legacy_remote_file', 100, 1,
+           CASE WHEN rf.isDeleted = 0 THEN 1 ELSE 0 END,
+           0, 1, 1, t.codec, t.container, t.bitRate, t.sampleRate,
+           t.bitsPerSample, t.channels, t.lossless, t.createdAt, t.updatedAt
+    FROM track t
+    JOIN remote_file rf ON rf.id = t.remoteFileId
+    """.trimIndent(),
+    """
+    INSERT OR IGNORE INTO track_source_ref(
+        trackId, sourceItemId, role, matchMethod, matchConfidence, isPreferred,
+        isAvailable, isDownloaded, playable, downloadable, codec, container,
+        bitRate, sampleRate, bitsPerSample, channels, lossless, createdAt, updatedAt
+    )
+    SELECT t.id, item.id, 'primary', 'legacy_source_path', 100, 1, 1, 0, 1, 1,
+           t.codec, t.container, t.bitRate, t.sampleRate, t.bitsPerSample,
+           t.channels, t.lossless, t.createdAt, t.updatedAt
+    FROM track t
+    JOIN source_item item
+      ON item.sourceAccountId = t.sourceStorageId
+     AND item.canonicalPath = t.sourcePath
+    WHERE t.remoteFileId IS NULL
+      AND t.sourceStorageId IS NOT NULL
+      AND TRIM(COALESCE(t.sourcePath, '')) != ''
+    """.trimIndent(),
+    """
+    CREATE TABLE IF NOT EXISTS source_sync_cursor (
+        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+        sourceAccountId INTEGER NOT NULL,
+        libraryRootId INTEGER,
+        cursorType TEXT NOT NULL,
+        cursorValue TEXT,
+        lastScanId TEXT,
+        lastSyncAt INTEGER,
+        FOREIGN KEY(sourceAccountId) REFERENCES source_account(id) ON UPDATE NO ACTION ON DELETE CASCADE,
+        FOREIGN KEY(libraryRootId) REFERENCES library_root(id) ON UPDATE NO ACTION ON DELETE CASCADE
+    )
+    """.trimIndent(),
+    "CREATE INDEX IF NOT EXISTS index_source_sync_cursor_sourceAccountId ON source_sync_cursor(sourceAccountId)",
+    "CREATE INDEX IF NOT EXISTS index_source_sync_cursor_libraryRootId ON source_sync_cursor(libraryRootId)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS index_source_sync_cursor_sourceAccountId_libraryRootId_cursorType ON source_sync_cursor(sourceAccountId, libraryRootId, cursorType)",
+    """
+    INSERT OR IGNORE INTO source_sync_cursor(
+        id, sourceAccountId, libraryRootId, cursorType, cursorValue, lastScanId, lastSyncAt
+    )
+    SELECT c.id, sf.storageId, c.selectedFolderId, 'delta',
+           COALESCE(c.deltaLink, c.continuationToken), c.lastScanId, c.lastSyncAt
+    FROM sync_cursor c
+    JOIN selected_folder sf ON sf.id = c.selectedFolderId
+    """.trimIndent(),
+    """
+    CREATE TABLE IF NOT EXISTS source_error (
+        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+        sourceAccountId INTEGER NOT NULL,
+        libraryRootId INTEGER,
+        sourceItemId INTEGER,
+        errorType TEXT NOT NULL,
+        message TEXT NOT NULL,
+        createdAt INTEGER NOT NULL,
+        resolvedAt INTEGER,
+        FOREIGN KEY(sourceAccountId) REFERENCES source_account(id) ON UPDATE NO ACTION ON DELETE CASCADE,
+        FOREIGN KEY(libraryRootId) REFERENCES library_root(id) ON UPDATE NO ACTION ON DELETE SET NULL,
+        FOREIGN KEY(sourceItemId) REFERENCES source_item(id) ON UPDATE NO ACTION ON DELETE SET NULL
+    )
+    """.trimIndent(),
+    "CREATE INDEX IF NOT EXISTS index_source_error_sourceAccountId ON source_error(sourceAccountId)",
+    "CREATE INDEX IF NOT EXISTS index_source_error_libraryRootId ON source_error(libraryRootId)",
+    "CREATE INDEX IF NOT EXISTS index_source_error_sourceItemId ON source_error(sourceItemId)",
+    "CREATE INDEX IF NOT EXISTS index_source_error_createdAt ON source_error(createdAt)",
+    """
+    CREATE TABLE track_new (
+        id INTEGER NOT NULL PRIMARY KEY,
+        title TEXT NOT NULL,
+        sortTitle TEXT,
+        albumId INTEGER,
+        albumArtist TEXT,
+        composer TEXT,
+        comment TEXT,
+        grouping TEXT,
+        durationMs INTEGER,
+        discNumber INTEGER,
+        discTotal INTEGER,
+        trackNumber INTEGER,
+        trackTotal INTEGER,
+        year INTEGER,
+        date TEXT,
+        sampleRate INTEGER,
+        bitRate INTEGER,
+        bitsPerSample INTEGER,
+        channels INTEGER,
+        channelLayout TEXT,
+        codec TEXT,
+        container TEXT,
+        lossless INTEGER,
+        createdAt INTEGER NOT NULL,
+        updatedAt INTEGER NOT NULL,
+        lastPlayedAt INTEGER,
+        artist TEXT,
+        lyricist TEXT,
+        conductor TEXT,
+        copyright TEXT,
+        publisher TEXT,
+        originalReleaseDate TEXT,
+        bpm REAL,
+        musicalKey TEXT,
+        isrc TEXT,
+        musicBrainzRecordingId TEXT,
+        musicBrainzTrackId TEXT,
+        musicBrainzReleaseId TEXT,
+        musicBrainzReleaseGroupId TEXT,
+        musicBrainzArtistId TEXT,
+        musicBrainzReleaseArtistId TEXT,
+        musicBrainzWorkId TEXT,
+        replayGainTrackGain REAL,
+        replayGainTrackPeak REAL,
+        replayGainAlbumGain REAL,
+        replayGainAlbumPeak REAL
+    )
+    """.trimIndent(),
+    """
+    INSERT INTO track_new(
+        id, title, sortTitle, albumId, albumArtist, composer, comment, grouping,
+        durationMs, discNumber, discTotal, trackNumber, trackTotal, year, date,
+        sampleRate, bitRate, bitsPerSample, channels, channelLayout, codec,
+        container, lossless, createdAt, updatedAt, lastPlayedAt, artist,
+        lyricist, conductor, copyright, publisher, originalReleaseDate, bpm,
+        musicalKey, isrc, musicBrainzRecordingId, musicBrainzTrackId,
+        musicBrainzReleaseId, musicBrainzReleaseGroupId, musicBrainzArtistId,
+        musicBrainzReleaseArtistId, musicBrainzWorkId, replayGainTrackGain,
+        replayGainTrackPeak, replayGainAlbumGain, replayGainAlbumPeak
+    )
+    SELECT id, title, sortTitle, albumId, albumArtist, composer, comment, grouping,
+           durationMs, discNumber, discTotal, trackNumber, trackTotal, year, date,
+           sampleRate, bitRate, bitsPerSample, channels, channelLayout, codec,
+           container, lossless, createdAt, updatedAt, lastPlayedAt, artist,
+           lyricist, conductor, copyright, publisher, originalReleaseDate, bpm,
+           musicalKey, isrc, musicBrainzRecordingId, musicBrainzTrackId,
+           musicBrainzReleaseId, musicBrainzReleaseGroupId, musicBrainzArtistId,
+           musicBrainzReleaseArtistId, musicBrainzWorkId, replayGainTrackGain,
+           replayGainTrackPeak, replayGainAlbumGain, replayGainAlbumPeak
+    FROM track
+    """.trimIndent(),
+    "DROP TABLE IF EXISTS track_fts",
+    "DROP TABLE track",
+    "ALTER TABLE track_new RENAME TO track",
+    "CREATE INDEX IF NOT EXISTS index_track_albumId ON track(albumId)",
+    "CREATE INDEX IF NOT EXISTS index_track_title ON track(title)",
+    "CREATE INDEX IF NOT EXISTS index_track_musicBrainzRecordingId ON track(musicBrainzRecordingId)",
+    "CREATE INDEX IF NOT EXISTS index_track_isrc ON track(isrc)",
+    """
+    CREATE TABLE import_job_new (
+        id TEXT NOT NULL PRIMARY KEY,
+        libraryRootId INTEGER NOT NULL,
+        status TEXT NOT NULL,
+        scannedCount INTEGER NOT NULL,
+        importedCount INTEGER NOT NULL,
+        skippedCount INTEGER NOT NULL,
+        failedCount INTEGER NOT NULL,
+        checkpoint TEXT,
+        errorMessage TEXT,
+        createdAt INTEGER NOT NULL,
+        updatedAt INTEGER NOT NULL
+    )
+    """.trimIndent(),
+    """
+    INSERT INTO import_job_new(
+        id, libraryRootId, status, scannedCount, importedCount, skippedCount,
+        failedCount, checkpoint, errorMessage, createdAt, updatedAt
+    )
+    SELECT id, selectedFolderId, status, scannedCount, importedCount, skippedCount,
+           failedCount, checkpoint, errorMessage, createdAt, updatedAt
+    FROM import_job
+    """.trimIndent(),
+    "DROP TABLE import_job",
+    "ALTER TABLE import_job_new RENAME TO import_job",
+    "CREATE INDEX IF NOT EXISTS index_import_job_libraryRootId ON import_job(libraryRootId)",
+    "CREATE INDEX IF NOT EXISTS index_import_job_status ON import_job(status)",
+    """
+    CREATE VIRTUAL TABLE IF NOT EXISTS track_fts USING fts4(
+        title,
+        artist,
+        albumArtist,
+        composer,
+        content=`track`
+    )
+    """.trimIndent(),
+    "INSERT INTO track_fts(track_fts) VALUES('rebuild')",
+    "DROP TABLE IF EXISTS sync_cursor",
+    "DROP TABLE IF EXISTS remote_file",
+    "DROP TABLE IF EXISTS selected_folder",
+    "DROP TABLE IF EXISTS storage",
+    "PRAGMA foreign_keys=ON",
+)

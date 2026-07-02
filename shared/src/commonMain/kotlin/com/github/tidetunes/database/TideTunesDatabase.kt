@@ -9,10 +9,12 @@ import kotlinx.coroutines.Dispatchers
 
 @Database(
     entities = [
-        StorageEntity::class,
-        SelectedFolderEntity::class,
-        RemoteFileEntity::class,
+        SourceAccountEntity::class,
+        LibraryRootEntity::class,
+        SourceItemEntity::class,
+        SourceItemPropertyEntity::class,
         TrackEntity::class,
+        TrackSourceRefEntity::class,
         AlbumEntity::class,
         ArtistEntity::class,
         TrackArtistCrossRef::class,
@@ -23,24 +25,28 @@ import kotlinx.coroutines.Dispatchers
         LyricsEntity::class,
         RawMetadataEntity::class,
         ImportJobEntity::class,
-        SyncCursorEntity::class,
+        SourceSyncCursorEntity::class,
+        SourceErrorEntity::class,
         DownloadTaskEntity::class,
         PlaylistEntity::class,
         PlaylistTrackCrossRef::class,
         TrackFts::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true,
 )
 @ConstructedBy(TideTunesDatabaseConstructor::class)
 abstract class TideTunesDatabase : RoomDatabase() {
-    abstract fun storageDao(): StorageDao
-    abstract fun selectedFolderDao(): SelectedFolderDao
-    abstract fun remoteFileDao(): RemoteFileDao
+    abstract fun sourceAccountDao(): SourceAccountDao
+    abstract fun libraryRootDao(): LibraryRootDao
+    abstract fun sourceItemDao(): SourceItemDao
+    abstract fun trackSourceRefDao(): TrackSourceRefDao
     abstract fun trackDao(): TrackDao
     abstract fun playlistDao(): PlaylistDao
     abstract fun metadataDao(): MetadataDao
     abstract fun syncDao(): SyncDao
+    abstract fun sourceSyncCursorDao(): SourceSyncCursorDao
+    abstract fun sourceErrorDao(): SourceErrorDao
     abstract fun downloadTaskDao(): DownloadTaskDao
     abstract fun trackFtsDao(): TrackFtsDao
 }
@@ -61,5 +67,6 @@ fun buildDatabase(): TideTunesDatabase {
         .addMigrations(MIGRATION_3_4)
         .addMigrations(MIGRATION_4_5)
         .addMigrations(MIGRATION_5_6)
+        .addMigrations(MIGRATION_6_7)
         .build()
 }

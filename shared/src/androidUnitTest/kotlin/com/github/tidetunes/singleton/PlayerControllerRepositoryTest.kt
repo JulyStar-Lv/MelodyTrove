@@ -4,6 +4,9 @@ import com.github.tidetunes.core.data.ToastRepositoryImpl
 
 import com.github.tidetunes.core.domain.model.MediaId
 import com.github.tidetunes.core.domain.model.SourceAccountId
+import com.github.tidetunes.database.TrackSourcePlaybackCandidate
+import com.github.tidetunes.database.TrackSourceRefDao
+import com.github.tidetunes.database.TrackSourceRefEntity
 import com.github.tidetunes.service.playback.data.PlaybackResourceResolver
 import com.github.tidetunes.service.playback.domain.PlaybackEngineLoadRequest
 import com.github.tidetunes.service.playback.domain.PlaybackEngineLoadResult
@@ -144,6 +147,7 @@ class PlayerControllerRepositoryTest {
                 storageLookup = LegacyStorageLookup {
                     storage(id = STORAGE_ID, type = StorageType.WEBDAV)
                 },
+                trackSourceRefDao = EmptyTrackSourceRefDao,
                 sourceRegistry = MusicSourceRegistry(listOf(source)),
                 legacyStoragePlaybackResolver = playbackResolver,
             )
@@ -434,6 +438,32 @@ private class RecordingLegacyPlaybackResolver : LegacyStoragePlaybackResolver {
     }
 
     override suspend fun releaseAll() = Unit
+}
+
+private object EmptyTrackSourceRefDao : TrackSourceRefDao {
+    override suspend fun findByTrackId(trackId: Long): List<TrackSourceRefEntity> {
+        return emptyList()
+    }
+
+    override suspend fun findBySourceItemIds(sourceItemIds: List<Long>): List<TrackSourceRefEntity> {
+        return emptyList()
+    }
+
+    override suspend fun countForTrack(trackId: Long): Int {
+        return 0
+    }
+
+    override suspend fun upsertAll(refs: List<TrackSourceRefEntity>) = Unit
+
+    override suspend fun markAvailableBySourceItemIds(sourceItemIds: List<Long>, now: Long) = Unit
+
+    override suspend fun markUnavailableBySourceItemIds(sourceItemIds: List<Long>, now: Long) = Unit
+
+    override suspend fun markUnavailableForDeletedSourceItems(libraryRootId: Long, now: Long) = Unit
+
+    override suspend fun playbackCandidates(trackId: Long): List<TrackSourcePlaybackCandidate> {
+        return emptyList()
+    }
 }
 
 private const val STORAGE_ID = 2L

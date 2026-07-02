@@ -40,7 +40,7 @@ class RoomLegacyStorageSearchProvider(
 
         val pattern = normalizedQuery.toSqlLikeLiteral()
         val rows = trackDao.searchBySourceStorage(
-            storageId = storageId.value,
+            sourceAccountId = storageId.value,
             query = normalizedQuery,
             prefixQuery = "$pattern%",
             containsQuery = "%$pattern%",

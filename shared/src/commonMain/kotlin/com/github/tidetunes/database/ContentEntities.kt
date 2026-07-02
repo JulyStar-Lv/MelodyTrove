@@ -76,13 +76,13 @@ data class RawMetadataEntity(
 @Entity(
     tableName = "import_job",
     indices = [
-        Index(value = ["selectedFolderId"]),
+        Index(value = ["libraryRootId"]),
         Index(value = ["status"]),
     ],
 )
 data class ImportJobEntity(
     @androidx.room.PrimaryKey val id: String,
-    val selectedFolderId: Long,
+    val libraryRootId: Long,
     val status: String,
     val scannedCount: Long,
     val importedCount: Long,
@@ -96,23 +96,10 @@ data class ImportJobEntity(
 
 data class ImportJobWithFolder(
     @Embedded val job: ImportJobEntity,
-    val folderStorageId: Long,
-    val folderRemoteId: String?,
-    val folderCanonicalPath: String,
-    val folderDisplayPath: String,
-)
-
-@Entity(
-    tableName = "sync_cursor",
-    indices = [Index(value = ["selectedFolderId"], unique = true)],
-)
-data class SyncCursorEntity(
-    @androidx.room.PrimaryKey(autoGenerate = true) val id: Long = 0,
-    val selectedFolderId: Long,
-    val deltaLink: String?,
-    val continuationToken: String?,
-    val lastScanId: String?,
-    val lastSyncAt: Long?,
+    val sourceAccountId: Long,
+    val providerRootId: String?,
+    val canonicalPath: String?,
+    val displayName: String,
 )
 
 @Entity(

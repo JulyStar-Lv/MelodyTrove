@@ -16,7 +16,7 @@ import org.koin.dsl.module
 val playbackModule = module {
     includes(playbackPresentationModule)
 
-    single { PlaybackResourceResolver(get(), get(), get()) }
+    single { PlaybackResourceResolver(get(), get(), get(), get()) }
     single { PlayerRepository(get(), get(), get(), get()) }
     single<PlaybackController> { LegacyPlaybackController(get(), get(), get()) }
     single<SleepController> { get<PlayerController>() }

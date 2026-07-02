@@ -1,6 +1,7 @@
 package com.github.tidetunes.domain.importing
 
-import com.github.tidetunes.database.RemoteFileEntity
+import com.github.tidetunes.database.SourceItemEntity
+import com.github.tidetunes.database.SourceItemTypes
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
@@ -120,15 +121,16 @@ class RemoteLibraryImportCoordinatorTest {
 
     @Test
     fun planSkipsUnchangedFilesAndKeepsChangedMusicOnly() {
-        val unchanged = remoteFile(
+        val unchanged = sourceItem(
             id = 11,
             canonicalPath = "/Music/unchanged.flac",
             etag = "\"same\"",
         )
         val plan = planRemoteLibraryImport(
             storageId = 1,
-            selectedFolderId = 7,
+            libraryRootId = 7,
             scanId = "scan-1",
+            now = 100,
             entries = listOf(
                 entry(path = "/Music/unchanged.flac", name = "unchanged.flac", etag = "\"same\""),
                 entry(path = "/Music/changed.mp3", name = "changed.mp3", etag = "\"new\""),
@@ -140,7 +142,7 @@ class RemoteLibraryImportCoordinatorTest {
 
         assertEquals(listOf(11L), plan.unchangedFileIds)
         assertEquals(listOf("/Music/changed.mp3"), plan.changedEntries.map { it.path })
-        assertEquals(listOf("/Music/changed.mp3"), plan.changedFiles.map { it.canonicalPath })
+        assertEquals(listOf("/Music/changed.mp3"), plan.changedItems.map { it.canonicalPath })
         assertEquals(listOf("/Music/changed.mp3"), plan.metadataEntries.map { it.path })
         assertEquals(1, plan.changedCount)
         assertEquals(1, plan.metadataSkippedCount)
@@ -149,7 +151,7 @@ class RemoteLibraryImportCoordinatorTest {
 
     @Test
     fun moveByStableRemoteIdUpdatesPathWithoutMetadataRead() {
-        val previous = remoteFile(
+        val previous = sourceItem(
             id = 11,
             canonicalPath = "/Music/Old/song.flac",
             etag = "\"same\"",
@@ -164,8 +166,9 @@ class RemoteLibraryImportCoordinatorTest {
 
         val plan = planRemoteLibraryImport(
             storageId = 1,
-            selectedFolderId = 7,
+            libraryRootId = 7,
             scanId = "scan-move",
+            now = 200,
             entries = listOf(moved),
             existing = emptyMap(),
             existingByRemoteId = mapOf("drive-item-1" to previous),
@@ -175,9 +178,9 @@ class RemoteLibraryImportCoordinatorTest {
         assertTrue(plan.metadataEntries.isEmpty())
         assertEquals(1, plan.changedCount)
         assertEquals(1, plan.metadataSkippedCount)
-        assertEquals(11, plan.changedFiles.single().id)
-        assertEquals("/Music/New/song.flac", plan.changedFiles.single().canonicalPath)
-        assertEquals("scan-move", plan.changedFiles.single().lastSeenScanId)
+        assertEquals(11, plan.changedItems.single().id)
+        assertEquals("/Music/New/song.flac", plan.changedItems.single().canonicalPath)
+        assertEquals("scan-move", plan.changedItems.single().lastSeenScanId)
     }
 
     @Test
@@ -193,32 +196,40 @@ class RemoteLibraryImportCoordinatorTest {
     @Test
     fun mapsRemoteMetadataToTrackEntity() {
         val entry = entry(path = "/Music/Song.flac", name = "Song.flac")
-        val remoteFile = remoteFile(id = 42, canonicalPath = "/Music/Song.flac")
+        val sourceItem = sourceItem(id = 42, canonicalPath = "/Music/Song.flac")
+        val metadata = metadata(
+            title = "Metadata Title",
+            artist = "Artist",
+            albumArtist = "Album Artist",
+            date = "2025-01-02",
+            trackNumber = 3u,
+            trackTotal = 9u,
+            discNumber = 1u,
+            discTotal = 2u,
+            durationMs = 181_000uL,
+            sampleRate = 48_000u,
+            bitDepth = 24u.toUByte(),
+            channels = 2u.toUByte(),
+            overallBitrate = 950_000u,
+            audioBitrate = 900_000u,
+        )
         val track = buildTrackEntity(
             entry = entry,
-            metadata = metadata(
-                title = "Metadata Title",
-                artist = "Artist",
-                albumArtist = "Album Artist",
-                date = "2025-01-02",
-                trackNumber = 3u,
-                trackTotal = 9u,
-                discNumber = 1u,
-                discTotal = 2u,
-                durationMs = 181_000uL,
-                sampleRate = 48_000u,
-                bitDepth = 24u.toUByte(),
-                channels = 2u.toUByte(),
-                overallBitrate = 950_000u,
-                audioBitrate = 900_000u,
-            ),
-            remoteFile = remoteFile,
+            metadata = metadata,
+            sourceItem = sourceItem,
+            now = 1000,
+        )
+        val ref = buildTrackSourceRefEntity(
+            track = track,
+            sourceItem = sourceItem,
+            metadata = metadata,
             now = 1000,
         )
 
-        assertEquals(42, track.remoteFileId)
-        assertEquals(1, track.sourceStorageId)
-        assertEquals("/Music/Song.flac", track.sourcePath)
+        assertEquals(track.id, ref.trackId)
+        assertEquals(42, ref.sourceItemId)
+        assertEquals("source_identity", ref.matchMethod)
+        assertEquals(true, ref.isAvailable)
         assertEquals("Metadata Title", track.title)
         assertEquals("Album Artist", track.albumArtist)
         assertEquals(181_000, track.durationMs)
@@ -249,13 +260,13 @@ class RemoteLibraryImportCoordinatorTest {
         val previousTrack = buildTrackEntity(
             entry = entry(path = "/Music/Old.flac", name = "Old.flac"),
             metadata = metadata(title = "Old"),
-            remoteFile = remoteFile(id = 42, canonicalPath = "/Music/Old.flac"),
+            sourceItem = sourceItem(id = 42, canonicalPath = "/Music/Old.flac"),
             now = 100,
         )
         val refreshed = buildTrackEntity(
             entry = entry(path = "/Music/New.flac", name = "New.flac"),
             metadata = metadata(title = "New"),
-            remoteFile = remoteFile(id = 42, canonicalPath = "/Music/New.flac"),
+            sourceItem = sourceItem(id = 42, canonicalPath = "/Music/New.flac"),
             now = 200,
             existingTrack = previousTrack,
         )
@@ -307,29 +318,32 @@ class RemoteLibraryImportCoordinatorTest {
         assertEquals("image/png", albumArtwork.mimeType)
     }
 
-    private fun remoteFile(
+    private fun sourceItem(
         id: Long,
         canonicalPath: String,
         etag: String? = "\"same\"",
         remoteId: String? = null,
-    ) = RemoteFileEntity(
+    ) = SourceItemEntity(
         id = id,
-        storageId = 1,
-        selectedFolderId = 7,
-        remoteId = remoteId,
-        parentRemoteId = null,
+        sourceAccountId = 1,
+        libraryRootId = 7,
+        itemType = SourceItemTypes.Track,
+        providerItemId = remoteId,
+        parentProviderItemId = null,
         canonicalPath = canonicalPath,
         displayPath = canonicalPath,
-        fileName = canonicalPath.substringAfterLast('/'),
-        extension = canonicalPath.substringAfterLast('.', ""),
+        displayName = canonicalPath.substringAfterLast('/'),
         mimeType = "audio/flac",
-        size = 100,
+        sizeBytes = 100,
         etag = etag,
-        ctag = null,
-        createdAt = 10,
-        modifiedAt = 20,
+        revision = null,
+        createdAtRemote = 10,
+        modifiedAtRemote = 20,
         contentHash = null,
+        audioFingerprint = null,
         isDeleted = false,
+        firstSyncedAt = 1,
+        lastSyncedAt = 2,
         lastSeenScanId = "previous",
     )
 

@@ -9,10 +9,14 @@ import com.github.tidetunes.database.PlaylistEntity
 import com.github.tidetunes.database.PlaylistSummaryRow
 import com.github.tidetunes.database.PlaylistTrackCrossRef
 import com.github.tidetunes.database.PlaylistTrackRow
-import com.github.tidetunes.database.RemoteFileDao
+import com.github.tidetunes.database.SourceItemDao
+import com.github.tidetunes.database.SourceItemEntity
+import com.github.tidetunes.database.SourceItemTypes
 import com.github.tidetunes.database.TideTunesDatabase
 import com.github.tidetunes.database.TrackDao
 import com.github.tidetunes.database.TrackEntity
+import com.github.tidetunes.database.TrackSourceRefDao
+import com.github.tidetunes.database.TrackSourceRefEntity
 import com.github.tidetunes.core.data.CreatePlaylistRequest
 import com.github.tidetunes.core.data.UpdatePlaylistRequest
 import com.github.tidetunes.core.data.toLegacyStorageEntry
@@ -49,7 +53,8 @@ import kotlin.time.Duration.Companion.milliseconds
 class RoomLibraryStore(
     private val database: TideTunesDatabase,
     private val trackDao: TrackDao,
-    private val remoteFileDao: RemoteFileDao,
+    private val sourceItemDao: SourceItemDao,
+    private val trackSourceRefDao: TrackSourceRefDao,
     private val playlistDao: PlaylistDao,
     private val metadataDao: MetadataDao,
 ) {
@@ -270,6 +275,59 @@ class RoomLibraryStore(
         entries: List<Pair<StorageEntry, String?>>,
         now: Long,
     ): List<TrackEntity> {
+        val normalizedEntries = entries.map { (entry, entryTitle) ->
+            Triple(entry, entryTitle, normalizeRemotePath(entry.path))
+        }
+        val existingItems = normalizedEntries
+            .groupBy { it.first.storageId.value }
+            .flatMap { (sourceAccountId, values) ->
+                sourceItemDao.findByPaths(
+                    sourceAccountId = sourceAccountId,
+                    canonicalPaths = values.map { it.third },
+                )
+            }
+            .associateBy { it.sourceAccountId to it.canonicalPath }
+        val sourceItems = normalizedEntries.map { (entry, entryTitle, path) ->
+            val existing = existingItems[entry.storageId.value to path]
+            val title = entryTitle
+                ?.takeIf { it.isNotBlank() }
+                ?: entry.name.ifBlank { path.substringAfterLast('/').substringBeforeLast('.') }
+            SourceItemEntity(
+                id = existing?.id ?: 0,
+                sourceAccountId = entry.storageId.value,
+                libraryRootId = null,
+                itemType = SourceItemTypes.Track,
+                providerItemId = entry.remoteId,
+                parentProviderItemId = entry.parentRemoteId,
+                canonicalPath = path,
+                displayPath = path,
+                displayName = entry.name.ifBlank { title },
+                mimeType = entry.mimeType,
+                sizeBytes = entry.size?.toLong(),
+                etag = entry.etag,
+                revision = entry.ctag,
+                createdAtRemote = entry.createdAt,
+                modifiedAtRemote = entry.modifiedAt,
+                contentHash = null,
+                audioFingerprint = null,
+                isDeleted = false,
+                firstSyncedAt = existing?.firstSyncedAt ?: now,
+                lastSyncedAt = now,
+                lastSeenScanId = null,
+            )
+        }
+        if (sourceItems.isNotEmpty()) {
+            sourceItemDao.upsertAll(sourceItems)
+        }
+        val persistedItems = normalizedEntries
+            .groupBy { it.first.storageId.value }
+            .flatMap { (sourceAccountId, values) ->
+                sourceItemDao.findByPaths(
+                    sourceAccountId = sourceAccountId,
+                    canonicalPaths = values.map { it.third },
+                )
+            }
+            .associateBy { it.sourceAccountId to it.canonicalPath }
         val tracks = entries.map { (entry, entryTitle) ->
             val path = normalizeRemotePath(entry.path)
             val title = entryTitle
@@ -277,9 +335,6 @@ class RoomLibraryStore(
                 ?: entry.name.ifBlank { path.substringAfterLast('/').substringBeforeLast('.') }
             TrackEntity(
                 id = stableTrackId(entry.storageId.value, path),
-                remoteFileId = null,
-                sourceStorageId = entry.storageId.value,
-                sourcePath = path,
                 title = title.substringBeforeLast('.', title),
                 sortTitle = null,
                 albumId = null,
@@ -308,21 +363,45 @@ class RoomLibraryStore(
         }
         if (tracks.isNotEmpty()) {
             trackDao.upsertAll(tracks)
+            trackSourceRefDao.upsertAll(
+                tracks.zip(normalizedEntries).mapNotNull { (track, normalizedEntry) ->
+                    val entry = normalizedEntry.first
+                    val path = normalizedEntry.third
+                    val item = persistedItems[entry.storageId.value to path] ?: return@mapNotNull null
+                    TrackSourceRefEntity(
+                        trackId = track.id,
+                        sourceItemId = item.id,
+                        role = "primary",
+                        matchMethod = "playlist_import",
+                        matchConfidence = 100,
+                        isPreferred = true,
+                        isAvailable = true,
+                        isDownloaded = false,
+                        playable = true,
+                        downloadable = true,
+                        codec = track.codec,
+                        container = track.container,
+                        bitRate = track.bitRate,
+                        sampleRate = track.sampleRate,
+                        bitsPerSample = track.bitsPerSample,
+                        channels = track.channels,
+                        lossless = track.lossless,
+                        createdAt = now,
+                        updatedAt = now,
+                    )
+                }
+            )
         }
         return tracks
     }
 
     private suspend fun resolveTrackLoc(track: TrackEntity): StorageEntryLoc? {
-        val sourceStorageId = track.sourceStorageId
-        val sourcePath = track.sourcePath
-        if (sourceStorageId != null && sourcePath != null) {
-            return StorageEntryLoc(storageId = uniffi.tidetunes_core.StorageId(sourceStorageId), path = sourcePath)
-        }
-        val remoteFileId = track.remoteFileId ?: return null
-        val remoteFile = remoteFileDao.get(remoteFileId) ?: return null
+        val item = trackSourceRefDao.playbackCandidates(track.id).firstOrNull()?.item
+            ?: return null
+        val path = item.canonicalPath ?: return null
         return StorageEntryLoc(
-            storageId = uniffi.tidetunes_core.StorageId(remoteFile.storageId),
-            path = remoteFile.canonicalPath,
+            storageId = uniffi.tidetunes_core.StorageId(item.sourceAccountId),
+            path = path,
         )
     }
 
