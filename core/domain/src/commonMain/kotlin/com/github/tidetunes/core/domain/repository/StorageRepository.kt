@@ -16,7 +16,7 @@ interface StorageRepository {
     val oauthRefreshToken: StateFlow<String>
     suspend fun reload()
     suspend fun startOneDriveOAuth(): String
-    suspend fun upsertSource(draft: SourceEditorDraft)
+    suspend fun upsertSource(draft: SourceEditorDraft): SourceAccountId
     suspend fun loadEditorState(id: Long): SourceEditorStorageState?
     suspend fun testSource(draft: SourceEditorDraft): SourceConnectionTestStatus
     suspend fun listOneDriveDriveInfos(refreshToken: String): OneDriveDriveListResult

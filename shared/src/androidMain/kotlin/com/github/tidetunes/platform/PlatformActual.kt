@@ -12,6 +12,14 @@ actual fun getAppCacheDir(): String {
     return appContext.cacheDir.absolutePath
 }
 
+actual fun getAppDatabasePath(): String? {
+    return appContext.getDatabasePath("tidetunes.db").absolutePath
+}
+
+actual fun isSystemDynamicColorAvailable(): Boolean {
+    return false
+}
+
 actual fun currentTimeMillis(): Long = System.currentTimeMillis()
 
 actual fun byteArrayToImageBitmap(bytes: ByteArray): ImageBitmap? {

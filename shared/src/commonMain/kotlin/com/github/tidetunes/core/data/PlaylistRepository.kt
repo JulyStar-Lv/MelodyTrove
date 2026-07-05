@@ -126,8 +126,8 @@ class PlaylistRepositoryImpl(
         val from = _playlists.value.getOrNull(fromIndex) ?: return
 
         _playlists.value = _playlists.value
-            .removeAt(fromIndex)
-            .add(toIndex, from)
+            .removingAt(fromIndex)
+            .addingAt(toIndex, from)
 
         _scope.launch {
             roomLibraryStore.replacePlaylistOrder(_playlists.value.map { it.meta.id })

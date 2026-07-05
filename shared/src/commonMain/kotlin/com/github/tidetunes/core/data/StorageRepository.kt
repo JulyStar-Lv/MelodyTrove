@@ -121,7 +121,7 @@ class StorageRepositoryImpl(
         }
     }
 
-    suspend fun upsertStorage(arg: ArgUpsertStorage) {
+    suspend fun upsertStorage(arg: ArgUpsertStorage): StorageId {
         val normalized = arg.normalized()
         val id = normalized.id ?: StorageId((sourceAccountDao.maxId() ?: 0L) + 1L)
         val now = currentTimeMillis()
@@ -152,10 +152,11 @@ class StorageRepositoryImpl(
                 updatedAt = now,
             )
         )
+        return id
     }
 
-    override suspend fun upsertSource(draft: SourceEditorDraft) {
-        upsertStorage(draft.toArgUpsertStorage())
+    override suspend fun upsertSource(draft: SourceEditorDraft): SourceAccountId {
+        return storageSourceAccountId(upsertStorage(draft.toArgUpsertStorage()).value)
     }
 
     suspend fun remove(id: StorageId) {

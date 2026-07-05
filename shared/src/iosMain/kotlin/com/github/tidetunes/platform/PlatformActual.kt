@@ -17,6 +17,10 @@ actual fun getAppDocumentDir(): String = platformDirectory(NSDocumentDirectory)
 
 actual fun getAppCacheDir(): String = platformDirectory(NSCachesDirectory)
 
+actual fun getAppDatabasePath(): String? = "${getAppDocumentDir()}/tidetunes.db"
+
+actual fun isSystemDynamicColorAvailable(): Boolean = false
+
 actual fun currentTimeMillis(): Long = (NSDate().timeIntervalSince1970 * 1_000.0).toLong()
 
 actual fun byteArrayToImageBitmap(bytes: ByteArray): ImageBitmap? {

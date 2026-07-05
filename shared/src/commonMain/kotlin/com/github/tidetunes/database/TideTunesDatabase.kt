@@ -32,7 +32,7 @@ import kotlinx.coroutines.Dispatchers
         PlaylistTrackCrossRef::class,
         TrackFts::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 @ConstructedBy(TideTunesDatabaseConstructor::class)
@@ -68,5 +68,6 @@ fun buildDatabase(): TideTunesDatabase {
         .addMigrations(MIGRATION_4_5)
         .addMigrations(MIGRATION_5_6)
         .addMigrations(MIGRATION_6_7)
+        .addMigrations(MIGRATION_7_8)
         .build()
 }

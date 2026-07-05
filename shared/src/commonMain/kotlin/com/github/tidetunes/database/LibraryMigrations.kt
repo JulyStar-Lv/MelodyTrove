@@ -136,6 +136,19 @@ val MIGRATION_6_7 = object : Migration(6, 7) {
     }
 }
 
+val MIGRATION_7_8 = object : Migration(7, 8) {
+    override fun migrate(connection: SQLiteConnection) {
+        listOf(
+            "ALTER TABLE source_error ADD COLUMN importJobId TEXT",
+            "CREATE INDEX IF NOT EXISTS index_source_error_importJobId ON source_error(importJobId)",
+        ).forEach { sql ->
+            connection.prepare(sql).use { statement ->
+                statement.step()
+            }
+        }
+    }
+}
+
 private val sourceSchemaV7Statements = listOf(
     "PRAGMA foreign_keys=OFF",
     """

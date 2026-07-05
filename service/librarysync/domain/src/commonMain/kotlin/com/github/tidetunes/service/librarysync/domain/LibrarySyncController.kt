@@ -1,11 +1,14 @@
 package com.github.tidetunes.service.librarysync.domain
 
+import com.github.tidetunes.core.domain.model.DEFAULT_IGNORED_SOURCE_DIRECTORIES
+import com.github.tidetunes.core.domain.model.MIN_SCANNED_AUDIO_DURATION_MS
 import com.github.tidetunes.core.domain.model.SourceAccountId
 import kotlinx.coroutines.flow.Flow
 
 interface LibrarySyncController {
     val recentTasks: Flow<List<LibrarySyncTask>>
 
+    fun observeFailures(taskId: String): Flow<List<LibrarySyncFailure>>
     suspend fun syncFolder(request: LibrarySyncRequest): LibrarySyncResult
     suspend fun pause(scanId: String): Boolean
     suspend fun cancel(scanId: String): Boolean
@@ -16,6 +19,7 @@ interface LibrarySyncController {
 interface LibrarySyncTaskRepository {
     fun observeRecentTasks(limit: Int = DEFAULT_LIBRARY_SYNC_TASK_LIMIT): Flow<List<LibrarySyncTask>>
     fun observeActiveTasks(): Flow<List<LibrarySyncTask>>
+    fun observeFailures(taskId: String): Flow<List<LibrarySyncFailure>>
     suspend fun getTask(id: String): LibrarySyncTask?
     suspend fun hasActiveTask(
         accountId: SourceAccountId,
@@ -30,6 +34,7 @@ data class LibrarySyncRequest(
     val selectedFolderRemoteId: String?,
     val selectedFolderCanonicalPath: String,
     val selectedFolderDisplayPath: String? = null,
+    val scanRules: LibrarySyncScanRules = LibrarySyncScanRules(),
     val scanId: String? = null,
     val metadataConcurrency: UInt = DEFAULT_LIBRARY_SYNC_METADATA_CONCURRENCY,
     val importBatchSize: Int = DEFAULT_LIBRARY_SYNC_BATCH_SIZE,
@@ -50,6 +55,18 @@ data class LibrarySyncRequest(
     }
 }
 
+data class LibrarySyncScanRules(
+    val scanSubdirectories: Boolean = true,
+    val ignoreShortAudio: Boolean = true,
+    val minDurationMs: Long = MIN_SCANNED_AUDIO_DURATION_MS,
+    val ignoreHiddenFiles: Boolean = true,
+    val ignoredDirectoryNames: Set<String> = DEFAULT_IGNORED_SOURCE_DIRECTORIES.toSet(),
+) {
+    init {
+        require(minDurationMs >= 0L) { "minimum duration cannot be negative" }
+    }
+}
+
 data class LibrarySyncResult(
     val scanId: String,
     val selectedFolderId: Long,
@@ -58,6 +75,12 @@ data class LibrarySyncResult(
     val skippedCount: Long,
     val importedCount: Long,
     val failedCount: Long,
+)
+
+data class LibrarySyncFailure(
+    val errorType: String,
+    val message: String,
+    val createdAtEpochMs: Long,
 )
 
 const val DEFAULT_LIBRARY_SYNC_BATCH_SIZE = 200

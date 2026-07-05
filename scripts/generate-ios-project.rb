@@ -49,7 +49,7 @@ kotlin_phase.always_out_of_date = "1"
 kotlin_phase.shell_script = <<~SH
   set -e
   cd "$SRCROOT/.."
-  ./gradlew :shared:embedAndSignAppleFrameworkForXcode --no-daemon --console plain
+  ./gradlew :shared:embedAndSignAppleFrameworkForXcode
 SH
 target.build_phases.move(kotlin_phase, 0)
 

@@ -20,6 +20,7 @@ import com.github.tidetunes.core.LocalNavController
 import com.github.tidetunes.core.presentation.layout.WindowSizeClass
 import com.github.tidetunes.core.presentation.layout.rememberWindowSizeClass
 import com.github.tidetunes.core.presentation.navigation.MusicGraph
+import com.github.tidetunes.feature.importing.presentation.navigation.RouteImportType
 import com.github.tidetunes.service.playback.presentation.shell.PlaybackMiniPlayerHost
 import com.github.tidetunes.service.playback.presentation.shell.rememberIsPlaybackPlaying
 import com.github.tidetunes.widgets.appbar.BottomBar
@@ -42,11 +43,8 @@ fun HomePage(
     val onNavigateToDownloads = {
         globalNavController.navigate(MusicGraph.Downloads)
     }
-    val onNavigateToLog = {
-        globalNavController.navigate(MusicGraph.Log)
-    }
-    val onNavigateToDebugMore = {
-        globalNavController.navigate(MusicGraph.DebugMore)
+    val onNavigateToLibraryFolderImport = {
+        globalNavController.navigate(MusicGraph.Import(RouteImportType.LibraryFolder))
     }
     val miniPlayerContent: @Composable () -> Unit = {
         PlaybackMiniPlayerHost(
@@ -73,10 +71,9 @@ fun HomePage(
                 settingsNavController = settingsNavController,
                 scaffoldPadding = scaffoldPadding,
                 onNavigateToDownloads = onNavigateToDownloads,
-                onNavigateToLog = onNavigateToLog,
-                onNavigateToDebugMore = onNavigateToDebugMore,
                 onNavigateToLibrary = { currentTab = HomeTab.LIBRARY },
                 onNavigateToSearch = { currentTab = HomeTab.SEARCH },
+                onNavigateToLibraryFolderImport = onNavigateToLibraryFolderImport,
                 onOpenNowPlaying = onOpenNowPlaying,
             )
         }

@@ -2,6 +2,7 @@ package com.github.tidetunes.domain.importing
 
 import com.github.tidetunes.database.SourceItemEntity
 import com.github.tidetunes.database.SourceItemTypes
+import com.github.tidetunes.service.librarysync.domain.LibrarySyncScanRules
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
@@ -12,9 +13,11 @@ import kotlin.test.assertTrue
 import uniffi.tidetunes_core.RemoteEmbeddedLyrics
 import uniffi.tidetunes_core.RemoteArtwork
 import uniffi.tidetunes_core.RemoteMetadata
+import uniffi.tidetunes_core.RemoteMetadataResult
 import uniffi.tidetunes_core.RemoteRawMetadataEntry
 import uniffi.tidetunes_core.OneDriveDeltaItem
 import uniffi.tidetunes_core.StorageEntry
+import uniffi.tidetunes_core.StorageEntryLoc
 import uniffi.tidetunes_core.StorageId
 
 class RemoteLibraryImportCoordinatorTest {
@@ -120,6 +123,49 @@ class RemoteLibraryImportCoordinatorTest {
     }
 
     @Test
+    fun discoveredMusicEntriesKeepLargeRecursiveWebDavCounts() {
+        val entries = buildList {
+            repeat(805) { index ->
+                add(
+                    entry(
+                        path = "/Music/Album-${index / 25}/track-${index.toString().padStart(4, '0')}.flac",
+                        name = "track-$index.flac",
+                    )
+                )
+            }
+            add(entry(path = "/Music/.hidden/secret.flac", name = "secret.flac"))
+            add(entry(path = "/Music/__MACOSX/sidecar.flac", name = "sidecar.flac"))
+        }
+
+        val discovered = prepareDiscoveredMusicEntries(
+            storageId = 1,
+            rootPath = "/Music",
+            rules = LibrarySyncScanRules(),
+            seenPaths = mutableSetOf(),
+            entries = entries,
+        )
+
+        assertEquals(805, discovered.size)
+        assertEquals("/Music/Album-0/track-0000.flac", discovered.first().path)
+    }
+
+    @Test
+    fun discoveredMusicEntriesCanDisableRecursiveScan() {
+        val discovered = prepareDiscoveredMusicEntries(
+            storageId = 1,
+            rootPath = "/Music",
+            rules = LibrarySyncScanRules(scanSubdirectories = false),
+            seenPaths = mutableSetOf(),
+            entries = listOf(
+                entry(path = "/Music/root.flac", name = "root.flac"),
+                entry(path = "/Music/Album/nested.flac", name = "nested.flac"),
+            ),
+        )
+
+        assertEquals(listOf("/Music/root.flac"), discovered.map { it.path })
+    }
+
+    @Test
     fun planSkipsUnchangedFilesAndKeepsChangedMusicOnly() {
         val unchanged = sourceItem(
             id = 11,
@@ -147,6 +193,36 @@ class RemoteLibraryImportCoordinatorTest {
         assertEquals(1, plan.changedCount)
         assertEquals(1, plan.metadataSkippedCount)
         assertEquals(0, plan.unreadableChangedCount)
+    }
+
+    @Test
+    fun failureDetailsKeepMetadataReadErrorsForFailedFiles() {
+        val broken = entry(path = "/Music/Broken.flac", name = "Broken.flac")
+        val missing = entry(path = "/Music/Missing.flac", name = "Missing.flac")
+        val plan = planRemoteLibraryImport(
+            storageId = 1,
+            libraryRootId = 7,
+            scanId = "scan-failed",
+            now = 100,
+            entries = listOf(broken, missing),
+            existing = emptyMap(),
+        )
+
+        val details = buildImportFailureDetails(
+            plan = plan,
+            metadataResults = listOf(
+                RemoteMetadataResult(
+                    requestIndex = 0u,
+                    entry = StorageEntryLoc(StorageId(1), broken.path),
+                    metadata = null,
+                    error = "unsupported container",
+                )
+            ),
+        )
+
+        assertEquals(2, details.size)
+        assertTrue(details.any { it.path == broken.path && it.message.contains("unsupported container") })
+        assertTrue(details.any { it.path == missing.path && it.message.contains("元数据读取无返回结果") })
     }
 
     @Test

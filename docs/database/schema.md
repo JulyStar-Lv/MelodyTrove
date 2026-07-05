@@ -174,6 +174,7 @@ exported under
 | `sourceAccountId` | 关联的来源账号。 |
 | `libraryRootId` | 关联的导入根目录；账号级错误可为空。 |
 | `sourceItemId` | 关联的来源对象；非对象级错误可为空。 |
+| `importJobId` | 关联的扫描/导入任务；历史错误或非任务错误可为空。 |
 | `errorType` | 错误类型或分类。 |
 | `message` | 错误消息。 |
 | `createdAt` | 错误创建时间。 |
@@ -430,16 +431,20 @@ or `sync_cursor`. Those tables are read only by historical migration code.
 
 1. Ensure a `source_account` and `library_root`.
 2. Create or update the `import_job`.
-3. Compare incoming `StorageEntry` values with `source_item` rows by canonical
+3. Enumerate the selected folder first so `scannedCount` can represent the
+   discovered total before import batches start.
+4. Compare incoming `StorageEntry` values with `source_item` rows by canonical
    path and stable provider item ID.
-4. Skip unchanged source items using size plus ETag, falling back to modified
+5. Skip unchanged source items using size plus ETag, falling back to modified
    time when the source has no ETag.
-5. Read metadata only for changed items through Rust metadata APIs.
-6. Upsert `source_item`, canonical `track`, normalized album/artist/genre
+6. Read metadata only for changed items through Rust metadata APIs.
+7. Upsert `source_item`, canonical `track`, normalized album/artist/genre
    relationships, lyrics, artwork metadata, raw tags, and `track_source_ref`.
-7. Mark missing source items and their refs unavailable only after a complete
+8. Persist item-level failures to `source_error` with the current
+   `importJobId`.
+9. Mark missing source items and their refs unavailable only after a complete
    snapshot finishes.
-8. Advance `source_sync_cursor` and final `import_job` state in the same
+10. Advance `source_sync_cursor` and final `import_job` state in the same
    bounded persistence path.
 
 Canonical track matching prefers MusicBrainz recording ID, then ISRC plus
@@ -449,29 +454,30 @@ to one canonical track.
 
 ## Import Job UI State
 
-`import_job` is sufficient for the current single-pass import UI to show
+`import_job` is sufficient for the current scan-first import UI to show
 hundreds of files with complete task-level status through `LibrarySyncTask`:
 
 - `status` maps to queued/running/paused/completed/error/cancelled UI states.
 - `scannedCount`, `importedCount`, `skippedCount`, and `failedCount` provide
-  the main counters.
+  the main counters. `scannedCount` is the discovered total once folder
+  enumeration completes.
 - `checkpoint` exposes the last processed path for resumable/debug display.
 - `errorMessage`, `createdAt`, and `updatedAt` support error and time display.
 - `LibrarySyncTask` also derives `processedCount`, `pendingCount`,
   `successfulCount`, and `hasProgress` from those persisted counters so UI code
   does not need to duplicate counter math.
+- `source_error.importJobId` provides the per-task failure detail list.
 
 For the performance target of importing about 500 files within 3 minutes, the
 default library sync path now uses a larger batch size and higher metadata
 concurrency. This keeps the current schema unchanged while reducing transaction
 and metadata-read overhead. Progress updates are task-level and batch-level; the
-UI can show complete task status and counters, but not a per-file detail list
-without an additional detail table.
+UI can show complete task status, counters, and per-task failure details.
 
-`import_job` is not sufficient by itself for a future two-stage workflow where
-the app first creates a fast visible index and then enriches metadata, artwork,
-lyrics, and raw tags in the background. That workflow should add explicit
-phase/total/enrichment fields, for example:
+`import_job` is not sufficient by itself for a future background enrichment
+workflow where metadata, artwork, lyrics, and raw tags continue after the
+initial import result is visible. That workflow should add explicit phase and
+enrichment fields, for example:
 
 - `phase`: scanning, indexing, enriching metadata, finalizing.
 - `totalCount`: known total after folder enumeration completes.

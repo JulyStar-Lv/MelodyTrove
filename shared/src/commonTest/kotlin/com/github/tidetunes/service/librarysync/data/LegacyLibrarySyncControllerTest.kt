@@ -4,7 +4,9 @@ import com.github.tidetunes.core.domain.model.SourceAccountId
 import com.github.tidetunes.domain.importing.RemoteLibraryImportResult
 import com.github.tidetunes.service.librarysync.domain.DEFAULT_LIBRARY_SYNC_BATCH_SIZE
 import com.github.tidetunes.service.librarysync.domain.DEFAULT_LIBRARY_SYNC_METADATA_CONCURRENCY
+import com.github.tidetunes.service.librarysync.domain.LibrarySyncFailure
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncRequest
+import com.github.tidetunes.service.librarysync.domain.LibrarySyncScanRules
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncStatus
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncTask
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncTaskRepository
@@ -377,6 +379,10 @@ private class FakeLibrarySyncTaskRepository(
         return tasks
     }
 
+    override fun observeFailures(taskId: String): Flow<List<LibrarySyncFailure>> {
+        return MutableStateFlow(emptyList())
+    }
+
     override suspend fun getTask(id: String): LibrarySyncTask? {
         return tasksById[id]
     }
@@ -430,6 +436,7 @@ private class FakeLegacyLibrarySyncImporter(
         selectedFolderCanonicalPath: String,
         selectedFolderDisplayPath: String?,
         scanId: String?,
+        scanRules: LibrarySyncScanRules,
         metadataConcurrency: UInt,
         importBatchSize: Int,
     ): RemoteLibraryImportResult {
@@ -439,6 +446,7 @@ private class FakeLegacyLibrarySyncImporter(
             selectedFolderCanonicalPath = selectedFolderCanonicalPath,
             selectedFolderDisplayPath = selectedFolderDisplayPath,
             scanId = scanId,
+            scanRules = scanRules,
             metadataConcurrency = metadataConcurrency,
             importBatchSize = importBatchSize,
         )
@@ -451,6 +459,7 @@ private class FakeLegacyLibrarySyncImporter(
         selectedFolderCanonicalPath: String,
         selectedFolderDisplayPath: String?,
         scanId: String?,
+        scanRules: LibrarySyncScanRules,
         metadataConcurrency: UInt,
         importBatchSize: Int,
     ): RemoteLibraryImportResult {
@@ -460,6 +469,7 @@ private class FakeLegacyLibrarySyncImporter(
             selectedFolderCanonicalPath = selectedFolderCanonicalPath,
             selectedFolderDisplayPath = selectedFolderDisplayPath,
             scanId = scanId,
+            scanRules = scanRules,
             metadataConcurrency = metadataConcurrency,
             importBatchSize = importBatchSize,
         )
@@ -485,6 +495,7 @@ private data class ScanCall(
     val selectedFolderCanonicalPath: String,
     val selectedFolderDisplayPath: String?,
     val scanId: String?,
+    val scanRules: LibrarySyncScanRules,
     val metadataConcurrency: UInt,
     val importBatchSize: Int,
 )
@@ -495,6 +506,7 @@ private data class OneDriveCall(
     val selectedFolderCanonicalPath: String,
     val selectedFolderDisplayPath: String?,
     val scanId: String?,
+    val scanRules: LibrarySyncScanRules,
     val metadataConcurrency: UInt,
     val importBatchSize: Int,
 )

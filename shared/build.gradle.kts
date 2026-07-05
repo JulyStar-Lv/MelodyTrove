@@ -111,6 +111,53 @@ room {
     schemaDirectory("$projectDir/schemas")
 }
 
+val suppressGeneratedUniffiAndroidWarnings by tasks.registering {
+    val generatedFile = layout.buildDirectory.file(
+        "generated/uniffi/androidMain/kotlin/uniffi/tidetunes_core/tidetunes_core.android.kt"
+    )
+
+    dependsOn(tasks.named("buildUniffiBindings"))
+
+    doLast {
+        val file = generatedFile.get().asFile
+        if (!file.isFile) return@doLast
+
+        val source = file.readText()
+        val packageIndex = source.indexOf("package ")
+        if (packageIndex < 0) return@doLast
+
+        val header = source.substring(0, packageIndex)
+        val body = source.substring(packageIndex)
+        val fileSuppressRegex = Regex("""@file:Suppress\(([^)]*)\)""")
+        val existingSuppressions = fileSuppressRegex.findAll(header)
+            .flatMap { match -> Regex(""""([^"]+)"""").findAll(match.groupValues[1]) }
+            .map { match -> match.groupValues[1] }
+            .toList()
+        val suppressions = (existingSuppressions + "UNUSED_EXPRESSION").distinct()
+        val suppressAnnotation = suppressions.joinToString(
+            prefix = "@file:Suppress(",
+            postfix = ")"
+        ) { suppression -> "\"$suppression\"" }
+        val remainingHeader = fileSuppressRegex.replace(header, "").trim()
+        val patchedSource = buildString {
+            append(suppressAnnotation)
+            append("\n\n")
+            if (remainingHeader.isNotEmpty()) {
+                append(remainingHeader)
+                append("\n\n")
+            }
+            append(body.trimStart())
+        }
+        if (patchedSource != source) file.writeText(patchedSource)
+    }
+}
+
+tasks.matching { task ->
+    task.name.startsWith("compile") && task.name.endsWith("KotlinAndroid")
+}.configureEach {
+    dependsOn(suppressGeneratedUniffiAndroidWarnings)
+}
+
 cargo {
     packageDirectory = layout.projectDirectory.dir("../rust-libs/core")
     builds.jvm {

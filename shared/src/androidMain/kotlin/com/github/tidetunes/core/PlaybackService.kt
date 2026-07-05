@@ -18,6 +18,8 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
+import com.github.tidetunes.core.domain.model.AppSettings
+import com.github.tidetunes.core.domain.repository.SettingsRepository
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
 import com.github.tidetunes.service.playback.data.PlayerRepository
@@ -46,6 +48,7 @@ const val PLAYER_TO_NEXT_COMMAND = "PLAYER_TO_NEXT_COMMAND";
 
 class PlaybackService : MediaSessionService() {
     private val playerRepository: PlayerRepository by inject()
+    private val settingsRepository: SettingsRepository by inject()
     private val bridge: Bridge by inject()
     private val roomLibraryStore: RoomLibraryStore by inject()
     private val playbackResourceResolver: PlaybackResourceResolver by inject()
@@ -67,13 +70,10 @@ class PlaybackService : MediaSessionService() {
 
         val player = ExoPlayer.Builder(context)
             .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(C.USAGE_MEDIA)
-                    .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-                    .build(),
-                true
+                mediaAudioAttributes(),
+                !AppSettings.Default.allowMixedPlayback
             )
-            .setHandleAudioBecomingNoisy(true)
+            .setHandleAudioBecomingNoisy(AppSettings.Default.pauseOnDisconnect)
             .setWakeMode(WAKE_MODE_NETWORK)
             .setMediaSourceFactory(ProgressiveMediaSource.Factory(DefaultDataSource.Factory(context)))
             .build()
@@ -108,14 +108,12 @@ class PlaybackService : MediaSessionService() {
                         return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
                             .setCustomLayout(
                                 ImmutableList.of(
-                                    CommandButton.Builder()
+                                    CommandButton.Builder(CommandButton.ICON_PREVIOUS)
                                         .setSessionCommand(customPrevCommand)
-                                        .setIconResId(CommandButton.getIconResIdForIconConstant(CommandButton.ICON_PREVIOUS))
                                         .setDisplayName("Previous")
                                         .build(),
-                                    CommandButton.Builder()
+                                    CommandButton.Builder(CommandButton.ICON_NEXT)
                                         .setSessionCommand(customNextCommand)
-                                        .setIconResId(CommandButton.getIconResIdForIconConstant(CommandButton.ICON_NEXT))
                                         .setDisplayName("Next")
                                         .build(),
                                 )
@@ -168,6 +166,16 @@ class PlaybackService : MediaSessionService() {
             }
         })
         tidetunesLog("Playback service created")
+
+        serviceScope.launch(Dispatchers.Main) {
+            settingsRepository.settings.collect { settings ->
+                player.setAudioAttributes(
+                    mediaAudioAttributes(),
+                    !settings.allowMixedPlayback,
+                )
+                player.setHandleAudioBecomingNoisy(settings.pauseOnDisconnect)
+            }
+        }
 
         serviceScope.launch(Dispatchers.Main) {
             playerRepository.pauseRequest.collect {
@@ -257,4 +265,11 @@ class PlaybackService : MediaSessionService() {
             play(m, p)
         }
     }
+}
+
+private fun mediaAudioAttributes(): AudioAttributes {
+    return AudioAttributes.Builder()
+        .setUsage(C.USAGE_MEDIA)
+        .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+        .build()
 }

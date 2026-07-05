@@ -13,6 +13,7 @@ import com.github.tidetunes.source.api.SourceNodeSelection
 import com.github.tidetunes.source.api.SourceNodeType
 import com.github.tidetunes.singleton.RoomLibraryStore
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import uniffi.tidetunes_core.LyricLoadState
 import uniffi.tidetunes_core.MusicId
@@ -149,6 +150,45 @@ class RoomLibraryIntegrationTest {
     }
 
     @Test
+    fun migrationSevenToEightAddsImportJobIdToSourceErrors() {
+        val connection = BundledSQLiteDriver().open(":memory:")
+        try {
+            connection.execute(
+                """
+                CREATE TABLE source_error (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                    sourceAccountId INTEGER NOT NULL,
+                    libraryRootId INTEGER,
+                    sourceItemId INTEGER,
+                    errorType TEXT NOT NULL,
+                    message TEXT NOT NULL,
+                    createdAt INTEGER NOT NULL,
+                    resolvedAt INTEGER
+                )
+                """.trimIndent(),
+            )
+            MIGRATION_7_8.migrate(connection)
+
+            val columns = columns(connection, "source_error")
+            assertTrue("importJobId" in columns)
+            assertEquals(
+                "1",
+                singleText(
+                    connection,
+                    """
+                    SELECT CAST(COUNT(*) AS TEXT)
+                    FROM sqlite_master
+                    WHERE type = 'index'
+                      AND name = 'index_source_error_importJobId'
+                    """.trimIndent(),
+                ),
+            )
+        } finally {
+            connection.close()
+        }
+    }
+
+    @Test
     fun roomLibraryStoreCreatesPlaylistTracksAndRemoteLocWithoutLegacyDatabase() =
         withDatabase { database ->
             seedStorageAndFolder(database)
@@ -183,6 +223,40 @@ class RoomLibraryIntegrationTest {
             assertEquals(StorageEntryLoc(StorageId(1), "/Music/Track.flac"), music.loc)
             assertEquals("Display Title", music.meta.title)
         }
+
+    @Test
+    fun sourceErrorsCanBeScopedToImportJob() = withDatabase { database ->
+        seedStorageAndFolder(database)
+        database.sourceErrorDao().insertAll(
+            listOf(
+                SourceErrorEntity(
+                    sourceAccountId = 1,
+                    libraryRootId = 1,
+                    sourceItemId = null,
+                    importJobId = "scan-current",
+                    errorType = "METADATA_READ_FAILED",
+                    message = "/Music/Broken.flac：元数据读取失败",
+                    createdAt = 100,
+                    resolvedAt = null,
+                ),
+                SourceErrorEntity(
+                    sourceAccountId = 1,
+                    libraryRootId = 1,
+                    sourceItemId = null,
+                    importJobId = "scan-old",
+                    errorType = "METADATA_READ_FAILED",
+                    message = "/Music/Old.flac：元数据读取失败",
+                    createdAt = 90,
+                    resolvedAt = null,
+                ),
+            )
+        )
+
+        val failures = database.sourceErrorDao().observeByImportJob("scan-current").first()
+
+        assertEquals(1, failures.size)
+        assertEquals("/Music/Broken.flac：元数据读取失败", failures.single().message)
+    }
 
     @Test
     fun roomLibraryStoreUpdatesDurationAndRemovesLyricsInRoom() = withDatabase { database ->

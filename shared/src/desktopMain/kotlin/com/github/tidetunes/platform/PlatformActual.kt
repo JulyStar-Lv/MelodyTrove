@@ -12,6 +12,14 @@ actual fun getAppCacheDir(): String {
     return "${System.getProperty("user.home")}/.tidetunes/cache"
 }
 
+actual fun getAppDatabasePath(): String? {
+    return "${getAppDocumentDir()}/tidetunes.db"
+}
+
+actual fun isSystemDynamicColorAvailable(): Boolean {
+    return false
+}
+
 actual fun currentTimeMillis(): Long = System.currentTimeMillis()
 
 actual fun byteArrayToImageBitmap(bytes: ByteArray): ImageBitmap? {

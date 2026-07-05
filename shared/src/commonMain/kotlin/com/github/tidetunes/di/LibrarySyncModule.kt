@@ -13,7 +13,7 @@ import org.koin.dsl.module
 
 val librarySyncModule = module {
     includes(librarySyncDataModule)
-    single<LibrarySyncTaskRepository> { RoomLibrarySyncTaskRepository(get()) }
+    single<LibrarySyncTaskRepository> { RoomLibrarySyncTaskRepository(get(), get()) }
     single<LegacyLibrarySyncImporter> { RemoteLibraryImportGateway(get()) }
     single<LegacyLibrarySyncStorageProvider> {
         val storageRepository = get<StorageRepositoryImpl>()

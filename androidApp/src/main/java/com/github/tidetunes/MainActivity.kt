@@ -69,14 +69,9 @@ class MainActivity : ComponentActivity() {
         ).buildAsync()
         factory.addListener(
             {
-                factory.let {
-                    if (it.isDone) {
-                        val controller = it.get()
-                        playerControllerRepository.setupMediaController(controller)
-                        controller
-                    } else {
-                        null
-                    }
+                if (factory.isDone) {
+                    val controller = factory.get()
+                    playerControllerRepository.setupMediaController(controller)
                 }
             },
             MoreExecutors.directExecutor()

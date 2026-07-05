@@ -2,6 +2,7 @@ package com.github.tidetunes.database
 
 import androidx.room.Embedded
 import androidx.room.Dao
+import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
@@ -23,6 +24,20 @@ interface SourceAccountDao {
 
     @Upsert
     suspend fun upsert(account: SourceAccountEntity): Long
+
+    @Query(
+        """
+        UPDATE source_account
+        SET enabled = :enabled,
+            updatedAt = :updatedAt
+        WHERE providerType = :providerType
+        """
+    )
+    suspend fun setEnabledByProviderType(
+        providerType: String,
+        enabled: Boolean,
+        updatedAt: Long,
+    )
 
     @Query("DELETE FROM source_account WHERE id = :id")
     suspend fun delete(id: Long)
@@ -53,8 +68,20 @@ interface LibraryRootDao {
     )
     suspend fun findByProviderRootId(sourceAccountId: Long, providerRootId: String): LibraryRootEntity?
 
+    @Query(
+        """
+        SELECT * FROM library_root
+        WHERE sourceAccountId = :sourceAccountId
+        ORDER BY displayName COLLATE NOCASE
+        """
+    )
+    fun observeBySourceAccount(sourceAccountId: Long): Flow<List<LibraryRootEntity>>
+
     @Upsert
     suspend fun upsert(root: LibraryRootEntity): Long
+
+    @Query("DELETE FROM library_root WHERE id = :id")
+    suspend fun delete(id: Long)
 }
 
 @Dao
@@ -315,4 +342,13 @@ interface SourceSyncCursorDao {
 interface SourceErrorDao {
     @Upsert
     suspend fun upsert(error: SourceErrorEntity)
+
+    @Insert
+    suspend fun insertAll(errors: List<SourceErrorEntity>)
+
+    @Query("SELECT * FROM source_error WHERE importJobId = :importJobId ORDER BY createdAt DESC, id DESC")
+    fun observeByImportJob(importJobId: String): Flow<List<SourceErrorEntity>>
+
+    @Query("DELETE FROM source_error WHERE importJobId = :importJobId")
+    suspend fun deleteByImportJob(importJobId: String)
 }

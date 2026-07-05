@@ -2,8 +2,11 @@ package com.github.tidetunes.service.librarysync.data
 
 import com.github.tidetunes.core.domain.model.SourceAccountId
 import com.github.tidetunes.database.ImportJobWithFolder
+import com.github.tidetunes.database.SourceErrorEntity
+import com.github.tidetunes.database.SourceErrorDao
 import com.github.tidetunes.database.SyncDao
 import com.github.tidetunes.platform.currentTimeMillis
+import com.github.tidetunes.service.librarysync.domain.LibrarySyncFailure
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncStatus
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncTask
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncTaskRepository
@@ -15,6 +18,7 @@ import uniffi.tidetunes_core.StorageId
 
 internal class RoomLibrarySyncTaskRepository(
     private val syncDao: SyncDao,
+    private val sourceErrorDao: SourceErrorDao,
 ) : LibrarySyncTaskRepository {
     override fun observeRecentTasks(limit: Int): Flow<List<LibrarySyncTask>> {
         return syncDao
@@ -26,6 +30,12 @@ internal class RoomLibrarySyncTaskRepository(
         return syncDao
             .observeActiveJobsWithFolder()
             .map { jobs -> jobs.map { job -> job.toLibrarySyncTask() } }
+    }
+
+    override fun observeFailures(taskId: String): Flow<List<LibrarySyncFailure>> {
+        return sourceErrorDao
+            .observeByImportJob(taskId)
+            .map { errors -> errors.map { error -> error.toLibrarySyncFailure() } }
     }
 
     override suspend fun getTask(id: String): LibrarySyncTask? {
@@ -60,6 +70,14 @@ internal class RoomLibrarySyncTaskRepository(
         }
         return changedRows > 0
     }
+}
+
+private fun SourceErrorEntity.toLibrarySyncFailure(): LibrarySyncFailure {
+    return LibrarySyncFailure(
+        errorType = errorType,
+        message = message,
+        createdAtEpochMs = createdAt,
+    )
 }
 
 internal fun ImportJobWithFolder.toLibrarySyncTask(): LibrarySyncTask {

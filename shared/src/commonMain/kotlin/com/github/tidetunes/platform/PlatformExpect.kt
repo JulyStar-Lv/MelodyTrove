@@ -4,6 +4,8 @@ import androidx.compose.runtime.Composable
 
 expect fun getAppDocumentDir(): String
 expect fun getAppCacheDir(): String
+expect fun getAppDatabasePath(): String?
+expect fun isSystemDynamicColorAvailable(): Boolean
 expect fun currentTimeMillis(): Long
 expect fun byteArrayToImageBitmap(bytes: ByteArray): androidx.compose.ui.graphics.ImageBitmap?
 

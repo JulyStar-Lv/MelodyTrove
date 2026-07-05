@@ -272,9 +272,9 @@ class ImportVM constructor(
         val selected = _selected.value
         val next = {
             if (selected.contains(path)) {
-                selected.remove(path)
+                selected.removing(path)
             } else {
-                selected.add(path)
+                selected.adding(path)
             }
         }()
         _selected.value = next
@@ -324,11 +324,11 @@ class ImportVM constructor(
         val allSelected = _selected.value.size == _entries.value.size
         if (allSelected) {
             _selected.update { selected ->
-                selected.clear()
+                selected.cleared()
             }
         } else {
             _selected.update { selected ->
-                selected.clear().addAll(_entries.value.map { it.path })
+                selected.cleared().addingAll(_entries.value.map { it.path })
             }
         }
     }
@@ -401,7 +401,7 @@ class ImportVM constructor(
 
     private fun pushCurrentToUndoStack() {
         val currentUndoStack = _undoStack.value
-        val nextUndoStack = currentUndoStack.add(currentPath())
+        val nextUndoStack = currentUndoStack.adding(currentPath())
         _undoStack.value = nextUndoStack
     }
 
@@ -409,7 +409,7 @@ class ImportVM constructor(
         val currentUndoStack = _undoStack.value
         val current = currentUndoStack.lastOrNull()
         if (current != null) {
-            val next = currentUndoStack.removeAt(currentUndoStack.lastIndex)
+            val next = currentUndoStack.removingAt(currentUndoStack.lastIndex)
             _undoStack.value = next
         }
         return current
@@ -419,7 +419,7 @@ class ImportVM constructor(
     private fun navigateDirImpl(path: String) {
         _currentPath.value = path
         _selected.update { selected ->
-            selected.clear()
+            selected.cleared()
         }
 
         reload()

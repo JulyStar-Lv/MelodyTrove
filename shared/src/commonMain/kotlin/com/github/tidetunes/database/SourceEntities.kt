@@ -246,6 +246,7 @@ data class SourceSyncCursorEntity(
         Index(value = ["sourceAccountId"]),
         Index(value = ["libraryRootId"]),
         Index(value = ["sourceItemId"]),
+        Index(value = ["importJobId"]),
         Index(value = ["createdAt"]),
     ],
 )
@@ -254,6 +255,7 @@ data class SourceErrorEntity(
     val sourceAccountId: Long,
     val libraryRootId: Long?,
     val sourceItemId: Long?,
+    val importJobId: String?,
     val errorType: String,
     val message: String,
     val createdAt: Long,

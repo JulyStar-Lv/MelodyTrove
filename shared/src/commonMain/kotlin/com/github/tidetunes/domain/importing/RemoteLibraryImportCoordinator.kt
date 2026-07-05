@@ -14,6 +14,7 @@ import com.github.tidetunes.database.MetadataDao
 import com.github.tidetunes.database.ProviderTypes
 import com.github.tidetunes.database.RawMetadataEntity
 import com.github.tidetunes.database.SourceAccountEntity
+import com.github.tidetunes.database.SourceErrorEntity
 import com.github.tidetunes.database.SourceItemEntity
 import com.github.tidetunes.database.SourceItemTypes
 import com.github.tidetunes.database.SourceSyncCursorEntity
@@ -25,6 +26,7 @@ import com.github.tidetunes.database.TrackEntity
 import com.github.tidetunes.database.TrackGenreCrossRef
 import com.github.tidetunes.database.TrackSourceRefEntity
 import com.github.tidetunes.platform.currentTimeMillis
+import com.github.tidetunes.service.librarysync.domain.LibrarySyncScanRules
 import com.github.tidetunes.source.storage.MetadataRepository
 import com.github.tidetunes.source.storage.RemoteScannerRepository
 import com.github.tidetunes.core.data.StorageRepositoryImpl
@@ -35,6 +37,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import uniffi.tidetunes_core.RemoteArtwork
 import uniffi.tidetunes_core.RemoteMetadata
+import uniffi.tidetunes_core.RemoteMetadataResult
 import uniffi.tidetunes_core.RemoteMusicScanSession
 import uniffi.tidetunes_core.OneDriveDeltaItem
 import uniffi.tidetunes_core.OneDriveDeltaPageResult
@@ -47,6 +50,7 @@ data class RemoteLibraryImportRequest(
     val selectedFolderCanonicalPath: String,
     val selectedFolderDisplayPath: String? = null,
     val entries: List<StorageEntry>,
+    val scanRules: LibrarySyncScanRules = LibrarySyncScanRules(),
     val scanId: String? = null,
     val metadataConcurrency: UInt = DEFAULT_METADATA_CONCURRENCY,
     val importBatchSize: Int = DEFAULT_IMPORT_BATCH_SIZE,
@@ -92,6 +96,7 @@ class RemoteLibraryImportCoordinator(
         selectedFolderCanonicalPath: String,
         selectedFolderDisplayPath: String? = null,
         scanId: String? = null,
+        scanRules: LibrarySyncScanRules = LibrarySyncScanRules(),
         metadataConcurrency: UInt = DEFAULT_METADATA_CONCURRENCY,
         importBatchSize: Int = DEFAULT_IMPORT_BATCH_SIZE,
     ): RemoteLibraryImportResult {
@@ -102,6 +107,7 @@ class RemoteLibraryImportCoordinator(
             selectedFolderCanonicalPath = selectedFolderCanonicalPath,
             selectedFolderDisplayPath = selectedFolderDisplayPath,
             entries = emptyList(),
+            scanRules = scanRules,
             scanId = scanId,
             metadataConcurrency = metadataConcurrency,
             importBatchSize = importBatchSize,
@@ -129,6 +135,7 @@ class RemoteLibraryImportCoordinator(
                     .asSequence()
                     .filter { !it.deleted && it.isSupportedMusicFile() }
                     .map { it.toStorageEntry(storageId) }
+                    .filter { it.isAllowedByScanRules(request.selectedFolderCanonicalPath, request.scanRules) }
                     .toList(),
             )
             val result = runCompleteSnapshotImport(
@@ -159,6 +166,7 @@ class RemoteLibraryImportCoordinator(
         selectedFolderCanonicalPath: String,
         selectedFolderDisplayPath: String? = null,
         scanId: String? = null,
+        scanRules: LibrarySyncScanRules = LibrarySyncScanRules(),
         metadataConcurrency: UInt = DEFAULT_METADATA_CONCURRENCY,
         importBatchSize: Int = DEFAULT_IMPORT_BATCH_SIZE,
     ): RemoteLibraryImportResult {
@@ -171,6 +179,7 @@ class RemoteLibraryImportCoordinator(
                 selectedFolderCanonicalPath = canonicalPath,
                 selectedFolderDisplayPath = selectedFolderDisplayPath,
                 scanId = scanId,
+                scanRules = scanRules,
                 metadataConcurrency = metadataConcurrency,
                 importBatchSize = importBatchSize,
             )
@@ -181,6 +190,7 @@ class RemoteLibraryImportCoordinator(
                 selectedFolderCanonicalPath = canonicalPath,
                 selectedFolderDisplayPath = selectedFolderDisplayPath,
                 scanId = scanId,
+                scanRules = scanRules,
                 metadataConcurrency = metadataConcurrency,
                 importBatchSize = importBatchSize,
             )
@@ -190,6 +200,7 @@ class RemoteLibraryImportCoordinator(
             selectedFolderCanonicalPath = canonicalPath,
             selectedFolderDisplayPath = selectedFolderDisplayPath,
             entries = emptyList(),
+            scanRules = scanRules,
             scanId = scanId,
             metadataConcurrency = metadataConcurrency,
             importBatchSize = importBatchSize,
@@ -225,6 +236,7 @@ class RemoteLibraryImportCoordinator(
                         .asSequence()
                         .filter { !it.deleted && it.isSupportedMusicFile() }
                         .map { it.toStorageEntry(storageId) }
+                        .filter { it.isAllowedByScanRules(request.selectedFolderCanonicalPath, request.scanRules) }
                         .toList(),
                 )
                 val result = runCompleteSnapshotImport(
@@ -288,6 +300,7 @@ class RemoteLibraryImportCoordinator(
                 .asSequence()
                 .filter { !it.deleted && it.isSupportedMusicFile() }
                 .map { it.toStorageEntry(storageId) }
+                .filter { it.isAllowedByScanRules(request.selectedFolderCanonicalPath, request.scanRules) }
                 .toList()
             entries.chunked(importBatchSize).forEach { batch ->
                 operation.throwIfStopRequested()
@@ -327,6 +340,7 @@ class RemoteLibraryImportCoordinator(
         selectedFolderCanonicalPath: String,
         selectedFolderDisplayPath: String? = null,
         scanId: String? = null,
+        scanRules: LibrarySyncScanRules = LibrarySyncScanRules(),
         metadataConcurrency: UInt = DEFAULT_METADATA_CONCURRENCY,
         importBatchSize: Int = DEFAULT_IMPORT_BATCH_SIZE,
         deltaLink: String? = null,
@@ -338,6 +352,7 @@ class RemoteLibraryImportCoordinator(
             selectedFolderCanonicalPath = selectedFolderCanonicalPath,
             selectedFolderDisplayPath = selectedFolderDisplayPath,
             entries = emptyList(),
+            scanRules = scanRules,
             scanId = scanId,
             metadataConcurrency = metadataConcurrency,
             importBatchSize = importBatchSize,
@@ -349,6 +364,7 @@ class RemoteLibraryImportCoordinator(
         return try {
             val previousCursor = syncDao.getCursor(execution.libraryRoot.id)
             val seenPaths = mutableSetOf<String>()
+            val discoveredEntries = mutableListOf<StorageEntry>()
             var changedCount = 0L
             operation.throwIfStopRequested()
             val session = remoteScannerRepository.startMusicFolderScan(
@@ -364,17 +380,19 @@ class RemoteLibraryImportCoordinator(
                     throw ImportCancelledException()
                 }
                 operation.throwIfStopRequested()
-                val entries = prepareMusicEntries(storageId, scanBatch.entries)
-                    .filter { seenPaths.add(normalizeRemotePath(it.path)) }
+                val entries = prepareDiscoveredMusicEntries(
+                    storageId = storageId,
+                    rootPath = request.selectedFolderCanonicalPath,
+                    rules = request.scanRules,
+                    seenPaths = seenPaths,
+                    entries = scanBatch.entries,
+                )
                 if (entries.isNotEmpty()) {
-                    val batchResult = importBatch(
-                        request = request,
-                        execution = execution,
+                    discoveredEntries += entries
+                    currentJob = recordScannedEntries(
                         currentJob = currentJob,
                         entries = entries,
                     )
-                    currentJob = batchResult.job
-                    changedCount += batchResult.changedCount
                     operation.throwIfStopRequested()
                 }
                 if (scanBatch.done) break
@@ -383,6 +401,19 @@ class RemoteLibraryImportCoordinator(
                 throw ImportCancelledException()
             }
             operation.throwIfStopRequested()
+
+            discoveredEntries.chunked(importBatchSize).forEach { batch ->
+                operation.throwIfStopRequested()
+                val batchResult = importBatch(
+                    request = request,
+                    execution = execution,
+                    currentJob = currentJob,
+                    entries = batch,
+                    countEntriesAsScanned = false,
+                )
+                currentJob = batchResult.job
+                changedCount += batchResult.changedCount
+            }
 
             currentJob = completeImport(
                 execution = execution,
@@ -456,6 +487,7 @@ class RemoteLibraryImportCoordinator(
         val previousCursor = syncDao.getCursor(execution.libraryRoot.id)
         operation.throwIfStopRequested()
         val musicEntries = prepareMusicEntries(request.storageId, request.entries)
+            .filter { it.isAllowedByScanRules(request.selectedFolderCanonicalPath, request.scanRules) }
         var changedCount = 0L
         var job = currentJob
         musicEntries.chunked(request.importBatchSize).forEach { batch ->
@@ -486,6 +518,7 @@ class RemoteLibraryImportCoordinator(
         execution: ImportExecution,
         currentJob: ImportJobEntity,
         entries: List<StorageEntry>,
+        countEntriesAsScanned: Boolean = true,
     ): ImportBatchResult {
         val now = currentTimeMillis()
         val batchPaths = entries.map { normalizeRemotePath(it.path) }
@@ -524,14 +557,22 @@ class RemoteLibraryImportCoordinator(
                 normalizeRemotePath(result.entry.path) to metadata
             }
             .toMap()
-        val metadataReturnedPaths = metadataResults
-            .map { normalizeRemotePath(it.entry.path) }
-            .toSet()
-        val batchFailedCount = plan.unreadableChangedCount +
-            plan.metadataEntries.count {
-                normalizeRemotePath(it.path) !in metadataReturnedPaths
-            } +
-            metadataResults.count { it.metadata == null }
+        val shortAudioPaths = if (request.scanRules.ignoreShortAudio) {
+            metadataByPath
+                .filterValues { metadata -> metadata.isShorterThan(request.scanRules.minDurationMs) }
+                .keys
+                .toSet()
+        } else {
+            emptySet()
+        }
+        val shortSkippedCount = plan.changedEntries.count { entry ->
+            normalizeRemotePath(entry.path) in shortAudioPaths
+        }
+        val failureDetails = buildImportFailureDetails(
+            plan = plan,
+            metadataResults = metadataResults,
+        )
+        val batchFailedCount = failureDetails.size
         lateinit var updatedJob: ImportJobEntity
 
         database.useWriterConnection { connection ->
@@ -552,8 +593,24 @@ class RemoteLibraryImportCoordinator(
                         )
                         .associateBy { it.canonicalPath }
                 }
+                val sourceErrors = failureDetails.map { detail ->
+                    SourceErrorEntity(
+                        sourceAccountId = request.storageId,
+                        libraryRootId = execution.libraryRoot.id,
+                        sourceItemId = sourceRows[detail.path]?.id,
+                        importJobId = execution.job.id,
+                        errorType = detail.errorType,
+                        message = detail.message,
+                        createdAt = now,
+                        resolvedAt = null,
+                    )
+                }
+                if (sourceErrors.isNotEmpty()) {
+                    database.sourceErrorDao().insertAll(sourceErrors)
+                }
                 val trackMetadata = plan.changedEntries.mapNotNull { entry ->
                     val path = normalizeRemotePath(entry.path)
+                    if (path in shortAudioPaths) return@mapNotNull null
                     val metadata = metadataByPath[path] ?: return@mapNotNull null
                     val sourceItem = sourceRows[path] ?: return@mapNotNull null
                     SourceImportRow(entry, metadata, sourceItem)
@@ -684,12 +741,13 @@ class RemoteLibraryImportCoordinator(
                     metadataDao.upsertRawMetadata(rawMetadata)
                 }
                 updatedJob = currentJob.copy(
-                    scannedCount = currentJob.scannedCount + entries.size,
+                    scannedCount = currentJob.scannedCount +
+                        if (countEntriesAsScanned) entries.size else 0,
                     importedCount = currentJob.importedCount + tracks.size,
-                    skippedCount = currentJob.skippedCount + plan.metadataSkippedCount,
+                    skippedCount = currentJob.skippedCount + plan.metadataSkippedCount + shortSkippedCount,
                     failedCount = currentJob.failedCount + batchFailedCount,
                     checkpoint = entries.lastOrNull()?.path,
-                    errorMessage = null,
+                    errorMessage = failureDetails.summaryOrNull() ?: currentJob.errorMessage,
                     updatedAt = now,
                 )
                 syncDao.upsertJob(updatedJob)
@@ -700,6 +758,21 @@ class RemoteLibraryImportCoordinator(
             job = updatedJob,
             changedCount = plan.changedCount.toLong(),
         )
+    }
+
+    private suspend fun recordScannedEntries(
+        currentJob: ImportJobEntity,
+        entries: List<StorageEntry>,
+    ): ImportJobEntity {
+        if (entries.isEmpty()) return currentJob
+        val now = currentTimeMillis()
+        val updatedJob = currentJob.copy(
+            scannedCount = currentJob.scannedCount + entries.size,
+            checkpoint = entries.lastOrNull()?.path ?: currentJob.checkpoint,
+            updatedAt = now,
+        )
+        syncDao.upsertJob(updatedJob)
+        return updatedJob
     }
 
     private suspend fun findCanonicalTrack(
@@ -988,6 +1061,7 @@ class RemoteLibraryImportCoordinator(
             updatedAt = startedAt,
         )
         syncDao.upsertJob(job)
+        database.sourceErrorDao().deleteByImportJob(scanId)
         return ImportExecution(libraryRoot, scanId, job)
     }
 
@@ -1284,6 +1358,50 @@ internal fun prepareMusicEntries(
         .toList()
 }
 
+internal fun prepareDiscoveredMusicEntries(
+    storageId: Long,
+    rootPath: String,
+    rules: LibrarySyncScanRules,
+    seenPaths: MutableSet<String>,
+    entries: List<StorageEntry>,
+): List<StorageEntry> {
+    return prepareMusicEntries(storageId, entries)
+        .filter { it.isAllowedByScanRules(rootPath, rules) }
+        .filter { seenPaths.add(normalizeRemotePath(it.path)) }
+}
+
+internal fun StorageEntry.isAllowedByScanRules(
+    rootPath: String,
+    rules: LibrarySyncScanRules,
+): Boolean {
+    val relativeSegments = relativePathSegments(rootPath, path)
+    if (relativeSegments.isEmpty()) return false
+    val directorySegments = relativeSegments.dropLast(1)
+    if (!rules.scanSubdirectories && directorySegments.isNotEmpty()) return false
+    if (rules.ignoreHiddenFiles && relativeSegments.any { segment -> segment.startsWith(".") }) {
+        return false
+    }
+    if (directorySegments.any { segment -> segment in rules.ignoredDirectoryNames }) {
+        return false
+    }
+    return true
+}
+
+private fun relativePathSegments(rootPath: String, path: String): List<String> {
+    val normalizedRoot = normalizeRemotePath(rootPath).trimEnd('/')
+    val normalizedPath = normalizeRemotePath(path)
+    val relative = when {
+        normalizedRoot.isBlank() || normalizedRoot == "/" -> normalizedPath.trimStart('/')
+        normalizedPath == normalizedRoot -> ""
+        normalizedPath.startsWith("$normalizedRoot/") -> normalizedPath.removePrefix("$normalizedRoot/")
+        else -> normalizedPath.trimStart('/')
+    }
+    return relative
+        .split('/')
+        .map(String::trim)
+        .filter(String::isNotEmpty)
+}
+
 private fun validateImportSettings(
     metadataConcurrency: UInt,
     importBatchSize: Int,
@@ -1301,9 +1419,16 @@ internal data class RemoteLibraryImportPlan(
     val metadataEntries: List<StorageEntry>,
     val changedItems: List<SourceItemEntity>,
     val unchangedFileIds: List<Long>,
+    val unreadableEntries: List<StorageEntry>,
     val changedCount: Int,
     val metadataSkippedCount: Int,
     val unreadableChangedCount: Int,
+)
+
+internal data class ImportFailureDetail(
+    val path: String,
+    val errorType: String,
+    val message: String,
 )
 
 internal fun planRemoteLibraryImport(
@@ -1319,6 +1444,7 @@ internal fun planRemoteLibraryImport(
     val metadataEntries = mutableListOf<StorageEntry>()
     val changedItems = mutableListOf<SourceItemEntity>()
     val unchangedFileIds = mutableListOf<Long>()
+    val unreadableEntries = mutableListOf<StorageEntry>()
     var changedCount = 0
     var metadataSkippedCount = 0
     var unreadableChangedCount = 0
@@ -1365,12 +1491,14 @@ internal fun planRemoteLibraryImport(
         )
         if (sourceItem == null) {
             unreadableChangedCount += 1
+            unreadableEntries.add(entry)
         } else {
             changedItems.add(sourceItem)
         }
         val size = entry.size
         if (sourceItem != null && (size == null || size == 0uL)) {
             unreadableChangedCount += 1
+            unreadableEntries.add(entry)
         } else if (sourceItem != null) {
             metadataEntries.add(entry)
         }
@@ -1381,10 +1509,64 @@ internal fun planRemoteLibraryImport(
         metadataEntries = metadataEntries,
         changedItems = changedItems,
         unchangedFileIds = unchangedFileIds,
+        unreadableEntries = unreadableEntries,
         changedCount = changedCount,
         metadataSkippedCount = metadataSkippedCount,
         unreadableChangedCount = unreadableChangedCount,
     )
+}
+
+internal fun buildImportFailureDetails(
+    plan: RemoteLibraryImportPlan,
+    metadataResults: List<RemoteMetadataResult>,
+): List<ImportFailureDetail> {
+    val details = mutableListOf<ImportFailureDetail>()
+    val metadataEntriesByPath = plan.metadataEntries.associateBy { normalizeRemotePath(it.path) }
+    val returnedPaths = metadataResults.map { normalizeRemotePath(it.entry.path) }.toSet()
+
+    plan.unreadableEntries.forEach { entry ->
+        val path = normalizeRemotePath(entry.path)
+        details += ImportFailureDetail(
+            path = path,
+            errorType = ImportFailureTypes.UnreadableEntry,
+            message = "$path：文件不可读或大小无效",
+        )
+    }
+    plan.metadataEntries
+        .filter { entry -> normalizeRemotePath(entry.path) !in returnedPaths }
+        .forEach { entry ->
+            val path = normalizeRemotePath(entry.path)
+            details += ImportFailureDetail(
+                path = path,
+                errorType = ImportFailureTypes.MetadataMissing,
+                message = "$path：元数据读取无返回结果",
+            )
+        }
+    metadataResults
+        .filter { result -> result.metadata == null }
+        .forEach { result ->
+            val path = normalizeRemotePath(result.entry.path)
+            val entry = metadataEntriesByPath[path]
+            details += ImportFailureDetail(
+                path = normalizeRemotePath(entry?.path ?: result.entry.path),
+                errorType = ImportFailureTypes.MetadataReadFailed,
+                message = "$path：${result.error?.takeIf(String::isNotBlank) ?: "元数据读取失败"}",
+            )
+        }
+
+    return details.distinctBy { detail -> detail.errorType to detail.path }
+}
+
+private fun List<ImportFailureDetail>.summaryOrNull(): String? {
+    if (isEmpty()) return null
+    val head = take(MAX_FAILURE_SUMMARY_ITEMS)
+        .joinToString("；") { detail -> detail.message }
+    val suffix = if (size > MAX_FAILURE_SUMMARY_ITEMS) {
+        "；另有 ${size - MAX_FAILURE_SUMMARY_ITEMS} 个失败"
+    } else {
+        ""
+    }
+    return (head + suffix).take(MAX_IMPORT_JOB_ERROR_MESSAGE_LENGTH)
 }
 
 internal fun buildTrackEntity(
@@ -1619,6 +1801,11 @@ private fun RemoteMetadata.trackArtists(): List<String> {
         .distinctBy(::normalizeMetadataName)
 }
 
+private fun RemoteMetadata.isShorterThan(minDurationMs: Long): Boolean {
+    val durationMs = this.durationMs.toLongOrNull() ?: return false
+    return durationMs in 0 until minDurationMs
+}
+
 private fun normalizeMetadataName(value: String): String {
     return value.trim().lowercase()
 }
@@ -1655,6 +1842,12 @@ private object LibraryRootSyncStatus {
     const val FAILED = "FAILED"
 }
 
+private object ImportFailureTypes {
+    const val UnreadableEntry = "UNREADABLE_ENTRY"
+    const val MetadataMissing = "METADATA_MISSING"
+    const val MetadataReadFailed = "METADATA_READ_FAILED"
+}
+
 private val supportedMusicExtensions = setOf(
     "mp3",
     "flac",
@@ -1676,6 +1869,8 @@ private const val MAX_IMPORT_BATCH_SIZE = 500
 private const val MAX_REMOTE_ID_QUERY_SIZE = 500
 private const val MAX_DELTA_PAGES = 1_000
 private const val MAX_DELTA_ITEMS = 100_000
+private const val MAX_FAILURE_SUMMARY_ITEMS = 7
+private const val MAX_IMPORT_JOB_ERROR_MESSAGE_LENGTH = 512
 
 private val versionTokens = listOf(
     "live",

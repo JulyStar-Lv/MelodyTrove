@@ -51,12 +51,6 @@ sealed interface MusicGraph {
 
     @Serializable
     data object NowPlaying : MusicGraph
-
-    @Serializable
-    data object Log : MusicGraph
-
-    @Serializable
-    data object DebugMore : MusicGraph
 }
 
 const val NEW_STORAGE_ID = -1L

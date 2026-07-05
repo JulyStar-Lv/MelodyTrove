@@ -1,6 +1,7 @@
 package com.github.tidetunes.feature.settings.presentation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalUriHandler
@@ -8,31 +9,65 @@ import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun SettingsRoot(
+    page: SettingsPage,
     appVersion: String,
-    onNavigateToLog: () -> Unit,
-    onNavigateToDebugMore: () -> Unit,
+    appBuildInfo: String,
+    onNavigateToAppearance: () -> Unit,
+    onNavigateToPlayback: () -> Unit,
+    onNavigateToSource: () -> Unit,
+    onNavigateToStorage: () -> Unit,
+    onNavigateToAbout: () -> Unit,
+    onNavigateToLicenses: () -> Unit,
+    onNavigateToLibraryFolderImport: () -> Unit,
+    onBack: () -> Unit,
+    settingsVM: SettingsVM = koinViewModel(),
 ) {
+    val state by settingsVM.state.collectAsState()
     val uriHandler = LocalUriHandler.current
-    val playbackVM: PlaybackSettingsVM = koinViewModel()
-    val playbackState by playbackVM.state.collectAsState()
 
-    SettingsScreen(
-        appVersion = appVersion,
-        playbackState = playbackState,
-        onAction = { action ->
-            when (action) {
-                SettingsAction.NavigateToLog -> onNavigateToLog()
-                SettingsAction.NavigateToDebugMore -> onNavigateToDebugMore()
-                is SettingsAction.OpenGitRepo -> uriHandler.openUri(action.url)
-                is SettingsAction.SetGaplessEnabled ->
-                    playbackVM.onAction(PlaybackSettingsAction.SetGaplessEnabled(action.enabled))
-                is SettingsAction.SetCrossfadeDurationMs ->
-                    playbackVM.onAction(PlaybackSettingsAction.SetCrossfadeDurationMs(action.durationMs))
-                is SettingsAction.SetReplayGainMode ->
-                    playbackVM.onAction(PlaybackSettingsAction.SetReplayGainMode(action.mode))
-                is SettingsAction.SetReplayGainPreampDb ->
-                    playbackVM.onAction(PlaybackSettingsAction.SetReplayGainPreampDb(action.preampDb))
+    LaunchedEffect(settingsVM) {
+        settingsVM.eventFlow.collect { event ->
+            when (event) {
+                SettingsEvent.OpenLibraryFolderImport -> onNavigateToLibraryFolderImport()
             }
-        },
-    )
+        }
+    }
+
+    when (page) {
+        SettingsPage.Home -> SettingsScreen(
+            onNavigateToAppearance = onNavigateToAppearance,
+            onNavigateToPlayback = onNavigateToPlayback,
+            onNavigateToSource = onNavigateToSource,
+            onNavigateToStorage = onNavigateToStorage,
+            onNavigateToAbout = onNavigateToAbout,
+        )
+        SettingsPage.Appearance -> AppearanceSettingsSection(
+            state = state,
+            onBack = onBack,
+            onAction = settingsVM::onAction,
+        )
+        SettingsPage.Playback -> PlaybackSettingsSection(
+            state = state,
+            onBack = onBack,
+            onAction = settingsVM::onAction,
+        )
+        SettingsPage.Source -> SourceSettingsSection(
+            state = state,
+            onBack = onBack,
+            onAction = settingsVM::onAction,
+        )
+        SettingsPage.Storage -> StorageSettingsSection(
+            state = state,
+            onBack = onBack,
+            onAction = settingsVM::onAction,
+        )
+        SettingsPage.About -> AboutSettingsSection(
+            appVersion = appVersion,
+            appBuildInfo = appBuildInfo,
+            onBack = onBack,
+            onOpenLicenses = onNavigateToLicenses,
+            onOpenRepository = { uriHandler.openUri(TIDE_TUNES_REPOSITORY_URL) },
+        )
+        SettingsPage.Licenses -> LicensesSettingsScreen(onBack = onBack)
+    }
 }

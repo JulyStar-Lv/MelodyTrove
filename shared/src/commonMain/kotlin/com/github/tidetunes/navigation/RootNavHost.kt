@@ -14,7 +14,6 @@ import com.github.tidetunes.feature.radio.presentation.navigation.radioGraph
 import com.github.tidetunes.feature.recentlyadded.presentation.navigation.recentlyAddedGraph
 import com.github.tidetunes.feature.recentlyplayed.presentation.navigation.recentlyPlayedGraph
 import com.github.tidetunes.feature.search.presentation.navigation.searchGraph
-import com.github.tidetunes.feature.settings.presentation.navigation.settingsGraph
 import com.github.tidetunes.feature.sources.presentation.navigation.sourcesGraph
 import com.github.tidetunes.service.playback.presentation.navigation.playerGraph
 
@@ -108,6 +107,5 @@ internal fun RootNavHost(
                 navController.navigate(MusicGraph.Import(RouteImportType.Lyric))
             },
         )
-        settingsGraph()
     }
 }

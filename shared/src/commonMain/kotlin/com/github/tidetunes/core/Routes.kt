@@ -29,14 +29,6 @@ fun RouteMusicPlayer(): MusicGraph.NowPlaying {
     return MusicGraph.NowPlaying
 }
 
-fun RouteLog(): MusicGraph.Log {
-    return MusicGraph.Log
-}
-
-fun RouteDebugMore(): MusicGraph.DebugMore {
-    return MusicGraph.DebugMore
-}
-
 val LocalNavController = compositionLocalOf<NavHostController> {
     error("No LocalNavController provided")
 }

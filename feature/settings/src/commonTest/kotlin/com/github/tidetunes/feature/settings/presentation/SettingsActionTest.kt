@@ -1,52 +1,28 @@
 package com.github.tidetunes.feature.settings.presentation
 
+import com.github.tidetunes.core.domain.model.AppLanguageMode
+import com.github.tidetunes.core.domain.model.AppThemeMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertIs
 
 class SettingsActionTest {
 
     @Test
-    fun `NavigateToLog is a singleton object`() {
-        assertEquals(SettingsAction.NavigateToLog, SettingsAction.NavigateToLog)
+    fun `theme action carries selected mode`() {
+        val action = SettingsAction.SetThemeMode(AppThemeMode.Dark)
+        assertEquals(AppThemeMode.Dark, action.mode)
     }
 
     @Test
-    fun `NavigateToDebugMore is a singleton object`() {
-        assertEquals(SettingsAction.NavigateToDebugMore, SettingsAction.NavigateToDebugMore)
+    fun `language action carries selected mode`() {
+        val action = SettingsAction.SetLanguageMode(AppLanguageMode.English)
+        assertEquals(AppLanguageMode.English, action.mode)
     }
 
     @Test
-    fun `OpenGitRepo carries URL value`() {
-        val action = SettingsAction.OpenGitRepo("https://github.com/example/repo")
-        assertEquals("https://github.com/example/repo", action.url)
-    }
-}
-
-class DebugActionTest {
-
-    @Test
-    fun `TriggerRustError is a singleton object`() {
-        assertEquals(DebugAction.TriggerRustError, DebugAction.TriggerRustError)
-    }
-
-    @Test
-    fun `TriggerRustAsyncError is a singleton object`() {
-        assertEquals(DebugAction.TriggerRustAsyncError, DebugAction.TriggerRustAsyncError)
-    }
-
-    @Test
-    fun `TriggerRustPanic is a singleton object`() {
-        assertEquals(DebugAction.TriggerRustPanic, DebugAction.TriggerRustPanic)
-    }
-
-    @Test
-    fun `TriggerKotlinError is a singleton object`() {
-        assertEquals(DebugAction.TriggerKotlinError, DebugAction.TriggerKotlinError)
-    }
-
-    @Test
-    fun `TriggerKotlinAsyncError is a singleton object`() {
-        assertEquals(DebugAction.TriggerKotlinAsyncError, DebugAction.TriggerKotlinAsyncError)
+    fun `clear confirmation actions are singleton objects`() {
+        assertEquals(SettingsAction.RequestClearAudio, SettingsAction.RequestClearAudio)
+        assertEquals(SettingsAction.RequestClearImage, SettingsAction.RequestClearImage)
+        assertEquals(SettingsAction.ConfirmPendingAction, SettingsAction.ConfirmPendingAction)
     }
 }
