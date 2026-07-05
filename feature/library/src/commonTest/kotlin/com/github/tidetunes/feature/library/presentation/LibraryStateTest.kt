@@ -1,9 +1,6 @@
 package com.github.tidetunes.feature.library.presentation
 
 import com.github.tidetunes.core.domain.model.LibraryTrackItem
-import com.github.tidetunes.core.domain.model.MediaId
-import com.github.tidetunes.core.domain.model.MediaType
-import com.github.tidetunes.core.domain.model.SourceId
 import kotlinx.collections.immutable.persistentListOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
