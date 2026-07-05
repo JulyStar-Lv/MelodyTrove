@@ -1,5 +1,6 @@
 package com.github.tidetunes.feature.library.presentation
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +27,7 @@ import com.github.tidetunes.core.domain.model.LibraryTrackItem
 @Composable
 fun LibraryScreen(
     state: LibraryState,
+    currentPlayingTrackId: Long? = null,
     onAction: (LibraryAction) -> Unit,
 ) {
     if (state.tracks.isEmpty()) {
@@ -67,6 +69,10 @@ fun LibraryScreen(
             items(state.tracks, key = { it.id }) { track ->
                 LibraryTrackRow(
                     track = track,
+                    playing = track.id == currentPlayingTrackId,
+                    onPlay = {
+                        onAction(LibraryAction.PlayTrack(track.id))
+                    },
                     onDownload = {
                         onAction(LibraryAction.DownloadTrack(track))
                     },
@@ -79,12 +85,19 @@ fun LibraryScreen(
 @Composable
 private fun LibraryTrackRow(
     track: LibraryTrackItem,
+    playing: Boolean,
+    onPlay: () -> Unit,
     onDownload: () -> Unit,
 ) {
+    val primaryColor = MiuixTheme.colorScheme.primary
+    val titleColor = if (playing) primaryColor else MiuixTheme.colorScheme.onSurface
+    val secondaryColor = if (playing) primaryColor else MiuixTheme.colorScheme.onSurfaceVariantSummary
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(58.dp)
+            .clickable(onClick = onPlay)
             .padding(horizontal = 24.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
@@ -94,14 +107,14 @@ private fun LibraryTrackRow(
         ) {
             Text(
                 text = track.title,
-                color = MiuixTheme.colorScheme.onSurface,
+                color = titleColor,
                 fontSize = 14.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = track.artist ?: "--",
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                color = secondaryColor,
                 fontSize = 12.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -121,7 +134,7 @@ private fun LibraryTrackRow(
             }
             Text(
                 text = durationLabel(track.durationMs),
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                color = secondaryColor,
                 fontSize = 12.sp,
             )
         }
