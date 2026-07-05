@@ -42,7 +42,7 @@ class MpvDesktopPlaybackEngine internal constructor(
                 PlaybackEngineFailureReason.ExpiredResource
             )
         }
-        return if (runtime.load(resource.uri)) {
+        return if (runtime.load(resource.uri, resource.headers)) {
             PlaybackEngineLoadResult.Ready
         } else {
             PlaybackEngineLoadResult.Unsupported(
@@ -79,7 +79,7 @@ class MpvDesktopPlaybackEngine internal constructor(
 }
 
 internal interface DesktopMpvRuntime {
-    fun load(uri: String): Boolean
+    fun load(uri: String, headers: Map<String, String>): Boolean
     fun play()
     fun pause()
     fun stop()
@@ -92,8 +92,11 @@ internal interface DesktopMpvRuntime {
 private class UniffiDesktopMpvRuntime(
     private val player: DesktopMpvPlayer = ctCreateDesktopMpvPlayer(),
 ) : DesktopMpvRuntime {
-    override fun load(uri: String): Boolean {
-        return player.load(uri) == DesktopMpvLoadResult.READY
+    override fun load(uri: String, headers: Map<String, String>): Boolean {
+        return player.load(
+            uri = uri,
+            httpHeaderFields = headers.toMpvHttpHeaderFields(),
+        ) == DesktopMpvLoadResult.READY
     }
 
     override fun play() {
@@ -117,4 +120,12 @@ private class UniffiDesktopMpvRuntime(
     override fun bufferedPositionMs(): Long = player.bufferedPositionMs()
 
     override fun durationMs(): Long = player.durationMs()
+}
+
+private fun Map<String, String>.toMpvHttpHeaderFields(): String {
+    return entries
+        .filter { (name, value) -> name.isNotBlank() && value.isNotBlank() }
+        .joinToString("\n") { (name, value) ->
+            "${name.trim()}: ${value.trim()}"
+        }
 }
