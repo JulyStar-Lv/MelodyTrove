@@ -15,6 +15,7 @@ import com.github.tidetunes.service.playback.domain.PlaybackEngineLoadRequest
 import com.github.tidetunes.service.playback.domain.PlaybackEngineLoadResult
 import com.github.tidetunes.source.api.PlaybackResource
 import com.github.tidetunes.source.api.SourcePlaybackResult
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -94,47 +95,60 @@ class DesktopPlayerController(
         playbackJob?.cancel()
         playbackJob = scope.launch(Dispatchers.Main) {
             playerRepository.setIsLoading(true)
-            stopForPlayback()
+            try {
+                stopForPlayback()
 
-            val music = roomLibraryStore.getMusic(id)
-            val playlist = roomLibraryStore.getPlaylist(playlistId)
-            val belongsToPlaylist = playlist?.musics?.any { it.meta.id == id } == true
-            if (music == null || playlist == null || !belongsToPlaylist) {
-                playerRepository.resetCurrent()
-                playerRepository.setIsLoading(false)
-                return@launch
-            }
-
-            val resource = when (val result = playbackResourceResolver.resolve(music)) {
-                is SourcePlaybackResult.Success -> result.resource
-                is SourcePlaybackResult.Failure -> {
-                    toastRepository.emitToast("Unable to open audio stream")
+                val music = roomLibraryStore.getMusic(id)
+                val playlist = roomLibraryStore.getPlaylist(playlistId)
+                val belongsToPlaylist = playlist?.musics?.any { it.meta.id == id } == true
+                if (music == null || playlist == null || !belongsToPlaylist) {
                     playerRepository.resetCurrent()
-                    playerRepository.setIsLoading(false)
                     return@launch
                 }
-            }
 
-            val loadRequest = PlaybackEngineLoadRequest(
-                item = music.toPlayableItem(playlist.abstr.meta.id.value),
-                resource = resource.toPlaybackEngineResource(),
-            )
-            when (playbackEngine.load(loadRequest)) {
-                PlaybackEngineLoadResult.Ready -> {
-                    playbackResource = resource
-                    playerRepository.setCurrent(music, playlist)
-                    playbackEngine.play()
-                    playerRepository.setIsPlaying(true)
-                    playerRepository.notifyDurationChanged()
+                val resource = when (val result = playbackResourceResolver.resolve(music)) {
+                    is SourcePlaybackResult.Success -> result.resource
+                    is SourcePlaybackResult.Failure -> {
+                        toastRepository.emitToast("Unable to open audio stream")
+                        playerRepository.resetCurrent()
+                        return@launch
+                    }
                 }
-                is PlaybackEngineLoadResult.Unsupported,
-                is PlaybackEngineLoadResult.Failure -> {
-                    playbackResourceResolver.release(resource)
-                    toastRepository.emitToast("Desktop playback engine is not available")
-                    playerRepository.resetCurrent()
+
+                when (playbackEngine.load(
+                    PlaybackEngineLoadRequest(
+                        item = music.toPlayableItem(playlist.abstr.meta.id.value),
+                        resource = resource.toPlaybackEngineResource(),
+                    )
+                )) {
+                    PlaybackEngineLoadResult.Ready -> {
+                        playbackResource = resource
+                        playerRepository.setCurrent(music, playlist)
+                        playbackEngine.play()
+                        playerRepository.setIsPlaying(true)
+                        playerRepository.notifyDurationChanged()
+                    }
+                    is PlaybackEngineLoadResult.Unsupported -> {
+                        playbackResourceResolver.release(resource)
+                        toastRepository.emitToast("Desktop playback engine cannot load this audio stream")
+                        playerRepository.resetCurrent()
+                    }
+                    is PlaybackEngineLoadResult.Failure -> {
+                        playbackResourceResolver.release(resource)
+                        toastRepository.emitToast("Unable to open audio stream")
+                        playerRepository.resetCurrent()
+                    }
                 }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                releasePlaybackResource()
+                toastRepository.emitToast(error.message?.takeIf { it.isNotBlank() } ?: error.toString())
+                playerRepository.resetCurrent()
+                playerRepository.setIsPlaying(false)
+            } finally {
+                playerRepository.setIsLoading(false)
             }
-            playerRepository.setIsLoading(false)
         }
     }
 
