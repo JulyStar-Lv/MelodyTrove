@@ -39,7 +39,10 @@ internal fun HomeTabContent(
                 onOpenNowPlaying = onOpenNowPlaying,
             )
             HomeTab.SEARCH -> SearchTabGraph(searchNavController)
-            HomeTab.LIBRARY -> LibraryTabGraph(libraryNavController)
+            HomeTab.LIBRARY -> LibraryTabGraph(
+                navController = libraryNavController,
+                onOpenNowPlaying = onOpenNowPlaying,
+            )
             HomeTab.SETTINGS -> SettingsTabGraph(
                 navController = settingsNavController,
                 appVersion = getAppVersion(),
