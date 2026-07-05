@@ -4,6 +4,7 @@ import com.github.tidetunes.core.domain.model.LibraryTrackItem
 import kotlinx.collections.immutable.persistentListOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 class LibraryStateTest {
@@ -26,6 +27,14 @@ class LibraryStateTest {
         assertEquals(2, state.tracks.size)
         assertEquals("Track 1", state.tracks[0].title)
         assertEquals(240_000, state.tracks[0].durationMs)
+    }
+
+    @Test
+    fun `library row keys stay unique when track ids repeat`() {
+        val first = LibraryTrackItem(id = 16830502, title = "Track", artist = null, durationMs = null, mediaId = null)
+        val second = first.copy(title = "Track duplicate")
+
+        assertNotEquals(first.lazyListKey(index = 0), second.lazyListKey(index = 1))
     }
 
     @Test
