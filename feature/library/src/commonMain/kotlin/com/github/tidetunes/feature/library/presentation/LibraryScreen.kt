@@ -145,14 +145,10 @@ private fun LibraryTrackRow(
 }
 
 internal fun LibraryTrackItem.lazyListKey(index: Int): String {
-    return buildString {
-        append("library-track-")
-        append(id)
-        append('-')
-        append(mediaId?.value ?: "no-media-id")
-        append('-')
-        append(index)
-    }
+    val mediaKey = mediaId?.let { media ->
+        "${media.sourceId.value}:${media.mediaType}:${media.remoteId}"
+    } ?: "no-media-id"
+    return "library-track-$id-$mediaKey-$index"
 }
 
 private fun durationLabel(durationMs: Long?): String {
