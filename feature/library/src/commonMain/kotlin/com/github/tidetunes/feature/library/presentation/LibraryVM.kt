@@ -37,6 +37,7 @@ class LibraryVM(
     fun onAction(action: LibraryAction) {
         when (action) {
             LibraryAction.Refresh -> Unit
+            is LibraryAction.PlayTrack -> Unit
             is LibraryAction.DownloadTrack -> downloadTrack(action.track)
         }
     }
