@@ -46,6 +46,7 @@ class DesktopPlaybackEngineTest {
         engine.stop()
 
         assertEquals(listOf("http://127.0.0.1/track.flac"), runtime.loadedUris)
+        assertEquals(listOf(emptyMap()), runtime.loadedHeaders)
         assertEquals(1, runtime.playCalls)
         assertEquals(1, runtime.pauseCalls)
         assertEquals(listOf(2_500UL), runtime.seekCalls)
@@ -53,6 +54,23 @@ class DesktopPlaybackEngineTest {
         assertEquals(1_000L, engine.readPosition().positionMs)
         assertEquals(2_000L, engine.readPosition().bufferedMs)
         assertEquals(123_000L, engine.readPosition().durationMs)
+    }
+
+    @Test
+    fun mpvEnginePassesPlaybackHeadersToRuntime() {
+        val runtime = RecordingDesktopMpvRuntime(loadResult = true)
+        val engine = MpvDesktopPlaybackEngine(runtime)
+        val request = loadRequest(
+            headers = mapOf(
+                "Authorization" to "Bearer token",
+                "User-Agent" to "TideTunes",
+            )
+        )
+
+        assertEquals(PlaybackEngineLoadResult.Ready, engine.load(request))
+
+        assertEquals(listOf(request.resource.uri), runtime.loadedUris)
+        assertEquals(listOf(request.resource.headers), runtime.loadedHeaders)
     }
 
     @Test
@@ -70,10 +88,15 @@ class DesktopPlaybackEngineTest {
         assertEquals(listOf("http://127.0.0.1/track.flac"), runtime.loadedUris)
     }
 
-    private fun loadRequest(): PlaybackEngineLoadRequest {
+    private fun loadRequest(
+        headers: Map<String, String> = emptyMap(),
+    ): PlaybackEngineLoadRequest {
         return PlaybackEngineLoadRequest(
             item = PlayableItem(title = "Track", libraryTrackId = 1),
-            resource = PlaybackEngineResource(uri = "http://127.0.0.1/track.flac"),
+            resource = PlaybackEngineResource(
+                uri = "http://127.0.0.1/track.flac",
+                headers = headers,
+            ),
         )
     }
 }
@@ -82,6 +105,7 @@ private class RecordingDesktopMpvRuntime(
     private val loadResult: Boolean,
 ) : DesktopMpvRuntime {
     val loadedUris = mutableListOf<String>()
+    val loadedHeaders = mutableListOf<Map<String, String>>()
     val seekCalls = mutableListOf<ULong>()
     var loaded = false
         private set
@@ -92,8 +116,9 @@ private class RecordingDesktopMpvRuntime(
     var stopCalls = 0
         private set
 
-    override fun load(uri: String): Boolean {
+    override fun load(uri: String, headers: Map<String, String>): Boolean {
         loadedUris += uri
+        loadedHeaders += headers
         loaded = loadResult
         return loadResult
     }
