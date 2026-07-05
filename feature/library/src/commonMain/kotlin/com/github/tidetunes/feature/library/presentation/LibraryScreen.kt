@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
@@ -66,7 +66,10 @@ fun LibraryScreen(
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
         ) {
-            items(state.tracks, key = { it.id }) { track ->
+            itemsIndexed(
+                items = state.tracks,
+                key = { index, track -> track.lazyListKey(index) },
+            ) { _, track ->
                 LibraryTrackRow(
                     track = track,
                     playing = track.id == currentPlayingTrackId,
@@ -138,6 +141,17 @@ private fun LibraryTrackRow(
                 fontSize = 12.sp,
             )
         }
+    }
+}
+
+internal fun LibraryTrackItem.lazyListKey(index: Int): String {
+    return buildString {
+        append("library-track-")
+        append(id)
+        append('-')
+        append(mediaId?.value ?: "no-media-id")
+        append('-')
+        append(index)
     }
 }
 
