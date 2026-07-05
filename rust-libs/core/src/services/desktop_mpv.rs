@@ -36,7 +36,7 @@ struct DesktopMpvState {
 
 #[uniffi::export]
 impl DesktopMpvPlayer {
-    pub fn load(&self, uri: String) -> DesktopMpvLoadResult {
+    pub fn load(&self, uri: String, http_header_fields: String) -> DesktopMpvLoadResult {
         if uri.trim().is_empty() {
             return DesktopMpvLoadResult::Unsupported;
         }
@@ -50,7 +50,7 @@ impl DesktopMpvPlayer {
             }
         };
 
-        match mpv.load(&uri) {
+        match mpv.load(&uri, &http_header_fields) {
             Ok(()) => {
                 state.loaded = true;
                 DesktopMpvLoadResult::Ready
@@ -179,7 +179,8 @@ impl LoadedMpv {
         self.check(code)
     }
 
-    fn load(&self, uri: &str) -> Result<(), String> {
+    fn load(&self, uri: &str, http_header_fields: &str) -> Result<(), String> {
+        self.set_http_header_fields(http_header_fields)?;
         self.command(&["loadfile", uri, "replace"])
     }
 
@@ -209,6 +210,16 @@ impl LoadedMpv {
         let code =
             unsafe { (self.library.set_option_string)(self.handle, name.as_ptr(), value.as_ptr()) };
         self.check(code)
+    }
+
+    fn set_http_header_fields(&self, http_header_fields: &str) -> Result<(), String> {
+        let value = http_header_fields
+            .lines()
+            .map(str::trim)
+            .filter(|line| !line.is_empty())
+            .collect::<Vec<_>>()
+            .join(",");
+        self.command(&["set", "http-header-fields", &value])
     }
 
     fn property_double(&self, name: &str) -> Result<f64, String> {
@@ -372,7 +383,7 @@ mod tests {
 
         assert_eq!(
             DesktopMpvLoadResult::Unsupported,
-            player.load("".to_string())
+            player.load("".to_string(), "".to_string())
         );
         player.play();
         player.pause();
