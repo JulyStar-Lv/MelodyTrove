@@ -114,6 +114,7 @@ class DesktopPlayerController(
                         return@launch
                     }
                 }
+                playbackResource = resource
 
                 when (playbackEngine.load(
                     PlaybackEngineLoadRequest(
@@ -122,19 +123,18 @@ class DesktopPlayerController(
                     )
                 )) {
                     PlaybackEngineLoadResult.Ready -> {
-                        playbackResource = resource
                         playerRepository.setCurrent(music, playlist)
                         playbackEngine.play()
                         playerRepository.setIsPlaying(true)
                         playerRepository.notifyDurationChanged()
                     }
                     is PlaybackEngineLoadResult.Unsupported -> {
-                        playbackResourceResolver.release(resource)
+                        releasePlaybackResource()
                         toastRepository.emitToast("Desktop playback engine cannot load this audio stream")
                         playerRepository.resetCurrent()
                     }
                     is PlaybackEngineLoadResult.Failure -> {
-                        playbackResourceResolver.release(resource)
+                        releasePlaybackResource()
                         toastRepository.emitToast("Unable to open audio stream")
                         playerRepository.resetCurrent()
                     }
