@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import uniffi.tidetunes_core.LyricLoadState as LegacyLyricLoadState
 import uniffi.tidetunes_core.Music
+import uniffi.tidetunes_core.MusicAbstract
 import uniffi.tidetunes_core.MusicLyric
 import uniffi.tidetunes_core.Playlist
 import uniffi.tidetunes_core.PlayMode
@@ -110,10 +111,10 @@ class PlayerRepository(
             appPreferencesRepository.playMode.collect { _playMode.value = it }
         }
         _scope.launch {
-            previousMusic.collect { prev -> _previousArtwork.value = prev?.cover?.toArtwork() }
+            previousMusic.collect { prev -> _previousArtwork.value = prev?.toPlaybackArtwork() }
         }
         _scope.launch {
-            nextMusic.collect { next -> _nextArtwork.value = next?.cover?.toArtwork() }
+            nextMusic.collect { next -> _nextArtwork.value = next?.toPlaybackArtwork() }
         }
         reload()
     }
@@ -255,19 +256,28 @@ private fun LegacyLyricLoadState?.toLyricsLoadState(): LyricsLoadState {
 
 
 private suspend fun Music.toCurrentTrackInfo(storageLookup: LegacyStorageLookup): CurrentTrackInfo {
+    val artwork = toPlaybackArtwork()
     return CurrentTrackInfo(
         id = meta.id.value,
         title = meta.title,
         durationMs = meta.duration?.inWholeMilliseconds,
-        artwork = cover?.toArtwork(),
+        artwork = artwork,
         lyrics = lyric.toLyrics(),
         sourceStorageId = loc.storageId.value,
         sourcePath = loc.path,
-        coverArtwork = cover?.toArtwork(),
+        coverArtwork = artwork,
         mediaId = legacyStorageTrackMediaIdOrNull(
             storageLookup = storageLookup,
             sourceStorageId = loc.storageId.value,
             sourcePath = loc.path,
         ),
     )
+}
+
+internal fun Music.toPlaybackArtwork(): Artwork {
+    return cover?.toArtwork() ?: Artwork.LibraryTrack(meta.id.value)
+}
+
+internal fun MusicAbstract.toPlaybackArtwork(): Artwork {
+    return cover?.toArtwork() ?: Artwork.LibraryTrack(meta.id.value)
 }

@@ -59,7 +59,15 @@ internal fun extractPaletteFromBitmap(bitmap: ImageBitmap, sampleSize: Int = 16)
         val sy = minOf(y * stepY, height - 1)
         for (x in 0 until sampleSize) {
             val sx = minOf(x * stepX, width - 1)
-            bitmap.readPixels(pixel, 0, 1, sx, sy, 1, 1)
+            bitmap.readPixels(
+                buffer = pixel,
+                startX = sx,
+                startY = sy,
+                width = 1,
+                height = 1,
+                bufferOffset = 0,
+                stride = 1,
+            )
             val color = pixel[0]
             val r = (color shr 16) and 0xFF
             val g = (color shr 8) and 0xFF

@@ -1,5 +1,6 @@
 package com.github.tidetunes.service.playback.data
 
+import com.github.tidetunes.core.domain.model.Artwork
 import com.github.tidetunes.service.playback.domain.PlaybackStatus
 import com.github.tidetunes.service.playback.domain.RepeatMode
 import kotlin.test.Test
@@ -69,6 +70,20 @@ class LegacyPlaybackControllerTest {
         assertEquals(listOf(3L, 3L, 3L), queue.items.map { it.libraryPlaylistId })
         assertEquals(1, queue.currentIndex)
         assertEquals("Two", queue.currentItem?.title)
+    }
+
+    @Test
+    fun fallsBackToLibraryTrackArtworkWhenCurrentMusicCoverIsMissing() {
+        val artwork = music(id = 7, title = "Moon").toPlaybackArtwork()
+
+        assertEquals(Artwork.LibraryTrack(trackId = 7), artwork)
+    }
+
+    @Test
+    fun fallsBackToLibraryTrackArtworkWhenQueueMusicCoverIsMissing() {
+        val artwork = musicAbstract(id = 2, title = "Two").toPlaybackArtwork()
+
+        assertEquals(Artwork.LibraryTrack(trackId = 2), artwork)
     }
 
     private fun music(

@@ -14,6 +14,8 @@ import com.github.tidetunes.service.playback.presentation.sleep.SleepModeVM
 import com.github.tidetunes.core.presentation.media.ArtworkPalette
 import com.github.tidetunes.core.presentation.media.rememberArtworkPalette
 import com.github.tidetunes.core.presentation.platform.KeepScreenOnEffect
+import com.github.tidetunes.core.presentation.theme.TideTunesTheme
+import com.github.tidetunes.core.presentation.theme.TideTunesThemeMode
 import com.github.tidetunes.core.domain.model.LyricLine
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
@@ -84,21 +86,26 @@ fun NowPlayingRoot(
         }
     }
 
-    NowPlayingScreen(
-        state = state,
-        palette = palette,
-        lyricIndex = lyricIndex,
-        linePositionMs = linePositionMs,
-        isSleepTimerEnabled = sleepModeState.enabled,
-        progressContent = { trackDurationMs ->
-            NowPlayingProgressRoot(
-                trackDurationMs = trackDurationMs,
-                playerViewModel = playerViewModel,
-                onAction = ::onAction,
-            )
-        },
-        onAction = ::onAction,
-    )
+    TideTunesTheme(
+        darkTheme = true,
+        themeMode = TideTunesThemeMode.Dark,
+    ) {
+        NowPlayingScreen(
+            state = state,
+            palette = palette,
+            lyricIndex = lyricIndex,
+            linePositionMs = linePositionMs,
+            isSleepTimerEnabled = sleepModeState.enabled,
+            progressContent = { trackDurationMs ->
+                NowPlayingProgressRoot(
+                    trackDurationMs = trackDurationMs,
+                    playerViewModel = playerViewModel,
+                    onAction = ::onAction,
+                )
+            },
+            onAction = ::onAction,
+        )
+    }
 }
 
 @Composable

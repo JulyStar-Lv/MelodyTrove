@@ -1,5 +1,7 @@
 package com.github.tidetunes.singleton
 
+import android.os.Handler
+import android.os.Looper
 import androidx.media3.common.Player.COMMAND_PLAY_PAUSE
 import androidx.media3.common.Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM
 import androidx.media3.common.Player.COMMAND_STOP
@@ -13,6 +15,8 @@ import com.github.tidetunes.service.playback.domain.PlaybackEngineUnsupportedRea
 import com.github.tidetunes.service.playback.domain.PlaybackPosition
 import kotlinx.coroutines.CoroutineScope
 import uniffi.tidetunes_core.tidetunesError
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.atomic.AtomicReference
 
 internal interface AndroidPlaybackEngine : PlaybackEngine
 
@@ -21,62 +25,104 @@ internal class MediaControllerAndroidPlaybackEngine(
     private val bridge: Bridge,
     private val scope: CoroutineScope,
 ) : AndroidPlaybackEngine {
+    private val applicationHandler = Handler(mediaController.applicationLooper)
+
     override fun load(request: PlaybackEngineLoadRequest): PlaybackEngineLoadResult {
-        val resource = request.resource
-        if (resource.isExpired(nowEpochMs = System.currentTimeMillis())) {
-            return PlaybackEngineLoadResult.Failure(
-                PlaybackEngineFailureReason.ExpiredResource
+        return runOnApplicationThread {
+            val resource = request.resource
+            if (resource.isExpired(nowEpochMs = System.currentTimeMillis())) {
+                return@runOnApplicationThread PlaybackEngineLoadResult.Failure(
+                    PlaybackEngineFailureReason.ExpiredResource
+                )
+            }
+            playUtil(
+                item = request.item,
+                player = mediaController,
+                playbackUri = resource.uri,
             )
+            PlaybackEngineLoadResult.Ready
         }
-        playUtil(
-            item = request.item,
-            player = mediaController,
-            playbackUri = resource.uri,
-        )
-        return PlaybackEngineLoadResult.Ready
     }
 
     override fun play() {
-        if (mediaController.isCommandAvailable(COMMAND_PLAY_PAUSE)) {
-            mediaController.play()
-        } else {
-            tidetunesError("media controller resume failed, command COMMAND_PLAY_PAUSE is unavailable")
+        runOnApplicationThread {
+            if (mediaController.isCommandAvailable(COMMAND_PLAY_PAUSE)) {
+                mediaController.play()
+            } else {
+                tidetunesError("media controller resume failed, command COMMAND_PLAY_PAUSE is unavailable")
+            }
         }
     }
 
     override fun pause() {
-        if (mediaController.isCommandAvailable(COMMAND_PLAY_PAUSE)) {
-            mediaController.pause()
-        } else {
-            tidetunesError("media controller pause failed, command COMMAND_PLAY_PAUSE is unavailable")
+        runOnApplicationThread {
+            if (mediaController.isCommandAvailable(COMMAND_PLAY_PAUSE)) {
+                mediaController.pause()
+            } else {
+                tidetunesError("media controller pause failed, command COMMAND_PLAY_PAUSE is unavailable")
+            }
         }
     }
 
     override fun stop() {
-        if (mediaController.isCommandAvailable(COMMAND_STOP)) {
-            mediaController.stop()
-        } else {
-            tidetunesError("media controller stop failed, command COMMAND_STOP is unavailable")
+        runOnApplicationThread {
+            if (mediaController.isCommandAvailable(COMMAND_STOP)) {
+                mediaController.stop()
+            } else {
+                tidetunesError("media controller stop failed, command COMMAND_STOP is unavailable")
+            }
         }
     }
 
     override fun seekTo(positionMs: Long) {
-        if (mediaController.isCommandAvailable(COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)) {
-            mediaController.seekTo(positionMs.coerceAtLeast(0))
-        } else {
-            tidetunesError("media controller seek failed, command COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM is unavailable")
+        runOnApplicationThread {
+            if (mediaController.isCommandAvailable(COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)) {
+                mediaController.seekTo(positionMs.coerceAtLeast(0))
+            } else {
+                tidetunesError("media controller seek failed, command COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM is unavailable")
+            }
         }
     }
 
     override fun readPosition(): PlaybackPosition {
-        return PlaybackPosition(
-            positionMs = mediaController.currentPosition.coerceAtLeast(0),
-            bufferedMs = mediaController.bufferedPosition.coerceAtLeast(0),
-            durationMs = mediaController.duration.coerceAtLeast(0),
-        )
+        return runOnApplicationThread {
+            PlaybackPosition(
+                positionMs = mediaController.currentPosition.coerceAtLeast(0),
+                bufferedMs = mediaController.bufferedPosition.coerceAtLeast(0),
+                durationMs = mediaController.duration.coerceAtLeast(0),
+            )
+        }
     }
 
     override fun release() {
-        mediaController.release()
+        runOnApplicationThread {
+            mediaController.release()
+        }
+    }
+
+    private fun <T : Any> runOnApplicationThread(block: () -> T): T {
+        if (Looper.myLooper() == mediaController.applicationLooper) {
+            return block()
+        }
+
+        val value = AtomicReference<T?>()
+        val throwable = AtomicReference<Throwable?>()
+        val latch = CountDownLatch(1)
+        check(applicationHandler.post {
+            try {
+                value.set(block())
+            } catch (error: Throwable) {
+                throwable.set(error)
+            } finally {
+                latch.countDown()
+            }
+        }) {
+            "MediaController application thread is unavailable"
+        }
+        latch.await()
+        throwable.get()?.let { throw it }
+        return checkNotNull(value.get()) {
+            "MediaController application thread completed without a result"
+        }
     }
 }

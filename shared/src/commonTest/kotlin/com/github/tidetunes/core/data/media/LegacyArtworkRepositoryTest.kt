@@ -8,6 +8,9 @@ import com.github.tidetunes.database.TrackEntity
 import com.github.tidetunes.source.api.BuiltInSourceIds
 import com.github.tidetunes.source.api.legacyStorageArtworkMediaId
 import kotlinx.coroutines.runBlocking
+import okio.FileSystem
+import okio.Path.Companion.toPath
+import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -177,6 +180,33 @@ class LegacyArtworkRepositoryTest {
         )
 
         assertNull(cacheKey)
+    }
+
+    @Test
+    fun readsArtworkBytesFromLocalCachePath() {
+        val fileSystem = FileSystem.SYSTEM
+        val path = "/tmp/tidetunes-artwork-${Random.nextLong()}.bin".toPath()
+        val bytes = byteArrayOf(1, 2, 3, 4)
+
+        fileSystem.write(path) {
+            write(bytes)
+        }
+
+        try {
+            val cacheKey = ArtworkCacheKey(
+                contentHash = "hash-local",
+                localPath = path.toString(),
+                thumbnailPath = null,
+                width = 512,
+                height = 512,
+                mimeType = "image/jpeg",
+                pictureType = "CoverFront",
+            )
+
+            assertEquals(bytes.toList(), cacheKey.readLocalArtworkBytes(fileSystem)?.toList())
+        } finally {
+            fileSystem.delete(path, mustExist = false)
+        }
     }
 
     private fun artworkEntity(

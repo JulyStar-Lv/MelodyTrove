@@ -12,6 +12,8 @@ import com.github.tidetunes.singleton.RoomLibraryStore
 import com.github.tidetunes.core.data.StorageRepositoryImpl
 import com.github.tidetunes.source.api.toLegacyStorageArtworkTarget
 import com.github.tidetunes.source.storage.toLegacyStorageIdOrNull
+import okio.FileSystem
+import okio.Path.Companion.toPath
 import uniffi.tidetunes_core.MusicId
 import uniffi.tidetunes_core.StorageEntryLoc
 import uniffi.tidetunes_core.StorageId
@@ -23,6 +25,7 @@ class LegacyArtworkRepository(
     private val roomLibraryStore: RoomLibraryStore,
     private val trackDao: TrackDao,
     private val metadataDao: MetadataDao,
+    private val fileSystem: FileSystem = FileSystem.SYSTEM,
 ) : ArtworkRepository {
     private val cache = HashMap<Artwork, ByteArray>()
 
@@ -41,6 +44,11 @@ class LegacyArtworkRepository(
     override suspend fun load(artwork: Artwork): ByteArray? {
         cache[artwork]?.let { return it }
 
+        cacheKey(artwork)?.readLocalArtworkBytes(fileSystem)?.let { bytes ->
+            cache[artwork] = bytes
+            return bytes
+        }
+
         val loc = artwork.resolveLegacyStorageEntryLoc { trackId ->
             roomLibraryStore.resolveTrackLoc(MusicId(trackId))
         } ?: return null
@@ -50,6 +58,24 @@ class LegacyArtworkRepository(
         } ?: return null
         cache[artwork] = bytes
         return bytes
+    }
+}
+
+internal fun ArtworkCacheKey.readLocalArtworkBytes(fileSystem: FileSystem): ByteArray? {
+    return readRegularFile(fileSystem, localPath)
+        ?: thumbnailPath?.let { readRegularFile(fileSystem, it) }
+}
+
+private fun readRegularFile(fileSystem: FileSystem, path: String): ByteArray? {
+    val okioPath = path.toPath()
+    val metadata = fileSystem.metadataOrNull(okioPath) ?: return null
+    if (!metadata.isRegularFile) return null
+    return try {
+        fileSystem.read(okioPath) {
+            readByteArray()
+        }
+    } catch (_: Exception) {
+        null
     }
 }
 
