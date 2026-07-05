@@ -21,6 +21,7 @@ import com.github.tidetunes.core.data.CreatePlaylistRequest
 import com.github.tidetunes.core.data.UpdatePlaylistRequest
 import com.github.tidetunes.core.data.toLegacyStorageEntry
 import com.github.tidetunes.core.data.toLegacyStorageEntryLoc
+import com.github.tidetunes.core.domain.model.LIBRARY_PLAYBACK_PLAYLIST_ID
 import com.github.tidetunes.domain.importing.normalizeRemotePath
 import com.github.tidetunes.domain.importing.stableTrackId
 import com.github.tidetunes.platform.currentTimeMillis
@@ -71,6 +72,10 @@ class RoomLibraryStore(
     }
 
     suspend fun getPlaylist(id: PlaylistId): Playlist? {
+        if (id.value == LIBRARY_PLAYBACK_PLAYLIST_ID) {
+            return getLibraryPlaybackPlaylist()
+        }
+
         val entity = playlistDao.get(id.value) ?: return null
         val rows = playlistDaoRows(id.value)
         val musics = rows.map { row ->
@@ -92,6 +97,36 @@ class RoomLibraryStore(
 
     // Long overload for callers that do not import UniFFI types
     suspend fun getPlaylistById(id: Long): Playlist? = getPlaylist(PlaylistId(id))
+
+    private suspend fun getLibraryPlaybackPlaylist(): Playlist {
+        val tracks = trackDao.observeAll().first()
+        val musics = tracks.mapIndexed { index, track ->
+            MusicAbstract(
+                meta = MusicMeta(
+                    id = MusicId(track.id),
+                    title = track.title,
+                    duration = track.durationMs?.milliseconds,
+                    order = listOf(index.toUInt()),
+                ),
+                cover = null,
+            )
+        }
+        return Playlist(
+            abstr = PlaylistAbstract(
+                meta = PlaylistMeta(
+                    id = PlaylistId(LIBRARY_PLAYBACK_PLAYLIST_ID),
+                    title = "Library",
+                    cover = null,
+                    showCover = null,
+                    createdTime = Duration.ZERO,
+                    order = listOf(0u),
+                ),
+                musicCount = musics.size.toULong(),
+                duration = musics.totalDuration(),
+            ),
+            musics = musics,
+        )
+    }
 
     suspend fun createPlaylist(arg: ArgCreatePlaylist): Playlist? {
         val now = currentTimeMillis()
@@ -272,7 +307,7 @@ class RoomLibraryStore(
     }
 
     private suspend fun ensureTracksForEntries(
-        entries: List<Pair<StorageEntry, String?>>,
+        entries: List<Pair<StorageEntry, String?>>, 
         now: Long,
     ): List<TrackEntity> {
         val normalizedEntries = entries.map { (entry, entryTitle) ->
