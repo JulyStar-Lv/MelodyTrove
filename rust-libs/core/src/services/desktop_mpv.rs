@@ -219,7 +219,7 @@ impl LoadedMpv {
             .filter(|line| !line.is_empty())
             .collect::<Vec<_>>()
             .join(",");
-        self.command(&["set", "http-header-fields", &value])
+        self.set_option("http-header-fields", &value)
     }
 
     fn property_double(&self, name: &str) -> Result<f64, String> {
