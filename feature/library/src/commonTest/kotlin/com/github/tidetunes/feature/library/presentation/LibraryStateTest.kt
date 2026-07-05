@@ -37,6 +37,13 @@ class LibraryStateTest {
     }
 
     @Test
+    fun `play track action carries track id`() {
+        val action = LibraryAction.PlayTrack(trackId = 7)
+
+        assertEquals(7, action.trackId)
+    }
+
+    @Test
     fun `download track action carries track`() {
         val track = LibraryTrackItem(id = 7, title = "DL", artist = "Me", durationMs = 1000, mediaId = null)
         val action = LibraryAction.DownloadTrack(track)
