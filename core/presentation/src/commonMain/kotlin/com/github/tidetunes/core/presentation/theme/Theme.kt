@@ -50,6 +50,7 @@ fun TideTunesTheme(
             LocalTideTunesSpacing provides TideTunesSpacing(),
             LocalTideTunesShapes provides TideTunesShapes(),
             LocalTideTunesMotion provides TideTunesMotion(),
+            LocalTideTunesBlur provides TideTunesBlur(),
             content = content,
         )
     }
@@ -67,6 +68,10 @@ object TideTunesTokens {
     val motion: TideTunesMotion
         @Composable @ReadOnlyComposable
         get() = LocalTideTunesMotion.current
+
+    val blur: TideTunesBlur
+        @Composable @ReadOnlyComposable
+        get() = LocalTideTunesBlur.current
 }
 
 @Immutable
@@ -79,6 +84,9 @@ data class TideTunesSpacing(
     val lg: Dp = 24.dp,
     val xl: Dp = 32.dp,
     val xxl: Dp = 48.dp,
+    val pageCompact: Dp = 16.dp,
+    val pageMedium: Dp = 20.dp,
+    val pageExpanded: Dp = 24.dp,
 )
 
 @Immutable
@@ -87,21 +95,34 @@ data class TideTunesShapes(
     val xxs: Dp = 4.dp,
     val xs: Dp = 8.dp,
     val sm: Dp = 12.dp,
-    val md: Dp = 16.dp,
-    val lg: Dp = 20.dp,
+    val md: Dp = 18.dp,
+    val lg: Dp = 24.dp,
     val xl: Dp = 28.dp,
+    val xxl: Dp = 36.dp,
     val full: Dp = 999.dp,
 )
 
 @Immutable
 data class TideTunesMotion(
-    val instantMillis: Int = 0,
-    val fastMillis: Int = 100,
-    val standardMillis: Int = 180,
-    val emphasizedMillis: Int = 280,
+    val instantMillis: Int = 100,
+    val fastMillis: Int = 180,
+    val standardMillis: Int = 280,
+    val emphasizedMillis: Int = 380,
+    val morphMillis: Int = 500,
+    val themeMillis: Int = 240,
     val playerExpandMillis: Int = 380,
+)
+
+@Immutable
+data class TideTunesBlur(
+    val none: Dp = 0.dp,
+    val light: Dp = 8.dp,
+    val medium: Dp = 16.dp,
+    val heavy: Dp = 32.dp,
+    val ultra: Dp = 48.dp,
 )
 
 private val LocalTideTunesSpacing = staticCompositionLocalOf { TideTunesSpacing() }
 private val LocalTideTunesShapes = staticCompositionLocalOf { TideTunesShapes() }
 private val LocalTideTunesMotion = staticCompositionLocalOf { TideTunesMotion() }
+private val LocalTideTunesBlur = staticCompositionLocalOf { TideTunesBlur() }
