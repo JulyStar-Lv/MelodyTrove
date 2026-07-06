@@ -7,6 +7,7 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 class RadioStateTest {
@@ -57,6 +58,13 @@ class RadioStateTest {
 
         assertEquals("DL", action.track.title)
         assertTrue(action.track.canDownload)
+    }
+
+    @Test
+    fun `row keys stay unique when track ids repeat`() {
+        val track = RadioTrackItem(42, "T", null, null, null, null, false)
+
+        assertNotEquals(track.lazyListKey(0), track.copy(title = "T2").lazyListKey(1))
     }
 
     @Test

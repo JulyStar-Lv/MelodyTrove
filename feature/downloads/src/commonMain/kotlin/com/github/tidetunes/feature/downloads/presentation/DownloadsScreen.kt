@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
@@ -73,10 +73,10 @@ fun DownloadsScreen(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            items(
+            itemsIndexed(
                 items = state.tasks,
-                key = { task -> task.id.value },
-            ) { task ->
+                key = { index, task -> task.lazyListKey(index) },
+            ) { _, task ->
                 DownloadTaskRow(
                     task = task,
                     onAction = onAction,
@@ -85,6 +85,9 @@ fun DownloadsScreen(
         }
     }
 }
+
+internal fun DownloadTaskUi.lazyListKey(index: Int): String =
+    "download-task-$index-${id.value}"
 
 @Composable
 private fun DownloadTaskRow(

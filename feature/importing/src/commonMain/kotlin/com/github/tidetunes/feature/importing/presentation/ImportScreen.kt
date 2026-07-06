@@ -18,7 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import top.yukonga.miuix.kmp.basic.FloatingActionButton
@@ -267,10 +267,10 @@ private fun ImportEntries(
                 modifier = Modifier
                     .padding(28.dp, 0.dp)
             ) {
-                items(state.entries, key = { item -> item.path }) {
+                itemsIndexed(state.entries, key = { index, item -> item.lazyListKey(index) }) { _, item ->
                     ImportEntry(
-                        entry = it,
-                        checked = state.selectedPaths.contains(it.path),
+                        entry = item,
+                        checked = state.selectedPaths.contains(item.path),
                         allowNodeTypes = state.allowNodeTypes,
                         onClickEntry = { entry ->
                             onAction(ImportAction.OpenEntry(entry))
@@ -317,6 +317,9 @@ private fun ImportEntries(
         }
     }
 }
+
+internal fun com.github.tidetunes.source.api.SourceNode.lazyListKey(index: Int): String =
+    "import-entry-$index-$path"
 
 @Composable
 private fun ImportStorages(

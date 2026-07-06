@@ -455,11 +455,12 @@ private fun PlaylistItemsBlock(
         item {
             Box(modifier = Modifier.height(48.dp))
         }
-        items(state.tracks.size, key = { state.tracks[it].id }) {
+        items(state.tracks.size, key = { state.tracks[it].lazyListKey(it) }) {
             val item = state.tracks[it]
             val playing = item.id == currentPlayingTrackId
+            val itemKey = item.lazyListKey(it)
 
-            ReorderableItem(reorderableLazyListState, key = item.id) { _ ->
+            ReorderableItem(reorderableLazyListState, key = itemKey) { _ ->
                 PlaylistItem(
                     item = item,
                     index = it,
@@ -483,3 +484,6 @@ private fun PlaylistItemsBlock(
         }
     }
 }
+
+internal fun PlaylistTrackItem.lazyListKey(index: Int): String =
+    "playlist-track-$sortOrder-$index-$id"

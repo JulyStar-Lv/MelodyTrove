@@ -8,6 +8,7 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 class SearchViewModelTest {
@@ -86,5 +87,17 @@ class SearchViewModelTest {
     fun `all load states are distinct`() {
         val states = SearchLoadState.entries.toSet()
         assertEquals(6, states.size)
+    }
+
+    @Test
+    fun `row keys stay unique when search results repeat`() {
+        val track = SearchTrackItem(
+            id = 42,
+            title = "Song",
+            artist = "Artist",
+            durationMs = null,
+        )
+
+        assertNotEquals(track.lazyListKey(0), track.copy(title = "Song duplicate").lazyListKey(1))
     }
 }

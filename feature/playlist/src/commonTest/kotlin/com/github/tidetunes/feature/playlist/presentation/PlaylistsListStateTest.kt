@@ -4,6 +4,7 @@ import com.github.tidetunes.core.domain.model.Artwork
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toImmutableList
@@ -85,6 +86,19 @@ class PlaylistsListStateTest {
     fun navigateToPlaylistActionCarriesId() {
         val action = PlaylistsListAction.NavigateToPlaylist(42)
         assertEquals(42, action.id)
+    }
+
+    @Test
+    fun playlistGridKeysStayUniqueWhenPlaylistIdsRepeat() {
+        val playlist = PlaylistListItem(
+            id = 42,
+            title = "A",
+            musicCount = "1",
+            durationLabel = "00:01:00",
+            cover = null,
+        )
+
+        assertNotEquals(playlist.lazyListKey(0), playlist.copy(title = "B").lazyListKey(1))
     }
 
     @Test

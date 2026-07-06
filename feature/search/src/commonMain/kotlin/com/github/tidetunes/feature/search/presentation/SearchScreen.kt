@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.basic.Text
@@ -158,14 +158,10 @@ private fun SearchContent(
             LazyColumn(
                 modifier = modifier.fillMaxSize(),
             ) {
-                items(
+                itemsIndexed(
                     items = state.tracks,
-                    key = { track ->
-                        track.mediaId?.let { mediaId ->
-                            "${mediaId.sourceId.value}:${mediaId.remoteId}"
-                        } ?: "local:${track.id}"
-                    },
-                ) { track ->
+                    key = { index, track -> track.lazyListKey(index) },
+                ) { _, track ->
                     SearchTrackRow(
                         track = track,
                         onClick = { onOpenTrack(track) },
@@ -175,6 +171,13 @@ private fun SearchContent(
             }
         }
     }
+}
+
+internal fun SearchTrackItem.lazyListKey(index: Int): String {
+    val itemKey = mediaId?.let { mediaId ->
+        "${mediaId.sourceId.value}:${mediaId.remoteId}"
+    } ?: "local:${id ?: "unknown"}"
+    return "search-track-$index-$itemKey"
 }
 
 @Composable

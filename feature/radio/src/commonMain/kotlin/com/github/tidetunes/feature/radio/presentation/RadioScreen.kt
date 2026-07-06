@@ -59,7 +59,7 @@ fun RadioScreen(
             state.error != null -> AppErrorState(message = state.error, onRetry = { onAction(RadioAction.Refresh) })
             state.tracks.isEmpty() -> AppEmptyState(message = "No tracks in library to create radio.")
             else -> LazyColumn(modifier = Modifier.fillMaxSize()) {
-                itemsIndexed(state.tracks, key = { _, t -> t.id }) { _, track ->
+                itemsIndexed(state.tracks, key = { index, track -> track.lazyListKey(index) }) { _, track ->
                     Row(
                         modifier = Modifier.fillMaxWidth().clickable { onAction(RadioAction.PlayTrack(track.id)) }
                             .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -91,6 +91,9 @@ fun RadioScreen(
         }
     }
 }
+
+internal fun RadioTrackItem.lazyListKey(index: Int): String =
+    "radio-track-$index-$id"
 
 private fun durationLabel(durationMs: Long): String {
     val all = durationMs

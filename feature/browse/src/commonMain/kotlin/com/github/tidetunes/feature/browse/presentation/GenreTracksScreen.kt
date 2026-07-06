@@ -51,7 +51,7 @@ fun GenreTracksScreen(
             state.error != null -> AppErrorState(message = state.error, onRetry = { onAction(GenreTracksAction.Retry) })
             state.tracks.isEmpty() -> AppEmptyState(message = "No tracks in this genre.")
             else -> LazyColumn(modifier = Modifier.fillMaxSize()) {
-                itemsIndexed(state.tracks, key = { _, t -> t.id }) { _, track ->
+                itemsIndexed(state.tracks, key = { index, track -> track.lazyListKey(index) }) { _, track ->
                     Row(
                         modifier = Modifier.fillMaxWidth().clickable { onAction(GenreTracksAction.PlayTrack(track.id)) }
                             .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -78,6 +78,9 @@ fun GenreTracksScreen(
         }
     }
 }
+
+internal fun GenreTrackItem.lazyListKey(index: Int): String =
+    "genre-track-$index-$id"
 
 private fun durationLabel(durationMs: Long): String {
     val h = durationMs / 1000 / 60 / 60

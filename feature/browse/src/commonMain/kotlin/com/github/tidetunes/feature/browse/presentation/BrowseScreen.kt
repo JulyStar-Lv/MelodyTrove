@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.basic.Text
@@ -53,7 +53,7 @@ fun BrowseScreen(
                             contentPadding = PaddingValues(horizontal = 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            items(state.albums, key = { it.id }) { album ->
+                            itemsIndexed(state.albums, key = { index, album -> album.lazyListKey(index) }) { _, album ->
                                 BrowseAlbumCard(
                                     album = album,
                                     onClick = { onAction(BrowseAction.NavigateToAlbum(album.id)) },
@@ -71,7 +71,7 @@ fun BrowseScreen(
                             contentPadding = PaddingValues(horizontal = 16.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
-                            items(state.artists, key = { it.id }) { artist ->
+                            itemsIndexed(state.artists, key = { index, artist -> artist.lazyListKey(index) }) { _, artist ->
                                 BrowseArtistCard(
                                     artist = artist,
                                     onClick = { onAction(BrowseAction.NavigateToArtist(artist.id)) },
@@ -109,6 +109,12 @@ fun BrowseScreen(
         }
     }
 }
+
+internal fun BrowseAlbumItem.lazyListKey(index: Int): String =
+    "browse-album-$index-$id"
+
+internal fun BrowseArtistItem.lazyListKey(index: Int): String =
+    "browse-artist-$index-$id"
 
 @Composable
 private fun BrowseAlbumCard(

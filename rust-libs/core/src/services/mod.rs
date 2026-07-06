@@ -1,5 +1,5 @@
 mod app;
-mod desktop_mpv;
+mod desktop_rodio;
 mod music;
 mod playback_gateway;
 mod remote_scan;

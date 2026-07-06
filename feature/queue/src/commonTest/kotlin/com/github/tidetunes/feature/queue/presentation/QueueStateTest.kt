@@ -4,6 +4,7 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 class QueueStateTest {
@@ -50,6 +51,13 @@ class QueueStateTest {
         val action = QueueAction.MoveItem(from = 1, to = 4)
         assertEquals(1, action.from)
         assertEquals(4, action.to)
+    }
+
+    @Test
+    fun `row keys stay unique when queue indices repeat`() {
+        val item = QueueItemUi(index = 3, title = "T", artist = null, durationMs = null, isCurrent = false)
+
+        assertNotEquals(item.lazyListKey(0), item.copy(title = "T2").lazyListKey(1))
     }
 
     @Test

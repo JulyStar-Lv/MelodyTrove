@@ -17,8 +17,8 @@ import kotlinx.coroutines.flow.asStateFlow
  * Wraps [DesktopAudioOutputController] for device enumeration and adds
  * playback enhancement control (gapless, crossfade, ReplayGain).
  *
- * Enhancement effects are applied through the Rust/FFI mpv backend.
- * The Rust `DesktopMpvPlayer` needs corresponding methods
+ * Enhancement effects need to be applied through the Rust/FFI rodio backend.
+ * The Rust `DesktopRodioPlayer` needs corresponding methods
  * (setGapless, setCrossfade, setReplayGain) exposed via uniffi.
  * Until those are available, settings are stored in-memory only.
  */

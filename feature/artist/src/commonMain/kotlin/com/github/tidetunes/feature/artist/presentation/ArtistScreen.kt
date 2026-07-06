@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -83,7 +82,7 @@ fun ArtistScreen(
                                 contentPadding = PaddingValues(horizontal = 16.dp),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
-                                items(state.albums, key = { it.id }) { album ->
+                                itemsIndexed(state.albums, key = { index, album -> album.lazyListKey(index) }) { _, album ->
                                     AlbumCard(
                                         album = album,
                                         onClick = { onAction(ArtistAction.NavigateToAlbum(album.id)) },
@@ -98,7 +97,7 @@ fun ArtistScreen(
                         item {
                             AppSectionHeader(title = "Top Tracks")
                         }
-                        itemsIndexed(state.tracks, key = { _, track -> track.id }) { index, track ->
+                        itemsIndexed(state.tracks, key = { index, track -> track.lazyListKey(index) }) { index, track ->
                             ArtistTrackRow(
                                 track = track,
                                 onPlay = { onAction(ArtistAction.PlayTrack(track.id)) },
@@ -276,6 +275,12 @@ private fun ArtistTrackRow(
         }
     }
 }
+
+internal fun ArtistAlbumItem.lazyListKey(index: Int): String =
+    "artist-album-$index-$id"
+
+internal fun ArtistTrackItem.lazyListKey(index: Int): String =
+    "artist-track-$index-$id"
 
 private fun durationLabel(durationMs: Long): String {
     val h = durationMs / 1000 / 60 / 60

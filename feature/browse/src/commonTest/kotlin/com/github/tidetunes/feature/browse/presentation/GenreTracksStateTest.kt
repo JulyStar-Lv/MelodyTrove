@@ -4,6 +4,7 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -36,5 +37,12 @@ class GenreTracksStateTest {
 
         assertEquals("Jazz", state.genre)
         assertEquals("Failed", state.error)
+    }
+
+    @Test
+    fun `row keys stay unique when track ids repeat`() {
+        val track = GenreTrackItem(42, "T", null, null, null, null, false)
+
+        assertNotEquals(track.lazyListKey(0), track.copy(title = "T2").lazyListKey(1))
     }
 }

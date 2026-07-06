@@ -4,6 +4,7 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -46,6 +47,15 @@ class BrowseStateTest {
         assertEquals(5, (BrowseAction.NavigateToAlbum(5) as BrowseAction.NavigateToAlbum).albumId)
         assertEquals(3, (BrowseAction.NavigateToArtist(3) as BrowseAction.NavigateToArtist).artistId)
         assertEquals("Rock", (BrowseAction.NavigateToGenre("Rock") as BrowseAction.NavigateToGenre).genre)
+    }
+
+    @Test
+    fun `row keys stay unique when album and artist ids repeat`() {
+        val album = BrowseAlbumItem(id = 42, name = "Album", year = null, artwork = null, trackCount = 1)
+        val artist = BrowseArtistItem(id = 42, name = "Artist", trackCount = 1)
+
+        assertNotEquals(album.lazyListKey(0), album.copy(name = "Album 2").lazyListKey(1))
+        assertNotEquals(artist.lazyListKey(0), artist.copy(name = "Artist 2").lazyListKey(1))
     }
 
     @Test

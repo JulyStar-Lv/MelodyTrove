@@ -290,9 +290,23 @@ pub fn read_metadata(
     source: Arc<dyn RangeSource>,
     limits: ReaderLimits,
 ) -> Result<NormalizedMetadata, MetadataError> {
+    match read_metadata_with_cover_art(source.clone(), limits, true) {
+        Ok(metadata) => Ok(metadata),
+        Err(error) if is_reader_budget_error(&error) => {
+            read_metadata_with_cover_art(source, limits, false)
+        }
+        Err(error) => Err(error),
+    }
+}
+
+fn read_metadata_with_cover_art(
+    source: Arc<dyn RangeSource>,
+    limits: ReaderLimits,
+    read_cover_art: bool,
+) -> Result<NormalizedMetadata, MetadataError> {
     let reader = RemoteRangeReader::new(source, limits)?;
     let tagged_file = Probe::new(reader)
-        .options(ParseOptions::new().read_cover_art(true))
+        .options(ParseOptions::new().read_cover_art(read_cover_art))
         .guess_file_type()?
         .read()?;
     let properties = tagged_file.properties();
@@ -302,6 +316,20 @@ pub fn read_metadata(
         .or_else(|| tagged_file.first_tag());
 
     normalize_metadata(tag, properties, file_type)
+}
+
+fn is_reader_budget_error(error: &MetadataError) -> bool {
+    match error {
+        MetadataError::RequestBudgetExceeded(_) | MetadataError::ByteBudgetExceeded(_) => true,
+        MetadataError::Io(error) => is_reader_budget_error_message(&error.to_string()),
+        MetadataError::Lofty(error) => is_reader_budget_error_message(&error.to_string()),
+        _ => false,
+    }
+}
+
+fn is_reader_budget_error_message(message: &str) -> bool {
+    message.contains("metadata scan exceeded request budget")
+        || message.contains("metadata scan exceeded byte budget")
 }
 
 fn normalize_metadata(
@@ -608,6 +636,27 @@ mod tests {
     }
 
     #[test]
+    fn retries_flac_metadata_without_artwork_after_reader_budget_error() {
+        let flac = minimal_flac_with_picture(2 * 1024);
+        let metadata = read_metadata(
+            Arc::new(MemorySource(Bytes::from(flac))),
+            ReaderLimits {
+                block_size: 256,
+                max_requests: 32,
+                max_read_bytes: 512,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(metadata.title.as_deref(), Some("Large Art"));
+        assert_eq!(metadata.artist.as_deref(), Some("Artist"));
+        assert_eq!(metadata.artwork, None);
+        assert_eq!(metadata.sample_rate, Some(44_100));
+        assert_eq!(metadata.channels, Some(2));
+        assert_eq!(metadata.codec.as_deref(), Some("FLAC"));
+    }
+
+    #[test]
     fn normalizes_extended_text_tags_lyrics_and_raw_metadata() {
         let mut tag = Tag::new(TagType::VorbisComments);
         tag.insert_text(ItemKey::TrackTitle, "Song".to_string());
@@ -752,6 +801,77 @@ mod tests {
         wav.extend_from_slice(&(data.len() as u32).to_le_bytes());
         wav.extend_from_slice(&data);
         wav
+    }
+
+    fn minimal_flac_with_picture(picture_bytes: usize) -> Vec<u8> {
+        let mut flac = Vec::new();
+        flac.extend_from_slice(b"fLaC");
+        append_flac_block(&mut flac, false, 0, &minimal_streaminfo());
+        append_flac_block(
+            &mut flac,
+            false,
+            4,
+            &vorbis_comment(&[("TITLE", "Large Art"), ("ARTIST", "Artist")]),
+        );
+        append_flac_block(&mut flac, true, 6, &flac_picture(picture_bytes));
+        flac
+    }
+
+    fn append_flac_block(target: &mut Vec<u8>, last: bool, block_type: u8, content: &[u8]) {
+        assert!(content.len() <= 0xFF_FFFF);
+        target.push(if last { 0x80 | block_type } else { block_type });
+        target.push(((content.len() >> 16) & 0xFF) as u8);
+        target.push(((content.len() >> 8) & 0xFF) as u8);
+        target.push((content.len() & 0xFF) as u8);
+        target.extend_from_slice(content);
+    }
+
+    fn minimal_streaminfo() -> [u8; 34] {
+        let mut streaminfo = [0_u8; 34];
+        streaminfo[0..2].copy_from_slice(&4096_u16.to_be_bytes());
+        streaminfo[2..4].copy_from_slice(&4096_u16.to_be_bytes());
+
+        let sample_rate = 44_100_u32;
+        let channels_minus_one = 1_u32;
+        let bits_per_sample_minus_one = 15_u32;
+        let total_samples = 44_100_u64;
+        let packed = (sample_rate << 12)
+            | (channels_minus_one << 9)
+            | (bits_per_sample_minus_one << 4)
+            | ((total_samples >> 32) as u32 & 0x0F);
+        streaminfo[10..14].copy_from_slice(&packed.to_be_bytes());
+        streaminfo[14..18].copy_from_slice(&(total_samples as u32).to_be_bytes());
+        streaminfo
+    }
+
+    fn vorbis_comment(entries: &[(&str, &str)]) -> Vec<u8> {
+        let mut data = Vec::new();
+        let vendor = b"TideTunes";
+        data.extend_from_slice(&(vendor.len() as u32).to_le_bytes());
+        data.extend_from_slice(vendor);
+        data.extend_from_slice(&(entries.len() as u32).to_le_bytes());
+        for (key, value) in entries {
+            let comment = format!("{key}={value}");
+            data.extend_from_slice(&(comment.len() as u32).to_le_bytes());
+            data.extend_from_slice(comment.as_bytes());
+        }
+        data
+    }
+
+    fn flac_picture(image_bytes: usize) -> Vec<u8> {
+        let mut data = Vec::new();
+        let mime_type = b"image/jpeg";
+        data.extend_from_slice(&3_u32.to_be_bytes());
+        data.extend_from_slice(&(mime_type.len() as u32).to_be_bytes());
+        data.extend_from_slice(mime_type);
+        data.extend_from_slice(&0_u32.to_be_bytes());
+        data.extend_from_slice(&300_u32.to_be_bytes());
+        data.extend_from_slice(&300_u32.to_be_bytes());
+        data.extend_from_slice(&24_u32.to_be_bytes());
+        data.extend_from_slice(&0_u32.to_be_bytes());
+        data.extend_from_slice(&(image_bytes as u32).to_be_bytes());
+        data.extend(std::iter::repeat_n(0xFF, image_bytes));
+        data
     }
 
     fn minimal_png(width: u32, height: u32) -> Vec<u8> {

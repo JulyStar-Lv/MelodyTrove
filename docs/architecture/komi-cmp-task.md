@@ -54,7 +54,7 @@ Full goal document: `docs/architecture/komi-cmp-goal.md`
 - [x] PlaybackModels (PlayableItem, PlaybackQueue, PlayerState, etc.)
 - [x] Android: Media3 ExoPlayer + PlaybackService + MediaSession
 - [x] iOS: AVQueuePlayer skeleton
-- [x] Desktop: Rust/libmpv via uniffi (MpvDesktopPlaybackEngine)
+- [x] Desktop: RustAudio/rodio via uniffi (RodioDesktopPlaybackEngine)
 - [x] MiniPlayer and NowPlaying share same controller
 - [x] PlaybackShell with global MiniPlayer
 - [x] Sleep timer
@@ -162,7 +162,7 @@ Full goal document: `docs/architecture/komi-cmp-goal.md`
 |------|--------|-------|
 | AirPlay / CarPlay iOS integration | Not started | Flagged in domain enums, no iOS skeleton |
 | iOS simulator tests | Blocked | Local iOS 15.5 malformed bundle runtime (signal 11) |
-| Rust mpv audio device selection | Interface exists | `setAudioDevice()` not yet exposed via uniffi |
+| Rust rodio audio device selection | Interface exists | `setAudioDevice()` not yet exposed via uniffi |
 | Database extraction to core:data | Pending | Room lives in shared; will move to core:data later |
 
 ---

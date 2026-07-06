@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import uniffi.tidetunes_core.MusicId
 import uniffi.tidetunes_core.Playlist
 import uniffi.tidetunes_core.PlaylistId
@@ -116,12 +117,16 @@ class DesktopPlayerController(
                 }
                 playbackResource = resource
 
-                when (playbackEngine.load(
-                    PlaybackEngineLoadRequest(
-                        item = music.toPlayableItem(playlist.abstr.meta.id.value),
-                        resource = resource.toPlaybackEngineResource(),
+                val loadResult = withContext(Dispatchers.IO) {
+                    playbackEngine.load(
+                        PlaybackEngineLoadRequest(
+                            item = music.toPlayableItem(playlist.abstr.meta.id.value),
+                            resource = resource.toPlaybackEngineResource(),
+                        )
                     )
-                )) {
+                }
+
+                when (loadResult) {
                     PlaybackEngineLoadResult.Ready -> {
                         playerRepository.setCurrent(music, playlist)
                         playbackEngine.play()

@@ -179,7 +179,7 @@ interface PlaybackEngine {
 
 `PlaybackEngineResource` carries the transient URI, headers, MIME type, local
 flag, and expiration metadata needed by platform engines without depending on
-Media3, AVFoundation, libmpv, UniFFI, or `source:api`. Output selection is
+Media3, AVFoundation, rodio, UniFFI, or `source:api`. Output selection is
 modeled separately by `AudioOutputController`.
 
 Android, iOS, and Desktop platform engine adapters now implement this common
@@ -310,8 +310,9 @@ to Room.
 
 ### Desktop
 
-- Playback uses the Desktop MPV adapter through the common `PlaybackEngine`
-  contract; deeper Rust/libmpv work remains for advanced engine support.
+- Playback uses the Desktop RustAudio/rodio adapter through the common
+  `PlaybackEngine` contract; deeper Rust backend work remains for advanced
+  engine support.
 - Downloads use coroutine-based desktop scheduling.
 - Credentials use desktop platform storage.
 
@@ -381,7 +382,7 @@ compilation, shared cross-platform compilation, and Desktop app compilation.
 |-------|--------|
 | `core:data` physical module | Blocked by UniFFI/Rust bridge ownership and shared Room/platform dependencies |
 | Source implementation modules | Blocked by legacy storage bridge and Rust/UniFFI dependencies |
-| Advanced playback | Domain contracts and platform engine adapters exist; gapless, crossfade, ReplayGain, output devices, Android Auto, AirPlay, and CarPlay require Rust/libmpv or platform/backend work |
+| Advanced playback | Domain contracts and platform engine adapters exist; gapless, crossfade, ReplayGain, output devices, Android Auto, AirPlay, and CarPlay require Rust rodio or platform/backend work |
 | Vehicle/system integrations | Android Auto, AirPlay, CarPlay require platform/backend implementation |
 | OneDrive cancellable delta sync | Requires lower-level Rust request cancellation |
 | Full Miuix migration | Material 3 wrappers remain because Miuix 0.9.2 APIs differ from expected signatures |

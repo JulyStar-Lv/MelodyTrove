@@ -48,7 +48,7 @@ fun QueueScreen(
             AppEmptyState(message = "Queue is empty.")
         } else {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
-                itemsIndexed(state.items, key = { _, item -> item.index }) { _, item ->
+                itemsIndexed(state.items, key = { index, item -> item.lazyListKey(index) }) { _, item ->
                     Row(
                         modifier = Modifier.fillMaxWidth().clickable { onAction(QueueAction.PlayItem(item.index)) }
                             .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -89,6 +89,9 @@ fun QueueScreen(
         }
     }
 }
+
+internal fun QueueItemUi.lazyListKey(index: Int): String =
+    "queue-item-$index-${this.index}"
 
 private fun durationLabel(durationMs: Long): String {
     val all = durationMs

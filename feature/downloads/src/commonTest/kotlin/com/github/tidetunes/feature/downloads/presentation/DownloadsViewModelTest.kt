@@ -20,6 +20,7 @@ import kotlinx.coroutines.withTimeout
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 class DownloadsViewModelTest {
@@ -83,6 +84,14 @@ class DownloadsViewModelTest {
         assertEquals(listOf(id), controller.resumed)
         assertEquals(listOf(id), controller.retried)
         assertEquals(listOf(id), controller.cancelled)
+    }
+
+    @Test
+    fun `row keys stay unique when task ids repeat`() {
+        val task = task(id = DownloadTaskId("task-1"), status = DownloadStatus.Queued)
+            .toDownloadTaskUi()
+
+        assertNotEquals(task.lazyListKey(0), task.copy(title = "Track duplicate").lazyListKey(1))
     }
 
     private fun task(

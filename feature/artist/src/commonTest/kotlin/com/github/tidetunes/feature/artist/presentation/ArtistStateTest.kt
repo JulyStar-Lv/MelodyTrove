@@ -4,6 +4,7 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -50,6 +51,30 @@ class ArtistStateTest {
     fun `navigate to album action carries album id`() {
         val action = ArtistAction.NavigateToAlbum(3)
         assertEquals(3, action.albumId)
+    }
+
+    @Test
+    fun `row keys stay unique when track ids repeat`() {
+        val track = ArtistTrackItem(
+            id = 42,
+            title = "T",
+            albumName = null,
+            trackNumber = null,
+            discNumber = null,
+            durationMs = null,
+            mediaId = null,
+            canDownload = false,
+            albumId = null,
+        )
+
+        assertNotEquals(track.lazyListKey(0), track.copy(title = "T2").lazyListKey(1))
+    }
+
+    @Test
+    fun `album row keys stay unique when album ids repeat`() {
+        val album = ArtistAlbumItem(id = 42, name = "A", year = null, artwork = null)
+
+        assertNotEquals(album.lazyListKey(0), album.copy(name = "A2").lazyListKey(1))
     }
 
     @Test

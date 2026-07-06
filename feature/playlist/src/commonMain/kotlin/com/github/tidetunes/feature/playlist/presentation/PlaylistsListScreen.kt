@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import top.yukonga.miuix.kmp.basic.FloatingActionButton
@@ -142,13 +142,17 @@ private fun GridPlaylists(
         horizontalArrangement = Arrangement.Center,
         state = lazyGridState,
     ) {
-        items(playlists, key = { it.id }) { playlist ->
-            ReorderableItem(reorderableLazyListState, key = playlist.id) { _ ->
+        itemsIndexed(playlists, key = { index, playlist -> playlist.lazyListKey(index) }) { index, playlist ->
+            val playlistKey = playlist.lazyListKey(index)
+            ReorderableItem(reorderableLazyListState, key = playlistKey) { _ ->
                 PlaylistItem(playlist = playlist, mode = mode, onAction = onAction)
             }
         }
     }
 }
+
+internal fun PlaylistListItem.lazyListKey(index: Int): String =
+    "playlist-list-$index-$id"
 
 @Composable
 private fun ReorderableCollectionItemScope.PlaylistItem(

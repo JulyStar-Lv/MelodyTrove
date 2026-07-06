@@ -7,6 +7,7 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -51,6 +52,13 @@ class RecentlyPlayedStateTest {
     fun `play track action carries track id`() {
         val action = RecentlyPlayedAction.PlayTrack(42)
         assertEquals(42, action.trackId)
+    }
+
+    @Test
+    fun `row keys stay unique when track ids repeat`() {
+        val track = RecentlyPlayedTrackItem(42, "T", null, null, null, null, false)
+
+        assertNotEquals(track.lazyListKey(0), track.copy(title = "T2").lazyListKey(1))
     }
 
     @Test

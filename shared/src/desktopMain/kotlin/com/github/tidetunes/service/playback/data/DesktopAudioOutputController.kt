@@ -17,8 +17,8 @@ import javax.sound.sampled.AudioSystem
  * [AudioOutputDevice] entries. When no device is explicitly selected,
  * the system default output is used.
  *
- * Currently read-only — device selection via mpv's audio API requires
- * bridging through the Rust FFI layer (see DesktopMpvPlayer extensions).
+ * Currently read-only — device selection via rodio/cpal requires bridging
+ * output-device selection through the Rust FFI layer.
  */
 class DesktopAudioOutputController : AudioOutputController {
     private val _outputState = MutableStateFlow(scanDevices())
@@ -27,8 +27,8 @@ class DesktopAudioOutputController : AudioOutputController {
         get() = _outputState.asStateFlow()
 
     override fun selectOutputDevice(deviceId: AudioOutputDeviceId?) {
-        // Device selection through mpv API not yet bridged to Kotlin.
-        // The Rust DesktopMpvPlayer would need a setAudioDevice(deviceId: String) method.
+        // Device selection through rodio/cpal is not yet bridged to Kotlin.
+        // The Rust DesktopRodioPlayer would need a setAudioDevice(deviceId: String) method.
         // For now, update the selected device in state to reflect intent.
         _outputState.value = _outputState.value.copy(selectedDeviceId = deviceId)
     }

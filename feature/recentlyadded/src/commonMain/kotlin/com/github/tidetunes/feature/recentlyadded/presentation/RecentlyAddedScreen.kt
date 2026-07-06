@@ -52,7 +52,7 @@ fun RecentlyAddedScreen(
             state.error != null -> AppErrorState(message = state.error, onRetry = { onAction(RecentlyAddedAction.Retry) })
             state.tracks.isEmpty() -> AppEmptyState(message = "No recently added tracks.")
             else -> LazyColumn(modifier = Modifier.fillMaxSize()) {
-                itemsIndexed(state.tracks, key = { _, t -> t.id }) { _, track ->
+                itemsIndexed(state.tracks, key = { index, track -> track.lazyListKey(index) }) { _, track ->
                     RecentlyAddedTrackRow(
                         track = track,
                         onPlay = { onAction(RecentlyAddedAction.PlayTrack(track.id)) },
@@ -91,6 +91,9 @@ private fun RecentlyAddedTrackRow(
         }
     }
 }
+
+internal fun RecentlyAddedTrackItem.lazyListKey(index: Int): String =
+    "recently-added-track-$index-$id"
 
 private fun durationLabel(durationMs: Long): String {
     val h = durationMs / 1000 / 60 / 60
