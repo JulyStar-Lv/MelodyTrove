@@ -1,6 +1,7 @@
 package com.github.tidetunes.feature.home.presentation
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -28,6 +29,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.github.tidetunes.core.presentation.theme.TideTunesBrand
+import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import tidetunes.feature.home.generated.resources.Res
@@ -45,17 +48,19 @@ fun HomeOverviewScreen(
     state: HomeState,
     onAction: (HomeAction) -> Unit,
 ) {
+    val spacing = TideTunesTokens.spacing
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .background(MiuixTheme.colorScheme.background),
         contentPadding = PaddingValues(
-            start = 20.dp,
+            start = spacing.pageMedium,
             top = 18.dp,
-            end = 20.dp,
-            bottom = scaffoldPadding.calculateBottomPadding() + 24.dp,
+            end = spacing.pageMedium,
+            bottom = scaffoldPadding.calculateBottomPadding() + 32.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(22.dp),
+        verticalArrangement = Arrangement.spacedBy(spacing.lg),
     ) {
         item {
             HomeHero(
@@ -85,35 +90,99 @@ fun HomeOverviewScreen(
 private fun HomeHero(
     onNavigateToSearch: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = "为你推荐",
-                style = MiuixTheme.textStyles.title1,
-                color = MiuixTheme.colorScheme.onBackground,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+    val spacing = TideTunesTokens.spacing
+    val shapes = TideTunesTokens.shapes
+
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.md)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = "TideTunes",
+                    style = MiuixTheme.textStyles.title1,
+                    color = MiuixTheme.colorScheme.onBackground,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = "One Library. Every Source.",
+                    style = MiuixTheme.textStyles.subtitle,
+                    color = MiuixTheme.colorScheme.onBackgroundVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(shapes.md))
+                    .background(MiuixTheme.colorScheme.surfaceContainerHigh)
+                    .border(1.dp, MiuixTheme.colorScheme.outline, RoundedCornerShape(shapes.md))
+                    .clickable(onClick = onNavigateToSearch),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(Res.drawable.icon_search),
+                    contentDescription = null,
+                    tint = MiuixTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
         }
+
         Box(
             modifier = Modifier
-                .size(42.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(MiuixTheme.colorScheme.secondaryContainer)
-                .clickable(onClick = onNavigateToSearch),
-            contentAlignment = Alignment.Center,
+                .fillMaxWidth()
+                .height(150.dp)
+                .clip(RoundedCornerShape(shapes.xxl))
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            TideTunesBrand.Primary,
+                            TideTunesBrand.Secondary,
+                        ),
+                    ),
+                )
+                .padding(20.dp),
         ) {
-            Icon(
-                painter = painterResource(Res.drawable.icon_search),
-                contentDescription = null,
-                tint = MiuixTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp),
+            Box(
+                modifier = Modifier
+                    .size(112.dp)
+                    .align(Alignment.TopEnd)
+                    .clip(RoundedCornerShape(56.dp))
+                    .background(Color.White.copy(alpha = 0.14f)),
             )
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .align(Alignment.BottomEnd)
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(Color.White.copy(alpha = 0.22f)),
+            )
+            Column(
+                modifier = Modifier.align(Alignment.BottomStart),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    text = "聚合你的全部音乐",
+                    style = MiuixTheme.textStyles.title2,
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = "WebDAV、本地、云盘与服务器来源，统一播放体验。",
+                    style = MiuixTheme.textStyles.body2,
+                    color = Color.White.copy(alpha = 0.82f),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
@@ -121,7 +190,7 @@ private fun HomeHero(
 @Composable
 private fun FeaturedSection(albums: List<HomeFeaturedAlbum>) {
     SectionTitle(title = "最近播放")
-    Spacer(modifier = Modifier.height(10.dp))
+    Spacer(modifier = Modifier.height(12.dp))
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -136,36 +205,52 @@ private fun FeaturedSection(albums: List<HomeFeaturedAlbum>) {
 
 @Composable
 private fun FeaturedAlbumCard(album: HomeFeaturedAlbum) {
-    Box(
-        modifier = Modifier
-            .width(116.dp)
-            .height(164.dp)
-            .clip(RoundedCornerShape(20.dp))
-            .background(Brush.linearGradient(album.colors))
-            .padding(12.dp),
+    val shapes = TideTunesTokens.shapes
+
+    Column(
+        modifier = Modifier.width(140.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Column(
+        Box(
             modifier = Modifier
-                .fillMaxHeight()
-                .align(Alignment.BottomStart),
-            verticalArrangement = Arrangement.Bottom,
+                .fillMaxWidth()
+                .height(140.dp)
+                .clip(RoundedCornerShape(shapes.xl))
+                .background(Brush.linearGradient(album.colors))
+                .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(shapes.xl))
+                .padding(14.dp),
         ) {
-            Text(
-                text = album.title,
-                style = MiuixTheme.textStyles.body2,
-                color = Color.White,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = album.subtitle,
-                style = MiuixTheme.textStyles.footnote2,
-                color = Color.White.copy(alpha = 0.76f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .align(Alignment.BottomEnd)
+                    .clip(RoundedCornerShape(23.dp))
+                    .background(Color.White.copy(alpha = 0.22f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(Res.drawable.icon_music_note),
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
         }
+        Text(
+            text = album.title,
+            style = MiuixTheme.textStyles.title3,
+            color = MiuixTheme.colorScheme.onBackground,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = album.subtitle,
+            style = MiuixTheme.textStyles.footnote1,
+            color = MiuixTheme.colorScheme.onBackgroundVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -174,13 +259,16 @@ private fun RecentSection(
     tracks: List<HomeRecentTrack>,
     onOpenNowPlaying: () -> Unit,
 ) {
+    val shapes = TideTunesTokens.shapes
+
     SectionTitle(title = "推荐曲目")
-    Spacer(modifier = Modifier.height(8.dp))
+    Spacer(modifier = Modifier.height(10.dp))
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(shapes.lg))
             .background(MiuixTheme.colorScheme.surfaceContainer)
+            .border(1.dp, MiuixTheme.colorScheme.outline, RoundedCornerShape(shapes.lg))
             .padding(vertical = 6.dp),
     ) {
         tracks.forEach { track ->
@@ -197,18 +285,20 @@ private fun RecentTrackRow(
     track: HomeRecentTrack,
     onClick: () -> Unit,
 ) {
+    val shapes = TideTunesTokens.shapes
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(58.dp)
+            .height(64.dp)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
             modifier = Modifier
-                .size(38.dp)
-                .clip(RoundedCornerShape(10.dp))
+                .size(48.dp)
+                .clip(RoundedCornerShape(shapes.md))
                 .background(
                     Brush.linearGradient(
                         listOf(
@@ -222,14 +312,14 @@ private fun RecentTrackRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = track.title,
-                style = MiuixTheme.textStyles.body2,
+                style = MiuixTheme.textStyles.body1,
                 color = MiuixTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = track.subtitle,
-                style = MiuixTheme.textStyles.footnote2,
+                style = MiuixTheme.textStyles.footnote1,
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -276,11 +366,14 @@ private fun QuickActionPill(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
+    val shapes = TideTunesTokens.shapes
+
     Row(
         modifier = modifier
-            .height(44.dp)
-            .clip(RoundedCornerShape(999.dp))
-            .background(MiuixTheme.colorScheme.secondaryContainer)
+            .height(48.dp)
+            .clip(RoundedCornerShape(shapes.full))
+            .background(MiuixTheme.colorScheme.surfaceContainerHigh)
+            .border(1.dp, MiuixTheme.colorScheme.outline, RoundedCornerShape(shapes.full))
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp),
         horizontalArrangement = Arrangement.Center,
@@ -307,7 +400,7 @@ private fun QuickActionPill(
 private fun SectionTitle(title: String) {
     Text(
         text = title,
-        style = MiuixTheme.textStyles.subtitle,
+        style = MiuixTheme.textStyles.title3,
         color = MiuixTheme.colorScheme.onBackground,
         fontWeight = FontWeight.SemiBold,
         maxLines = 1,
