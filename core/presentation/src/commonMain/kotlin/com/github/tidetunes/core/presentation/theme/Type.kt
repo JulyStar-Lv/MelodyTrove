@@ -10,20 +10,20 @@ import top.yukonga.miuix.kmp.theme.defaultTextStyles
 internal fun tideTunesTextStyles(): TextStyles {
     val defaults = defaultTextStyles()
     return defaults.copy(
-        main = TideTunesTextStyle(size = 16, lineHeight = 24),
-        paragraph = TideTunesTextStyle(size = 16, lineHeight = 24),
-        body1 = TideTunesTextStyle(size = 16, lineHeight = 24),
-        body2 = TideTunesTextStyle(size = 14, lineHeight = 20),
-        button = TideTunesTextStyle(size = 14, lineHeight = 20, weight = FontWeight.Medium),
+        main = TideTunesTextStyle(size = 14, lineHeight = 20),
+        paragraph = TideTunesTextStyle(size = 14, lineHeight = 20),
+        body1 = TideTunesTextStyle(size = 14, lineHeight = 20),
+        body2 = TideTunesTextStyle(size = 13, lineHeight = 18),
+        button = TideTunesTextStyle(size = 14, lineHeight = 20, weight = FontWeight.SemiBold),
         footnote1 = TideTunesTextStyle(size = 12, lineHeight = 16),
-        footnote2 = TideTunesTextStyle(size = 10, lineHeight = 14, weight = FontWeight.Medium),
-        headline1 = TideTunesTextStyle(size = 18, lineHeight = 24, weight = FontWeight.SemiBold),
-        headline2 = TideTunesTextStyle(size = 16, lineHeight = 22, weight = FontWeight.Medium),
-        subtitle = TideTunesTextStyle(size = 13, lineHeight = 18, weight = FontWeight.Medium),
-        title1 = TideTunesTextStyle(size = 32, lineHeight = 40, weight = FontWeight.Bold),
+        footnote2 = TideTunesTextStyle(size = 10, lineHeight = 14, weight = FontWeight.SemiBold),
+        headline1 = TideTunesTextStyle(size = 28, lineHeight = 34, weight = FontWeight.Bold),
+        headline2 = TideTunesTextStyle(size = 22, lineHeight = 28, weight = FontWeight.SemiBold),
+        subtitle = TideTunesTextStyle(size = 13, lineHeight = 18),
+        title1 = TideTunesTextStyle(size = 28, lineHeight = 34, weight = FontWeight.Bold),
         title2 = TideTunesTextStyle(size = 22, lineHeight = 28, weight = FontWeight.SemiBold),
-        title3 = TideTunesTextStyle(size = 18, lineHeight = 24, weight = FontWeight.SemiBold),
-        title4 = TideTunesTextStyle(size = 16, lineHeight = 22, weight = FontWeight.Medium),
+        title3 = TideTunesTextStyle(size = 16, lineHeight = 22, weight = FontWeight.Medium),
+        title4 = TideTunesTextStyle(size = 14, lineHeight = 20, weight = FontWeight.Medium),
     )
 }
 
