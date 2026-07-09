@@ -1,6 +1,7 @@
 package com.github.tidetunes.service.playback.presentation.miniplayer
 
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -54,7 +55,7 @@ private fun MiniPlayerCore(
         totalDurationMS = totalDurationMS,
     )
 
-    BoxWithConstraints(modifier = Modifier.size(width = maxWidth, height = 76.dp)) {
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
         if (maxWidth < 140.dp) {
             CompactMiniPlayer(
                 isPlaying = isPlaying,
