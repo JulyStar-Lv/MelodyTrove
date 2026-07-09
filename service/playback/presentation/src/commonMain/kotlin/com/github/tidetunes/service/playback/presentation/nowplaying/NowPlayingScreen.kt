@@ -759,5 +759,5 @@ private fun nowPlayingTitleStyle(): TextStyle = TextStyle(
     fontSize = 34.sp,
     fontWeight = FontWeight.Bold,
     lineHeight = 40.sp,
-    letterSpacing = (-0.4).sp,
+    letterSpacing = 0.sp,
 )

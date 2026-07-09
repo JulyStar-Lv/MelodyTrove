@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -43,16 +44,23 @@ internal fun SettingsPageLayout(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val spacing = TideTunesTokens.spacing
-    BoxWithConstraints {
-        SettingsTopBar(title = title, onBack = onBack)
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val horizontalPadding = if (maxWidth < 600.dp) spacing.pageCompact else spacing.pageMedium
         Column(
             modifier = Modifier
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = horizontalPadding, vertical = spacing.sm),
-            verticalArrangement = Arrangement.spacedBy(spacing.sm),
-            content = content,
-        )
+                .fillMaxSize()
+                .background(MiuixTheme.colorScheme.background),
+        ) {
+            SettingsTopBar(title = title, onBack = onBack)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = horizontalPadding, vertical = spacing.sm),
+                verticalArrangement = Arrangement.spacedBy(spacing.sm),
+                content = content,
+            )
+        }
     }
 }
 
@@ -96,16 +104,14 @@ internal fun SettingsEntryCard(
     summary: String,
     onClick: () -> Unit,
 ) {
-    TideSettingsGroup(title = null) {
-        TidePreferenceRow(
-            title = title,
-            summary = summary,
-            onClick = onClick,
-            trailing = {
-                TideChevron(direction = TideChevronDirection.Right)
-            },
-        )
-    }
+    TidePreferenceRow(
+        title = title,
+        summary = summary,
+        onClick = onClick,
+        trailing = {
+            TideChevron(direction = TideChevronDirection.Right)
+        },
+    )
 }
 
 @Composable

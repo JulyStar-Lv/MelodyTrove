@@ -1,7 +1,6 @@
 package com.github.tidetunes.feature.search.presentation
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Box
@@ -21,7 +20,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -40,6 +38,7 @@ import com.github.tidetunes.core.presentation.components.TidePageHeader
 import com.github.tidetunes.core.presentation.components.TideSearchBar
 import com.github.tidetunes.core.presentation.components.TideStatusBadge
 import com.github.tidetunes.core.presentation.components.TideStatusTone
+import com.github.tidetunes.core.presentation.components.TideSourceBadge
 import com.github.tidetunes.core.presentation.components.TideTextButton
 import com.github.tidetunes.core.presentation.components.TideTextButtonSize
 import com.github.tidetunes.core.presentation.components.TideTextButtonVariant
@@ -447,18 +446,13 @@ private fun SearchTrackCard(
                     )
                 }
                 Row(
-                    modifier = Modifier
-                        .horizontalScroll(rememberScrollState())
-                        .widthIn(max = 120.dp),
+                    modifier = Modifier.widthIn(max = 148.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = track.sourceLabel,
-                        color = MiuixTheme.colorScheme.primary,
-                        style = MiuixTheme.textStyles.footnote1,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                    TideSourceBadge(
+                        label = track.sourceLabel,
+                        modifier = Modifier.widthIn(max = 92.dp),
                     )
                     Text(
                         text = track.durationMs.durationText(),

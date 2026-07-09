@@ -1,7 +1,0 @@
-[log] Running frontend commit 6abf5d89e95dcc742ee7f4d80bbd827e29d9dd24
-[error] Failed to load resource: net::ERR_CONNECTION_CLOSED
-[error] Fetching compiled_wasm.wasm failed: TypeError: Failed to fetch
-[error] Failed to load resource: net::ERR_CONNECTION_CLOSED
-[error] Failed to load resource: net::ERR_CONNECTION_CLOSED
-[error] Failed to load resource: net::ERR_CONNECTION_CLOSED
-[error] Failed to load resource: net::ERR_CONNECTION_CLOSED

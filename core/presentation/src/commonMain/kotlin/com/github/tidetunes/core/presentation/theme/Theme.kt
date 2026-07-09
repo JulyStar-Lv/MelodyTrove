@@ -100,9 +100,9 @@ data class TideTunesShapes(
     val xxs: Dp = 4.dp,
     val xs: Dp = 8.dp,
     val sm: Dp = 12.dp,
-    val md: Dp = 20.dp,
-    val lg: Dp = 28.dp,
-    val xl: Dp = 36.dp,
+    val md: Dp = 18.dp,
+    val lg: Dp = 24.dp,
+    val xl: Dp = 28.dp,
     val xxl: Dp = 36.dp,
     val full: Dp = 999.dp,
 )
