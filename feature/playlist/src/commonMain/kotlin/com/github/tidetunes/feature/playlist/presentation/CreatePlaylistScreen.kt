@@ -1,6 +1,7 @@
 package com.github.tidetunes.feature.playlist.presentation
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -10,30 +11,30 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import com.github.tidetunes.core.presentation.components.ImportCover
 import com.github.tidetunes.core.presentation.components.SimpleFormText
-import com.github.tidetunes.core.presentation.components.TideTunesTextButton
-import com.github.tidetunes.core.presentation.components.TideTunesTextButtonSize
-import com.github.tidetunes.core.presentation.components.TideTunesTextButtonType
+import com.github.tidetunes.core.presentation.components.TideTabItem
+import com.github.tidetunes.core.presentation.components.TideTabs
+import com.github.tidetunes.core.presentation.components.TideTabsVariant
+import com.github.tidetunes.core.presentation.components.TideDialog
+import com.github.tidetunes.core.presentation.components.TideTextButton
+import com.github.tidetunes.core.presentation.components.TideTextButtonSize
+import com.github.tidetunes.core.presentation.components.TideTextButtonVariant
+import com.github.tidetunes.core.presentation.theme.TideTunesBrand
+import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import org.jetbrains.compose.resources.painterResource
-import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import tidetunes.feature.playlist.generated.resources.Res
 import tidetunes.feature.playlist.generated.resources.icon_download
@@ -47,34 +48,40 @@ import tidetunes.feature.playlist.generated.resources.playlists_dialog_playlist_
 import tidetunes.feature.playlist.generated.resources.playlists_dialog_playlist_name
 import tidetunes.feature.playlist.generated.resources.playlists_dialog_tab_empty
 import tidetunes.feature.playlist.generated.resources.playlists_dialog_tab_full
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun CreatePlaylistScreen(
     state: CreatePlaylistState,
     onAction: (CreatePlaylistAction) -> Unit,
 ) {
-    if (!state.isOpen) return
-
-    Dialog(onDismissRequest = { onAction(CreatePlaylistAction.Close) }) {
+    TideDialog(
+        show = state.isOpen,
+        onDismiss = { onAction(CreatePlaylistAction.Close) },
+    ) {
         Column(
-            modifier = Modifier
-                .clip(RoundedCornerShape(16.dp))
-                .background(MiuixTheme.colorScheme.surface)
-                .padding(24.dp, 24.dp),
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Row {
-                Tab(
-                    stringRes = Res.string.playlists_dialog_tab_full,
-                    isActive = state.mode == CreatePlaylistTab.Full,
-                    onClick = { onAction(CreatePlaylistAction.SwitchToFull) },
-                )
-                Tab(
-                    stringRes = Res.string.playlists_dialog_tab_empty,
-                    isActive = state.mode == CreatePlaylistTab.Empty,
-                    onClick = { onAction(CreatePlaylistAction.SwitchToEmpty) },
-                )
-            }
-            Box(modifier = Modifier.height(8.dp))
+            TideTabs(
+                items = listOf(
+                    TideTabItem(label = stringResource(Res.string.playlists_dialog_tab_full)),
+                    TideTabItem(label = stringResource(Res.string.playlists_dialog_tab_empty)),
+                ),
+                selectedIndex = if (state.mode == CreatePlaylistTab.Full) 0 else 1,
+                onSelectedIndexChange = { index ->
+                    onAction(
+                        if (index == 0) {
+                            CreatePlaylistAction.SwitchToFull
+                        } else {
+                            CreatePlaylistAction.SwitchToEmpty
+                        },
+                    )
+                },
+                variant = TideTabsVariant.Segmented,
+            )
             if (state.mode == CreatePlaylistTab.Full) {
                 FullImportSection(state = state, onAction = onAction)
             } else {
@@ -90,60 +97,30 @@ fun CreatePlaylistScreen(
             ) {
                 Row {
                     if (state.fullImported && state.mode == CreatePlaylistTab.Full) {
-                        TideTunesTextButton(
+                        TideTextButton(
                             text = stringResource(Res.string.playlists_dialog_button_reset),
-                            type = TideTunesTextButtonType.Primary,
-                            size = TideTunesTextButtonSize.Medium,
+                            variant = TideTextButtonVariant.Default,
+                            size = TideTextButtonSize.Medium,
                             onClick = { onAction(CreatePlaylistAction.Reset) },
                         )
                     }
                 }
                 Row {
-                    TideTunesTextButton(
+                    TideTextButton(
                         text = stringResource(Res.string.playlists_dialog_button_cancel),
-                        type = TideTunesTextButtonType.Primary,
-                        size = TideTunesTextButtonSize.Medium,
+                        variant = TideTextButtonVariant.Default,
+                        size = TideTextButtonSize.Medium,
                         onClick = { onAction(CreatePlaylistAction.Close) },
                     )
-                    TideTunesTextButton(
+                    TideTextButton(
                         text = stringResource(Res.string.playlists_dialog_button_ok),
-                        type = TideTunesTextButtonType.Primary,
-                        size = TideTunesTextButtonSize.Medium,
-                        disabled = !state.canSubmit,
+                        variant = TideTextButtonVariant.Primary,
+                        size = TideTextButtonSize.Medium,
+                        enabled = state.canSubmit,
                         onClick = { onAction(CreatePlaylistAction.Submit) },
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun Tab(
-    stringRes: StringResource,
-    isActive: Boolean,
-    onClick: () -> Unit,
-) {
-    val activeColor = MiuixTheme.colorScheme.primary
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable { onClick() },
-    ) {
-        Text(
-            modifier = Modifier.padding(8.dp, 0.dp),
-            text = stringResource(stringRes),
-            fontSize = 11.sp,
-            color = if (!isActive) Color.Unspecified else activeColor,
-        )
-        if (isActive) {
-            Box(
-                modifier = Modifier
-                    .width(16.dp)
-                    .height(1.dp)
-                    .offset(0.dp, (-4).dp)
-                    .background(activeColor),
-            )
         }
     }
 }
@@ -158,21 +135,32 @@ private fun FullImportSection(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(6.dp))
+                .heightIn(min = 132.dp)
+                .clip(RoundedCornerShape(TideTunesTokens.shapes.lg))
                 .clickable { onAction(CreatePlaylistAction.PrepareImport) }
-                .background(MiuixTheme.colorScheme.surfaceVariant)
-                .padding(0.dp, 32.dp),
+                .background(MiuixTheme.colorScheme.tertiaryContainer)
+                .border(
+                    1.dp,
+                    TideTunesBrand.Primary.copy(alpha = 0.18f),
+                    RoundedCornerShape(TideTunesTokens.shapes.lg),
+                )
+                .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
         ) {
             Icon(
                 painter = painterResource(Res.drawable.icon_download),
                 contentDescription = null,
+                tint = TideTunesBrand.Primary,
             )
             Box(modifier = Modifier.height(10.dp))
             Text(
                 text = stringResource(Res.string.playlists_dialog_playlist_full_import_desc),
-                fontSize = 12.sp,
+                color = MiuixTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.footnote1,
                 textAlign = TextAlign.Center,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     } else {
@@ -180,7 +168,13 @@ private fun FullImportSection(
 
         Column(modifier = Modifier.fillMaxWidth()) {
             FullImportHeader(text = stringResource(Res.string.playlists_dialog_import_info))
-            Text(text = "${state.musicCount} $musicCountSuffix")
+            Text(
+                text = "${state.musicCount} $musicCountSuffix",
+                color = MiuixTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.body1,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+            )
             Box(modifier = Modifier.height(12.dp))
             FullImportHeader(text = stringResource(Res.string.playlists_dialog_playlist_name))
             SimpleFormText(
@@ -193,12 +187,12 @@ private fun FullImportSection(
                 verticalArrangement = Arrangement.spacedBy(0.dp),
             ) {
                 for (name in state.recommendNames) {
-                    TideTunesTextButton(
+                    TideTextButton(
                         modifier = Modifier.widthIn(max = 120.dp),
                         text = name,
-                        type = TideTunesTextButtonType.Default,
-                        size = TideTunesTextButtonSize.Small,
-                        disabled = false,
+                        variant = TideTextButtonVariant.Default,
+                        size = TideTextButtonSize.Small,
+                        enabled = true,
                         onClick = { onAction(CreatePlaylistAction.UpdateName(name)) },
                     )
                 }
@@ -216,5 +210,12 @@ private fun FullImportSection(
 
 @Composable
 private fun FullImportHeader(text: String) {
-    Text(text = text, fontSize = 10.sp)
+    Text(
+        text = text,
+        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+        style = MiuixTheme.textStyles.footnote1,
+        fontWeight = FontWeight.SemiBold,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
 }

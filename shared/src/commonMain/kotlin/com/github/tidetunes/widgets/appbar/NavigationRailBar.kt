@@ -1,6 +1,7 @@
 package com.github.tidetunes.widgets.appbar
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,16 +15,23 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.github.tidetunes.core.presentation.components.dropShadow
+import com.github.tidetunes.core.presentation.layout.WindowSizeClass
+import com.github.tidetunes.core.presentation.theme.TideTunesBrand
+import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import com.github.tidetunes.navigation.HomeTab
 import org.jetbrains.compose.resources.painterResource
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-fun getNavigationRailWidth(): Dp = 80.dp
+fun getNavigationRailWidth(windowSizeClass: WindowSizeClass = WindowSizeClass.Expanded): Dp {
+    return if (windowSizeClass == WindowSizeClass.Medium) 72.dp else 80.dp
+}
 
 @Composable
 fun NavigationRailBar(
@@ -31,18 +39,24 @@ fun NavigationRailBar(
     onTabSelected: (HomeTab) -> Unit,
     miniPlayerContent: @Composable () -> Unit,
     modifier: Modifier = Modifier,
+    windowSizeClass: WindowSizeClass = WindowSizeClass.Expanded,
 ) {
+    val railWidth = getNavigationRailWidth(windowSizeClass)
+    val shapes = TideTunesTokens.shapes
+    val railShape = RoundedCornerShape(topEnd = shapes.xl, bottomEnd = shapes.xl)
+
     Column(
         modifier = modifier
-            .width(getNavigationRailWidth())
+            .width(railWidth)
             .dropShadow(
                 MiuixTheme.colorScheme.surfaceVariant,
                 4.dp,
                 0.dp,
                 8.dp,
             )
-            .clip(RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp))
-            .background(MiuixTheme.colorScheme.surface),
+            .clip(railShape)
+            .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.94f))
+            .border(1.dp, MiuixTheme.colorScheme.outline.copy(alpha = 0.70f), railShape),
     ) {
         miniPlayerContent()
         Column(
@@ -56,6 +70,7 @@ fun NavigationRailBar(
                 NavigationRailItem(
                     tab = tab,
                     selected = currentTab == tab,
+                    itemWidth = railWidth - 8.dp,
                     onClick = { onTabSelected(tab) },
                 )
             }
@@ -67,18 +82,32 @@ fun NavigationRailBar(
 private fun NavigationRailItem(
     tab: HomeTab,
     selected: Boolean,
+    itemWidth: Dp,
     onClick: () -> Unit,
 ) {
+    val shapes = TideTunesTokens.shapes
+    val itemShape = RoundedCornerShape(shapes.full)
     val contentColor = if (selected) {
         MiuixTheme.colorScheme.primary
     } else {
-        MiuixTheme.colorScheme.onSurfaceVariantSummary
+        MiuixTheme.colorScheme.onSurfaceVariantActions
     }
+    val backgroundBrush = if (selected) {
+        Brush.linearGradient(
+            listOf(
+                TideTunesBrand.Primary.copy(alpha = 0.18f),
+                TideTunesBrand.Secondary.copy(alpha = 0.16f),
+            ),
+        )
+    } else {
+        Brush.linearGradient(listOf(Color.Transparent, Color.Transparent))
+    }
+
     Column(
         modifier = Modifier
-            .width(72.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(if (selected) MiuixTheme.colorScheme.secondaryContainer else MiuixTheme.colorScheme.surface)
+            .width(itemWidth)
+            .clip(itemShape)
+            .background(backgroundBrush)
             .clickable(onClick = onClick)
             .padding(vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally,

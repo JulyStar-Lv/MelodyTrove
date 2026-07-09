@@ -1,0 +1,102 @@
+package com.github.tidetunes.core.presentation.components
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.github.tidetunes.core.presentation.theme.TideTunesTokens
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+
+@Composable
+fun TideSearchBar(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    onSearch: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    onClear: (() -> Unit)? = null,
+) {
+    val shape = RoundedCornerShape(TideTunesTokens.shapes.full)
+    val contentColor = if (enabled) {
+        MiuixTheme.colorScheme.onSurface
+    } else {
+        MiuixTheme.colorScheme.disabledOnSurface
+    }
+    val supportingColor = if (enabled) {
+        MiuixTheme.colorScheme.onSurfaceVariantSummary
+    } else {
+        MiuixTheme.colorScheme.disabledOnSurface
+    }
+
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clip(shape)
+            .background(MiuixTheme.colorScheme.surfaceContainerHigh)
+            .border(1.dp, MiuixTheme.colorScheme.outline, shape)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        enabled = enabled,
+        singleLine = true,
+        textStyle = MiuixTheme.textStyles.body1.copy(color = contentColor),
+        cursorBrush = SolidColor(MiuixTheme.colorScheme.primary),
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = { onSearch() }),
+        decorationBox = { innerTextField ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    if (value.isEmpty()) {
+                        Text(
+                            text = placeholder,
+                            color = supportingColor,
+                            style = MiuixTheme.textStyles.body1,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                    innerTextField()
+                }
+                if (onClear != null && value.isNotEmpty()) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "x",
+                        color = MiuixTheme.colorScheme.onSurfaceVariantActions,
+                        style = MiuixTheme.textStyles.body2,
+                        maxLines = 1,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(TideTunesTokens.shapes.full))
+                            .clickable(enabled = enabled, onClick = onClear)
+                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                    )
+                }
+            }
+        },
+    )
+}

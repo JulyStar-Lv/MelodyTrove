@@ -41,6 +41,7 @@ internal fun HomeTabContent(
             HomeTab.SEARCH -> SearchTabGraph(searchNavController)
             HomeTab.LIBRARY -> LibraryTabGraph(
                 navController = libraryNavController,
+                onNavigateToLibraryFolderImport = onNavigateToLibraryFolderImport,
                 onOpenNowPlaying = onOpenNowPlaying,
             )
             HomeTab.SETTINGS -> SettingsTabGraph(

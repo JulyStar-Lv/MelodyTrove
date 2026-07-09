@@ -9,6 +9,7 @@ import com.github.tidetunes.feature.library.presentation.LibraryRoot
 @Composable
 fun LibraryTabGraph(
     navController: NavHostController,
+    onNavigateToLibraryFolderImport: () -> Unit = {},
     onOpenNowPlaying: () -> Unit = {},
 ) {
     NavHost(
@@ -17,6 +18,7 @@ fun LibraryTabGraph(
     ) {
         composable("library") {
             LibraryRoot(
+                onNavigateToLibraryFolderImport = onNavigateToLibraryFolderImport,
                 onOpenNowPlaying = onOpenNowPlaying,
             )
         }

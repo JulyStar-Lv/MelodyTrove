@@ -10,6 +10,8 @@ enum class WindowSizeClass {
     Compact,
     Medium,
     Expanded,
+    Large,
+    XL,
 }
 
 @Composable
@@ -22,7 +24,9 @@ fun rememberWindowSizeClass(
         when {
             widthDp < 600.dp -> WindowSizeClass.Compact
             widthDp < 840.dp -> WindowSizeClass.Medium
-            else -> WindowSizeClass.Expanded
+            widthDp < 1280.dp -> WindowSizeClass.Expanded
+            widthDp < 1600.dp -> WindowSizeClass.Large
+            else -> WindowSizeClass.XL
         }
     }
 }

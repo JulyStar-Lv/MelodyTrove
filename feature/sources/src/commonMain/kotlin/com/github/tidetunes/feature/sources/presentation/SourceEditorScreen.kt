@@ -1,23 +1,22 @@
 package com.github.tidetunes.feature.sources.presentation
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,20 +30,23 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.github.tidetunes.core.presentation.components.ConfirmDialog
 import com.github.tidetunes.core.presentation.components.FormSwitch
 import com.github.tidetunes.core.presentation.components.FormText
 import com.github.tidetunes.core.presentation.components.FormWidget
-import com.github.tidetunes.core.presentation.components.TideTunesIconButton
-import com.github.tidetunes.core.presentation.components.TideTunesIconButtonColors
-import com.github.tidetunes.core.presentation.components.TideTunesIconButtonSize
-import com.github.tidetunes.core.presentation.components.TideTunesIconButtonType
-import com.github.tidetunes.core.presentation.components.TideTunesTextButton
-import com.github.tidetunes.core.presentation.components.TideTunesTextButtonSize
-import com.github.tidetunes.core.presentation.components.TideTunesTextButtonType
+import com.github.tidetunes.core.presentation.components.TideCardSurface
+import com.github.tidetunes.core.presentation.components.TideIconButton
+import com.github.tidetunes.core.presentation.components.TideIconButtonColors
+import com.github.tidetunes.core.presentation.components.TideIconButtonSize
+import com.github.tidetunes.core.presentation.components.TideIconButtonVariant
+import com.github.tidetunes.core.presentation.components.TideTextButton
+import com.github.tidetunes.core.presentation.components.TideTextButtonSize
+import com.github.tidetunes.core.presentation.components.TideTextButtonVariant
+import com.github.tidetunes.core.presentation.theme.TideTunesBrand
+import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import tidetunes.feature.sources.generated.resources.Res
@@ -73,6 +75,9 @@ import tidetunes.feature.sources.generated.resources.storage_edit_password
 import tidetunes.feature.sources.generated.resources.storage_edit_username
 import tidetunes.feature.sources.generated.resources.storage_remove_desc_count
 import tidetunes.feature.sources.generated.resources.storage_remove_desc_main
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 private fun buildStr(s: String): AnnotatedString {
     val spans = s.split("$$")
@@ -115,11 +120,13 @@ private fun RemoveDialog(
     ) {
         Text(
             text = mainDesc,
-            fontSize = 14.sp,
+            color = MiuixTheme.colorScheme.onSurface,
+            style = MiuixTheme.textStyles.body1,
         )
         Text(
             text = countDesc,
-            fontSize = 14.sp,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            style = MiuixTheme.textStyles.footnote1,
         )
     }
 }
@@ -130,36 +137,49 @@ private fun StorageBlock(
     isActive: Boolean,
     onSelect: () -> Unit,
 ) {
+    val shapes = TideTunesTokens.shapes
     val bgColor = if (isActive) {
-        MiuixTheme.colorScheme.primary
+        TideTunesBrand.Primary
     } else {
-        MiuixTheme.colorScheme.surfaceVariant
+        MiuixTheme.colorScheme.surfaceContainer
     }
     val tint = if (isActive) {
-        MiuixTheme.colorScheme.surface
+        MiuixTheme.colorScheme.onPrimary
     } else {
         MiuixTheme.colorScheme.onSurface
+    }
+    val borderColor = if (isActive) {
+        TideTunesBrand.Primary.copy(alpha = 0.22f)
+    } else {
+        MiuixTheme.colorScheme.outline
     }
 
     Box(
         modifier = Modifier
             .size(100.dp)
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(shapes.lg))
             .background(bgColor)
+            .border(1.dp, borderColor, RoundedCornerShape(shapes.lg))
             .clickable { onSelect() }
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.align(Alignment.Center),
         ) {
             Icon(
                 painter = painterResource(Res.drawable.icon_cloud),
                 contentDescription = null,
                 tint = tint,
+                modifier = Modifier.size(24.dp),
             )
             Text(
                 text = title,
                 color = tint,
+                style = MiuixTheme.textStyles.footnote1,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -251,10 +271,10 @@ private fun OneDriveConfig(
         label = stringResource(Res.string.storage_edit_oauth),
     ) {
         if (!state.connected) {
-            TideTunesTextButton(
+            TideTextButton(
                 text = stringResource(Res.string.storage_edit_onedrive_connect),
-                type = TideTunesTextButtonType.PrimaryVariant,
-                size = TideTunesTextButtonSize.Medium,
+                variant = TideTextButtonVariant.PrimaryFilled,
+                size = TideTextButtonSize.Medium,
                 onClick = {
                     onAction(SourceEditorAction.ConnectOneDrive)
                 },
@@ -267,15 +287,15 @@ private fun OneDriveConfig(
                     ),
                     text = stringResource(Res.string.storage_edit_onedrive_should_auth),
                     color = MiuixTheme.colorScheme.error,
-                    fontSize = 11.sp,
+                    style = MiuixTheme.textStyles.footnote1,
                 )
             }
         }
         if (state.connected) {
-            TideTunesTextButton(
+            TideTextButton(
                 text = stringResource(Res.string.storage_edit_onedrive_disconnect),
-                type = TideTunesTextButtonType.Error,
-                size = TideTunesTextButtonSize.Medium,
+                variant = TideTextButtonVariant.Error,
+                size = TideTextButtonSize.Medium,
                 onClick = {
                     onAction(SourceEditorAction.DisconnectOneDrive)
                 },
@@ -291,19 +311,19 @@ private fun OneDriveConfig(
                     Text(
                         text = stringResource(Res.string.storage_edit_onedrive_drive_loading),
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        fontSize = 12.sp,
+                        style = MiuixTheme.textStyles.footnote1,
                     )
                 }
                 state.drives.forEach { drive ->
                     val selected = drive.id == state.selectedDriveId
-                    TideTunesTextButton(
+                    TideTextButton(
                         text = drive.name,
-                        type = if (selected) {
-                            TideTunesTextButtonType.Primary
+                        variant = if (selected) {
+                            TideTextButtonVariant.Primary
                         } else {
-                            TideTunesTextButtonType.Default
+                            TideTextButtonVariant.Default
                         },
-                        size = TideTunesTextButtonSize.Medium,
+                        size = TideTextButtonSize.Medium,
                         onClick = {
                             onAction(SourceEditorAction.SelectOneDriveDrive(drive.id))
                         },
@@ -313,7 +333,7 @@ private fun OneDriveConfig(
                     Text(
                         text = stringResource(Res.string.storage_edit_onedrive_drive_required),
                         color = MiuixTheme.colorScheme.error,
-                        fontSize = 11.sp,
+                        style = MiuixTheme.textStyles.footnote1,
                     )
                 }
             }
@@ -327,138 +347,170 @@ fun SourceEditorScreen(
     onAction: (SourceEditorAction) -> Unit,
 ) {
     val storageType = state.storageType
+    val spacing = TideTunesTokens.spacing
+    val shapes = TideTunesTokens.shapes
 
     val testingColors = when (state.testStatus) {
         SourceConnectionTestStatus.None -> null
-        SourceConnectionTestStatus.Testing -> TideTunesIconButtonColors(
+        SourceConnectionTestStatus.Testing -> TideIconButtonColors(
             buttonBg = Color.Transparent,
             iconTint = MiuixTheme.colorScheme.onTertiaryContainer,
         )
-        SourceConnectionTestStatus.Success -> TideTunesIconButtonColors(
+        SourceConnectionTestStatus.Success -> TideIconButtonColors(
             buttonBg = Color.Transparent,
             iconTint = MiuixTheme.colorScheme.primary,
         )
-        SourceConnectionTestStatus.Error -> TideTunesIconButtonColors(
+        SourceConnectionTestStatus.Error -> TideIconButtonColors(
             buttonBg = Color.Transparent,
             iconTint = MiuixTheme.colorScheme.error,
         )
     }
 
-    Column(
-        modifier = Modifier
-            .background(MiuixTheme.colorScheme.surface)
-            .fillMaxSize(),
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val horizontalPadding = if (maxWidth < 600.dp) spacing.pageCompact else spacing.pageMedium
+
+        Column(
             modifier = Modifier
-                .padding(12.dp)
-                .fillMaxWidth(),
+                .background(MiuixTheme.colorScheme.background)
+                .fillMaxSize(),
         ) {
-            Row {
-                TideTunesIconButton(
-                    sizeType = TideTunesIconButtonSize.Medium,
-                    buttonType = TideTunesIconButtonType.Default,
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .padding(horizontal = horizontalPadding, vertical = 12.dp)
+                    .fillMaxWidth(),
+            ) {
+                TideIconButton(
+                    size = TideIconButtonSize.Medium,
+                    variant = TideIconButtonVariant.Default,
                     painter = painterResource(Res.drawable.icon_back),
                     onClick = {
                         onAction(SourceEditorAction.NavigateBack)
                     },
                 )
-            }
-            Row {
-                if (!state.isCreated) {
-                    TideTunesIconButton(
-                        sizeType = TideTunesIconButtonSize.Medium,
-                        buttonType = TideTunesIconButtonType.Error,
-                        painter = painterResource(Res.drawable.icon_deleteseep),
-                        onClick = {
-                            onAction(SourceEditorAction.OpenRemoveDialog)
-                        },
-                    )
-                }
-                TideTunesIconButton(
-                    sizeType = TideTunesIconButtonSize.Medium,
-                    buttonType = TideTunesIconButtonType.Default,
-                    disabled = state.testStatus == SourceConnectionTestStatus.Testing,
-                    painter = painterResource(Res.drawable.icon_wifitethering),
-                    overrideColors = testingColors,
-                    onClick = {
-                        onAction(SourceEditorAction.TestConnection)
-                    },
-                )
-                TideTunesIconButton(
-                    sizeType = TideTunesIconButtonSize.Medium,
-                    buttonType = TideTunesIconButtonType.Default,
-                    painter = painterResource(Res.drawable.icon_ok),
-                    onClick = {
-                        onAction(SourceEditorAction.Save)
-                    },
-                )
-            }
-        }
-        Box(
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier
-                    .verticalScroll(rememberScrollState())
-                    .imePadding()
-                    .padding(30.dp, 12.dp),
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                Column(
+                    modifier = Modifier.weight(1f),
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    StorageBlock(
-                        title = "WebDAV",
-                        isActive = storageType == SourceEditorType.WebDav,
-                        onSelect = {
-                            onAction(SourceEditorAction.ChangeType(SourceEditorType.WebDav))
-                        },
+                    Text(
+                        text = state.title.ifBlank { "Source" },
+                        color = MiuixTheme.colorScheme.onBackground,
+                        style = MiuixTheme.textStyles.title3,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
-                    StorageBlock(
-                        title = "OneDrive",
-                        isActive = storageType == SourceEditorType.OneDrive,
-                        onSelect = {
-                            onAction(SourceEditorAction.ChangeType(SourceEditorType.OneDrive))
-                        },
-                    )
-                }
-                Box(modifier = Modifier.height(30.dp))
-                if (storageType == SourceEditorType.WebDav) {
-                    WebDavConfig(
-                        state = state.webDav,
-                        validation = state.validation,
-                        onAction = onAction,
+                    Text(
+                        text = if (state.isCreated) "New source" else "Edit source",
+                        color = MiuixTheme.colorScheme.onBackgroundVariant,
+                        style = MiuixTheme.textStyles.footnote1,
+                        maxLines = 1,
                     )
                 }
-                if (storageType == SourceEditorType.OneDrive) {
-                    OneDriveConfig(
-                        state = state.oneDrive,
-                        validation = state.validation,
-                        onAction = onAction,
-                    )
-                }
-                if (!state.isCreated) {
-                    FormWidget(
-                        label = stringResource(Res.string.storage_edit_import_library_label),
-                    ) {
-                        TideTunesTextButton(
-                            text = stringResource(Res.string.storage_edit_import_library_action),
-                            type = TideTunesTextButtonType.PrimaryVariant,
-                            size = TideTunesTextButtonSize.Medium,
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (!state.isCreated) {
+                        TideIconButton(
+                            size = TideIconButtonSize.Medium,
+                            variant = TideIconButtonVariant.Error,
+                            painter = painterResource(Res.drawable.icon_deleteseep),
                             onClick = {
-                                onAction(SourceEditorAction.ImportLibraryFolder)
+                                onAction(SourceEditorAction.OpenRemoveDialog)
                             },
                         )
+                    }
+                    TideIconButton(
+                        size = TideIconButtonSize.Medium,
+                        variant = TideIconButtonVariant.Default,
+                        enabled = state.testStatus != SourceConnectionTestStatus.Testing,
+                        painter = painterResource(Res.drawable.icon_wifitethering),
+                        colors = testingColors,
+                        onClick = {
+                            onAction(SourceEditorAction.TestConnection)
+                        },
+                    )
+                    TideIconButton(
+                        size = TideIconButtonSize.Medium,
+                        variant = TideIconButtonVariant.Default,
+                        painter = painterResource(Res.drawable.icon_ok),
+                        onClick = {
+                            onAction(SourceEditorAction.Save)
+                        },
+                    )
+                }
+            }
+            Box(
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .imePadding()
+                        .padding(horizontal = horizontalPadding, vertical = 12.dp),
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        StorageBlock(
+                            title = "WebDAV",
+                            isActive = storageType == SourceEditorType.WebDav,
+                            onSelect = {
+                                onAction(SourceEditorAction.ChangeType(SourceEditorType.WebDav))
+                            },
+                        )
+                        StorageBlock(
+                            title = "OneDrive",
+                            isActive = storageType == SourceEditorType.OneDrive,
+                            onSelect = {
+                                onAction(SourceEditorAction.ChangeType(SourceEditorType.OneDrive))
+                            },
+                        )
+                    }
+                    TideCardSurface(
+                        cornerRadius = shapes.xl,
+                        contentPadding = PaddingValues(16.dp),
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            if (storageType == SourceEditorType.WebDav) {
+                                WebDavConfig(
+                                    state = state.webDav,
+                                    validation = state.validation,
+                                    onAction = onAction,
+                                )
+                            }
+                            if (storageType == SourceEditorType.OneDrive) {
+                                OneDriveConfig(
+                                    state = state.oneDrive,
+                                    validation = state.validation,
+                                    onAction = onAction,
+                                )
+                            }
+                            if (!state.isCreated) {
+                                FormWidget(
+                                    label = stringResource(Res.string.storage_edit_import_library_label),
+                                ) {
+                                    TideTextButton(
+                                        text = stringResource(Res.string.storage_edit_import_library_action),
+                                        variant = TideTextButtonVariant.PrimaryFilled,
+                                        size = TideTextButtonSize.Medium,
+                                        onClick = {
+                                            onAction(SourceEditorAction.ImportLibraryFolder)
+                                        },
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
+        RemoveDialog(
+            state = state,
+            onAction = onAction,
+        )
     }
-    RemoveDialog(
-        state = state,
-        onAction = onAction,
-    )
 }

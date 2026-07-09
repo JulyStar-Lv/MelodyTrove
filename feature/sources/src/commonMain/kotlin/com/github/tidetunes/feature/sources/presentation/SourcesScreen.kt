@@ -1,9 +1,11 @@
 package com.github.tidetunes.feature.sources.presentation
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,10 +20,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.github.tidetunes.core.presentation.components.TideCardSurface
+import com.github.tidetunes.core.presentation.components.TideChevron
+import com.github.tidetunes.core.presentation.components.TideChevronDirection
+import com.github.tidetunes.core.presentation.components.TideChip
+import com.github.tidetunes.core.presentation.components.TideStatusBadge
+import com.github.tidetunes.core.presentation.components.TideStatusTone
+import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import tidetunes.feature.sources.generated.resources.Res
@@ -35,21 +44,26 @@ fun SourcesScreen(
     onAction: (SourcesAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier = modifier,
-    ) {
-        if (state.sources.isEmpty()) {
-            EmptySourcesCard(
-                onClick = { onAction(SourcesAction.AddSource) },
-            )
-            return
-        }
+    val spacing = TideTunesTokens.spacing
+    BoxWithConstraints(modifier = modifier) {
+        val horizontalPadding = if (maxWidth < 600.dp) spacing.pageCompact else spacing.pageMedium
+        Column(
+            modifier = Modifier.padding(horizontal = horizontalPadding, vertical = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            if (state.sources.isEmpty()) {
+                EmptySourcesCard(
+                    onClick = { onAction(SourcesAction.AddSource) },
+                )
+                return@Column
+            }
 
-        state.sources.forEach { source ->
-            SourceRow(
-                source = source,
-                onClick = { onAction(SourcesAction.OpenSource(source.id)) },
-            )
+            state.sources.forEach { source ->
+                SourceCard(
+                    source = source,
+                    onClick = { onAction(SourcesAction.OpenSource(source.id)) },
+                )
+            }
         }
     }
 }
@@ -58,13 +72,10 @@ fun SourcesScreen(
 private fun EmptySourcesCard(
     onClick: () -> Unit,
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(72.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(MiuixTheme.colorScheme.surfaceVariant)
-            .clickable(onClick = onClick),
+    TideCardSurface(
+        modifier = Modifier.height(96.dp),
+        contentPadding = PaddingValues(0.dp),
+        onClick = onClick,
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -79,46 +90,122 @@ private fun EmptySourcesCard(
             Text(
                 text = stringResource(Res.string.dashboard_devices_add),
                 textAlign = TextAlign.Center,
+                style = MiuixTheme.textStyles.body1,
+                color = MiuixTheme.colorScheme.onSurface,
             )
         }
     }
 }
 
 @Composable
-private fun SourceRow(
+private fun SourceCard(
     source: SourceAccountUi,
     onClick: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        verticalAlignment = Alignment.CenterVertically,
+    val shapes = TideTunesTokens.shapes
+
+    TideCardSurface(
+        contentPadding = PaddingValues(0.dp),
+        onClick = onClick,
     ) {
-        Box(modifier = Modifier.height(48.dp))
-        Icon(
-            modifier = Modifier.size(32.dp),
-            painter = painterResource(Res.drawable.icon_cloud),
-            contentDescription = null,
-        )
-        Box(modifier = Modifier.width(20.dp))
-        Column {
-            Text(
-                text = source.title,
-                fontSize = 14.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (source.subtitle.isNotBlank()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(modifier = Modifier.height(164.dp))
+            Box(
+                modifier = Modifier
+                    .padding(start = 16.dp)
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(shapes.md))
+                    .background(MiuixTheme.colorScheme.tertiaryContainer),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    modifier = Modifier.size(24.dp),
+                    painter = painterResource(Res.drawable.icon_cloud),
+                    tint = MiuixTheme.colorScheme.primary,
+                    contentDescription = null,
+                )
+            }
+            Box(modifier = Modifier.width(14.dp))
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TideStatusBadge(
+                        label = "Configured",
+                        tone = TideStatusTone.Success,
+                    )
+                    Text(
+                        text = source.sourceType,
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        maxLines = 1,
+                    )
+                }
                 Text(
-                    text = source.subtitle,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    fontSize = 12.sp,
+                    text = source.title,
+                    style = MiuixTheme.textStyles.title3,
+                    color = MiuixTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                Text(
+                    text = "Storage: ${source.storageLabel()}",
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    style = MiuixTheme.textStyles.footnote1,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = "Music: ${source.musicCountLabel()}",
+                    color = MiuixTheme.colorScheme.primary,
+                    style = MiuixTheme.textStyles.footnote1,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                SourceActionStrip()
             }
+            TideChevron(
+                direction = TideChevronDirection.Right,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
         }
     }
 }
 
+@Composable
+private fun SourceActionStrip() {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        TideChip(
+            label = "Sync",
+            enabled = false,
+        )
+        TideChip(
+            label = "Logs",
+            enabled = false,
+        )
+        TideChip(
+            label = "Settings",
+            selected = true,
+        )
+    }
+}
+
+private fun SourceAccountUi.storageLabel(): String {
+    return subtitle.ifBlank { "Default library" }
+}
+
+private fun SourceAccountUi.musicCountLabel(): String {
+    val unit = if (musicCount == 1L) "track" else "tracks"
+    return "$musicCount $unit"
+}

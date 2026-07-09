@@ -32,15 +32,20 @@ fun TideTunesTheme(
         TideTunesThemeMode.Light -> ColorSchemeMode.Light
         TideTunesThemeMode.Dark -> ColorSchemeMode.Dark
     }
-    val controller = remember(colorSchemeMode, darkTheme) {
+    val effectiveDarkTheme = when (themeMode) {
+        TideTunesThemeMode.FollowSystem -> darkTheme
+        TideTunesThemeMode.Light -> false
+        TideTunesThemeMode.Dark -> true
+    }
+    val controller = remember(colorSchemeMode, effectiveDarkTheme) {
         ThemeController(
             colorSchemeMode = colorSchemeMode,
             lightColors = TideTunesLightColors,
             darkColors = TideTunesDarkColors,
-            isDark = darkTheme,
+            isDark = effectiveDarkTheme,
         )
     }
-    val textStyles = remember { tideTunesTextStyles() }
+    val textStyles = tideTunesTextStyles()
 
     MiuixTheme(
         controller = controller,
@@ -95,9 +100,9 @@ data class TideTunesShapes(
     val xxs: Dp = 4.dp,
     val xs: Dp = 8.dp,
     val sm: Dp = 12.dp,
-    val md: Dp = 18.dp,
-    val lg: Dp = 24.dp,
-    val xl: Dp = 28.dp,
+    val md: Dp = 20.dp,
+    val lg: Dp = 28.dp,
+    val xl: Dp = 36.dp,
     val xxl: Dp = 36.dp,
     val full: Dp = 999.dp,
 )

@@ -1,6 +1,7 @@
 package com.github.tidetunes.widgets.appbar
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,17 +17,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.github.tidetunes.core.presentation.components.dropShadow
+import com.github.tidetunes.core.presentation.layout.WindowSizeClass
+import com.github.tidetunes.core.presentation.theme.TideTunesBrand
+import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import com.github.tidetunes.navigation.HomeTab
 import org.jetbrains.compose.resources.painterResource
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-fun getSidebarWidth(): Dp = 248.dp
+fun getSidebarWidth(windowSizeClass: WindowSizeClass = WindowSizeClass.Large): Dp {
+    return if (windowSizeClass == WindowSizeClass.XL) 260.dp else 240.dp
+}
 
 @Composable
 fun SidebarBar(
@@ -34,18 +42,23 @@ fun SidebarBar(
     onTabSelected: (HomeTab) -> Unit,
     miniPlayerContent: @Composable () -> Unit,
     modifier: Modifier = Modifier,
+    windowSizeClass: WindowSizeClass = WindowSizeClass.Large,
 ) {
+    val shapes = TideTunesTokens.shapes
+    val sidebarShape = RoundedCornerShape(topEnd = shapes.xl, bottomEnd = shapes.xl)
+
     Column(
         modifier = modifier
-            .width(getSidebarWidth())
+            .width(getSidebarWidth(windowSizeClass))
             .dropShadow(
                 MiuixTheme.colorScheme.surfaceVariant,
                 4.dp,
                 0.dp,
                 8.dp,
             )
-            .clip(RoundedCornerShape(topEnd = 12.dp, bottomEnd = 12.dp))
-            .background(MiuixTheme.colorScheme.surface)
+            .clip(sidebarShape)
+            .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.94f))
+            .border(1.dp, MiuixTheme.colorScheme.outline.copy(alpha = 0.70f), sidebarShape)
             .padding(horizontal = 12.dp, vertical = 16.dp),
     ) {
         Text(
@@ -74,15 +87,22 @@ private fun SidebarItem(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
+    val shapes = TideTunesTokens.shapes
+    val itemShape = RoundedCornerShape(shapes.full)
     val contentColor = if (selected) {
         MiuixTheme.colorScheme.primary
     } else {
-        MiuixTheme.colorScheme.onSurfaceVariantSummary
+        MiuixTheme.colorScheme.onSurfaceVariantActions
     }
-    val backgroundColor = if (selected) {
-        MiuixTheme.colorScheme.secondaryContainer
+    val backgroundBrush = if (selected) {
+        Brush.linearGradient(
+            listOf(
+                TideTunesBrand.Primary.copy(alpha = 0.18f),
+                TideTunesBrand.Secondary.copy(alpha = 0.16f),
+            ),
+        )
     } else {
-        MiuixTheme.colorScheme.surface
+        Brush.linearGradient(listOf(Color.Transparent, Color.Transparent))
     }
 
     Row(
@@ -90,8 +110,8 @@ private fun SidebarItem(
         modifier = Modifier
             .fillMaxWidth()
             .height(44.dp)
-            .clip(RoundedCornerShape(10.dp))
-            .background(backgroundColor)
+            .clip(itemShape)
+            .background(backgroundBrush)
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp),
     ) {

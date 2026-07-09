@@ -3,24 +3,16 @@ package com.github.tidetunes.core.presentation.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
-import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.basic.IconButton
-import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -33,38 +25,12 @@ fun AppTopBar(
     navigationIcon: @Composable (() -> Unit)? = null,
     actions: @Composable (() -> Unit)? = null,
 ) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(
-            modifier = Modifier.size(48.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            navigationIcon?.invoke()
-        }
-        Box(
-            modifier = Modifier.weight(1f),
-            contentAlignment = Alignment.CenterStart,
-        ) {
-            Text(
-                text = title,
-                style = MiuixTheme.textStyles.title3,
-                color = MiuixTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        Row(
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            actions?.invoke()
-        }
-    }
+    TideTopBar(
+        title = title,
+        modifier = modifier,
+        navigationIcon = navigationIcon,
+        actions = actions,
+    )
 }
 
 // --- AppIconButton ---
@@ -78,17 +44,16 @@ fun AppIconButton(
     enabled: Boolean = true,
     tint: Color = MiuixTheme.colorScheme.onSurface,
 ) {
-    IconButton(
+    TideIconButton(
+        size = TideIconButtonSize.Medium,
+        variant = TideIconButtonVariant.Default,
+        painter = painter,
         onClick = onClick,
         modifier = modifier,
+        contentDescription = contentDescription,
+        colors = TideIconButtonColors(iconTint = tint),
         enabled = enabled,
-    ) {
-        Icon(
-            painter = painter,
-            contentDescription = contentDescription,
-            tint = tint,
-        )
-    }
+    )
 }
 
 // --- AppSectionHeader ---
@@ -99,20 +64,13 @@ fun AppSectionHeader(
     modifier: Modifier = Modifier,
     action: (@Composable () -> Unit)? = null,
 ) {
-    Row(
+    TideSectionHeader(
+        title = title,
+        variant = TideSectionHeaderVariant.Subtle,
         modifier = modifier
-            .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = title,
-            style = MiuixTheme.textStyles.subtitle,
-            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-        )
-        action?.invoke()
-    }
+        trailing = action,
+    )
 }
 
 // --- AppLoadingIndicator ---
@@ -125,14 +83,7 @@ fun AppLoadingIndicator(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
     ) {
-        CircularProgressIndicator(
-            modifier = Modifier.size(32.dp),
-            colors = ProgressIndicatorDefaults.progressIndicatorColors(
-                foregroundColor = MiuixTheme.colorScheme.primary,
-            ),
-            strokeWidth = 3.dp,
-            size = 32.dp,
-        )
+        TideLoadingIndicator()
     }
 }
 
@@ -188,11 +139,11 @@ fun AppErrorState(
             )
             if (onRetry != null) {
                 Spacer(Modifier.height(12.dp))
-                TideTunesTextButton(
+                TideTextButton(
                     onClick = onRetry,
                     text = "Retry",
-                    type = TideTunesTextButtonType.Primary,
-                    size = TideTunesTextButtonSize.Medium,
+                    variant = TideTextButtonVariant.Primary,
+                    size = TideTextButtonSize.Medium,
                 )
             }
         }

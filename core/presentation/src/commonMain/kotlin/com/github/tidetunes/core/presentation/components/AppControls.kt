@@ -1,16 +1,12 @@
 package com.github.tidetunes.core.presentation.components
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.text.TextStyle
@@ -18,26 +14,18 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.state.ToggleableState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import top.yukonga.miuix.kmp.basic.Button
+import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import top.yukonga.miuix.kmp.basic.ButtonColors
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
-import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardColors
 import top.yukonga.miuix.kmp.basic.CardDefaults
-import top.yukonga.miuix.kmp.basic.Checkbox
 import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 import top.yukonga.miuix.kmp.basic.ProgressIndicatorColors
 import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
-import top.yukonga.miuix.kmp.basic.Switch
 import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.basic.TextField
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
-import top.yukonga.miuix.kmp.window.WindowDialog
 
 @Composable
 fun AppText(
@@ -81,7 +69,8 @@ fun AppButton(
     colors: ButtonColors = ButtonDefaults.buttonColorsPrimary(),
     content: @Composable RowScope.() -> Unit,
 ) {
-    Button(
+    TideButton(
+        variant = TideButtonVariant.Primary,
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
@@ -90,23 +79,24 @@ fun AppButton(
     )
 }
 
+@Suppress("UNUSED_PARAMETER")
 @Composable
 fun AppCard(
     modifier: Modifier = Modifier,
-    cornerRadius: Dp = 16.dp,
+    cornerRadius: Dp = TideTunesTokens.shapes.lg,
     insideMargin: PaddingValues = PaddingValues(0.dp),
     colors: CardColors = CardDefaults.defaultColors(),
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Card(
+    TideCardSurface(
         modifier = modifier,
         cornerRadius = cornerRadius,
-        insideMargin = insideMargin,
-        colors = colors,
         onClick = onClick,
-        content = content,
-    )
+        contentPadding = insideMargin,
+    ) {
+        Column(content = content)
+    }
 }
 
 @Composable
@@ -122,12 +112,11 @@ fun AppTextField(
     visualTransformation: VisualTransformation = VisualTransformation.None,
     trailingIcon: @Composable (() -> Unit)? = null,
 ) {
-    TextField(
+    TideTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier,
         label = label,
-        useLabelAsPlaceholder = label.isNotEmpty(),
         enabled = enabled,
         singleLine = singleLine,
         keyboardOptions = keyboardOptions,
@@ -144,9 +133,9 @@ fun AppCheckbox(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    Checkbox(
-        state = if (checked) ToggleableState.On else ToggleableState.Off,
-        onClick = { onCheckedChange(!checked) },
+    TideCheckbox(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
         modifier = modifier,
         enabled = enabled,
     )
@@ -159,7 +148,7 @@ fun AppSwitch(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    Switch(
+    TideSwitch(
         checked = checked,
         onCheckedChange = onCheckedChange,
         modifier = modifier,
@@ -173,7 +162,7 @@ fun AppLinearProgressIndicator(
     modifier: Modifier = Modifier,
     colors: ProgressIndicatorColors = ProgressIndicatorDefaults.progressIndicatorColors(),
 ) {
-    LinearProgressIndicator(
+    TideLinearProgressIndicator(
         modifier = modifier,
         progress = progress,
         colors = colors,
@@ -187,32 +176,12 @@ fun AppChip(
     modifier: Modifier = Modifier,
     selected: Boolean = false,
 ) {
-    val backgroundColor = if (selected) {
-        MiuixTheme.colorScheme.primary
-    } else {
-        MiuixTheme.colorScheme.secondaryContainer
-    }
-    val contentColor = if (selected) {
-        MiuixTheme.colorScheme.onPrimary
-    } else {
-        MiuixTheme.colorScheme.onSecondaryContainer
-    }
-
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(999.dp))
-            .background(backgroundColor)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 7.dp),
-    ) {
-        Text(
-            text = label,
-            color = contentColor,
-            style = MiuixTheme.textStyles.footnote1,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
+    TideChip(
+        label = label,
+        modifier = modifier,
+        selected = selected,
+        onClick = onClick,
+    )
 }
 
 @Composable
@@ -222,12 +191,20 @@ fun AppDialog(
     onDismissRequest: () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    WindowDialog(
+    TideDialog(
         show = show,
-        title = title,
-        onDismissRequest = onDismissRequest,
-        content = content,
-    )
+        onDismiss = onDismissRequest,
+    ) {
+        if (!title.isNullOrBlank()) {
+            Text(
+                text = title,
+                modifier = Modifier.padding(bottom = 16.dp),
+                color = MiuixTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.title3,
+            )
+        }
+        content()
+    }
 }
 
 @Composable
@@ -237,7 +214,7 @@ fun AppBottomSheet(
     onDismissRequest: () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    WindowBottomSheet(
+    TideBottomSheet(
         show = show,
         title = title,
         onDismissRequest = onDismissRequest,

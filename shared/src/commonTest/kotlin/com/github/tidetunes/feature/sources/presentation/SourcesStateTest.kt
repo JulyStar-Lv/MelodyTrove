@@ -51,6 +51,8 @@ class SourcesStateTest {
                     id = account.accountId,
                     title = account.title,
                     subtitle = account.subtitle,
+                    sourceType = if (account.sourceId == BuiltInSourceIds.WebDav) "WebDAV" else "OneDrive",
+                    musicCount = account.musicCount,
                 )
             }
 
@@ -60,6 +62,8 @@ class SourcesStateTest {
                 id = SourceAccountId("storage:2"),
                 title = "https://dav.example.com/music",
                 subtitle = "https://dav.example.com/music",
+                sourceType = "WebDAV",
+                musicCount = 10,
             ),
             sources[0],
         )
@@ -68,6 +72,8 @@ class SourcesStateTest {
                 id = SourceAccountId("storage:3"),
                 title = "OneDrive",
                 subtitle = "drive-id",
+                sourceType = "OneDrive",
+                musicCount = 5,
             ),
             sources[1],
         )

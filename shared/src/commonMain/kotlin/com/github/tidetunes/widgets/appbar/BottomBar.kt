@@ -1,22 +1,29 @@
 package com.github.tidetunes.widgets.appbar
 
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,7 +47,7 @@ fun getBottomBarSpace(
 ): Dp {
     var total = 64.dp + scaffoldPadding.calculateBottomPadding()
     if (isPlaying) {
-        total += 80.dp
+        total += 56.dp
     }
     return total
 }
@@ -71,6 +78,7 @@ fun BoxScope.BottomBar(
     }
 
     val shapes = TideTunesTokens.shapes
+    val motion = TideTunesTokens.motion
 
     Column(
         modifier = Modifier
@@ -92,51 +100,60 @@ fun BoxScope.BottomBar(
             .fillMaxWidth()
     ) {
         miniPlayerContent()
-        Row(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(64.dp)
-                .padding(horizontal = 8.dp, vertical = 6.dp)
+                .padding(horizontal = 8.dp, vertical = 6.dp),
         ) {
-            for (tab in HomeTab.entries) {
-                val isSelected = currentTab == tab
-                val tint = if (isSelected) {
-                    MiuixTheme.colorScheme.primary
-                } else {
-                    MiuixTheme.colorScheme.onSurfaceVariantActions
-                }
+            val tabCount = HomeTab.entries.size
+            val itemWidth = maxWidth / tabCount
+            val indicatorOffset by animateDpAsState(
+                targetValue = itemWidth * currentTab.index,
+                animationSpec = tween(durationMillis = motion.standardMillis),
+                label = "bottomBarIndicatorOffset",
+            )
 
-                Column(
+            Box(
+                modifier = Modifier
+                    .offset(x = indicatorOffset)
+                    .width(itemWidth)
+                    .fillMaxHeight(),
+                contentAlignment = Alignment.TopCenter,
+            ) {
+                Box(
                     modifier = Modifier
-                        .weight(1.0f)
-                        .fillMaxHeight()
-                        .clip(RoundedCornerShape(shapes.lg))
-                        .clickable { onTabSelected(tab) },
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(width = 42.dp, height = 26.dp)
-                            .clip(RoundedCornerShape(shapes.full))
-                            .background(
-                                if (isSelected) {
-                                    Brush.linearGradient(
-                                        listOf(
-                                            TideTunesBrand.Primary.copy(alpha = 0.18f),
-                                            TideTunesBrand.Secondary.copy(alpha = 0.16f),
-                                        ),
-                                    )
-                                } else {
-                                    Brush.linearGradient(
-                                        listOf(
-                                            Color.Transparent,
-                                            Color.Transparent,
-                                        ),
-                                    )
-                                },
+                        .padding(top = 7.dp)
+                        .size(width = 42.dp, height = 26.dp)
+                        .clip(RoundedCornerShape(shapes.full))
+                        .background(
+                            Brush.linearGradient(
+                                listOf(
+                                    TideTunesBrand.Primary.copy(alpha = 0.18f),
+                                    TideTunesBrand.Secondary.copy(alpha = 0.16f),
+                                ),
                             ),
-                        contentAlignment = Alignment.Center,
+                        ),
+                )
+            }
+
+            Row(modifier = Modifier.fillMaxSize()) {
+                for (tab in HomeTab.entries) {
+                    val isSelected = currentTab == tab
+                    val tint = if (isSelected) {
+                        MiuixTheme.colorScheme.primary
+                    } else {
+                        MiuixTheme.colorScheme.onSurfaceVariantActions
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .weight(1.0f)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(shapes.lg))
+                            .clickable { onTabSelected(tab) },
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
                     ) {
                         Icon(
                             painter = painterResource(tab.painterRes),
@@ -144,15 +161,15 @@ fun BoxScope.BottomBar(
                             contentDescription = null,
                             modifier = Modifier.size(20.dp),
                         )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = tab.label,
+                            color = tint,
+                            style = MiuixTheme.textStyles.footnote2,
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                            maxLines = 1,
+                        )
                     }
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = tab.label,
-                        color = tint,
-                        style = MiuixTheme.textStyles.footnote2,
-                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                        maxLines = 1,
-                    )
                 }
             }
         }

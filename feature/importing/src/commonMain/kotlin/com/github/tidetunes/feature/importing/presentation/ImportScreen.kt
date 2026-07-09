@@ -1,16 +1,20 @@
 package com.github.tidetunes.feature.importing.presentation
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -21,7 +25,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import top.yukonga.miuix.kmp.basic.FloatingActionButton
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.basic.Text
@@ -33,16 +36,22 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.github.tidetunes.core.presentation.components.TideTunesCheckbox
-import com.github.tidetunes.core.presentation.components.TideTunesIconButton
-import com.github.tidetunes.core.presentation.components.TideTunesIconButtonSize
-import com.github.tidetunes.core.presentation.components.TideTunesIconButtonType
+import com.github.tidetunes.core.presentation.components.TideCardSurface
+import com.github.tidetunes.core.presentation.components.TideCheckbox
+import com.github.tidetunes.core.presentation.components.TideChevron
+import com.github.tidetunes.core.presentation.components.TideFab
+import com.github.tidetunes.core.presentation.components.TideIconButton
+import com.github.tidetunes.core.presentation.components.TideIconButtonSize
+import com.github.tidetunes.core.presentation.components.TideIconButtonVariant
 import com.github.tidetunes.core.domain.model.ImportSelectionMode
 import com.github.tidetunes.core.presentation.platform.TideTunesBackHandler
+import com.github.tidetunes.core.presentation.theme.TideTunesBrand
+import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import com.github.tidetunes.source.api.SourceNode
 import com.github.tidetunes.source.api.SourceNodeType
 import tidetunes.feature.importing.generated.resources.Res
@@ -70,17 +79,23 @@ import tidetunes.feature.importing.generated.resources.import_musics_title_multi
 import tidetunes.feature.importing.generated.resources.import_musics_title_single_suffix
 
 @Composable
-private fun ImportEntriesSkeleton() {
+private fun ImportEntriesSkeleton(
+    horizontalPadding: Dp,
+    modifier: Modifier = Modifier,
+) {
+    val shapes = TideTunesTokens.shapes
+    val spacing = TideTunesTokens.spacing
+
     @Composable
     fun Block(
         width: Dp,
         height: Dp,
     ) {
-        val color = MiuixTheme.colorScheme.surfaceVariant
+        val color = MiuixTheme.colorScheme.surfaceContainerHigh
         Box(modifier = Modifier
             .width(width)
             .height(height)
-            .clip(RoundedCornerShape(6.dp))
+            .clip(RoundedCornerShape(shapes.xs))
             .background(color)
         )
     }
@@ -88,11 +103,11 @@ private fun ImportEntriesSkeleton() {
     @Composable
     fun FolderItem() {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(spacing.sm),
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.height(30.dp)
+            modifier = Modifier.height(38.dp)
         ) {
-            Block(width = 30.dp, height = 30.dp)
+            Block(width = 38.dp, height = 38.dp)
             Column(
                 verticalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxHeight()
@@ -111,20 +126,22 @@ private fun ImportEntriesSkeleton() {
             modifier = Modifier.fillMaxWidth()
         ) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Block(width = 30.dp, height = 30.dp)
+                Block(width = 38.dp, height = 38.dp)
                 Block(width = 138.dp, height = 17.dp)
             }
-            Block(width = 16.dp, height = 16.dp)
+            Block(width = 20.dp, height = 20.dp)
         }
     }
 
 
     Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.padding(28.dp, 28.dp)
+        verticalArrangement = Arrangement.spacedBy(spacing.sm),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = horizontalPadding, vertical = spacing.md)
     ) {
         Block(
             width = 144.dp,
@@ -154,96 +171,130 @@ private fun ImportEntry(
         onClickEntry(entry)
     }
 
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-        modifier = Modifier
-            .clickable {
-                onClick()
-            }
-            .padding(0.dp, 8.dp)
-            .fillMaxWidth()
+    TideCardSurface(
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+        onClick = onClick,
     ) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.weight(1.0F)
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxWidth(),
         ) {
-            Icon(
-                painter = painter,
-                contentDescription = null,
-                modifier = Modifier
-                    .size(24.dp)
-            )
-            Text(
-                text = entry.name,
-                fontSize = 14.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-        Box(modifier = Modifier.width(12.dp))
-        Box(
-            modifier = Modifier
-                .size(16.dp)
-        ) {
-            if (canCheck) {
-                TideTunesCheckbox(
-                    value = checked,
-                    onChange = {
-                        onClick()
-                    }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1.0F)
+            ) {
+                ImportEntryIcon(painter = painter, active = canCheck)
+                Text(
+                    text = entry.name,
+                    color = MiuixTheme.colorScheme.onSurface,
+                    style = MiuixTheme.textStyles.body2,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
+            }
+            Box(modifier = Modifier.width(12.dp))
+            Box(
+                modifier = Modifier
+                    .size(16.dp)
+            ) {
+                if (canCheck) {
+                    TideCheckbox(
+                        checked = checked,
+                        onCheckedChange = {
+                            onClick()
+                        }
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
+private fun ImportEntryIcon(
+    painter: Painter,
+    active: Boolean,
+) {
+    val shape = RoundedCornerShape(TideTunesTokens.shapes.md)
+    val tint = if (active) {
+        TideTunesBrand.Primary
+    } else {
+        MiuixTheme.colorScheme.onSurfaceVariantSummary
+    }
+
+    Box(
+        modifier = Modifier
+            .size(38.dp)
+            .clip(shape)
+            .background(if (active) MiuixTheme.colorScheme.tertiaryContainer else MiuixTheme.colorScheme.surfaceContainerHigh)
+            .border(1.dp, if (active) TideTunesBrand.Primary.copy(alpha = 0.18f) else MiuixTheme.colorScheme.outline, shape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painter = painter,
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(21.dp),
+        )
+    }
+}
+
+@Composable
 private fun ImportEntries(
     state: ImportState,
+    horizontalPadding: Dp,
     onAction: (ImportAction) -> Unit,
 ) {
+    val spacing = TideTunesTokens.spacing
+    val shapes = TideTunesTokens.shapes
+
     @Composable
     fun PathTab(
         text: String,
         path: String,
         disabled: Boolean,
     ) {
+        val shape = RoundedCornerShape(shapes.full)
         val color = if (!disabled) {
-            MiuixTheme.colorScheme.onSurface
+            TideTunesBrand.Primary
         } else {
-            MiuixTheme.colorScheme.surfaceVariant
+            MiuixTheme.colorScheme.onSurfaceVariantSummary
         }
         Text(
             text = text,
             color = color,
-            fontSize = 10.sp,
+            style = MiuixTheme.textStyles.footnote2,
+            fontWeight = if (!disabled) FontWeight.SemiBold else FontWeight.Normal,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier
+                .clip(shape)
+                .background(if (!disabled) MiuixTheme.colorScheme.tertiaryContainer else MiuixTheme.colorScheme.surfaceContainerHigh)
+                .border(1.dp, if (!disabled) TideTunesBrand.Primary.copy(alpha = 0.16f) else MiuixTheme.colorScheme.outline, shape)
                 .clickable(
                     enabled = !disabled,
                     onClick = {
                         onAction(ImportAction.OpenPath(path))
                     }
                 )
-                .clip(RoundedCornerShape(2.dp))
-                .widthIn(10.dp, 100.dp)
-                .padding(4.dp, 2.dp)
+                .widthIn(24.dp, 148.dp)
+                .padding(horizontal = spacing.sm, vertical = spacing.xxs)
         )
     }
 
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
-        Column {
+        Column(modifier = Modifier.fillMaxSize()) {
             Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(spacing.xs),
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .wrapContentHeight()
-                    .padding(28.dp, 8.dp)
+                    .padding(horizontal = horizontalPadding, vertical = spacing.xs)
                     .horizontalScroll(rememberScrollState())
             ) {
                 PathTab(
@@ -252,9 +303,9 @@ private fun ImportEntries(
                     disabled = state.splitPaths.isEmpty()
                 )
                 for ((index, v) in state.splitPaths.withIndex()) {
-                    Text(
-                        text = ">",
-                        fontSize = 10.sp,
+                    TideChevron(
+                        size = 8.dp,
+                        tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     )
                     PathTab(
                         text = v.name,
@@ -265,7 +316,10 @@ private fun ImportEntries(
             }
             LazyColumn(
                 modifier = Modifier
-                    .padding(28.dp, 0.dp)
+                    .fillMaxSize()
+                    .padding(horizontal = horizontalPadding),
+                verticalArrangement = Arrangement.spacedBy(spacing.xs),
+                contentPadding = PaddingValues(bottom = 88.dp),
             ) {
                 itemsIndexed(state.entries, key = { index, item -> item.lazyListKey(index) }) { _, item ->
                     ImportEntry(
@@ -277,41 +331,38 @@ private fun ImportEntries(
                         },
                     )
                 }
-                item {
-                    Box(modifier = Modifier.height(12.dp))
-                }
             }
         }
         if (state.selectionMode == ImportSelectionMode.CurrentDirectory) {
-            FloatingActionButton(
-                containerColor = MiuixTheme.colorScheme.primary,
+            TideFab(
                 onClick = {
                     onAction(ImportAction.FinishCurrentDirectory)
                 },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .offset((-40).dp, (-40).dp)
+                    .padding(end = horizontalPadding, bottom = horizontalPadding)
             ) {
                 Icon(
                     painter = painterResource(Res.drawable.icon_yes),
                     contentDescription = null,
                     tint = MiuixTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(22.dp),
                 )
             }
         } else if (state.selectedCount > 0) {
-            FloatingActionButton(
-                containerColor = MiuixTheme.colorScheme.primary,
+            TideFab(
                 onClick = {
                     onAction(ImportAction.FinishSelection)
                 },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .offset((-40).dp, (-40).dp)
+                    .padding(end = horizontalPadding, bottom = horizontalPadding)
             ) {
                 Icon(
                     painter = painterResource(Res.drawable.icon_yes),
                     contentDescription = null,
                     tint = MiuixTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(22.dp),
                 )
             }
         }
@@ -324,55 +375,70 @@ internal fun com.github.tidetunes.source.api.SourceNode.lazyListKey(index: Int):
 @Composable
 private fun ImportStorages(
     state: ImportState,
+    horizontalPadding: Dp,
     onAction: (ImportAction) -> Unit,
 ) {
+    val spacing = TideTunesTokens.spacing
+    val shapes = TideTunesTokens.shapes
+
     Row(
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
         modifier = Modifier
-            .padding(28.dp, 0.dp)
+            .padding(horizontal = horizontalPadding)
             .horizontalScroll(rememberScrollState())
     ) {
        for (item in state.storageAccounts) {
             val selected = state.selectedStorageAccountId == item.accountId
-
+            val shape = RoundedCornerShape(shapes.lg)
             val bgColor = if (selected) {
-                MiuixTheme.colorScheme.primary
+                TideTunesBrand.Primary
             } else {
-                MiuixTheme.colorScheme.surfaceVariant
+                MiuixTheme.colorScheme.surfaceContainer
             }
             val textColor = if (selected) {
-                Color.White
+                MiuixTheme.colorScheme.onPrimary
             } else {
                 MiuixTheme.colorScheme.onSurface
+            }
+            val subtitleColor = if (selected) {
+                MiuixTheme.colorScheme.onPrimary.copy(alpha = 0.76f)
+            } else {
+                MiuixTheme.colorScheme.onSurfaceVariantSummary
+            }
+            val borderColor = if (selected) {
+                TideTunesBrand.Primary.copy(alpha = 0.28f)
+            } else {
+                MiuixTheme.colorScheme.outline
             }
 
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(10.dp))
+                    .clip(shape)
                     .clickable {
                         onAction(ImportAction.SelectStorage(item.accountId))
                     }
                     .background(bgColor)
-                    .width(142.dp)
-                    .height(65.dp)
+                    .border(1.dp, borderColor, shape)
+                    .width(156.dp)
+                    .heightIn(min = 76.dp)
             ) {
                 Column(
+                    verticalArrangement = Arrangement.spacedBy(spacing.xxs),
                     modifier = Modifier
-                        .padding(16.dp, 16.dp)
+                        .padding(horizontal = spacing.md, vertical = spacing.sm)
                 ) {
                     Text(
                         text = item.name,
                         color = textColor,
-                        fontSize = 14.sp,
-                        lineHeight = 14.sp,
+                        style = MiuixTheme.textStyles.body2,
+                        fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         text = item.subtitle,
-                        color = textColor,
-                        fontSize = 10.sp,
-                        lineHeight = 10.sp,
+                        color = subtitleColor,
+                        style = MiuixTheme.textStyles.footnote2,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -381,7 +447,7 @@ private fun ImportStorages(
                     Icon(
                         painter = painterResource(Res.drawable.icon_cloud),
                         contentDescription = null,
-                        tint = Color.Black.copy(0.2F),
+                        tint = if (selected) MiuixTheme.colorScheme.onPrimary.copy(alpha = 0.2f) else TideTunesBrand.Primary.copy(alpha = 0.18f),
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .width(27.dp)
@@ -399,45 +465,62 @@ private fun ImportMusicsWarningImpl(
     subTitle: String,
     color: Color,
     iconPainter: Painter,
+    horizontalPadding: Dp,
     onClick: () -> Unit,
 ) {
+    val spacing = TideTunesTokens.spacing
+
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontalPadding)
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
+        TideCardSurface(
             modifier = Modifier
-                .clip(RoundedCornerShape(4.dp))
-                .clickable {
-                    onClick()
-                }
-                .padding(10.dp)
+                .widthIn(max = 360.dp)
+                .heightIn(min = 220.dp),
+            cornerRadius = TideTunesTokens.shapes.xl,
+            contentPadding = PaddingValues(spacing.lg),
+            onClick = onClick,
         ) {
-            Box(modifier = Modifier
-                .size(60.dp)
-                .clip(RoundedCornerShape(999.dp))
-                .background(color)
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(spacing.sm),
+                modifier = Modifier.fillMaxWidth(),
             ) {
-                Icon(
-                    painter = iconPainter,
-                    contentDescription = null,
-                    tint = MiuixTheme.colorScheme.surface,
+                Box(
                     modifier = Modifier
-                        .align(Alignment.Center)
+                        .size(64.dp)
+                        .clip(RoundedCornerShape(TideTunesTokens.shapes.full))
+                        .background(color.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = iconPainter,
+                        contentDescription = null,
+                        tint = color,
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
+                Text(
+                    text = title,
+                    color = color,
+                    style = MiuixTheme.textStyles.title3,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = subTitle,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    style = MiuixTheme.textStyles.footnote1,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .widthIn(0.dp, 220.dp)
                 )
             }
-            Text(
-                text = title,
-                fontSize = 14.sp,
-                color = color,
-            )
-            Text(
-                text = subTitle,
-                fontSize = 12.sp,
-                modifier = Modifier
-                    .widthIn(0.dp, 220.dp)
-            )
         }
     }
 }
@@ -445,6 +528,7 @@ private fun ImportMusicsWarningImpl(
 @Composable
 private fun ImportMusicsError(
     loadState: ImportLoadState,
+    horizontalPadding: Dp,
     onAction: (ImportAction) -> Unit,
 ) {
     val title = when (loadState) {
@@ -473,6 +557,7 @@ private fun ImportMusicsError(
         subTitle = desc,
         color = MiuixTheme.colorScheme.error,
         iconPainter = painterResource(Res.drawable.icon_warning),
+        horizontalPadding = horizontalPadding,
         onClick = {
             onAction(ImportAction.RecoverFromLoadError)
         }
@@ -484,6 +569,7 @@ fun ImportScreen(
     state: ImportState,
     onAction: (ImportAction) -> Unit,
 ) {
+    val spacing = TideTunesTokens.spacing
     val titleText = if (state.selectionMode == ImportSelectionMode.CurrentDirectory) {
         stringResource(Res.string.import_library_title)
     } else {
@@ -497,63 +583,80 @@ fun ImportScreen(
     TideTunesBackHandler(enabled = state.canUndo) {
         onAction(ImportAction.NavigateBack)
     }
-    Column(
-        modifier = Modifier
-            .background(MiuixTheme.colorScheme.surface)
-            .fillMaxSize()
-    ) {
-        Row(
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val horizontalPadding = if (maxWidth < 600.dp) spacing.pageCompact else spacing.pageMedium
+
+        Column(
             modifier = Modifier
-                .padding(13.dp, 13.dp)
-                .fillMaxWidth()
+                .background(MiuixTheme.colorScheme.background)
+                .fillMaxSize()
         ) {
             Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .padding(horizontal = horizontalPadding, vertical = 18.dp)
+                    .fillMaxWidth()
             ) {
-                TideTunesIconButton(
-                    sizeType = TideTunesIconButtonSize.Medium,
-                    buttonType = TideTunesIconButtonType.Default,
-                    painter = painterResource(Res.drawable.icon_back),
-                    onClick = {
-                        onAction(ImportAction.NavigateBack)
-                    }
-                )
-                Text(
-                    text = titleText
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                    modifier = Modifier.weight(1f),
+                ) {
+                    TideIconButton(
+                        size = TideIconButtonSize.Medium,
+                        variant = TideIconButtonVariant.Default,
+                        painter = painterResource(Res.drawable.icon_back),
+                        onClick = {
+                            onAction(ImportAction.NavigateBack)
+                        }
+                    )
+                    Text(
+                        text = titleText,
+                        color = MiuixTheme.colorScheme.onBackground,
+                        style = MiuixTheme.textStyles.title3,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                if (state.selectionMode == ImportSelectionMode.Entries) {
+                    TideIconButton(
+                        size = TideIconButtonSize.Medium,
+                        variant = TideIconButtonVariant.Default,
+                        painter = painterResource(Res.drawable.icon_toggle_all),
+                        enabled = !state.disabledToggleAll,
+                        onClick = {
+                            onAction(ImportAction.ToggleAll)
+                        }
+                    )
+                }
             }
-            if (state.selectionMode == ImportSelectionMode.Entries) {
-                TideTunesIconButton(
-                    sizeType = TideTunesIconButtonSize.Medium,
-                    buttonType = TideTunesIconButtonType.Default,
-                    painter = painterResource(Res.drawable.icon_toggle_all),
-                    disabled = state.disabledToggleAll,
-                    onClick = {
-                        onAction(ImportAction.ToggleAll)
-                    }
-                )
-            }
-        }
-        ImportStorages(
-            state = state,
-            onAction = onAction,
-        )
-        when (state.loadState) {
-            ImportLoadState.Loading -> ImportEntriesSkeleton()
-            ImportLoadState.Timeout,
-            ImportLoadState.AuthenticationFailed,
-            ImportLoadState.UnknownError,
-            ImportLoadState.NeedsPermission -> ImportMusicsError(
-                loadState = state.loadState,
+            ImportStorages(
+                state = state,
+                horizontalPadding = horizontalPadding,
                 onAction = onAction,
             )
-            ImportLoadState.Ready -> {
-                ImportEntries(
-                    state = state,
+            Box(modifier = Modifier.height(spacing.md))
+            when (state.loadState) {
+                ImportLoadState.Loading -> ImportEntriesSkeleton(horizontalPadding = horizontalPadding)
+                ImportLoadState.Timeout,
+                ImportLoadState.AuthenticationFailed,
+                ImportLoadState.UnknownError,
+                ImportLoadState.NeedsPermission -> ImportMusicsError(
+                    loadState = state.loadState,
+                    horizontalPadding = horizontalPadding,
                     onAction = onAction,
                 )
+                ImportLoadState.Ready -> {
+                    ImportEntries(
+                        state = state,
+                        horizontalPadding = horizontalPadding,
+                        onAction = onAction,
+                    )
+                }
             }
         }
     }
