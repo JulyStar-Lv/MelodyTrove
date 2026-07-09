@@ -1,125 +1,139 @@
 package com.github.tidetunes.feature.artist.presentation
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.github.tidetunes.core.presentation.components.AppEmptyState
-import com.github.tidetunes.core.presentation.components.AppErrorState
-import com.github.tidetunes.core.presentation.components.AppLoadingIndicator
-import com.github.tidetunes.core.presentation.components.AppSectionHeader
-import com.github.tidetunes.core.presentation.components.AppTopBar
-import com.github.tidetunes.core.presentation.components.TideTunesTextButton
-import com.github.tidetunes.core.presentation.components.TideTunesTextButtonSize
-import com.github.tidetunes.core.presentation.components.TideTunesTextButtonType
+import com.github.tidetunes.core.domain.model.Artwork
+import com.github.tidetunes.core.presentation.components.TideCardSurface
+import com.github.tidetunes.core.presentation.components.TideDetailHeaderSurface
+import com.github.tidetunes.core.presentation.components.TideSectionHeader
+import com.github.tidetunes.core.presentation.components.TideStatusCard
+import com.github.tidetunes.core.presentation.components.TideTrackNumberBadge
+import com.github.tidetunes.core.presentation.components.TideTextButton
+import com.github.tidetunes.core.presentation.components.TideTextButtonSize
+import com.github.tidetunes.core.presentation.components.TideTextButtonVariant
 import com.github.tidetunes.core.presentation.media.ArtworkImage
+import com.github.tidetunes.core.presentation.theme.TideTunesBrand
+import com.github.tidetunes.core.presentation.theme.TideTunesTokens
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun ArtistScreen(
     state: ArtistState,
     onAction: (ArtistAction) -> Unit,
 ) {
-    Column(modifier = Modifier.fillMaxSize()) {
-        AppTopBar(
-            title = state.name,
-            navigationIcon = null,
-            actions = {
-                if (!state.isLoading && state.tracks.isNotEmpty()) {
-                    TideTunesTextButton(
-                        text = "Play All",
-                        type = TideTunesTextButtonType.Primary,
-                        size = TideTunesTextButtonSize.Small,
-                        onClick = { onAction(ArtistAction.PlayAll) },
-                    )
-                }
-            },
-        )
+    val spacing = TideTunesTokens.spacing
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val horizontalPadding = if (maxWidth < 600.dp) spacing.pageCompact else spacing.pageExpanded
 
-        when {
-            state.isLoading -> AppLoadingIndicator()
-            state.error != null -> AppErrorState(
-                message = state.error,
-                onRetry = { onAction(ArtistAction.Retry) },
-            )
-            else -> {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    item {
-                        ArtistHeader(
-                            name = state.name,
-                            artwork = state.artwork,
-                        )
-                    }
-
-                    if (state.albums.isNotEmpty()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MiuixTheme.colorScheme.background)
+                .padding(horizontal = horizontalPadding, vertical = 18.dp),
+        ) {
+            when {
+                state.isLoading -> TideStatusCard(
+                    title = "Loading artist",
+                    message = state.name.ifBlank { "Artist" },
+                    loading = true,
+                    loadingColor = TideTunesBrand.Secondary,
+                    modifier = Modifier.weight(1f),
+                )
+                state.error != null -> TideStatusCard(
+                    title = "Artist unavailable",
+                    message = state.error,
+                    modifier = Modifier.weight(1f),
+                    actionText = "Retry",
+                    onAction = { onAction(ArtistAction.Retry) },
+                )
+                else -> {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        contentPadding = PaddingValues(bottom = spacing.xl),
+                    ) {
                         item {
-                            AppSectionHeader(title = "Albums")
+                            ArtistHeader(
+                                name = state.name.ifBlank { "Artist" },
+                                artwork = state.artwork,
+                                albumCount = state.albums.size,
+                                trackCount = state.tracks.size,
+                                onPlayAll = if (state.tracks.isNotEmpty()) {
+                                    { onAction(ArtistAction.PlayAll) }
+                                } else null,
+                            )
                         }
-                        item {
-                            LazyRow(
-                                contentPadding = PaddingValues(horizontal = 16.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                itemsIndexed(state.albums, key = { index, album -> album.lazyListKey(index) }) { _, album ->
-                                    AlbumCard(
-                                        album = album,
-                                        onClick = { onAction(ArtistAction.NavigateToAlbum(album.id)) },
-                                    )
+                        if (state.albums.isNotEmpty()) {
+                            item {
+                                TideSectionHeader(
+                                    title = "Albums",
+                                    metadata = "${state.albums.size} releases",
+                                    titleWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(top = 6.dp),
+                                )
+                            }
+                            item {
+                                LazyRow(
+                                    contentPadding = PaddingValues(horizontal = 2.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                ) {
+                                    itemsIndexed(state.albums, key = { index, album -> album.lazyListKey(index) }) { _, album ->
+                                        ArtistAlbumCard(album = album, onClick = { onAction(ArtistAction.NavigateToAlbum(album.id)) })
+                                    }
                                 }
                             }
                         }
-                        item { Spacer(Modifier.height(8.dp)) }
-                    }
-
-                    if (state.tracks.isNotEmpty()) {
-                        item {
-                            AppSectionHeader(title = "Top Tracks")
+                        if (state.tracks.isNotEmpty()) {
+                            item {
+                                TideSectionHeader(
+                                    title = "Top Tracks",
+                                    metadata = "${state.tracks.size} songs",
+                                    titleWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(top = 6.dp),
+                                )
+                            }
+                            itemsIndexed(state.tracks, key = { index, track -> track.lazyListKey(index) }) { _, track ->
+                                ArtistTrackRow(
+                                    track = track,
+                                    onPlay = { onAction(ArtistAction.PlayTrack(track.id)) },
+                                    onAlbumClick = track.albumId?.let { id -> { onAction(ArtistAction.NavigateToAlbum(id)) } },
+                                    onDownload = { if (track.canDownload) onAction(ArtistAction.DownloadTrack(track)) },
+                                )
+                            }
                         }
-                        itemsIndexed(state.tracks, key = { index, track -> track.lazyListKey(index) }) { index, track ->
-                            ArtistTrackRow(
-                                track = track,
-                                onPlay = { onAction(ArtistAction.PlayTrack(track.id)) },
-                                onAlbumClick = track.albumId?.let { id ->
-                                    ({ onAction(ArtistAction.NavigateToAlbum(id)) })
-                                },
-                                onDownload = {
-                                    if (track.canDownload) {
-                                        onAction(ArtistAction.DownloadTrack(track))
-                                    }
-                                },
-                            )
-                        }
-                    }
-
-                    if (state.albums.isEmpty() && state.tracks.isEmpty()) {
-                        item {
-                            AppEmptyState(message = "No content found for this artist.")
+                        if (state.albums.isEmpty() && state.tracks.isEmpty()) {
+                            item {
+                                TideStatusCard(title = "No artist content", message = state.name.ifBlank { "Artist" }, modifier = Modifier.heightIn(min = 260.dp))
+                            }
                         }
                     }
-
-                    item { Spacer(Modifier.height(16.dp)) }
                 }
             }
         }
@@ -129,68 +143,53 @@ fun ArtistScreen(
 @Composable
 private fun ArtistHeader(
     name: String,
-    artwork: com.github.tidetunes.core.domain.model.Artwork?,
+    artwork: Artwork?,
+    albumCount: Int,
+    trackCount: Int,
+    onPlayAll: (() -> Unit)?,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(200.dp)
-                .clip(RoundedCornerShape(100.dp)),
-        ) {
-            ArtworkImage(
-                artwork = artwork,
-                modifier = Modifier.fillMaxSize(),
+    val shapes = TideTunesTokens.shapes
+
+    TideDetailHeaderSurface(accentColor = TideTunesBrand.Secondary, accentAlpha = 0.66f, borderAlpha = 0.18f) {
+        Box(modifier = Modifier.size(220.dp).clip(RoundedCornerShape(shapes.full)).background(MiuixTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))) {
+            ArtworkImage(artwork = artwork, modifier = Modifier.fillMaxSize())
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                text = name,
+                style = MiuixTheme.textStyles.title2,
+                color = MiuixTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = 620.dp),
+            )
+            Text(
+                text = artistSummary(albumCount = albumCount, trackCount = trackCount),
+                style = MiuixTheme.textStyles.footnote1,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
-        Spacer(Modifier.height(12.dp))
-        Text(
-            text = name,
-            style = MiuixTheme.textStyles.title3,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
+        onPlayAll?.let {
+            TideTextButton(text = "Play All", variant = TideTextButtonVariant.PrimaryFilled, size = TideTextButtonSize.Medium, onClick = it)
+        }
     }
 }
 
 @Composable
-private fun AlbumCard(
-    album: ArtistAlbumItem,
-    onClick: () -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .width(140.dp)
-            .clickable(onClick = onClick),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(140.dp)
-                .clip(RoundedCornerShape(8.dp)),
-        ) {
-            ArtworkImage(
-                artwork = album.artwork,
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = album.name,
-            style = MiuixTheme.textStyles.body2,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-        album.year?.let { year ->
-            Text(
-                text = year.toString(),
-                style = MiuixTheme.textStyles.footnote1,
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                maxLines = 1,
-            )
+private fun ArtistAlbumCard(album: ArtistAlbumItem, onClick: () -> Unit) {
+    val shapes = TideTunesTokens.shapes
+    TideCardSurface(modifier = Modifier.width(156.dp), contentPadding = PaddingValues(10.dp), fillMaxWidth = false, onClick = onClick) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(modifier = Modifier.size(136.dp).clip(RoundedCornerShape(shapes.md)).background(MiuixTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f))) {
+                ArtworkImage(artwork = album.artwork, modifier = Modifier.fillMaxSize())
+            }
+            Text(text = album.name, style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(text = album.year?.toString() ?: "Album", style = MiuixTheme.textStyles.footnote1, color = MiuixTheme.colorScheme.onSurfaceVariantSummary, maxLines = 1)
         }
     }
 }
@@ -202,85 +201,44 @@ private fun ArtistTrackRow(
     onAlbumClick: (() -> Unit)?,
     onDownload: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onPlay)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        val trackLabel = buildString {
-            if (track.discNumber != null && track.discNumber > 1) {
-                append("${track.discNumber}.")
+    val trackLabel = track.trackLabel()
+    TideCardSurface(modifier = Modifier.heightIn(min = 64.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp), onClick = onPlay) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            TideTrackNumberBadge(label = trackLabel)
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(text = track.title, style = MiuixTheme.textStyles.body1, color = MiuixTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                track.albumName?.let { album ->
+                    Text(
+                        text = album, style = MiuixTheme.textStyles.footnote1,
+                        color = if (onAlbumClick != null) TideTunesBrand.Secondary else MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        modifier = if (onAlbumClick != null) Modifier.clickable(onClick = onAlbumClick) else Modifier,
+                    )
+                }
+                track.durationMs?.let {
+                    Text(text = durationLabel(it), style = MiuixTheme.textStyles.footnote1, color = MiuixTheme.colorScheme.onSurfaceVariantSummary, maxLines = 1)
+                }
             }
-            if (track.trackNumber != null) {
-                if (isNotEmpty()) append("-")
-                append("${track.trackNumber}")
+            if (track.canDownload) {
+                TideTextButton(text = "DL", variant = TideTextButtonVariant.Default, size = TideTextButtonSize.Small, onClick = onDownload)
             }
-        }
-        if (trackLabel.isNotEmpty()) {
-            Text(
-                text = trackLabel,
-                style = MiuixTheme.textStyles.footnote1,
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                modifier = Modifier.width(36.dp),
-            )
-        } else {
-            Spacer(Modifier.width(36.dp))
-        }
-
-        Spacer(Modifier.width(8.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = track.title,
-                style = MiuixTheme.textStyles.body2,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            track.albumName?.let { album ->
-                Text(
-                    text = album,
-                    style = MiuixTheme.textStyles.footnote1,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = if (onAlbumClick != null) {
-                        Modifier.clickable(onClick = onAlbumClick)
-                    } else {
-                        Modifier
-                    },
-                )
-            }
-        }
-
-        Spacer(Modifier.width(8.dp))
-
-        track.durationMs?.let { ms ->
-            Text(
-                text = durationLabel(ms),
-                style = MiuixTheme.textStyles.footnote1,
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-            )
-        }
-
-        if (track.canDownload) {
-            Spacer(Modifier.width(4.dp))
-            TideTunesTextButton(
-                text = "DL",
-                type = TideTunesTextButtonType.Default,
-                size = TideTunesTextButtonSize.Small,
-                onClick = onDownload,
-            )
         }
     }
 }
 
-internal fun ArtistAlbumItem.lazyListKey(index: Int): String =
-    "artist-album-$index-$id"
+internal fun ArtistAlbumItem.lazyListKey(index: Int): String = "artist-album-$index-$id"
+internal fun ArtistTrackItem.lazyListKey(index: Int): String = "artist-track-$index-$id"
 
-internal fun ArtistTrackItem.lazyListKey(index: Int): String =
-    "artist-track-$index-$id"
+private fun ArtistTrackItem.trackLabel(): String = buildString {
+    if (discNumber != null && discNumber > 1) append("$discNumber.")
+    if (trackNumber != null) { if (isNotEmpty()) append("-"); append("$trackNumber") }
+}
+
+private fun artistSummary(albumCount: Int, trackCount: Int): String {
+    val albumLabel = if (albumCount == 1) "1 album" else "$albumCount albums"
+    val trackLabel = if (trackCount == 1) "1 song" else "$trackCount songs"
+    return "$albumLabel, $trackLabel"
+}
 
 private fun durationLabel(durationMs: Long): String {
     val h = durationMs / 1000 / 60 / 60

@@ -17,8 +17,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.sp
-import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.basic.IconButton
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -39,7 +37,7 @@ fun SimpleFormText(
                 letterSpacing = 1.sp,
             )
         }
-        AppTextField(
+        TideTextField(
             modifier = Modifier
                 .fillMaxWidth(),
             value = value,
@@ -81,14 +79,14 @@ fun FormText(
         label = label
     ) {
         if (!isPassword) {
-            AppTextField(
+            TideTextField(
                 modifier = Modifier
                     .fillMaxWidth(),
                 value = value,
                 onValueChange = onChange,
             )
         } else {
-            AppTextField(
+            TideTextField(
                 modifier = Modifier
                     .fillMaxWidth(),
                 value = value,
@@ -102,11 +100,14 @@ fun FormText(
                         painterResource(Res.drawable.icon_visibility_off)
                     }
 
-                    IconButton(onClick = {
-                        passwordVisibleState.value = !passwordVisible
-                    }) {
-                        Icon(painter = painter, contentDescription = null)
-                    }
+                    TideIconButton(
+                        size = TideIconButtonSize.Medium,
+                        variant = TideIconButtonVariant.Default,
+                        painter = painter,
+                        onClick = {
+                            passwordVisibleState.value = !passwordVisible
+                        },
+                    )
                 }
             )
         }

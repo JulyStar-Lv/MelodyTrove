@@ -4,7 +4,6 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -17,7 +16,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
@@ -31,8 +29,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import tidetunes.service.playback.presentation.generated.resources.Res
 import tidetunes.service.playback.presentation.generated.resources.playlists_dialog_button_cancel
@@ -43,12 +41,12 @@ import tidetunes.service.playback.presentation.generated.resources.time_to_pause
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import org.koin.compose.viewmodel.koinViewModel
-import com.github.tidetunes.core.presentation.components.TideTunesTextButton
-import com.github.tidetunes.core.presentation.components.TideTunesTextButtonSize
-import com.github.tidetunes.core.presentation.components.TideTunesTextButtonType
+import com.github.tidetunes.core.presentation.components.TideDialog
+import com.github.tidetunes.core.presentation.components.TideTextButton
+import com.github.tidetunes.core.presentation.components.TideTextButtonSize
+import com.github.tidetunes.core.presentation.components.TideTextButtonVariant
+import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.absoluteValue
@@ -134,7 +132,8 @@ private fun Block(
     ) {
         Text(
             text = stringResource(stringRes),
-            fontSize = 9.sp,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            style = MiuixTheme.textStyles.footnote2,
         )
         Box(
             modifier = Modifier
@@ -159,13 +158,17 @@ private fun Block(
                 val color = MiuixTheme.colorScheme.onSurface.copy(
                     alpha = 1 - 0.5f * min(dis.absoluteValue / STRIDE, 1f)
                 )
-                val fontSizeValue = 36 - 6 * min(dis.absoluteValue / STRIDE, 1f)
+                val textScale = 1.28f - 0.21f * min(dis.absoluteValue / STRIDE, 1f)
 
                 Text(
                     modifier = Modifier
                         .padding(vertical = 16.dp)
-                        .offset(0.dp, offsetY),
-                    fontSize = fontSizeValue.sp,
+                        .offset(0.dp, offsetY)
+                        .graphicsLayer {
+                            scaleX = textScale
+                            scaleY = textScale
+                        },
+                    style = MiuixTheme.textStyles.title1,
                     color = color,
                     text = next(i).toString().padStart(2, '0'),
                 )
@@ -184,6 +187,7 @@ private fun TimeToPauseModalCore(
     onConfirm: (Int, Int) -> Unit,
     onDelete: () -> Unit,
 ) {
+    val spacing = TideTunesTokens.spacing
     var hours by remember { mutableIntStateOf(0) }
     var minutes by remember { mutableIntStateOf(0) }
 
@@ -192,18 +196,9 @@ private fun TimeToPauseModalCore(
         minutes = initMinutes
     }
 
-    if (!isOpen) {
-        return
-    }
-
-    Dialog(
-        onDismissRequest = onCancel,
-    ) {
+    TideDialog(show = isOpen, onDismiss = onCancel) {
         Column(
-            modifier = Modifier
-                .clip(RoundedCornerShape(16.dp))
-                .background(MiuixTheme.colorScheme.surface)
-                .padding(24.dp, 24.dp),
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Row(
                 modifier = Modifier
@@ -218,7 +213,7 @@ private fun TimeToPauseModalCore(
                 )
                 Box(
                     modifier = Modifier
-                        .width(20.dp)
+                        .width(spacing.md)
                 )
                 Block(
                     stringRes = Res.string.time_to_pause_minute,
@@ -230,7 +225,7 @@ private fun TimeToPauseModalCore(
             }
             Box(
                 modifier = Modifier
-                    .height(16.dp)
+                    .height(spacing.md)
             )
             Row(
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -238,30 +233,30 @@ private fun TimeToPauseModalCore(
                     .fillMaxWidth()
             ) {
                 Row {
-                    TideTunesTextButton(
+                    TideTextButton(
                         text = stringResource(Res.string.time_to_pause_delete),
-                        type = TideTunesTextButtonType.Error,
-                        size = TideTunesTextButtonSize.Medium,
-                        disabled = !deleteEnabled,
+                        variant = TideTextButtonVariant.Error,
+                        size = TideTextButtonSize.Medium,
+                        enabled = deleteEnabled,
                         onClick = {
                             onDelete()
                         }
                     )
                 }
                 Row {
-                    TideTunesTextButton(
+                    TideTextButton(
                         text = stringResource(Res.string.playlists_dialog_button_cancel),
-                        type = TideTunesTextButtonType.Primary,
-                        size = TideTunesTextButtonSize.Medium,
+                        variant = TideTextButtonVariant.Primary,
+                        size = TideTextButtonSize.Medium,
                         onClick = {
                             onCancel()
                         }
                     )
-                    TideTunesTextButton(
+                    TideTextButton(
                         text = stringResource(Res.string.playlists_dialog_button_ok),
-                        type = TideTunesTextButtonType.Primary,
-                        size = TideTunesTextButtonSize.Medium,
-                        disabled = minutes == 0 && hours == 0,
+                        variant = TideTextButtonVariant.Primary,
+                        size = TideTextButtonSize.Medium,
+                        enabled = !(minutes == 0 && hours == 0),
                         onClick = {
                             onConfirm(hours, minutes)
                         }

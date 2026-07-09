@@ -1,6 +1,9 @@
 package com.github.tidetunes.core.presentation.theme
 
+import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
+import kotlinx.collections.immutable.ImmutableList
+import kotlinx.collections.immutable.persistentListOf
 import top.yukonga.miuix.kmp.theme.Colors
 
 /**
@@ -11,9 +14,48 @@ import top.yukonga.miuix.kmp.theme.Colors
 object TideTunesBrand {
     val Primary = Color(0xFFFF5B8A)
     val Secondary = Color(0xFF7A6CFF)
-    val SupportBlue = Color(0xFF3B82F6)
-    val SupportOrange = Color(0xFFF59E0B)
-    val SupportGreen = Color(0xFF10B981)
+    val SupportBlue = Color(0xFF4D99FF)
+    val SupportOrange = Color(0xFFFF994D)
+    val SupportGreen = Color(0xFF33CC99)
+    val SupportYellow = Color(0xFFFFD94D)
+}
+
+@Immutable
+data class TideTunesGradient(
+    val colors: ImmutableList<Color>,
+    val angleDegrees: Int = 90,
+)
+
+object TideTunesGradients {
+    val PurplePink = TideTunesGradient(
+        colors = persistentListOf(TideTunesBrand.Secondary, TideTunesBrand.Primary),
+    )
+    val PinkPurple = TideTunesGradient(
+        colors = persistentListOf(TideTunesBrand.Primary, TideTunesBrand.Secondary),
+    )
+    val PinkOrange = TideTunesGradient(
+        colors = persistentListOf(TideTunesBrand.Primary, TideTunesBrand.SupportOrange),
+    )
+    val OrangeYellow = TideTunesGradient(
+        colors = persistentListOf(TideTunesBrand.SupportOrange, TideTunesBrand.SupportYellow),
+    )
+    val GreenBlue = TideTunesGradient(
+        colors = persistentListOf(TideTunesBrand.SupportGreen, TideTunesBrand.SupportBlue),
+    )
+    val BluePurple = TideTunesGradient(
+        colors = persistentListOf(TideTunesBrand.SupportBlue, TideTunesBrand.Secondary),
+    )
+    val PinkYellow = TideTunesGradient(
+        colors = persistentListOf(TideTunesBrand.Primary, TideTunesBrand.SupportYellow),
+    )
+    val BlueGreenPurple = TideTunesGradient(
+        colors = persistentListOf(
+            TideTunesBrand.SupportBlue,
+            TideTunesBrand.SupportGreen,
+            TideTunesBrand.Secondary,
+        ),
+    )
+    val Brand = PinkPurple
 }
 
 internal val TideTunesLightColors = Colors(

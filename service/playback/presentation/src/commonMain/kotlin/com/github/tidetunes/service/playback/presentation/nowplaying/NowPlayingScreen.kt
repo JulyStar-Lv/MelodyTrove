@@ -3,15 +3,15 @@ package com.github.tidetunes.service.playback.presentation.nowplaying
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -43,10 +44,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.semantics.ProgressBarRangeInfo
-import androidx.compose.ui.semantics.progressBarRangeInfo
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import tidetunes.service.playback.presentation.generated.resources.Res
 import tidetunes.service.playback.presentation.generated.resources.downloads_title
 import tidetunes.service.playback.presentation.generated.resources.icon_back
@@ -72,18 +72,23 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.github.tidetunes.core.presentation.components.TideTunesContextMenu
-import com.github.tidetunes.core.presentation.components.TideTunesContextMenuItem
-import com.github.tidetunes.core.presentation.components.TideTunesIconButton
-import com.github.tidetunes.core.presentation.components.TideTunesIconButtonColors
-import com.github.tidetunes.core.presentation.components.TideTunesIconButtonSize
-import com.github.tidetunes.core.presentation.components.TideTunesIconButtonType
-import com.github.tidetunes.core.presentation.components.TideTunesTextButton
-import com.github.tidetunes.core.presentation.components.TideTunesTextButtonSize
-import com.github.tidetunes.core.presentation.components.TideTunesTextButtonType
+import com.github.tidetunes.core.presentation.components.TidePlayerControlButton
+import com.github.tidetunes.core.presentation.components.TidePlayerControlSize
+import com.github.tidetunes.core.presentation.components.TidePlayerControlVariant
+import com.github.tidetunes.core.presentation.components.TideSlider
+import com.github.tidetunes.core.presentation.components.TideContextMenu
+import com.github.tidetunes.core.presentation.components.TideContextMenuItem
+import com.github.tidetunes.core.presentation.components.TideIconButton
+import com.github.tidetunes.core.presentation.components.TideIconButtonColors
+import com.github.tidetunes.core.presentation.components.TideIconButtonSize
+import com.github.tidetunes.core.presentation.components.TideIconButtonVariant
+import com.github.tidetunes.core.presentation.components.TideTextButton
+import com.github.tidetunes.core.presentation.components.TideTextButtonSize
+import com.github.tidetunes.core.presentation.components.TideTextButtonVariant
 import com.github.tidetunes.core.presentation.components.customAnchoredDraggable
 import com.github.tidetunes.core.presentation.components.dropShadow
 import com.github.tidetunes.core.presentation.components.rememberCustomAnchoredDraggableState
+import com.github.tidetunes.core.presentation.theme.TideTunesFontFamilies
 import com.github.tidetunes.core.utils.nextTickOnMain
 import com.github.tidetunes.core.domain.model.Artwork
 import com.github.tidetunes.core.domain.model.LyricLine
@@ -91,6 +96,8 @@ import com.github.tidetunes.core.presentation.media.AnimatedLyricLine
 import com.github.tidetunes.core.domain.model.LyricsLoadState
 import com.github.tidetunes.core.presentation.media.ArtworkImage
 import com.github.tidetunes.core.presentation.media.ArtworkPalette
+import com.github.tidetunes.core.presentation.theme.TideTunesTokens
+import androidx.compose.ui.text.TextStyle
 import com.github.tidetunes.service.playback.domain.RepeatMode
 import com.github.tidetunes.core.utils.formatDuration
 import com.github.tidetunes.core.utils.toMusicDurationMs
@@ -116,18 +123,18 @@ private fun MusicPlayerHeader(
             .padding(13.dp, 13.dp)
             .fillMaxWidth()
     ) {
-        TideTunesIconButton(
-            sizeType = TideTunesIconButtonSize.Medium,
-            buttonType = TideTunesIconButtonType.Default,
+        TideIconButton(
+            size = TideIconButtonSize.Medium,
+            variant = TideIconButtonVariant.Default,
             painter = painterResource(Res.drawable.icon_back),
             onClick = {
                 onAction(NowPlayingAction.NavigateBack)
             }
         )
         Box {
-            TideTunesIconButton(
-                sizeType = TideTunesIconButtonSize.Medium,
-                buttonType = TideTunesIconButtonType.Default,
+            TideIconButton(
+                size = TideIconButtonSize.Medium,
+                variant = TideIconButtonVariant.Default,
                 painter = painterResource(Res.drawable.icon_vertialcal_more),
                 onClick = { moreMenuExpanded = true; }
             )
@@ -136,12 +143,12 @@ private fun MusicPlayerHeader(
                 modifier = Modifier
                     .offset(20.dp, (20).dp)
             ) {
-                TideTunesContextMenu(
+                TideContextMenu(
                     expanded = moreMenuExpanded,
                     onDismissRequest = { moreMenuExpanded = false; },
                     items = listOf(
                         if (hasLyric) {
-                            TideTunesContextMenuItem(
+                            TideContextMenuItem(
                                 label = Res.string.music_lyric_remove,
                                 onClick = {
                                     moreMenuExpanded = false
@@ -149,7 +156,7 @@ private fun MusicPlayerHeader(
                                 }
                             )
                         } else {
-                            TideTunesContextMenuItem(
+                            TideContextMenuItem(
                                 label = Res.string.music_lyric_add,
                                 onClick = {
                                     moreMenuExpanded = false
@@ -158,7 +165,7 @@ private fun MusicPlayerHeader(
                             )
                         },
                         if (nowPlayingState.currentTrack?.canDownload == true) {
-                            TideTunesContextMenuItem(
+                            TideContextMenuItem(
                                 label = Res.string.downloads_title,
                                 onClick = {
                                     moreMenuExpanded = false
@@ -166,7 +173,7 @@ private fun MusicPlayerHeader(
                                 }
                             )
                         } else null,
-                        TideTunesContextMenuItem(
+                        TideContextMenuItem(
                             label = Res.string.music_player_context_menu_remove,
                             isError = true,
                             onClick = {
@@ -190,117 +197,43 @@ private fun MusicSlider(
     totalDurationMS: ULong,
     onChangeMusicPosition: (ms: ULong) -> Unit,
 ) {
-    val handleSize = 12.dp
-    val sliderHeight = 4.dp
-    val sliderContainerHeight = 16.dp
-
-    var isDragging by remember { mutableStateOf(false) }
-    var draggingCurrentDurationMS by remember { mutableStateOf(_currentDurationMS) }
-    val currentDurationMS = if (isDragging) {
-        draggingCurrentDurationMS
+    var isScrubbing by remember { mutableStateOf(false) }
+    var scrubbingDurationMS by remember { mutableStateOf(_currentDurationMS) }
+    val currentDurationMS = if (isScrubbing) {
+        scrubbingDurationMS
     } else {
         _currentDurationMS
     }
+    val sliderRange = 0f..totalDurationMS.toFloat().coerceAtLeast(1f)
 
-    val durationRate = if (totalDurationMS == 0UL) {
-        0f
-    } else {
-        (currentDurationMS.toDouble() / totalDurationMS.toDouble()).toFloat()
-    };
-    val bufferRate = if (totalDurationMS == 0UL) {
-        0f
-    } else {
-        (bufferDurationMS.toDouble() / totalDurationMS.toDouble()).toFloat()
-    };
-    var sliderWidth by remember { mutableIntStateOf(0) }
-    val sliderWidthDp = with(LocalDensity.current) {
-        sliderWidth.toDp()
-    }
-
-    val draggableState = rememberDraggableState { deltaPx ->
-        val delta = (deltaPx.toDouble() / sliderWidth.toDouble() * totalDurationMS.toDouble()).toLong()
-        var nextMS = draggingCurrentDurationMS.toLong() + delta
-        nextMS = nextMS.coerceIn(0L, totalDurationMS.toLong())
-
-        draggingCurrentDurationMS = nextMS.toULong()
+    fun Float.toDurationMs(): ULong {
+        return toLong()
+            .coerceIn(0L, totalDurationMS.toLong())
+            .toULong()
     }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(sliderContainerHeight)
-                .semantics {
-                    progressBarRangeInfo = ProgressBarRangeInfo(
-                        current = currentDurationMS.toFloat(),
-                        range = 0f..totalDurationMS.toFloat(),
-                    )
-                    setProgress { value ->
-                        onChangeMusicPosition(value.toLong().coerceAtLeast(0L).toULong())
-                        true
-                    }
-                }
-                .onSizeChanged { size ->
-                    if (sliderWidth != size.width) {
-                        sliderWidth = size.width;
-                    }
-                }
-                .pointerInput(totalDurationMS, sliderWidth) {
-                    detectTapGestures { offset ->
-                        var nextMS =
-                            (offset.x.toDouble() / sliderWidth.toDouble() * totalDurationMS.toDouble()).toLong()
-                        nextMS = nextMS.coerceIn(0L, totalDurationMS.toLong())
-                        onChangeMusicPosition(nextMS.toULong())
-                    }
-                }
-                .draggable(
-                    state = draggableState,
-                    orientation = Orientation.Horizontal,
-                    onDragStarted = {
-                        isDragging = true
-                        draggingCurrentDurationMS = _currentDurationMS
-                    },
-                    onDragStopped = {
-                        isDragging = false
-                        onChangeMusicPosition(draggingCurrentDurationMS)
-                    }
-                )
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(sliderHeight)
-                    .offset(0.dp, (sliderContainerHeight - sliderHeight) / 2)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(MiuixTheme.colorScheme.surfaceVariant)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(bufferRate)
-                        .fillMaxHeight()
-                        .background(MiuixTheme.colorScheme.secondary)
-                )
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(durationRate)
-                        .fillMaxHeight()
-                        .background(MiuixTheme.colorScheme.primary)
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .offset(
-                        -handleSize / 2 + (sliderWidthDp * durationRate),
-                        (sliderContainerHeight - handleSize) / 2
-                    )
-                    .size(handleSize)
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(MiuixTheme.colorScheme.primary)
-            )
-        }
+        TideSlider(
+            value = currentDurationMS.toFloat(),
+            onValueChange = { value ->
+                scrubbingDurationMS = value.toDurationMs()
+            },
+            modifier = Modifier.fillMaxWidth(),
+            valueRange = sliderRange,
+            bufferedValue = bufferDurationMS.toFloat(),
+            onValueChangeStarted = {
+                isScrubbing = true
+                scrubbingDurationMS = _currentDurationMS.coerceAtMost(totalDurationMS)
+            },
+            onValueChangeFinished = {
+                val nextDurationMS = scrubbingDurationMS.coerceAtMost(totalDurationMS)
+                isScrubbing = false
+                onChangeMusicPosition(nextDurationMS)
+            },
+        )
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier
@@ -308,11 +241,13 @@ private fun MusicSlider(
         ) {
             Text(
                 text = currentDuration,
-                fontSize = 10.sp
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                style = MiuixTheme.textStyles.footnote2,
             )
             Text(
                 text = totalDuration,
-                fontSize = 10.sp
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                style = MiuixTheme.textStyles.footnote2,
             )
         }
     }
@@ -321,23 +256,30 @@ private fun MusicSlider(
 
 @Composable
 private fun CoverImage(artwork: Artwork?) {
-    Box(
+    BoxWithConstraints(
         contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .fillMaxSize()
+        modifier = Modifier.fillMaxSize(),
     ) {
-        ArtworkImage(
+        val artworkSize = minOf(maxWidth, maxHeight, 320.dp)
+        val shapes = TideTunesTokens.shapes
+
+        Box(
             modifier = Modifier
+                .size(artworkSize)
                 .dropShadow(
-                    color = MiuixTheme.colorScheme.surfaceVariant,
+                    color = Color.Black.copy(alpha = 0.28f),
                     offsetX = 0.dp,
-                    offsetY = 0.dp,
-                    blurRadius = 16.dp
+                    offsetY = 16.dp,
+                    blurRadius = 32.dp,
                 )
-                .clip(RoundedCornerShape(20.dp))
-                .size(300.dp),
-            artwork = artwork,
-        )
+                .clip(RoundedCornerShape(shapes.xl))
+                .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.24f)),
+        ) {
+            ArtworkImage(
+                modifier = Modifier.fillMaxSize(),
+                artwork = artwork,
+            )
+        }
     }
 }
 
@@ -389,12 +331,13 @@ private fun LyricsPanel(
                     ) {
                         Text(
                             text = stringResource(Res.string.music_lyric_no_desc),
-                            fontSize = 14.sp,
+                            color = MiuixTheme.colorScheme.onSurface,
+                            style = MiuixTheme.textStyles.body1,
                         )
-                        TideTunesTextButton(
+                        TideTextButton(
                             text = stringResource(Res.string.music_lyric_try_add_desc),
-                            type = TideTunesTextButtonType.Primary,
-                            size = TideTunesTextButtonSize.Medium,
+                            variant = TideTextButtonVariant.Primary,
+                            size = TideTextButtonSize.Medium,
                             onClick = {
                                 onClickAdd()
                             }
@@ -403,7 +346,8 @@ private fun LyricsPanel(
                 } else {
                     Text(
                         text = stringResource(Res.string.music_lyric_fail),
-                        fontSize = 14.sp,
+                        color = MiuixTheme.colorScheme.onSurface,
+                        style = MiuixTheme.textStyles.body1,
                     )
                 }
             }
@@ -618,14 +562,14 @@ private fun MusicPanel(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        TideTunesIconButton(
-            sizeType = TideTunesIconButtonSize.Medium,
-            buttonType = if (isSleepTimerEnabled) {
-                TideTunesIconButtonType.Primary
+        TideIconButton(
+            size = TideIconButtonSize.Medium,
+            variant = if (isSleepTimerEnabled) {
+                TideIconButtonVariant.Primary
             } else {
-                TideTunesIconButtonType.Default
+                TideIconButtonVariant.Default
             },
-            overrideColors = TideTunesIconButtonColors(
+            colors = TideIconButtonColors(
                 iconTint = if (isSleepTimerEnabled) {
                     MiuixTheme.colorScheme.primary
                 } else {
@@ -638,55 +582,49 @@ private fun MusicPanel(
                 onAction(NowPlayingAction.OpenSleepTimer)
             }
         )
-        TideTunesIconButton(
-            sizeType = TideTunesIconButtonSize.Medium,
-            buttonType = TideTunesIconButtonType.Default,
+        TideIconButton(
+            size = TideIconButtonSize.Medium,
+            variant = TideIconButtonVariant.Default,
             painter = painterResource(Res.drawable.icon_play_previous),
-            disabled = !queue.canPlayPrevious,
+            enabled = queue.canPlayPrevious,
             onClick = {
                 onAction(NowPlayingAction.PlayPrevious)
             }
         )
         if (!controls.isPlaying) {
-            TideTunesIconButton(
-                sizeType = TideTunesIconButtonSize.Large,
-                buttonType = TideTunesIconButtonType.Primary,
+            TidePlayerControlButton(
                 painter = painterResource(Res.drawable.icon_play),
-                disabled = controls.isLoading,
-                overrideColors = if (controls.isLoading) {
-                    TideTunesIconButtonColors(
-                        buttonDisabledBg = MiuixTheme.colorScheme.secondary,
-                    )
-                } else {
-                    null
-                },
+                enabled = !controls.isLoading,
+                size = TidePlayerControlSize.Large,
+                variant = TidePlayerControlVariant.Primary,
                 onClick = {
                     onAction(NowPlayingAction.Resume)
-                }
+                },
             )
         }
         if (controls.isPlaying) {
-            TideTunesIconButton(
-                sizeType = TideTunesIconButtonSize.Large,
-                buttonType = TideTunesIconButtonType.Primary,
+            TidePlayerControlButton(
                 painter = painterResource(Res.drawable.icon_pause),
+                enabled = true,
+                size = TidePlayerControlSize.Large,
+                variant = TidePlayerControlVariant.Primary,
                 onClick = {
                     onAction(NowPlayingAction.Pause)
-                }
+                },
             )
         }
-        TideTunesIconButton(
-            sizeType = TideTunesIconButtonSize.Medium,
-            buttonType = TideTunesIconButtonType.Default,
+        TideIconButton(
+            size = TideIconButtonSize.Medium,
+            variant = TideIconButtonVariant.Default,
             painter = painterResource(Res.drawable.icon_play_next),
-            disabled = !queue.canPlayNext,
+            enabled = queue.canPlayNext,
             onClick = {
                 onAction(NowPlayingAction.PlayNext)
             }
         )
-        TideTunesIconButton(
-            sizeType = TideTunesIconButtonSize.Medium,
-            buttonType = TideTunesIconButtonType.Default,
+        TideIconButton(
+            size = TideIconButtonSize.Medium,
+            variant = TideIconButtonVariant.Default,
             painter = painterResource(modeDrawable),
             onClick = {
                 onAction(NowPlayingAction.CycleRepeatMode)
@@ -759,21 +697,31 @@ fun NowPlayingScreen(
                 )
             }
             Column(
-                modifier = Modifier.padding(36.dp, 10.dp)
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .widthIn(max = 560.dp)
+                    .fillMaxWidth()
+                    .padding(horizontal = 36.dp, vertical = 10.dp)
             ) {
                 Text(
                     text = currentTrack?.title ?: "",
-                    maxLines = 3,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                     color = MiuixTheme.colorScheme.onSurface,
-                    fontSize = 20.sp,
-                    modifier = Modifier.padding(0.dp, 10.dp)
+                    style = nowPlayingTitleStyle(),
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp, bottom = 14.dp)
                 )
                 progressContent(currentTrack?.durationMs)
             }
             Row(
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
-                    .padding(0.dp, 48.dp)
+                    .padding(top = 18.dp, bottom = 42.dp)
             ) {
                 MusicPanel(
                     nowPlayingState = state,
@@ -804,3 +752,12 @@ internal fun NowPlayingProgressPanel(
         },
     )
 }
+
+@Composable
+private fun nowPlayingTitleStyle(): TextStyle = TextStyle(
+    fontFamily = TideTunesFontFamilies.Sans,
+    fontSize = 34.sp,
+    fontWeight = FontWeight.Bold,
+    lineHeight = 40.sp,
+    letterSpacing = (-0.4).sp,
+)

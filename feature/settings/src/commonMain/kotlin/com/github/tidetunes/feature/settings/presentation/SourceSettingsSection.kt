@@ -1,30 +1,26 @@
 package com.github.tidetunes.feature.settings.presentation
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import com.github.tidetunes.core.domain.model.DEFAULT_IGNORED_SOURCE_DIRECTORIES
 import com.github.tidetunes.core.domain.model.MIN_SCANNED_AUDIO_DURATION_MS
 import com.github.tidetunes.core.domain.model.SUPPORTED_AUDIO_EXTENSIONS
 import com.github.tidetunes.core.domain.model.SourceConnectionTestStatus
-import com.github.tidetunes.core.presentation.components.AppTextField
-import com.github.tidetunes.core.presentation.components.TideTunesTextButton
-import com.github.tidetunes.core.presentation.components.TideTunesTextButtonSize
-import com.github.tidetunes.core.presentation.components.TideTunesTextButtonType
+import com.github.tidetunes.core.presentation.components.TideDialog
+import com.github.tidetunes.core.presentation.components.TideTextField
+import com.github.tidetunes.core.presentation.components.TideTextButton
+import com.github.tidetunes.core.presentation.components.TideTextButtonSize
+import com.github.tidetunes.core.presentation.components.TideTextButtonVariant
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncFailure
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncStatus
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncTask
@@ -203,15 +199,9 @@ private fun ScanFailureDialog(
     failures: List<LibrarySyncFailure>,
     onDismiss: () -> Unit,
 ) {
-    if (!show) return
-
-    Dialog(onDismissRequest = onDismiss) {
+    TideDialog(show = show, onDismiss = onDismiss) {
         Column(
-            modifier = Modifier
-                .clip(RoundedCornerShape(12.dp))
-                .background(MiuixTheme.colorScheme.surfaceContainer)
-                .padding(20.dp)
-                .verticalScroll(rememberScrollState()),
+            modifier = Modifier.verticalScroll(rememberScrollState()),
         ) {
             Text(
                 text = "失败原因",
@@ -236,10 +226,10 @@ private fun ScanFailureDialog(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.End,
             ) {
-                TideTunesTextButton(
+                TideTextButton(
                     text = "关闭",
-                    type = TideTunesTextButtonType.Default,
-                    size = TideTunesTextButtonSize.Medium,
+                    variant = TideTextButtonVariant.Default,
+                    size = TideTextButtonSize.Medium,
                     onClick = onDismiss,
                 )
             }
@@ -280,13 +270,12 @@ private fun WebDavAccountDialog(
 ) {
     if (dialog == null) return
 
-    Dialog(onDismissRequest = { onAction(SettingsAction.DismissWebDavDialog) }) {
+    TideDialog(
+        show = true,
+        onDismiss = { onAction(SettingsAction.DismissWebDavDialog) },
+    ) {
         Column(
-            modifier = Modifier
-                .clip(RoundedCornerShape(12.dp))
-                .background(MiuixTheme.colorScheme.surfaceContainer)
-                .padding(20.dp)
-                .verticalScroll(rememberScrollState()),
+            modifier = Modifier.verticalScroll(rememberScrollState()),
         ) {
             Text(
                 text = if (dialog.isEditing) "编辑 WebDAV" else "添加 WebDAV",
@@ -294,7 +283,7 @@ private fun WebDavAccountDialog(
                 color = MiuixTheme.colorScheme.onSurface,
             )
             Spacer(modifier = Modifier.height(12.dp))
-            AppTextField(
+            TideTextField(
                 value = dialog.name,
                 onValueChange = { onAction(SettingsAction.SetWebDavDialogName(it)) },
                 label = "名称（可选）",
@@ -302,7 +291,7 @@ private fun WebDavAccountDialog(
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(modifier = Modifier.height(8.dp))
-            AppTextField(
+            TideTextField(
                 value = dialog.serverUrl,
                 onValueChange = { onAction(SettingsAction.SetWebDavDialogServerUrl(it)) },
                 label = "服务器 URL",
@@ -310,7 +299,7 @@ private fun WebDavAccountDialog(
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(modifier = Modifier.height(8.dp))
-            AppTextField(
+            TideTextField(
                 value = dialog.username,
                 onValueChange = { onAction(SettingsAction.SetWebDavDialogUsername(it)) },
                 label = "用户名（可选）",
@@ -318,7 +307,7 @@ private fun WebDavAccountDialog(
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(modifier = Modifier.height(8.dp))
-            AppTextField(
+            TideTextField(
                 value = dialog.password,
                 onValueChange = { onAction(SettingsAction.SetWebDavDialogPassword(it)) },
                 label = if (dialog.isEditing) "密码（留空表示不修改）" else "密码（可选）",
@@ -327,7 +316,7 @@ private fun WebDavAccountDialog(
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(modifier = Modifier.height(8.dp))
-            AppTextField(
+            TideTextField(
                 value = dialog.rootPath,
                 onValueChange = { onAction(SettingsAction.SetWebDavDialogRootPath(it)) },
                 label = "根目录",
@@ -352,10 +341,10 @@ private fun WebDavAccountDialog(
                 horizontalArrangement = Arrangement.End,
             ) {
                 if (dialog.isEditing && dialog.accountId != null) {
-                    TideTunesTextButton(
+                    TideTextButton(
                         text = "删除",
-                        type = TideTunesTextButtonType.Error,
-                        size = TideTunesTextButtonSize.Medium,
+                        variant = TideTextButtonVariant.Error,
+                        size = TideTextButtonSize.Medium,
                         onClick = {
                             onAction(
                                 SettingsAction.RequestDeleteWebDavAccount(
@@ -366,22 +355,22 @@ private fun WebDavAccountDialog(
                         },
                     )
                 }
-                TideTunesTextButton(
+                TideTextButton(
                     text = "取消",
-                    type = TideTunesTextButtonType.Default,
-                    size = TideTunesTextButtonSize.Medium,
+                    variant = TideTextButtonVariant.Default,
+                    size = TideTextButtonSize.Medium,
                     onClick = { onAction(SettingsAction.DismissWebDavDialog) },
                 )
-                TideTunesTextButton(
+                TideTextButton(
                     text = "测试",
-                    type = TideTunesTextButtonType.Default,
-                    size = TideTunesTextButtonSize.Medium,
+                    variant = TideTextButtonVariant.Default,
+                    size = TideTextButtonSize.Medium,
                     onClick = { onAction(SettingsAction.TestWebDavConnection) },
                 )
-                TideTunesTextButton(
+                TideTextButton(
                     text = if (state.sourceOperationInProgress) "保存中" else "保存",
-                    type = TideTunesTextButtonType.Primary,
-                    size = TideTunesTextButtonSize.Medium,
+                    variant = TideTextButtonVariant.Primary,
+                    size = TideTextButtonSize.Medium,
                     onClick = { onAction(SettingsAction.SaveWebDavAccount) },
                 )
             }

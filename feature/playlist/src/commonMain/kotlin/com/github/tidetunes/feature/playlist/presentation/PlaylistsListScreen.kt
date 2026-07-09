@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,10 +18,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import top.yukonga.miuix.kmp.basic.FloatingActionButton
-import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,12 +27,15 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.github.tidetunes.core.presentation.components.TideTunesIconButton
-import com.github.tidetunes.core.presentation.components.TideTunesIconButtonSize
-import com.github.tidetunes.core.presentation.components.TideTunesIconButtonType
-import org.jetbrains.compose.resources.painterResource
+import com.github.tidetunes.core.presentation.components.TideEmptyState
+import com.github.tidetunes.core.presentation.components.TideFab
+import com.github.tidetunes.core.presentation.components.TideIconButton
+import com.github.tidetunes.core.presentation.components.TideIconButtonSize
+import com.github.tidetunes.core.presentation.components.TideIconButtonVariant
+import com.github.tidetunes.core.presentation.components.TidePageHeader
 import com.github.tidetunes.core.presentation.media.ArtworkImage
+import com.github.tidetunes.core.presentation.theme.TideTunesTokens
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 import sh.calvin.reorderable.ReorderableItem
@@ -50,72 +50,93 @@ import tidetunes.feature.playlist.generated.resources.icon_plus
 import tidetunes.feature.playlist.generated.resources.icon_yes
 import tidetunes.feature.playlist.generated.resources.music_count_unit
 import tidetunes.feature.playlist.generated.resources.playlist_empty
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun PlaylistsListScreen(
     state: PlaylistsListState,
     onAction: (PlaylistsListAction) -> Unit,
 ) {
-    if (state.isEmpty) {
-        Box(
-            contentAlignment = Alignment.Center,
-            modifier = Modifier.fillMaxSize()
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .clickable { onAction(PlaylistsListAction.CreatePlaylist) }
-                    .clip(RoundedCornerShape(16.dp))
-                    .padding(24.dp, 24.dp),
+    val spacing = TideTunesTokens.spacing
+    val shapes = TideTunesTokens.shapes
+
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        val horizontalPadding = if (maxWidth < 600.dp) spacing.pageCompact else spacing.pageExpanded
+
+        if (state.isEmpty) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.fillMaxSize(),
             ) {
-                Image(painter = painterResource(Res.drawable.empty_playlists), contentDescription = null)
-                Box(modifier = Modifier.height(20.dp))
-                Text(text = stringResource(Res.string.playlist_empty))
-            }
-        }
-    } else {
-        Box {
-            Column(modifier = Modifier.fillMaxSize()) {
-                Row(
-                    modifier = Modifier
-                        .padding(24.dp, 8.dp)
-                        .fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    TideTunesIconButton(
-                        sizeType = TideTunesIconButtonSize.Medium,
-                        buttonType = TideTunesIconButtonType.Default,
-                        painter = painterResource(Res.drawable.icon_adjust),
-                        disabled = state.mode == PlaylistsListMode.Adjust,
-                        onClick = { onAction(PlaylistsListAction.ToggleMode) },
-                    )
-                    TideTunesIconButton(
-                        sizeType = TideTunesIconButtonSize.Medium,
-                        buttonType = TideTunesIconButtonType.Default,
-                        painter = painterResource(Res.drawable.icon_plus),
-                        disabled = state.mode == PlaylistsListMode.Adjust,
-                        onClick = { onAction(PlaylistsListAction.CreatePlaylist) },
-                    )
-                }
-                GridPlaylists(
-                    playlists = state.playlists,
-                    mode = state.mode,
-                    onAction = onAction,
+                TideEmptyState(
+                    title = stringResource(Res.string.playlist_empty),
+                    message = "Tap to create a playlist",
+                    marker = "P",
+                    action = {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(shapes.full))
+                                .clickable { onAction(PlaylistsListAction.CreatePlaylist) }
+                                .background(MiuixTheme.colorScheme.primary)
+                                .padding(horizontal = 20.dp, vertical = 12.dp),
+                        ) {
+                            Text(
+                                text = "Create Playlist",
+                                color = MiuixTheme.colorScheme.onPrimary,
+                                style = MiuixTheme.textStyles.button,
+                            )
+                        }
+                    },
                 )
             }
-            if (state.mode == PlaylistsListMode.Adjust) {
-                FloatingActionButton(
-                    containerColor = MiuixTheme.colorScheme.primary,
+        } else {
+            Box(modifier = Modifier.fillMaxSize().background(MiuixTheme.colorScheme.background)) {
+                Column(
                     modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(32.dp),
-                    onClick = { onAction(PlaylistsListAction.SetModeNormal) },
+                        .fillMaxSize()
+                        .padding(horizontal = horizontalPadding, vertical = 18.dp),
                 ) {
-                    Icon(
-                        painter = painterResource(Res.drawable.icon_yes),
-                        tint = Color.White,
-                        contentDescription = null,
+                    TidePageHeader(
+                        title = "Playlists",
+                        subtitle = "${state.playlists.size} playlists",
+                        trailing = {
+                            TideIconButton(
+                                size = TideIconButtonSize.Medium,
+                                variant = TideIconButtonVariant.Default,
+                                painter = painterResource(Res.drawable.icon_adjust),
+                                enabled = state.mode != PlaylistsListMode.Adjust,
+                                onClick = { onAction(PlaylistsListAction.ToggleMode) },
+                            )
+                            TideIconButton(
+                                size = TideIconButtonSize.Medium,
+                                variant = TideIconButtonVariant.Default,
+                                painter = painterResource(Res.drawable.icon_plus),
+                                enabled = state.mode != PlaylistsListMode.Adjust,
+                                onClick = { onAction(PlaylistsListAction.CreatePlaylist) },
+                            )
+                        },
                     )
+                    GridPlaylists(
+                        playlists = state.playlists,
+                        mode = state.mode,
+                        onAction = onAction,
+                    )
+                }
+                if (state.mode == PlaylistsListMode.Adjust) {
+                    TideFab(
+                        onClick = { onAction(PlaylistsListAction.SetModeNormal) },
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(spacing.xl),
+                    ) {
+                        Icon(
+                            painter = painterResource(Res.drawable.icon_yes),
+                            tint = Color.White,
+                            contentDescription = null,
+                        )
+                    }
                 }
             }
         }
@@ -143,8 +164,7 @@ private fun GridPlaylists(
         state = lazyGridState,
     ) {
         itemsIndexed(playlists, key = { index, playlist -> playlist.lazyListKey(index) }) { index, playlist ->
-            val playlistKey = playlist.lazyListKey(index)
-            ReorderableItem(reorderableLazyListState, key = playlistKey) { _ ->
+            ReorderableItem(reorderableLazyListState, key = playlist.lazyListKey(index)) { _ ->
                 PlaylistItem(playlist = playlist, mode = mode, onAction = onAction)
             }
         }
@@ -160,6 +180,8 @@ private fun ReorderableCollectionItemScope.PlaylistItem(
     mode: PlaylistsListMode,
     onAction: (PlaylistsListAction) -> Unit,
 ) {
+    val shapes = TideTunesTokens.shapes
+
     Box(
         Modifier.then(
             if (mode == PlaylistsListMode.Adjust) {
@@ -176,7 +198,7 @@ private fun ReorderableCollectionItemScope.PlaylistItem(
         ) {
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
+                    .clip(RoundedCornerShape(shapes.md))
                     .background(MiuixTheme.colorScheme.onSurfaceVariantSummary)
                     .size(136.dp),
             ) {
@@ -197,15 +219,16 @@ private fun ReorderableCollectionItemScope.PlaylistItem(
             Row(modifier = Modifier.padding(top = 8.dp)) {
                 Text(
                     text = playlist.title,
-                    fontSize = 14.sp,
+                    style = MiuixTheme.textStyles.body1,
+                    fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
             Text(
                 text = "${playlist.musicCount} ${stringResource(Res.string.music_count_unit)}  ·  ${playlist.durationLabel}",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Light,
+                style = MiuixTheme.textStyles.footnote1,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 maxLines = 1,
             )
         }
@@ -214,7 +237,7 @@ private fun ReorderableCollectionItemScope.PlaylistItem(
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .size(24.dp)
-                    .clip(RoundedCornerShape(4.dp))
+                    .clip(RoundedCornerShape(shapes.xxs))
                     .background(MiuixTheme.colorScheme.primary),
                 contentAlignment = Alignment.Center,
             ) {

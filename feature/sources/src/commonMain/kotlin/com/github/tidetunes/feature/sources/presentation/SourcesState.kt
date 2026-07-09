@@ -15,6 +15,8 @@ data class SourceAccountUi(
     val id: SourceAccountId,
     val title: String,
     val subtitle: String,
+    val sourceType: String,
+    val musicCount: Long,
 )
 
 sealed interface SourcesAction {

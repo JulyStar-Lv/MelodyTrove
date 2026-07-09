@@ -102,6 +102,7 @@ fun HomePage(
                         onTabSelected = { currentTab = it },
                         miniPlayerContent = miniPlayerContent,
                         modifier = Modifier.fillMaxHeight(),
+                        windowSizeClass = windowSizeClass,
                     )
                     Box(
                         modifier = Modifier
@@ -114,11 +115,31 @@ fun HomePage(
             }
             WindowSizeClass.Expanded -> {
                 Row(modifier = Modifier.fillMaxSize()) {
+                    NavigationRailBar(
+                        currentTab = currentTab,
+                        onTabSelected = { currentTab = it },
+                        miniPlayerContent = miniPlayerContent,
+                        modifier = Modifier.fillMaxHeight(),
+                        windowSizeClass = windowSizeClass,
+                    )
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                    ) {
+                        tabContent(currentTab)
+                    }
+                }
+            }
+            WindowSizeClass.Large,
+            WindowSizeClass.XL -> {
+                Row(modifier = Modifier.fillMaxSize()) {
                     SidebarBar(
                         currentTab = currentTab,
                         onTabSelected = { currentTab = it },
                         miniPlayerContent = miniPlayerContent,
                         modifier = Modifier.fillMaxHeight(),
+                        windowSizeClass = windowSizeClass,
                     )
                     Box(
                         modifier = Modifier

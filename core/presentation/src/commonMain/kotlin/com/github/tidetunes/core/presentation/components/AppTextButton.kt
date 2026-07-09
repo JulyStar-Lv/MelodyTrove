@@ -3,15 +3,10 @@ package com.github.tidetunes.core.presentation.components
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
-import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TextButtonColors
 
 /**
- * Miuix-based text button wrapper.
- *
- * Mirrors the existing [TideTunesTextButton] API contract but delegates to
- * Miuix's [TextButton]. Feature screens should use this wrapper instead of
- * calling Miuix APIs directly.
+ * Compatibility text button wrapper.
  */
 @Composable
 fun AppTextButton(
@@ -21,8 +16,10 @@ fun AppTextButton(
     enabled: Boolean = true,
     colors: TextButtonColors = ButtonDefaults.textButtonColors(),
 ) {
-    TextButton(
+    TideTextButton(
         text = text,
+        variant = TideTextButtonVariant.Default,
+        size = TideTextButtonSize.Medium,
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,

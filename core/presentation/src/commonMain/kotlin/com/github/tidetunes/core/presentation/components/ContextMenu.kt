@@ -20,10 +20,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
+import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-data class TideTunesContextMenuItem(
+data class TideContextMenuItem(
     val label: StringResource,
     val onClick: () -> Unit,
     val isError: Boolean = false
@@ -31,10 +32,10 @@ data class TideTunesContextMenuItem(
 }
 
 @Composable
-fun TideTunesContextMenu(
+fun TideContextMenu(
     expanded: Boolean,
     onDismissRequest: () -> Unit,
-    items: List<TideTunesContextMenuItem>
+    items: List<TideContextMenuItem>
 ) {
     val scope = rememberCoroutineScope()
 
@@ -48,7 +49,7 @@ fun TideTunesContextMenu(
     ) {
         Column(
             modifier = Modifier
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(TideTunesTokens.shapes.sm))
                 .background(MiuixTheme.colorScheme.surfaceContainer)
                 .widthIn(min = 180.dp)
                 .padding(vertical = 6.dp),

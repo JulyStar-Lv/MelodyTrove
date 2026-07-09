@@ -2,9 +2,11 @@ package com.github.tidetunes.feature.sources.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.tidetunes.core.domain.model.SourceId
 import com.github.tidetunes.core.domain.model.StorageAccountInfo
 import com.github.tidetunes.core.domain.model.SourceAccountId
 import com.github.tidetunes.core.domain.repository.StorageRepository
+import com.github.tidetunes.source.api.BuiltInSourceIds
 import kotlinx.collections.immutable.toPersistentList
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.SharingStarted
@@ -70,5 +72,16 @@ private fun StorageAccountInfo.toSourceAccountUi(): SourceAccountUi {
         id = accountId,
         title = title,
         subtitle = subtitle,
+        sourceType = sourceId.toSourceTypeLabel(),
+        musicCount = musicCount,
     )
+}
+
+private fun SourceId.toSourceTypeLabel(): String {
+    return when (this) {
+        BuiltInSourceIds.WebDav -> "WebDAV"
+        BuiltInSourceIds.OneDrive -> "OneDrive"
+        BuiltInSourceIds.Local -> "Local"
+        else -> value.replaceFirstChar { char -> char.uppercase() }
+    }
 }

@@ -3,11 +3,9 @@ package com.github.tidetunes.widgets
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -16,21 +14,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.github.tidetunes.core.presentation.components.TideToast
+import com.github.tidetunes.core.presentation.overlay.ToastVM
+import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import org.koin.compose.viewmodel.koinViewModel
-import com.github.tidetunes.core.presentation.overlay.ToastVM
-import top.yukonga.miuix.kmp.basic.Text
-import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun ToastFrame(
-    toastVM: ToastVM = koinViewModel()
+    toastVM: ToastVM = koinViewModel(),
 ) {
+    val spacing = TideTunesTokens.spacing
     var message by remember { mutableStateOf("") }
     var visible by remember { mutableStateOf(false) }
 
@@ -54,20 +49,10 @@ fun ToastFrame(
             enter = fadeIn(),
             exit = fadeOut(),
         ) {
-            Box(
-                modifier = Modifier
-                    .padding(bottom = 48.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MiuixTheme.colorScheme.onBackground.copy(alpha = 0.92f))
-                    .padding(horizontal = 24.dp, vertical = 12.dp)
-            ) {
-                Text(
-                    text = message,
-                    color = MiuixTheme.colorScheme.background,
-                    fontSize = 14.sp,
-                    textAlign = TextAlign.Center,
-                )
-            }
+            TideToast(
+                message = message,
+                modifier = Modifier.padding(bottom = spacing.xxl),
+            )
         }
     }
 }
