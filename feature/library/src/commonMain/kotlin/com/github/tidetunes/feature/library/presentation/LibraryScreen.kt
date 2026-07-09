@@ -182,6 +182,16 @@ private fun LibraryTrackCard(
     TideCardSurface(
         cornerRadius = shapes.md,
         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+        backgroundColor = if (playing) {
+            MiuixTheme.colorScheme.tertiaryContainer.copy(alpha = 0.70f)
+        } else {
+            null
+        },
+        borderColor = if (playing) {
+            primaryColor.copy(alpha = 0.38f)
+        } else {
+            null
+        },
         onClick = onPlay,
     ) {
         Row(

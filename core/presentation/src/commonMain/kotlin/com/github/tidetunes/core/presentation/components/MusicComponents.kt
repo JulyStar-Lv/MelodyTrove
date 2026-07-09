@@ -1,6 +1,5 @@
 package com.github.tidetunes.core.presentation.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -214,13 +213,55 @@ fun AppTrackRow(
     modifier: Modifier = Modifier,
     cover: @Composable (() -> Unit)? = null,
     trailing: @Composable (() -> Unit)? = null,
+    active: Boolean = false,
     onClick: (() -> Unit)? = null,
 ) {
-    val rowModifier = modifier
-        .fillMaxWidth()
-        .padding(horizontal = 16.dp, vertical = 6.dp)
+    TideTrackRow(
+        title = title,
+        artist = artist,
+        duration = duration,
+        modifier = modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+        cover = cover,
+        trailing = trailing,
+        active = active,
+        onClick = onClick,
+    )
+}
 
-    val content = @Composable {
+@Composable
+fun TideTrackRow(
+    title: String,
+    artist: String?,
+    duration: String?,
+    modifier: Modifier = Modifier,
+    cover: @Composable (() -> Unit)? = null,
+    trailing: @Composable (() -> Unit)? = null,
+    active: Boolean = false,
+    onClick: (() -> Unit)? = null,
+) {
+    val contentColor = if (active) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurface
+    val secondaryColor = if (active) {
+        MiuixTheme.colorScheme.primary
+    } else {
+        MiuixTheme.colorScheme.onSurfaceVariantSummary
+    }
+
+    TideCardSurface(
+        modifier = modifier,
+        cornerRadius = TideTunesTokens.shapes.md,
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+        backgroundColor = if (active) {
+            MiuixTheme.colorScheme.tertiaryContainer.copy(alpha = 0.72f)
+        } else {
+            null
+        },
+        borderColor = if (active) {
+            TideTunesBrand.Primary.copy(alpha = 0.36f)
+        } else {
+            null
+        },
+        onClick = onClick,
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -232,7 +273,9 @@ fun AppTrackRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
+                    color = contentColor,
                     style = MiuixTheme.textStyles.body1,
+                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -240,7 +283,7 @@ fun AppTrackRow(
                     Text(
                         text = artist,
                         style = MiuixTheme.textStyles.body2,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        color = secondaryColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -251,23 +294,14 @@ fun AppTrackRow(
                 Text(
                     text = it,
                     style = MiuixTheme.textStyles.footnote1,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    color = secondaryColor,
+                    maxLines = 1,
                 )
             }
             trailing?.let {
-                Spacer(Modifier.width(4.dp))
+                Spacer(Modifier.width(8.dp))
                 it()
             }
-        }
-    }
-
-    if (onClick != null) {
-        Box(modifier = rowModifier.clickable(onClick = onClick)) {
-            content()
-        }
-    } else {
-        Box(modifier = rowModifier) {
-            content()
         }
     }
 }

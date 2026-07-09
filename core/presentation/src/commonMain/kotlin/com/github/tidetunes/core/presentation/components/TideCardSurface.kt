@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.github.tidetunes.core.presentation.theme.TideTunesTokens
@@ -23,6 +24,8 @@ fun TideCardSurface(
     cornerRadius: Dp = TideTunesTokens.shapes.lg,
     contentPadding: PaddingValues = PaddingValues(16.dp),
     fillMaxWidth: Boolean = true,
+    backgroundColor: Color? = null,
+    borderColor: Color? = null,
     onClick: (() -> Unit)? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
@@ -33,8 +36,8 @@ fun TideCardSurface(
         modifier = modifier
             .then(widthModifier)
             .clip(shape)
-            .background(MiuixTheme.colorScheme.surfaceContainer)
-            .border(1.dp, MiuixTheme.colorScheme.outline, shape)
+            .background(backgroundColor ?: MiuixTheme.colorScheme.surfaceContainer)
+            .border(1.dp, borderColor ?: MiuixTheme.colorScheme.outline, shape)
             .then(
                 if (onClick != null) {
                     Modifier.clickable(onClick = onClick)

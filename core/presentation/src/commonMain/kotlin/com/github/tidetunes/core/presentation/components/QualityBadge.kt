@@ -56,6 +56,41 @@ fun QualityBadge(
 }
 
 @Composable
+fun TideQualityBadge(
+    type: QualityBadgeType,
+    modifier: Modifier = Modifier,
+) {
+    QualityBadge(type = type, modifier = modifier)
+}
+
+@Composable
+fun TideSourceBadge(
+    label: String,
+    modifier: Modifier = Modifier,
+    accentColor: Color = TideTunesBrand.SupportBlue,
+) {
+    val shape = RoundedCornerShape(TideTunesTokens.shapes.full)
+
+    Box(
+        modifier = modifier
+            .heightIn(min = 24.dp)
+            .clip(shape)
+            .background(accentColor.copy(alpha = 0.14f))
+            .border(1.dp, accentColor.copy(alpha = 0.38f), shape)
+            .padding(horizontal = 9.dp, vertical = 4.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            color = accentColor,
+            style = MiuixTheme.textStyles.footnote2,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
 private fun qualityBadgeColors(type: QualityBadgeType): QualityBadgeColors {
     val accent = when (type) {
         QualityBadgeType.Flac -> TideTunesBrand.Primary
