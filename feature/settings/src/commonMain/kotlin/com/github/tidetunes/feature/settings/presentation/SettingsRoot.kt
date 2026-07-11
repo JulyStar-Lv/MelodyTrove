@@ -35,6 +35,8 @@ fun SettingsRoot(
 
     when (page) {
         SettingsPage.Home -> SettingsScreen(
+            state = state,
+            onAction = settingsVM::onAction,
             onNavigateToAppearance = onNavigateToAppearance,
             onNavigateToPlayback = onNavigateToPlayback,
             onNavigateToSource = onNavigateToSource,

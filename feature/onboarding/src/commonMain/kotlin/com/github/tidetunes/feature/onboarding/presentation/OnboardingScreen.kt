@@ -1,6 +1,8 @@
 package com.github.tidetunes.feature.onboarding.presentation
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -20,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -40,71 +44,192 @@ fun OnboardingScreen(
     state: OnboardingState,
     onAction: (OnboardingAction) -> Unit,
 ) {
-    val page = OnboardingPage.entries[state.currentPage]
-    val isLastPage = state.currentPage == OnboardingPage.entries.last().index
     val spacing = TideTunesTokens.spacing
+    val principles = listOf(
+        "Simple",
+        "Calm",
+        "Immersive",
+        "Music First",
+        "Content First",
+        "Adaptive",
+        "Native",
+        "Cross Platform",
+        "Plugin Driven",
+    )
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(
-                Brush.verticalGradient(
+                Brush.radialGradient(
                     listOf(
-                        MiuixTheme.colorScheme.background,
-                        MiuixTheme.colorScheme.tertiaryContainer.copy(alpha = 0.42f),
-                        MiuixTheme.colorScheme.background,
+                        TideTunesBrand.Primary.copy(alpha = 0.22f),
+                        Color.Transparent,
                     ),
+                    radius = 780f,
                 ),
             )
-            .padding(horizontal = spacing.lg, vertical = spacing.xl),
+            .background(
+                Brush.radialGradient(
+                    listOf(
+                        TideTunesBrand.Secondary.copy(alpha = 0.20f),
+                        Color.Transparent,
+                    ),
+                    radius = 860f,
+                ),
+            )
+            .background(Color(0xD60C0A14))
+            .padding(horizontal = spacing.xl, vertical = spacing.xl),
         contentAlignment = Alignment.Center,
     ) {
-        TideCardSurface(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .widthIn(max = 520.dp),
-            cornerRadius = TideTunesTokens.shapes.xl,
-            contentPadding = PaddingValues(spacing.lg),
+                .widthIn(max = 620.dp)
+                .heightIn(min = 520.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
         ) {
-            Column(
+            CoverLogo()
+            Spacer(modifier = Modifier.height(28.dp))
+            Text(
+                text = "TideTunes",
+                color = TideTunesBrand.Primary,
+                style = MiuixTheme.textStyles.title1,
+                fontWeight = FontWeight.Black,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                text = "One Library. Every Source.",
+                color = Color(0xFF9B97B0),
+                style = MiuixTheme.textStyles.body1,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+
+            Spacer(modifier = Modifier.height(48.dp))
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(18.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                OnboardingMark(page = page)
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Text(
-                        text = page.title,
-                        color = MiuixTheme.colorScheme.onSurface,
-                        style = MiuixTheme.textStyles.title1,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = page.description,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        style = MiuixTheme.textStyles.body1,
-                        textAlign = TextAlign.Center,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                principles.take(3).forEach { principle ->
+                    CoverPrincipleChip(text = principle)
                 }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                principles.drop(3).take(3).forEach { principle ->
+                    CoverPrincipleChip(text = principle)
+                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                principles.drop(6).forEach { principle ->
+                    CoverPrincipleChip(text = principle)
+                }
+            }
 
-                OnboardingIndicators(currentPage = state.currentPage)
-
-                OnboardingActions(
-                    page = page,
-                    isLastPage = isLastPage,
-                    currentPage = state.currentPage,
-                    onAction = onAction,
+            Spacer(modifier = Modifier.height(44.dp))
+            Row(
+                modifier = Modifier
+                    .height(56.dp)
+                    .clip(RoundedCornerShape(TideTunesTokens.shapes.full))
+                    .background(
+                        Brush.linearGradient(
+                            listOf(
+                                TideTunesBrand.Primary,
+                                TideTunesBrand.Secondary,
+                            ),
+                        ),
+                    )
+                    .clickable { onAction(OnboardingAction.Finish) }
+                    .padding(horizontal = 30.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "▶",
+                    color = Color.White,
+                    style = MiuixTheme.textStyles.body1,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    text = "Enter TideTunes",
+                    color = Color.White,
+                    style = MiuixTheme.textStyles.body1,
+                    fontWeight = FontWeight.Bold,
                 )
             }
+
+            Spacer(modifier = Modifier.height(56.dp))
+            Text(
+                text = "TideTunes Design System · v3.0 · 2024",
+                color = Color(0xFF9B97B0),
+                style = MiuixTheme.textStyles.footnote2,
+                textAlign = TextAlign.Center,
+            )
         }
+    }
+}
+
+@Composable
+private fun CoverLogo() {
+    Box(
+        modifier = Modifier
+            .size(92.dp)
+            .clip(RoundedCornerShape(28.dp))
+            .background(
+                Brush.linearGradient(
+                    listOf(
+                        TideTunesBrand.Primary,
+                        TideTunesBrand.Secondary,
+                    ),
+                ),
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = "♪",
+            color = Color.White,
+            style = MiuixTheme.textStyles.title1,
+            fontWeight = FontWeight.Black,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+@Composable
+private fun CoverPrincipleChip(text: String) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(TideTunesTokens.shapes.full))
+            .background(Color(0x99161224))
+            .border(
+                width = 1.dp,
+                color = Color(0x12F0EDF8),
+                shape = RoundedCornerShape(TideTunesTokens.shapes.full),
+            )
+            .padding(horizontal = 16.dp, vertical = 9.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            color = Color(0xFFF0EDF8),
+            style = MiuixTheme.textStyles.footnote1,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

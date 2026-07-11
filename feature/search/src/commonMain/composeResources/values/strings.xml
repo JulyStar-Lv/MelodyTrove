@@ -14,7 +14,7 @@
     <string name="library_title">Library</string>
     <string name="library_empty">No imported songs yet. Choose a storage library folder first.</string>
     <string name="search_title">Search</string>
-    <string name="search_hint">Songs, artists, composers</string>
+    <string name="search_hint">Songs, artists, albums, folders, sources…</string>
     <string name="search_empty">No results</string>
     <string name="search_history">History</string>
     <string name="search_suggestions">Suggestions</string>

@@ -36,7 +36,7 @@ internal fun RootNavHost(
     NavHost(
         modifier = Modifier.fillMaxSize(),
         navController = navController,
-        startDestination = MusicGraph.Home,
+        startDestination = MusicGraph.Onboarding,
         enterTransition = {
             slideIn(
                 animationSpec = tween(300),

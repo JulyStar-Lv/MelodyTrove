@@ -14,6 +14,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 enum class TideTextButtonVariant {
     Primary,
     PrimaryFilled,
+    Tonal,
     Error,
     Default,
 }
@@ -92,6 +93,10 @@ private fun tideTextButtonColors(variant: TideTextButtonVariant): TextButtonColo
         TideTextButtonVariant.PrimaryFilled -> ButtonDefaults.textButtonColors(
             color = MiuixTheme.colorScheme.primary,
             textColor = MiuixTheme.colorScheme.onPrimary,
+        )
+        TideTextButtonVariant.Tonal -> ButtonDefaults.textButtonColors(
+            color = MiuixTheme.colorScheme.tertiaryContainer,
+            textColor = MiuixTheme.colorScheme.primary,
         )
         TideTextButtonVariant.Error -> ButtonDefaults.textButtonColors(
             color = Color.Transparent,

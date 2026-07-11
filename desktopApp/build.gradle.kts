@@ -1,4 +1,6 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
+import org.gradle.api.tasks.JavaExec
+import org.gradle.jvm.toolchain.JavaLanguageVersion
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -28,5 +30,19 @@ compose.desktop {
             packageName = "TideTunes"
             packageVersion = "1.0.0"
         }
+    }
+}
+
+// compose-miuix-ui is published as Java 21 bytecode. Keep Gradle/Kotlin builds
+// compatible with the repository toolchain, but launch the desktop app on a
+// Java 21 runtime so local runs do not fail with UnsupportedClassVersionError.
+val desktopRuntimeLauncher = javaToolchains.launcherFor {
+    languageVersion.set(JavaLanguageVersion.of(21))
+}
+
+afterEvaluate {
+    tasks.named<JavaExec>("run") {
+        javaLauncher.set(desktopRuntimeLauncher)
+        executable = desktopRuntimeLauncher.get().executablePath.asFile.absolutePath
     }
 }

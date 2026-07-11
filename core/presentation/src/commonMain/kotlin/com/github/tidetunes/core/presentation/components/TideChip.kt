@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -26,6 +28,7 @@ fun TideChip(
     modifier: Modifier = Modifier,
     selected: Boolean = false,
     enabled: Boolean = true,
+    leading: (@Composable () -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
     val shape = RoundedCornerShape(TideTunesTokens.shapes.full)
@@ -33,7 +36,7 @@ fun TideChip(
 
     Box(
         modifier = modifier
-            .heightIn(min = 32.dp)
+            .heightIn(min = 36.dp)
             .clip(shape)
             .background(colors.container)
             .border(1.dp, colors.border, shape)
@@ -44,17 +47,23 @@ fun TideChip(
                     Modifier
                 },
             )
-            .padding(horizontal = 12.dp, vertical = 7.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = label,
-            color = colors.content,
-            style = MiuixTheme.textStyles.footnote1,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            leading?.invoke()
+            Text(
+                text = label,
+                color = colors.content,
+                style = MiuixTheme.textStyles.footnote1,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -76,7 +85,7 @@ private fun tideChipColors(
         )
         else -> TideChipColors(
             container = MiuixTheme.colorScheme.surfaceContainerHigh,
-            border = MiuixTheme.colorScheme.outline,
+            border = Color.Transparent,
             content = MiuixTheme.colorScheme.onSurfaceVariantSummary,
         )
     }

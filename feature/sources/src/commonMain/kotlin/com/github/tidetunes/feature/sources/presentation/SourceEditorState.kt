@@ -28,7 +28,7 @@ data class WebDavSourceEditorState(
     val alias: String = "",
     val address: String = "",
     val username: String = "",
-    val isAnonymous: Boolean = true,
+    val isAnonymous: Boolean = false,
 )
 
 @Immutable

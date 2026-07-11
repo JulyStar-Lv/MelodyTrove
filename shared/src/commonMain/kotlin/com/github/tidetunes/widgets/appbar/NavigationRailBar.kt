@@ -37,7 +37,6 @@ fun getNavigationRailWidth(windowSizeClass: WindowSizeClass = WindowSizeClass.Ex
 fun NavigationRailBar(
     currentTab: HomeTab,
     onTabSelected: (HomeTab) -> Unit,
-    miniPlayerContent: @Composable () -> Unit,
     modifier: Modifier = Modifier,
     windowSizeClass: WindowSizeClass = WindowSizeClass.Expanded,
 ) {
@@ -58,7 +57,6 @@ fun NavigationRailBar(
             .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.94f))
             .border(1.dp, MiuixTheme.colorScheme.outline.copy(alpha = 0.70f), railShape),
     ) {
-        miniPlayerContent()
         Column(
             modifier = Modifier
                 .weight(1f)

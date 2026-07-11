@@ -20,7 +20,7 @@ fun main() = application {
     Window(
         onCloseRequest = ::exitApplication,
         title = "TideTunes",
-        state = rememberWindowState(width = 800.dp, height = 600.dp),
+        state = rememberWindowState(width = 1440.dp, height = 900.dp),
     ) {
         Root()
     }

@@ -29,6 +29,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
@@ -73,29 +74,43 @@ fun TideMiniPlayerBar(
     modifier: Modifier = Modifier,
 ) {
     val shapes = TideTunesTokens.shapes
+    val shape = RoundedCornerShape(shapes.lg)
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(56.dp)
-            .clip(RoundedCornerShape(shapes.lg))
-            .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.94f))
+            .height(68.dp)
+            .shadow(8.dp, shape, clip = false)
+            .clip(shape)
+            .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.88f))
             .border(
                 width = 1.dp,
                 color = MiuixTheme.colorScheme.outline.copy(alpha = 0.72f),
-                shape = RoundedCornerShape(shapes.lg),
+                shape = shape,
             )
             .clickable(onClick = onClick),
     ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(
+                            TideTunesBrand.Primary.copy(alpha = 0.08f),
+                            TideTunesBrand.Secondary.copy(alpha = 0.08f),
+                        ),
+                    ),
+                ),
+        )
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(start = 8.dp, end = 8.dp, bottom = 2.dp),
+                .padding(start = 16.dp, end = 8.dp, bottom = 2.dp),
             horizontalArrangement = Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             artwork()
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(12.dp))
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -111,7 +126,7 @@ fun TideMiniPlayerBar(
                     overflow = TextOverflow.Ellipsis,
                     maxLines = 1,
                 )
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(3.dp))
                 Text(
                     text = subtitle.ifBlank { "Ready to play" },
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,

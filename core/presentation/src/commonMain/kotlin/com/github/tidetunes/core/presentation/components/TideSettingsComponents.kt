@@ -20,8 +20,9 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
-import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -31,28 +32,29 @@ fun TideSettingsGroup(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val shapes = TideTunesTokens.shapes
-
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         if (title != null) {
-            TideSectionHeader(
-                title = title,
-                variant = TideSectionHeaderVariant.Subtle,
-                modifier = Modifier.padding(horizontal = 6.dp),
+            Text(
+                text = title.uppercase(),
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                style = MiuixTheme.textStyles.footnote1,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.2.sp,
+                modifier = Modifier.padding(horizontal = 4.dp),
             )
         }
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(shapes.lg))
+                .clip(RoundedCornerShape(24.dp))
                 .background(MiuixTheme.colorScheme.surfaceContainer)
                 .border(
                     width = 1.dp,
                     color = MiuixTheme.colorScheme.outline.copy(alpha = 0.72f),
-                    shape = RoundedCornerShape(shapes.lg),
+                    shape = RoundedCornerShape(24.dp),
                 ),
             content = content,
         )
@@ -86,12 +88,12 @@ fun TidePreferenceRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 15.dp),
+                .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (leading != null) {
                 leading()
-                Spacer(modifier = Modifier.width(14.dp))
+                Spacer(modifier = Modifier.width(16.dp))
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -102,7 +104,7 @@ fun TidePreferenceRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (summary != null) {
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = summary,
                         style = MiuixTheme.textStyles.body2,
@@ -121,7 +123,6 @@ fun TidePreferenceRow(
             Spacer(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = if (leading != null) 74.dp else 18.dp)
                     .height(1.dp)
                     .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.55f)),
             )

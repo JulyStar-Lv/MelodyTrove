@@ -48,6 +48,7 @@ enum class TidePlayerControlSize {
 }
 
 enum class TidePlayerControlVariant {
+    Ghost,
     Secondary,
     Primary,
 }
@@ -162,18 +163,20 @@ fun TidePlayerControlButton(
     contentDescription: String? = null,
 ) {
     val isPrimary = variant == TidePlayerControlVariant.Primary
-    val background = if (isPrimary) {
-        Brush.linearGradient(
+    val background = when (variant) {
+        TidePlayerControlVariant.Ghost -> Brush.linearGradient(
+            listOf(Color.Transparent, Color.Transparent),
+        )
+        TidePlayerControlVariant.Secondary -> Brush.linearGradient(
+            listOf(
+                MiuixTheme.colorScheme.secondaryContainer,
+                MiuixTheme.colorScheme.secondaryContainer,
+            ),
+        )
+        TidePlayerControlVariant.Primary -> Brush.linearGradient(
             listOf(
                 TideTunesBrand.Primary,
                 TideTunesBrand.Secondary,
-            ),
-        )
-    } else {
-        Brush.linearGradient(
-            listOf(
-                MiuixTheme.colorScheme.secondaryContainer,
-                MiuixTheme.colorScheme.secondaryContainer,
             ),
         )
     }
@@ -186,6 +189,7 @@ fun TidePlayerControlButton(
         !enabled && size == TidePlayerControlSize.Mini -> MiuixTheme.colorScheme.disabledOnSurface
         isPrimary -> Color.White
         !enabled -> MiuixTheme.colorScheme.disabledOnSurface
+        variant == TidePlayerControlVariant.Ghost -> MiuixTheme.colorScheme.onSurface
         else -> MiuixTheme.colorScheme.onSecondaryContainer
     }
 
@@ -223,10 +227,10 @@ private fun tidePlayerControlButtonSize(
     variant: TidePlayerControlVariant,
 ): Dp {
     return when (size) {
-        TidePlayerControlSize.Mini -> if (variant == TidePlayerControlVariant.Primary) {
-            34.dp
-        } else {
-            30.dp
+        TidePlayerControlSize.Mini -> when (variant) {
+            TidePlayerControlVariant.Ghost -> 40.dp
+            TidePlayerControlVariant.Primary -> 34.dp
+            TidePlayerControlVariant.Secondary -> 30.dp
         }
         TidePlayerControlSize.Large -> 64.dp
     }
@@ -237,10 +241,10 @@ private fun tidePlayerControlIconSize(
     variant: TidePlayerControlVariant,
 ): Dp {
     return when (size) {
-        TidePlayerControlSize.Mini -> if (variant == TidePlayerControlVariant.Primary) {
-            15.dp
-        } else {
-            12.dp
+        TidePlayerControlSize.Mini -> when (variant) {
+            TidePlayerControlVariant.Ghost -> 20.dp
+            TidePlayerControlVariant.Primary -> 15.dp
+            TidePlayerControlVariant.Secondary -> 12.dp
         }
         TidePlayerControlSize.Large -> 26.dp
     }

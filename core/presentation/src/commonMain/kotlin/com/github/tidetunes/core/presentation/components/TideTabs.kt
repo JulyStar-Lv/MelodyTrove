@@ -241,19 +241,15 @@ private fun TidePillTabItem(
     val shape = RoundedCornerShape(TideTunesTokens.shapes.full)
     val containerColor by animateColorAsState(
         targetValue = if (selected) {
-            MiuixTheme.colorScheme.tertiaryContainer
+            MiuixTheme.colorScheme.primary
         } else {
-            MiuixTheme.colorScheme.surfaceContainer
+            MiuixTheme.colorScheme.surfaceContainerHigh
         },
         animationSpec = tween(durationMillis = TideTunesTokens.motion.fastMillis),
         label = "tideTabsPillContainer",
     )
     val borderColor by animateColorAsState(
-        targetValue = if (selected) {
-            TideTunesBrand.Primary.copy(alpha = 0.18f)
-        } else {
-            MiuixTheme.colorScheme.outline
-        },
+        targetValue = Color.Transparent,
         animationSpec = tween(durationMillis = TideTunesTokens.motion.fastMillis),
         label = "tideTabsPillBorder",
     )
@@ -271,7 +267,7 @@ private fun TidePillTabItem(
                 role = Role.Tab,
                 onClick = onClick,
             )
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         contentAlignment = Alignment.Center,
     ) {
         TideTabLabel(
@@ -279,6 +275,7 @@ private fun TidePillTabItem(
             selected = selected,
             enabled = enabled,
             compact = true,
+            selectedContentColor = MiuixTheme.colorScheme.onPrimary,
         )
     }
 }
@@ -331,8 +328,13 @@ private fun TideTabLabel(
     selected: Boolean,
     enabled: Boolean,
     compact: Boolean,
+    selectedContentColor: Color? = null,
 ) {
-    val contentColor = tabContentColor(selected = selected, enabled = enabled)
+    val contentColor = if (enabled && selected && selectedContentColor != null) {
+        selectedContentColor
+    } else {
+        tabContentColor(selected = selected, enabled = enabled)
+    }
 
     Row(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -341,8 +343,8 @@ private fun TideTabLabel(
         Text(
             text = item.label,
             color = contentColor,
-            style = if (compact) MiuixTheme.textStyles.footnote1 else MiuixTheme.textStyles.title4,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            style = if (compact) MiuixTheme.textStyles.body2 else MiuixTheme.textStyles.title4,
+            fontWeight = if (compact || selected) FontWeight.SemiBold else FontWeight.Normal,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )

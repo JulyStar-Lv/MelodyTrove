@@ -112,24 +112,17 @@ private fun MiniPlayerBar(
         artwork = {
             MusicCover(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(shapes.md))
-                    .size(40.dp),
+                    .clip(RoundedCornerShape(shapes.sm))
+                    .size(44.dp),
                 artwork = cover,
             )
         },
         controls = {
             TidePlayerControlButton(
-                painter = painterResource(Res.drawable.icon_play_previous),
-                enabled = canPrevious,
-                size = TidePlayerControlSize.Mini,
-                variant = TidePlayerControlVariant.Secondary,
-                contentDescription = "Previous track",
-                onClick = onPrevious,
-            )
-            TideGradientPlayButton(
                 painter = painterResource(if (isPlaying) Res.drawable.icon_pause else Res.drawable.icon_play),
                 enabled = !loading,
                 size = TidePlayerControlSize.Mini,
+                variant = TidePlayerControlVariant.Ghost,
                 contentDescription = if (isPlaying) "Pause" else "Play",
                 onClick = if (isPlaying) onPause else onPlay,
             )
@@ -137,7 +130,7 @@ private fun MiniPlayerBar(
                 painter = painterResource(Res.drawable.icon_play_next),
                 enabled = canNext,
                 size = TidePlayerControlSize.Mini,
-                variant = TidePlayerControlVariant.Secondary,
+                variant = TidePlayerControlVariant.Ghost,
                 contentDescription = "Next track",
                 onClick = onNext,
             )
