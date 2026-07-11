@@ -19,6 +19,14 @@ fun rememberIsPlaybackPlaying(
 }
 
 @Composable
+fun rememberHasPlaybackItem(
+    playerVM: PlayerVM = koinViewModel(),
+): Boolean {
+    val playbackState by playerVM.playbackState.collectAsState()
+    return playbackState.currentItem != null
+}
+
+@Composable
 fun PlaybackMiniPlayerHost(
     onOpenNowPlaying: () -> Unit,
     playerVM: PlayerVM = koinViewModel(),

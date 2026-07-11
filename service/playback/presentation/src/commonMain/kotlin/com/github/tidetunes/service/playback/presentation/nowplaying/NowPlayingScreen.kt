@@ -119,8 +119,9 @@ private fun MusicPlayerHeader(
 
     Row(
         horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
-            .padding(13.dp, 13.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
             .fillMaxWidth()
     ) {
         TideIconButton(
@@ -130,6 +131,12 @@ private fun MusicPlayerHeader(
             onClick = {
                 onAction(NowPlayingAction.NavigateBack)
             }
+        )
+        Text(
+            text = "NOW PLAYING",
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            style = MiuixTheme.textStyles.footnote1,
+            fontWeight = FontWeight.Bold,
         )
         Box {
             TideIconButton(
@@ -260,7 +267,7 @@ private fun CoverImage(artwork: Artwork?) {
         contentAlignment = Alignment.Center,
         modifier = Modifier.fillMaxSize(),
     ) {
-        val artworkSize = minOf(maxWidth, maxHeight, 320.dp)
+        val artworkSize = minOf(maxWidth, maxHeight, 280.dp)
         val shapes = TideTunesTokens.shapes
 
         Box(
@@ -368,7 +375,7 @@ private fun LyricsPanel(
                 item {
                     Box(modifier = Modifier.height(widgetHeightDp / 2))
                 }
-                itemsIndexed(lyrics, key = { _, _ -> Unit.hashCode() }) { index, lyric ->
+                itemsIndexed(lyrics, key = { index, _ -> index }) { index, lyric ->
                     val isCurrent = index == lyricIndex
                     if (isCurrent) {
                         AnimatedLyricLine(
@@ -663,6 +670,7 @@ fun NowPlayingScreen(
                     ),
                 ),
             )
+            .background(MiuixTheme.colorScheme.background.copy(alpha = 0.78f))
             .fillMaxSize()
     ) {
         Column {
@@ -705,16 +713,26 @@ fun NowPlayingScreen(
                     .padding(horizontal = 36.dp, vertical = 10.dp)
             ) {
                 Text(
-                    text = currentTrack?.title ?: "",
+                    text = currentTrack?.title ?: "Midnight Cascade",
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     color = MiuixTheme.colorScheme.onSurface,
                     style = nowPlayingTitleStyle(),
                     fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
+                    textAlign = TextAlign.Start,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 4.dp, bottom = 14.dp)
+                        .padding(top = 4.dp, bottom = 2.dp)
+                )
+                Text(
+                    text = "Luna Waves",
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    style = MiuixTheme.textStyles.body1,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 14.dp),
                 )
                 progressContent(currentTrack?.durationMs)
             }
@@ -729,6 +747,14 @@ fun NowPlayingScreen(
                     onAction = onAction,
                 )
             }
+            PlayerTabSection(
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .widthIn(max = 560.dp)
+                    .fillMaxWidth()
+                    .padding(horizontal = 36.dp, vertical = 10.dp)
+                    .height(190.dp),
+            )
         }
     }
 }
@@ -756,8 +782,199 @@ internal fun NowPlayingProgressPanel(
 @Composable
 private fun nowPlayingTitleStyle(): TextStyle = TextStyle(
     fontFamily = TideTunesFontFamilies.Sans,
-    fontSize = 34.sp,
+    fontSize = 24.sp,
     fontWeight = FontWeight.Bold,
-    lineHeight = 40.sp,
+    lineHeight = 30.sp,
     letterSpacing = 0.sp,
+)
+
+@Composable
+private fun PlayerTabSection(modifier: Modifier = Modifier) {
+    var selectedTab by remember { mutableIntStateOf(0) }
+    Column(modifier = modifier) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            listOf("Lyrics", "Queue", "EQ").forEachIndexed { index, label ->
+                Column(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { selectedTab = index }
+                        .padding(horizontal = 22.dp, vertical = 4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = label,
+                        color = if (index == selectedTab) {
+                            MiuixTheme.colorScheme.primary
+                        } else {
+                            MiuixTheme.colorScheme.onSurfaceVariantSummary
+                        },
+                        style = MiuixTheme.textStyles.body2,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 8.dp)
+                            .width(28.dp)
+                            .height(2.dp)
+                            .background(
+                                if (index == selectedTab) MiuixTheme.colorScheme.primary
+                                else Color.Transparent,
+                                RoundedCornerShape(999.dp),
+                            ),
+                    )
+                }
+            }
+        }
+        when (selectedTab) {
+            0 -> PlayerLyricsPreview(modifier = Modifier.weight(1f))
+            1 -> PlayerQueuePreview(modifier = Modifier.weight(1f))
+            else -> PlayerEqualizerPreview(modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun PlayerLyricsPreview(modifier: Modifier = Modifier) {
+    LazyColumn(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        itemsIndexed(playerDesignLyrics) { index, line ->
+            Text(
+                text = line,
+                color = if (index == 3) MiuixTheme.colorScheme.onSurface
+                else MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                style = if (index == 3) MiuixTheme.textStyles.body1 else MiuixTheme.textStyles.body2,
+                fontWeight = if (index == 3) FontWeight.SemiBold else FontWeight.Normal,
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlayerQueuePreview(modifier: Modifier = Modifier) {
+    LazyColumn(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        itemsIndexed(playerDesignQueue) { index, item ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(
+                        if (index == 0) MiuixTheme.colorScheme.tertiaryContainer.copy(alpha = 0.65f)
+                        else Color.Transparent,
+                    )
+                    .padding(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(
+                            Brush.linearGradient(
+                                listOf(playerQueueColors[index % playerQueueColors.size], playerQueueColors[(index + 1) % playerQueueColors.size]),
+                            ),
+                        ),
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = item.first,
+                        color = if (index == 0) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurface,
+                        style = MiuixTheme.textStyles.body2,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = item.second,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        style = MiuixTheme.textStyles.footnote1,
+                    )
+                }
+                Text(
+                    text = item.third,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    style = MiuixTheme.textStyles.footnote1,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PlayerEqualizerPreview(modifier: Modifier = Modifier) {
+    LazyColumn(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        itemsIndexed(playerEqBands) { index, band ->
+            var value by remember(index) { mutableFloatStateOf(if (index % 2 == 0) 0.62f else 0.42f) }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = band,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    style = MiuixTheme.textStyles.footnote1,
+                    modifier = Modifier.width(72.dp),
+                )
+                TideSlider(
+                    value = value,
+                    onValueChange = { value = it },
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}
+
+private val playerDesignLyrics = listOf(
+    "In the deep blue hours before the dawn",
+    "The frequency shifts as the night moves on",
+    "Cascading waves of midnight light",
+    "Your signal cutting through the night",
+    "Midnight cascade, falling through the sound",
+    "Midnight cascade, where frequencies are found",
+)
+
+private val playerDesignQueue = listOf(
+    Triple("Midnight Cascade", "Luna Waves", "3:42"),
+    Triple("Neon Undertow", "Prism Circuit", "4:18"),
+    Triple("Silver Tide", "Coastal Drift", "3:55"),
+    Triple("Aurora Sequence", "Polar Echo", "5:02"),
+    Triple("Depth Protocol", "Ocean Syntax", "3:30"),
+)
+
+private val playerEqBands = listOf(
+    "Sub Bass",
+    "Bass",
+    "Low Mid",
+    "Mid",
+    "High Mid",
+    "Presence",
+    "Brilliance",
+)
+
+private val playerQueueColors = listOf(
+    Color(0xFFFF5B8A),
+    Color(0xFF7A6CFF),
+    Color(0xFF3D9AFF),
+    Color(0xFFFF8A3D),
+    Color(0xFF3DCA8A),
 )

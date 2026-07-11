@@ -18,6 +18,7 @@ fun TideChipSection(
     metadata: String? = null,
     metadataTone: TideSectionHeaderMetadataTone = TideSectionHeaderMetadataTone.Default,
     trailing: (@Composable () -> Unit)? = null,
+    chipLeading: (@Composable () -> Unit)? = null,
 ) {
     Column(
         modifier = modifier,
@@ -37,6 +38,7 @@ fun TideChipSection(
             labels.forEach { label ->
                 TideChip(
                     label = label,
+                    leading = chipLeading,
                     onClick = { onLabelClick(label) },
                 )
             }

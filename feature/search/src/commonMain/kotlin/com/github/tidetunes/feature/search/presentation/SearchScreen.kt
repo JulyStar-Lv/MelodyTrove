@@ -1,6 +1,7 @@
 package com.github.tidetunes.feature.search.presentation
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Box
@@ -25,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -46,14 +48,19 @@ import com.github.tidetunes.core.presentation.theme.TideTunesBrand
 import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import com.github.tidetunes.feature.search.domain.SearchTrackItem
 import kotlin.time.Duration.Companion.milliseconds
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import tidetunes.feature.search.generated.resources.Res
 import tidetunes.feature.search.generated.resources.downloads_title
+import tidetunes.feature.search.generated.resources.icon_download
+import tidetunes.feature.search.generated.resources.icon_music_note
+import tidetunes.feature.search.generated.resources.icon_search
 import tidetunes.feature.search.generated.resources.search_empty
 import tidetunes.feature.search.generated.resources.search_hint
 import tidetunes.feature.search.generated.resources.search_remote_failures
 import tidetunes.feature.search.generated.resources.search_suggestions
 import tidetunes.feature.search.generated.resources.search_title
+import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -66,34 +73,26 @@ fun SearchScreen(
     val spacing = TideTunesTokens.spacing
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        val horizontalPadding = if (maxWidth < 600.dp) spacing.pageCompact else spacing.pageExpanded
+        val horizontalPadding = spacing.pageCompact
+        val showPageHeader = maxWidth < 1024.dp
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MiuixTheme.colorScheme.background)
-            .padding(horizontal = horizontalPadding, vertical = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(spacing.md),
+            .padding(
+                start = horizontalPadding,
+                top = 8.dp,
+                end = horizontalPadding,
+                bottom = 16.dp,
+            ),
+        verticalArrangement = Arrangement.spacedBy(spacing.lg),
     ) {
-        TidePageHeader(
-            title = stringResource(Res.string.search_title),
-            subtitle = "One search across every source",
-        ) {
-            Box(
-                modifier = Modifier
-                    .height(30.dp)
-                    .clip(RoundedCornerShape(TideTunesTokens.shapes.full))
-                    .background(MiuixTheme.colorScheme.tertiaryContainer)
-                    .padding(horizontal = 12.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = "Global",
-                    color = MiuixTheme.colorScheme.primary,
-                    style = MiuixTheme.textStyles.footnote1,
-                    fontWeight = FontWeight.SemiBold,
-                )
-            }
+        if (showPageHeader) {
+            TidePageHeader(
+                title = stringResource(Res.string.search_title),
+                subtitle = null,
+            )
         }
         SearchInput(
             state = state,
@@ -138,7 +137,7 @@ private fun SearchContent(
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = TideTunesTokens.spacing.lg),
-        verticalArrangement = Arrangement.spacedBy(TideTunesTokens.spacing.md),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         when (state.loadState) {
             SearchLoadState.Searching -> {
@@ -211,7 +210,9 @@ private fun SearchContent(
 @Composable
 private fun SearchResultHeader(resultCount: Int) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 12.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -296,96 +297,90 @@ private fun SearchDiscovery(
     state: SearchState,
     onAction: (SearchAction) -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(TideTunesTokens.spacing.md)) {
-        if (state.history.isNotEmpty()) {
-            TideChipSection(
-                title = "Recent Search",
-                labels = state.history.take(8),
-                trailing = {
+    Column(verticalArrangement = Arrangement.spacedBy(TideTunesTokens.spacing.lg)) {
+        TideChipSection(
+            title = "Recent Searches",
+            labels = state.history.take(8).ifEmpty { state.trendingQueries().take(5) },
+            trailing = if (state.history.isNotEmpty()) {
+                {
                     TideTextButton(
                         text = "Clear",
                         variant = TideTextButtonVariant.Default,
                         size = TideTextButtonSize.Small,
                         onClick = { onAction(SearchAction.ClearHistory) },
                     )
-                },
-                onLabelClick = { query -> onAction(SearchAction.SelectSuggestion(query)) },
-            )
-        }
-        TideChipSection(
-            title = if (state.suggestions.isNotEmpty()) {
-                stringResource(Res.string.search_suggestions)
+                }
             } else {
-                "Trending"
+                null
             },
-            labels = state.trendingQueries(),
+            chipLeading = {
+                Icon(
+                    painter = painterResource(Res.drawable.icon_search),
+                    tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                )
+            },
             onLabelClick = { query -> onAction(SearchAction.SelectSuggestion(query)) },
         )
         SearchCategoryGrid()
+        SearchTrendingNow(onAction = onAction)
     }
 }
 
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
 private fun SearchCategoryGrid() {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(
-            text = "Browse",
+            text = "Browse Genres",
             color = MiuixTheme.colorScheme.onBackground,
             style = MiuixTheme.textStyles.subtitle,
             fontWeight = FontWeight.SemiBold,
         )
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            searchCategories.forEach { category ->
-                SearchCategoryCard(category = category)
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            val cardWidth = (maxWidth - 12.dp) / 2
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                searchCategories.forEach { category ->
+                    SearchCategoryCard(
+                        category = category,
+                        modifier = Modifier.width(cardWidth),
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun SearchCategoryCard(category: SearchCategoryUi) {
-    TideCardSurface(
-        modifier = Modifier
-            .widthIn(min = 154.dp, max = 220.dp)
-            .heightIn(min = 76.dp),
-        contentPadding = PaddingValues(14.dp),
-        fillMaxWidth = false,
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TideIconBadge(
-                marker = category.marker,
-                accentColor = category.tint,
+private fun SearchCategoryCard(
+    category: SearchCategoryUi,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .height(80.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(
+                Brush.linearGradient(
+                    listOf(category.tint, category.endTint),
+                ),
             )
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(3.dp),
-            ) {
-                Text(
-                    text = category.label,
-                    color = MiuixTheme.colorScheme.onSurface,
-                    style = MiuixTheme.textStyles.body1,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = category.summary,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    style = MiuixTheme.textStyles.footnote1,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
+            .padding(16.dp),
+        contentAlignment = Alignment.BottomStart,
+    ) {
+        Text(
+            text = category.label,
+            color = Color.White,
+            style = MiuixTheme.textStyles.body1,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -395,23 +390,34 @@ private fun SearchTrackCard(
     onClick: () -> Unit,
     onDownload: () -> Unit,
 ) {
-    val shapes = TideTunesTokens.shapes
-
-    TideCardSurface(
-        cornerRadius = shapes.md,
-        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
-        onClick = onClick,
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
+    Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .clickable(onClick = onClick)
+                .padding(14.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TideIconBadge(
-                variant = TideIconBadgeVariant.Brand,
-                marker = "M",
-            )
-            Spacer(modifier = Modifier.width(12.dp))
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(
+                        Brush.linearGradient(
+                            listOf(TideTunesBrand.Primary, TideTunesBrand.Secondary),
+                        ),
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(Res.drawable.icon_music_note),
+                    tint = Color.White.copy(alpha = 0.82f),
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+            Spacer(modifier = Modifier.width(16.dp))
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -437,31 +443,58 @@ private fun SearchTrackCard(
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                if (track.mediaId != null) {
-                    TideTextButton(
-                        text = stringResource(Res.string.downloads_title),
-                        variant = TideTextButtonVariant.Primary,
-                        size = TideTextButtonSize.Small,
-                        onClick = onDownload,
-                    )
-                }
                 Row(
                     modifier = Modifier.widthIn(max = 148.dp),
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    TideSourceBadge(
-                        label = track.sourceLabel,
-                        modifier = Modifier.widthIn(max = 92.dp),
-                    )
+                    if (track.sourceLabel != "Library") {
+                        TideSourceBadge(
+                            label = track.sourceLabel,
+                            modifier = Modifier.widthIn(max = 92.dp),
+                        )
+                    }
                     Text(
                         text = track.durationMs.durationText(),
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         style = MiuixTheme.textStyles.footnote1,
                         maxLines = 1,
                     )
+                    if (track.mediaId != null) {
+                        Icon(
+                            painter = painterResource(Res.drawable.icon_download),
+                            tint = MiuixTheme.colorScheme.primary,
+                            contentDescription = stringResource(Res.string.downloads_title),
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(TideTunesTokens.shapes.full))
+                                .clickable(onClick = onDownload)
+                                .padding(4.dp)
+                                .size(16.dp),
+                        )
+                    }
                 }
             }
+        }
+}
+
+@Composable
+private fun SearchTrendingNow(
+    onAction: (SearchAction) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            text = "Trending Now",
+            color = MiuixTheme.colorScheme.onBackground,
+            style = MiuixTheme.textStyles.subtitle,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(bottom = 12.dp),
+        )
+        demoTrendingTracks.forEach { track ->
+            SearchTrackCard(
+                track = track,
+                onClick = { onAction(SearchAction.OpenTrack(track)) },
+                onDownload = { onAction(SearchAction.DownloadTrack(track)) },
+            )
         }
     }
 }
@@ -493,49 +526,78 @@ private fun Long?.durationText(): String {
 
 private data class SearchCategoryUi(
     val label: String,
-    val summary: String,
-    val marker: String,
     val tint: Color,
+    val endTint: Color,
 )
 
 private val fallbackTrendingQueries = listOf(
-    "Lossless",
+    "Luna Waves",
+    "Synthwave",
+    "Midnight Cascade",
     "Hi-Res",
-    "WebDAV",
-    "Recently Added",
-    "Live",
-    "Karaoke",
+    "Ambient",
 )
 
 private val searchCategories = listOf(
     SearchCategoryUi(
-        label = "Albums",
-        summary = "Album matches",
-        marker = "A",
+        label = "Electronic",
         tint = TideTunesBrand.Primary,
+        endTint = TideTunesBrand.Secondary,
     ),
     SearchCategoryUi(
-        label = "Artists",
-        summary = "Artist matches",
-        marker = "R",
+        label = "Ambient",
         tint = TideTunesBrand.Secondary,
+        endTint = TideTunesBrand.SupportBlue,
     ),
     SearchCategoryUi(
-        label = "Songs",
-        summary = "Track results",
-        marker = "S",
-        tint = TideTunesBrand.SupportBlue,
-    ),
-    SearchCategoryUi(
-        label = "Folders",
-        summary = "Storage paths",
-        marker = "F",
+        label = "Synthwave",
         tint = TideTunesBrand.SupportOrange,
+        endTint = TideTunesBrand.Primary,
     ),
     SearchCategoryUi(
-        label = "Sources",
-        summary = "Connected sources",
-        marker = "D",
+        label = "Techno",
         tint = TideTunesBrand.SupportGreen,
+        endTint = TideTunesBrand.SupportBlue,
     ),
+    SearchCategoryUi(
+        label = "IDM",
+        tint = TideTunesBrand.SupportYellow,
+        endTint = TideTunesBrand.SupportOrange,
+    ),
+    SearchCategoryUi(
+        label = "Post-Rock",
+        tint = TideTunesBrand.SupportBlue,
+        endTint = TideTunesBrand.Secondary,
+    ),
+    SearchCategoryUi(
+        label = "Shoegaze",
+        tint = TideTunesBrand.Primary,
+        endTint = TideTunesBrand.SupportOrange,
+    ),
+    SearchCategoryUi(
+        label = "Experimental",
+        tint = TideTunesBrand.Secondary,
+        endTint = TideTunesBrand.SupportGreen,
+    ),
+    SearchCategoryUi(
+        label = "Jazz",
+        tint = TideTunesBrand.Primary,
+        endTint = TideTunesBrand.Secondary,
+    ),
+    SearchCategoryUi(
+        label = "Classical",
+        tint = TideTunesBrand.SupportBlue,
+        endTint = TideTunesBrand.SupportBlue,
+    ),
+)
+
+private val demoTrendingTracks = listOf(
+    SearchTrackItem(id = 1, title = "Midnight Cascade", artist = "Luna Waves · Tidal Drift", durationMs = 222_000, sourceLabel = "Hi-Res"),
+    SearchTrackItem(id = 2, title = "Neon Undertow", artist = "Prism Circuit · Voltage Dreams", durationMs = 258_000, sourceLabel = "Lossless"),
+    SearchTrackItem(id = 3, title = "Silver Tide", artist = "Coastal Drift · Open Water", durationMs = 235_000, sourceLabel = "Library"),
+    SearchTrackItem(id = 4, title = "Aurora Sequence", artist = "Polar Echo · Northern Lights", durationMs = 302_000, sourceLabel = "Dolby Atmos"),
+    SearchTrackItem(id = 5, title = "Depth Protocol", artist = "Ocean Syntax · Subsonic", durationMs = 210_000, sourceLabel = "Library"),
+    SearchTrackItem(id = 6, title = "Glass Architecture", artist = "Fractal Mind · Prism", durationMs = 284_000, sourceLabel = "Lossless"),
+    SearchTrackItem(id = 7, title = "Resonance Fields", artist = "Wave Function · Quantum", durationMs = 195_000, sourceLabel = "Library"),
+    SearchTrackItem(id = 8, title = "Liminal Space", artist = "Threshold · Between", durationMs = 330_000, sourceLabel = "Hi-Res"),
 )

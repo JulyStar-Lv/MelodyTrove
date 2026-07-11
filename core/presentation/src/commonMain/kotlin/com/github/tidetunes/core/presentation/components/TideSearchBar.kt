@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -23,6 +24,10 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.github.tidetunes.core.presentation.theme.TideTunesTokens
+import org.jetbrains.compose.resources.painterResource
+import tidetunes.core.presentation.generated.resources.Res
+import tidetunes.core.presentation.generated.resources.icon_search
+import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -36,7 +41,7 @@ fun TideSearchBar(
     enabled: Boolean = true,
     onClear: (() -> Unit)? = null,
 ) {
-    val shape = RoundedCornerShape(TideTunesTokens.shapes.full)
+    val shape = RoundedCornerShape(16.dp)
     val contentColor = if (enabled) {
         MiuixTheme.colorScheme.onSurface
     } else {
@@ -56,7 +61,6 @@ fun TideSearchBar(
             .heightIn(min = 48.dp)
             .clip(shape)
             .background(MiuixTheme.colorScheme.surfaceContainerHigh)
-            .border(1.dp, MiuixTheme.colorScheme.outline, shape)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         enabled = enabled,
         singleLine = true,
@@ -68,6 +72,13 @@ fun TideSearchBar(
             Row(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                Icon(
+                    painter = painterResource(Res.drawable.icon_search),
+                    tint = supportingColor,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(modifier = Modifier.width(10.dp))
                 Box(
                     modifier = Modifier.weight(1f),
                     contentAlignment = Alignment.CenterStart,

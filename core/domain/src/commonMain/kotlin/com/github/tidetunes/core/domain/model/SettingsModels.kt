@@ -13,7 +13,7 @@ enum class AppLanguageMode {
 }
 
 data class AppSettings(
-    val themeMode: AppThemeMode = AppThemeMode.System,
+    val themeMode: AppThemeMode = AppThemeMode.Dark,
     val dynamicColorEnabled: Boolean = true,
     val languageMode: AppLanguageMode = AppLanguageMode.System,
     val pauseOnDisconnect: Boolean = true,
