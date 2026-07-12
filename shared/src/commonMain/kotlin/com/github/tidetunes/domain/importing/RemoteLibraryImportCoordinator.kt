@@ -35,14 +35,14 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import uniffi.tidetunes_core.RemoteArtwork
-import uniffi.tidetunes_core.RemoteMetadata
-import uniffi.tidetunes_core.RemoteMetadataResult
-import uniffi.tidetunes_core.RemoteMusicScanSession
-import uniffi.tidetunes_core.OneDriveDeltaItem
-import uniffi.tidetunes_core.OneDriveDeltaPageResult
-import uniffi.tidetunes_core.StorageEntry
-import uniffi.tidetunes_core.StorageId
+import uniffi.tidetunes_backend.RemoteArtwork
+import uniffi.tidetunes_backend.RemoteMetadata
+import uniffi.tidetunes_backend.RemoteMetadataResult
+import uniffi.tidetunes_backend.RemoteMusicScanSession
+import uniffi.tidetunes_backend.OneDriveDeltaItem
+import uniffi.tidetunes_backend.OneDriveDeltaPageResult
+import uniffi.tidetunes_backend.StorageEntry
+import uniffi.tidetunes_backend.StorageId
 
 data class RemoteLibraryImportRequest(
     val storageId: Long,

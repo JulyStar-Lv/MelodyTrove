@@ -25,10 +25,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import uniffi.tidetunes_core.MusicId
-import uniffi.tidetunes_core.Playlist
-import uniffi.tidetunes_core.PlaylistId
-import uniffi.tidetunes_core.tidetunesError
+import uniffi.tidetunes_backend.MusicId
+import uniffi.tidetunes_backend.Playlist
+import uniffi.tidetunes_backend.PlaylistId
+import uniffi.tidetunes_backend.tidetunesError
 import kotlin.math.max
 
 class IosPlayerController internal constructor(

@@ -8,10 +8,10 @@ import com.github.tidetunes.source.api.SourceMediaItem
 import com.github.tidetunes.source.api.SourceSearchFailureReason
 import com.github.tidetunes.source.api.SourceSearchResult
 import com.github.tidetunes.source.api.legacyStorageTrackMediaId
-import uniffi.tidetunes_core.ListStorageEntryChildrenResp
-import uniffi.tidetunes_core.Storage
-import uniffi.tidetunes_core.StorageEntry
-import uniffi.tidetunes_core.StorageId
+import uniffi.tidetunes_backend.ListStorageEntryChildrenResp
+import uniffi.tidetunes_backend.Storage
+import uniffi.tidetunes_backend.StorageEntry
+import uniffi.tidetunes_backend.StorageId
 
 internal fun interface LiveStorageLookup {
     suspend fun storageForRust(storageId: StorageId): Storage?

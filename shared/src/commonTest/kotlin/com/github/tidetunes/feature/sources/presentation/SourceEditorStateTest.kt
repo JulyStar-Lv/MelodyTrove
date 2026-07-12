@@ -6,9 +6,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import com.github.tidetunes.core.domain.model.OneDriveDriveInfo
-import uniffi.tidetunes_core.StorageId
-import uniffi.tidetunes_core.StorageConnectionTestResult
-import uniffi.tidetunes_core.StorageType
+import uniffi.tidetunes_backend.StorageId
+import uniffi.tidetunes_backend.StorageConnectionTestResult
+import uniffi.tidetunes_backend.StorageType
 
 class SourceEditorStateTest {
     @Test

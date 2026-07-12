@@ -35,11 +35,11 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import uniffi.tidetunes_core.ListStorageEntryChildrenResp
-import uniffi.tidetunes_core.Storage
-import uniffi.tidetunes_core.StorageEntry
-import uniffi.tidetunes_core.StorageId
-import uniffi.tidetunes_core.StorageType
+import uniffi.tidetunes_backend.ListStorageEntryChildrenResp
+import uniffi.tidetunes_backend.Storage
+import uniffi.tidetunes_backend.StorageEntry
+import uniffi.tidetunes_backend.StorageId
+import uniffi.tidetunes_backend.StorageType
 
 class LegacyStorageMusicSourceTest {
     @Test
@@ -513,7 +513,7 @@ class LegacyStorageMusicSourceTest {
         createdAt: Long? = null,
         modifiedAt: Long? = null,
     ) = StorageEntry(
-        storageId = uniffi.tidetunes_core.StorageId(42),
+        storageId = uniffi.tidetunes_backend.StorageId(42),
         name = name,
         path = path,
         size = size,

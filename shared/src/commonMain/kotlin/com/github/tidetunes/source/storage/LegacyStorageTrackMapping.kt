@@ -5,8 +5,8 @@ import com.github.tidetunes.core.domain.model.SourceId
 import com.github.tidetunes.database.TrackEntity
 import com.github.tidetunes.source.api.BuiltInSourceIds
 import com.github.tidetunes.source.api.legacyStorageTrackMediaId
-import uniffi.tidetunes_core.StorageId
-import uniffi.tidetunes_core.StorageType
+import uniffi.tidetunes_backend.StorageId
+import uniffi.tidetunes_backend.StorageType
 
 suspend fun TrackEntity.toLegacyStorageTrackMediaIdOrNull(
     storageLookup: LegacyStorageLookup,

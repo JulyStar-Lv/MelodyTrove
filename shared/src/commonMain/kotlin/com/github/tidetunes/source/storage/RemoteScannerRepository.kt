@@ -1,15 +1,15 @@
 package com.github.tidetunes.source.storage
 
-import uniffi.tidetunes_core.ListStorageEntryChildrenResp
-import uniffi.tidetunes_core.OneDriveDeltaPageResult
-import uniffi.tidetunes_core.OneDriveDeltaRequest
-import uniffi.tidetunes_core.RemoteMusicScanSession
-import uniffi.tidetunes_core.StorageEntryLoc
-import uniffi.tidetunes_core.StorageId
-import uniffi.tidetunes_core.ctListStorageEntryChildren
-import uniffi.tidetunes_core.ctGetOnedriveDeltaPage
-import uniffi.tidetunes_core.ctScanStorageMusicFolder
-import uniffi.tidetunes_core.ctStartStorageMusicScan
+import uniffi.tidetunes_backend.ListStorageEntryChildrenResp
+import uniffi.tidetunes_backend.OneDriveDeltaPageResult
+import uniffi.tidetunes_backend.OneDriveDeltaRequest
+import uniffi.tidetunes_backend.RemoteMusicScanSession
+import uniffi.tidetunes_backend.StorageEntryLoc
+import uniffi.tidetunes_backend.StorageId
+import uniffi.tidetunes_backend.ctListStorageEntryChildren
+import uniffi.tidetunes_backend.ctGetOnedriveDeltaPage
+import uniffi.tidetunes_backend.ctScanStorageMusicFolder
+import uniffi.tidetunes_backend.ctStartStorageMusicScan
 import com.github.tidetunes.singleton.Bridge
 import com.github.tidetunes.core.data.StorageRepositoryImpl
 

@@ -9,12 +9,12 @@ import com.github.tidetunes.source.api.SourcePlaybackFailureReason
 import com.github.tidetunes.source.api.SourcePlaybackResult
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import uniffi.tidetunes_core.PlaybackSession
-import uniffi.tidetunes_core.Storage
-import uniffi.tidetunes_core.StorageEntryLoc
-import uniffi.tidetunes_core.StorageId
-import uniffi.tidetunes_core.StorageType
-import uniffi.tidetunes_core.ctCreatePlaybackSession
+import uniffi.tidetunes_backend.PlaybackSession
+import uniffi.tidetunes_backend.Storage
+import uniffi.tidetunes_backend.StorageEntryLoc
+import uniffi.tidetunes_backend.StorageId
+import uniffi.tidetunes_backend.StorageType
+import uniffi.tidetunes_backend.ctCreatePlaybackSession
 
 fun interface LegacyStorageLookup {
     suspend fun storageForPlayback(storageId: StorageId): Storage?

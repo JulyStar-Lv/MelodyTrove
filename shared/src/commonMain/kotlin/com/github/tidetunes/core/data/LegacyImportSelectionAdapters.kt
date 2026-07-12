@@ -10,10 +10,10 @@ import com.github.tidetunes.source.api.SourceNodeSelection
 import com.github.tidetunes.source.api.SourceNodeType
 import com.github.tidetunes.source.api.legacyStorageArtworkMediaId
 import com.github.tidetunes.source.storage.toBuiltInSourceId
-import uniffi.tidetunes_core.Storage
-import uniffi.tidetunes_core.StorageEntry
-import uniffi.tidetunes_core.StorageEntryLoc
-import uniffi.tidetunes_core.StorageId
+import uniffi.tidetunes_backend.Storage
+import uniffi.tidetunes_backend.StorageEntry
+import uniffi.tidetunes_backend.StorageEntryLoc
+import uniffi.tidetunes_backend.StorageId
 
 fun SourceNodeSelection.toLegacyStorageEntry(): StorageEntry? {
     val storageId = accountId.toLegacyStorageIdOrNull() ?: return null

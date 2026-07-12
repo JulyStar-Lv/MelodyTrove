@@ -5,11 +5,11 @@ import com.github.tidetunes.core.data.ToastRepositoryImpl
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
-import uniffi.tidetunes_core.ArgInitializeApp
-import uniffi.tidetunes_core.Backend
-import uniffi.tidetunes_core.createBackend
-import uniffi.tidetunes_core.tidetunesError
-import uniffi.tidetunes_core.tidetunesLog
+import uniffi.tidetunes_backend.ArgInitializeApp
+import uniffi.tidetunes_backend.Backend
+import uniffi.tidetunes_backend.createBackend
+import uniffi.tidetunes_backend.tidetunesError
+import uniffi.tidetunes_backend.tidetunesLog
 
 
 private fun normalizePath(p: String): String {

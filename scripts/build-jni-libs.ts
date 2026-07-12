@@ -2,8 +2,8 @@ import { execSync } from "node:child_process";
 import { ROOT, RUST_LIBS_ROOTS, TARGETS } from "./base";
 import path from "node:path";
 
-console.log("Build TideTunes core in debug mode");
-execSync(`cargo build -p tidetunes-core`, {
+console.log("Build TideTunes backend in debug mode");
+execSync(`cargo build -p tidetunes-backend`, {
   stdio: "inherit",
   cwd: RUST_LIBS_ROOTS,
 });
@@ -26,7 +26,7 @@ for (const buildTarget of TARGETS) {
 
 console.log("Generate kotlin bindings");
 execSync(
-  `cargo run -p tidetunes-ffi-builder generate --library ${path.resolve(RUST_LIBS_ROOTS, "./target/debug/libtidetunes_core.so")} --language kotlin --out-dir ${path.resolve(ROOT, "shared/src/commonMain/kotlin/")}`,
+  `cargo run -p tidetunes-uniffi-bindgen generate --library ${path.resolve(RUST_LIBS_ROOTS, "./target/debug/libtidetunes_backend.so")} --language kotlin --out-dir ${path.resolve(ROOT, "shared/src/commonMain/kotlin/")}`,
   {
     stdio: "inherit",
     cwd: RUST_LIBS_ROOTS,

@@ -2783,7 +2783,28 @@ dependencies = [
 ]
 
 [[package]]
-name = "tidetunes-core"
+name = "tidetunes-async-runtime"
+version = "0.1.0"
+dependencies = [
+ "once_cell",
+ "tokio",
+]
+
+[[package]]
+name = "tidetunes-audio-metadata"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "lofty",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.63",
+ "tidetunes-async-runtime",
+ "tidetunes-storage-backend",
+]
+
+[[package]]
+name = "tidetunes-backend"
 version = "0.2.0"
 dependencies = [
  "anyhow",
@@ -2811,10 +2832,10 @@ dependencies = [
  "serde_json",
  "sha2",
  "thiserror 1.0.63",
- "tidetunes-metadata",
+ "tidetunes-async-runtime",
+ "tidetunes-audio-metadata",
  "tidetunes-order-key",
- "tidetunes-remote-storage",
- "tidetunes-runtime",
+ "tidetunes-storage-backend",
  "tokio",
  "tracing",
  "tracing-android",
@@ -2825,26 +2846,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tidetunes-ffi-builder"
-version = "0.1.0"
-dependencies = [
- "uniffi",
-]
-
-[[package]]
-name = "tidetunes-metadata"
-version = "0.1.0"
-dependencies = [
- "bytes",
- "lofty",
- "serde",
- "serde_json",
- "thiserror 1.0.63",
- "tidetunes-remote-storage",
- "tidetunes-runtime",
-]
-
-[[package]]
 name = "tidetunes-order-key"
 version = "0.1.0"
 dependencies = [
@@ -2852,7 +2853,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "tidetunes-remote-storage"
+name = "tidetunes-storage-backend"
 version = "0.1.0"
 dependencies = [
  "async-channel",
@@ -2872,18 +2873,17 @@ dependencies = [
  "serde_json",
  "serde_with",
  "thiserror 1.0.63",
- "tidetunes-runtime",
+ "tidetunes-async-runtime",
  "tokio",
  "tracing",
  "urlencoding",
 ]
 
 [[package]]
-name = "tidetunes-runtime"
+name = "tidetunes-uniffi-bindgen"
 version = "0.1.0"
 dependencies = [
- "once_cell",
- "tokio",
+ "uniffi",
 ]
 
 [[package]]

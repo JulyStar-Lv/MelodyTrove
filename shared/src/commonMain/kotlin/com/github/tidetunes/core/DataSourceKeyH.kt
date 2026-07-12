@@ -1,7 +1,7 @@
 package com.github.tidetunes.core
 
 import com.github.tidetunes.core.domain.model.Artwork
-import uniffi.tidetunes_core.DataSourceKey
+import uniffi.tidetunes_backend.DataSourceKey
 
 internal fun DataSourceKey.toArtwork(): Artwork {
     return when (this) {

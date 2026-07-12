@@ -13,9 +13,9 @@ import com.github.tidetunes.source.storage.toLegacyStorageIdOrNull
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import uniffi.tidetunes_core.Storage
-import uniffi.tidetunes_core.StorageId
-import uniffi.tidetunes_core.StorageType
+import uniffi.tidetunes_backend.Storage
+import uniffi.tidetunes_backend.StorageId
+import uniffi.tidetunes_backend.StorageType
 
 internal class LegacyLibrarySyncController(
     private val importer: LegacyLibrarySyncImporter,

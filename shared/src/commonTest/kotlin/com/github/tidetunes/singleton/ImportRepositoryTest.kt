@@ -19,10 +19,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
-import uniffi.tidetunes_core.Storage
-import uniffi.tidetunes_core.StorageId
-import uniffi.tidetunes_core.StorageEntryLoc
-import uniffi.tidetunes_core.StorageType
+import uniffi.tidetunes_backend.Storage
+import uniffi.tidetunes_backend.StorageId
+import uniffi.tidetunes_backend.StorageEntryLoc
+import uniffi.tidetunes_backend.StorageType
 
 class ImportRepositoryTest {
     @Test

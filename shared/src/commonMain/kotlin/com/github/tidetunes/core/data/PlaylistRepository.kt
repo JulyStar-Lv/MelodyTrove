@@ -24,10 +24,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.launch
-import uniffi.tidetunes_core.ArgRemoveMusicFromPlaylist
-import uniffi.tidetunes_core.PlaylistAbstract
-import uniffi.tidetunes_core.MusicId
-import uniffi.tidetunes_core.PlaylistId
+import uniffi.tidetunes_backend.ArgRemoveMusicFromPlaylist
+import uniffi.tidetunes_backend.PlaylistAbstract
+import uniffi.tidetunes_backend.MusicId
+import uniffi.tidetunes_backend.PlaylistId
 import kotlin.time.Duration.Companion.milliseconds
 
 data class CreatePlaylistRequest(

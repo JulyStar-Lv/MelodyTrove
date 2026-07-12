@@ -6,7 +6,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import uniffi.tidetunes_core.PlayMode
+import uniffi.tidetunes_backend.PlayMode
 
 class AppPreferencesRepository(
     private val dataStore: DataStore<Preferences>,

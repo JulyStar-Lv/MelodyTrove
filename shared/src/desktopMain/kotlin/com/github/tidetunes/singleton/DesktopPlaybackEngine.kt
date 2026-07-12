@@ -6,9 +6,9 @@ import com.github.tidetunes.service.playback.domain.PlaybackEngineLoadRequest
 import com.github.tidetunes.service.playback.domain.PlaybackEngineLoadResult
 import com.github.tidetunes.service.playback.domain.PlaybackEngineUnsupportedReason
 import com.github.tidetunes.service.playback.domain.PlaybackPosition
-import uniffi.tidetunes_core.DesktopRodioLoadResult
-import uniffi.tidetunes_core.DesktopRodioPlayer
-import uniffi.tidetunes_core.ctCreateDesktopRodioPlayer
+import uniffi.tidetunes_backend.DesktopRodioLoadResult
+import uniffi.tidetunes_backend.DesktopRodioPlayer
+import uniffi.tidetunes_backend.ctCreateDesktopRodioPlayer
 
 interface DesktopPlaybackEngine : PlaybackEngine
 

@@ -28,25 +28,25 @@ import com.github.tidetunes.platform.currentTimeMillis
 import com.github.tidetunes.source.api.SourceNodeSelection
 import com.github.tidetunes.source.api.SourceNodeType
 import kotlinx.coroutines.flow.first
-import uniffi.tidetunes_core.ArgCreatePlaylist
-import uniffi.tidetunes_core.ArgUpdatePlaylist
-import uniffi.tidetunes_core.DataSourceKey
-import uniffi.tidetunes_core.LrcMetadata
-import uniffi.tidetunes_core.LyricLine
-import uniffi.tidetunes_core.LyricLoadState
-import uniffi.tidetunes_core.Lyrics
-import uniffi.tidetunes_core.Music
-import uniffi.tidetunes_core.MusicAbstract
-import uniffi.tidetunes_core.MusicId
-import uniffi.tidetunes_core.MusicLyric
-import uniffi.tidetunes_core.MusicMeta
-import uniffi.tidetunes_core.Playlist
-import uniffi.tidetunes_core.PlaylistAbstract
-import uniffi.tidetunes_core.PlaylistId
-import uniffi.tidetunes_core.PlaylistMeta
-import uniffi.tidetunes_core.StorageEntry
-import uniffi.tidetunes_core.StorageEntryLoc
-import uniffi.tidetunes_core.ToAddMusicEntry
+import uniffi.tidetunes_backend.ArgCreatePlaylist
+import uniffi.tidetunes_backend.ArgUpdatePlaylist
+import uniffi.tidetunes_backend.DataSourceKey
+import uniffi.tidetunes_backend.LrcMetadata
+import uniffi.tidetunes_backend.LyricLine
+import uniffi.tidetunes_backend.LyricLoadState
+import uniffi.tidetunes_backend.Lyrics
+import uniffi.tidetunes_backend.Music
+import uniffi.tidetunes_backend.MusicAbstract
+import uniffi.tidetunes_backend.MusicId
+import uniffi.tidetunes_backend.MusicLyric
+import uniffi.tidetunes_backend.MusicMeta
+import uniffi.tidetunes_backend.Playlist
+import uniffi.tidetunes_backend.PlaylistAbstract
+import uniffi.tidetunes_backend.PlaylistId
+import uniffi.tidetunes_backend.PlaylistMeta
+import uniffi.tidetunes_backend.StorageEntry
+import uniffi.tidetunes_backend.StorageEntryLoc
+import uniffi.tidetunes_backend.ToAddMusicEntry
 import kotlin.math.max
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -435,7 +435,7 @@ class RoomLibraryStore(
             ?: return null
         val path = item.canonicalPath ?: return null
         return StorageEntryLoc(
-            storageId = uniffi.tidetunes_core.StorageId(item.sourceAccountId),
+            storageId = uniffi.tidetunes_backend.StorageId(item.sourceAccountId),
             path = path,
         )
     }
@@ -465,7 +465,7 @@ class RoomLibraryStore(
     ): PlaylistAbstract {
         val coverLoc = coverPath?.let { path ->
             val storageId = coverStorageId ?: return@let null
-            StorageEntryLoc(uniffi.tidetunes_core.StorageId(storageId), path)
+            StorageEntryLoc(uniffi.tidetunes_backend.StorageId(storageId), path)
         }
         return PlaylistAbstract(
             meta = PlaylistMeta(
@@ -484,7 +484,7 @@ class RoomLibraryStore(
     private fun PlaylistSummaryRow.toPlaylistAbstract(): PlaylistAbstract {
         val coverLoc = coverPath?.let { path ->
             val storageId = coverStorageId ?: return@let null
-            StorageEntryLoc(uniffi.tidetunes_core.StorageId(storageId), path)
+            StorageEntryLoc(uniffi.tidetunes_backend.StorageId(storageId), path)
         }
         return PlaylistAbstract(
             meta = PlaylistMeta(

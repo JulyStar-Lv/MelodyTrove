@@ -15,10 +15,10 @@ import com.github.tidetunes.singleton.RoomLibraryStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
-import uniffi.tidetunes_core.LyricLoadState
-import uniffi.tidetunes_core.MusicId
-import uniffi.tidetunes_core.StorageEntryLoc
-import uniffi.tidetunes_core.StorageId
+import uniffi.tidetunes_backend.LyricLoadState
+import uniffi.tidetunes_backend.MusicId
+import uniffi.tidetunes_backend.StorageEntryLoc
+import uniffi.tidetunes_backend.StorageId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs

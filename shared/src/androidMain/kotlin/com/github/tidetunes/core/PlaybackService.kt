@@ -33,12 +33,12 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import uniffi.tidetunes_core.Playlist
+import uniffi.tidetunes_backend.Playlist
 import com.github.tidetunes.singleton.Bridge
 import org.koin.android.ext.android.inject
-import uniffi.tidetunes_core.MusicAbstract
-import uniffi.tidetunes_core.tidetunesError
-import uniffi.tidetunes_core.tidetunesLog
+import uniffi.tidetunes_backend.MusicAbstract
+import uniffi.tidetunes_backend.tidetunesError
+import uniffi.tidetunes_backend.tidetunesLog
 
 
 const val PLAYER_TO_PREV_COMMAND = "PLAYER_TO_PREV_COMMAND";

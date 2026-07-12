@@ -3,12 +3,12 @@
 [workspace]
 resolver = "2"
 members = [
-    "core",
-    "ffi-builder",
-    "runtime",
+    "backend",
+    "uniffi-bindgen",
+    "async-runtime",
     "order-key",
-    "remote-storage",
-    "metadata",
+    "storage-backend",
+    "audio-metadata",
 ]
 
 [profile.bench]
@@ -28,5 +28,5 @@ thiserror = "1.0.57"
 chrono = "0.4.41"
 anyhow = "1.0"
 tracing = "0.1"
-tidetunes-runtime = { path = "./runtime" }
+tidetunes-async-runtime = { path = "./async-runtime" }
 tidetunes-order-key = { path = "./order-key" }

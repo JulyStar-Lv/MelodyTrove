@@ -28,13 +28,13 @@ import com.github.tidetunes.source.storage.LegacyStorageLookup
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import uniffi.tidetunes_core.Music
-import uniffi.tidetunes_core.MusicId
-import uniffi.tidetunes_core.MusicMeta
-import uniffi.tidetunes_core.Storage
-import uniffi.tidetunes_core.StorageEntryLoc
-import uniffi.tidetunes_core.StorageId
-import uniffi.tidetunes_core.StorageType
+import uniffi.tidetunes_backend.Music
+import uniffi.tidetunes_backend.MusicId
+import uniffi.tidetunes_backend.MusicMeta
+import uniffi.tidetunes_backend.Storage
+import uniffi.tidetunes_backend.StorageEntryLoc
+import uniffi.tidetunes_backend.StorageId
+import uniffi.tidetunes_backend.StorageType
 
 class PlaybackResourceResolverTest {
     @Test

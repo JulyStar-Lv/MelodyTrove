@@ -28,8 +28,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import org.junit.Assume.assumeTrue
-import uniffi.tidetunes_core.StorageEntry
-import uniffi.tidetunes_core.StorageId
+import uniffi.tidetunes_backend.StorageEntry
+import uniffi.tidetunes_backend.StorageId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull

@@ -8,10 +8,10 @@ import com.github.tidetunes.source.api.SourceListFailureReason
 import com.github.tidetunes.source.api.SourceListResult
 import com.github.tidetunes.source.api.SourceNode
 import com.github.tidetunes.source.api.SourceNodeType
-import uniffi.tidetunes_core.ListStorageEntryChildrenResp
-import uniffi.tidetunes_core.StorageEntry
-import uniffi.tidetunes_core.StorageId
-import uniffi.tidetunes_core.StorageType
+import uniffi.tidetunes_backend.ListStorageEntryChildrenResp
+import uniffi.tidetunes_backend.StorageEntry
+import uniffi.tidetunes_backend.StorageId
+import uniffi.tidetunes_backend.StorageType
 
 internal fun SourceAccountId.toLegacyStorageIdOrNull(): StorageId? {
     return toStorageRouteIdOrNull()?.let(::StorageId)

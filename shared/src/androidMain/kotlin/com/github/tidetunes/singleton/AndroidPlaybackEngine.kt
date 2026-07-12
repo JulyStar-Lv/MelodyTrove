@@ -14,7 +14,7 @@ import com.github.tidetunes.service.playback.domain.PlaybackEngineLoadResult
 import com.github.tidetunes.service.playback.domain.PlaybackEngineUnsupportedReason
 import com.github.tidetunes.service.playback.domain.PlaybackPosition
 import kotlinx.coroutines.CoroutineScope
-import uniffi.tidetunes_core.tidetunesError
+import uniffi.tidetunes_backend.tidetunesError
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicReference
 

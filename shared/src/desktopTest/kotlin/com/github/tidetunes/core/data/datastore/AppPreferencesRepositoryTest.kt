@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import okio.Path.Companion.toPath
-import uniffi.tidetunes_core.PlayMode
+import uniffi.tidetunes_backend.PlayMode
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals

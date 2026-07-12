@@ -3,8 +3,8 @@ package com.github.tidetunes.source.storage
 import com.github.tidetunes.source.api.LegacyStorageConnectionRequest
 import com.github.tidetunes.source.api.SourceAuthFailureReason
 import com.github.tidetunes.source.api.SourceAuthResult
-import uniffi.tidetunes_core.ArgUpsertStorage
-import uniffi.tidetunes_core.StorageConnectionTestResult
+import uniffi.tidetunes_backend.ArgUpsertStorage
+import uniffi.tidetunes_backend.StorageConnectionTestResult
 
 internal fun LegacyStorageConnectionRequest.toArgUpsertStorage(): ArgUpsertStorage {
     return ArgUpsertStorage(

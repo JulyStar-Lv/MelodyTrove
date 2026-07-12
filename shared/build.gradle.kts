@@ -113,7 +113,7 @@ room {
 
 val suppressGeneratedUniffiAndroidWarnings by tasks.registering {
     val generatedFile = layout.buildDirectory.file(
-        "generated/uniffi/androidMain/kotlin/uniffi/tidetunes_core/tidetunes_core.android.kt"
+        "generated/uniffi/androidMain/kotlin/uniffi/tidetunes_backend/tidetunes_backend.android.kt"
     )
 
     dependsOn(tasks.named("buildUniffiBindings"))
@@ -159,7 +159,7 @@ tasks.matching { task ->
 }
 
 cargo {
-    packageDirectory = layout.projectDirectory.dir("../rust-libs/core")
+    packageDirectory = layout.projectDirectory.dir("../rust-libs/backend")
     builds.jvm {
         embedRustLibrary = rustTarget == GobleyHost.current.rustTarget
     }
