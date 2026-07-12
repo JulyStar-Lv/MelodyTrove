@@ -1,4 +1,4 @@
-name: Build and release
+﻿name: Build and release
 
 on:
   pull_request:
@@ -57,6 +57,8 @@ jobs:
         run: pnpm run build:jni
       - name: Run tests
         run: pnpm run test
+      - name: Run plugin release audit
+        run: pnpm run audit:release
       - name: Build APK
         if: ${{ startsWith(github.ref, 'refs/tags/v') }} || ${{ startsWith(github.ref, 'refs/tags/pre-v') }}
         run: |
