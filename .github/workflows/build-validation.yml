@@ -35,29 +35,31 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Set up current Android command-line tools
+        uses: android-actions/setup-android@v4
+        with:
+          cmdline-tools-version: 14742923
+          packages: ""
 
       - name: Install Android 17 SDK
         shell: bash
         run: |
           set -euo pipefail
-          yes | sdkmanager --licenses > /dev/null || true
 
           sdkmanager --channel=3 --list > "$RUNNER_TEMP/sdkmanager-packages.txt"
 
-          if grep -qE '^platforms;android-37([[:space:]]|$)' "$RUNNER_TEMP/sdkmanager-packages.txt"; then
+          if grep -qE '^[[:space:]]*platforms;android-37([[:space:]]|\|)' "$RUNNER_TEMP/sdkmanager-packages.txt"; then
             platform_package="platforms;android-37"
-          elif grep -qE '^platforms;android-CinnamonBun([[:space:]]|$)' "$RUNNER_TEMP/sdkmanager-packages.txt"; then
+          elif grep -qE '^[[:space:]]*platforms;android-CinnamonBun([[:space:]]|\|)' "$RUNNER_TEMP/sdkmanager-packages.txt"; then
             platform_package="platforms;android-CinnamonBun"
           else
-            echo "Android 17 SDK package was not found. Available preview platforms:"
-            grep -E '^platforms;android-' "$RUNNER_TEMP/sdkmanager-packages.txt" | tail -n 20 || true
+            echo "Android 17 SDK package was not found. Available Android platforms:"
+            grep -E '^[[:space:]]*platforms;android-' "$RUNNER_TEMP/sdkmanager-packages.txt" | tail -n 30 || true
             exit 1
           fi
 
           build_tools_package="$({
-            grep -E '^build-tools;37\.[0-9]+\.[0-9]+([[:space:]]|$)' "$RUNNER_TEMP/sdkmanager-packages.txt" || true
+            grep -E '^[[:space:]]*build-tools;37\.[0-9]+\.[0-9]+([[:space:]]|\|)' "$RUNNER_TEMP/sdkmanager-packages.txt" || true
           } | awk -F '|' '{gsub(/^[ \t]+|[ \t]+$/, "", $1); print $1}' | sort -V | tail -n 1)"
 
           packages=("platform-tools" "$platform_package")
@@ -65,6 +67,7 @@ jobs:
             packages+=("$build_tools_package")
           fi
 
+          printf 'Installing SDK packages: %s\n' "${packages[*]}"
           sdkmanager --channel=3 "${packages[@]}"
 
           if [[ "$platform_package" == "platforms;android-CinnamonBun" ]] && \
