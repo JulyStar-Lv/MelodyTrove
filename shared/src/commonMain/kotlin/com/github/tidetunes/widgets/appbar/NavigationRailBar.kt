@@ -1,7 +1,6 @@
 package com.github.tidetunes.widgets.appbar
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,13 +36,10 @@ fun getNavigationRailWidth(windowSizeClass: WindowSizeClass = WindowSizeClass.Ex
 fun NavigationRailBar(
     currentTab: HomeTab,
     onTabSelected: (HomeTab) -> Unit,
-    miniPlayerContent: @Composable () -> Unit,
     modifier: Modifier = Modifier,
     windowSizeClass: WindowSizeClass = WindowSizeClass.Expanded,
 ) {
     val railWidth = getNavigationRailWidth(windowSizeClass)
-    val shapes = TideTunesTokens.shapes
-    val railShape = RoundedCornerShape(topEnd = shapes.xl, bottomEnd = shapes.xl)
 
     Column(
         modifier = modifier
@@ -54,11 +50,8 @@ fun NavigationRailBar(
                 0.dp,
                 8.dp,
             )
-            .clip(railShape)
-            .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.94f))
-            .border(1.dp, MiuixTheme.colorScheme.outline.copy(alpha = 0.70f), railShape),
+            .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.94f)),
     ) {
-        miniPlayerContent()
         Column(
             modifier = Modifier
                 .weight(1f)

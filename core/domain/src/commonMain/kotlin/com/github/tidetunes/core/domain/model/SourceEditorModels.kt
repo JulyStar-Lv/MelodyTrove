@@ -6,7 +6,7 @@ data class SourceEditorDraft(
     val alias: String = "",
     val username: String = "",
     val secret: String = "",
-    val isAnonymous: Boolean = true,
+    val isAnonymous: Boolean = false,
     val storageType: SourceEditorType = SourceEditorType.WebDav,
 )
 

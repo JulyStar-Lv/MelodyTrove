@@ -1,0 +1,19 @@
+fn main() {
+    let vendor = "vendor/quickjs-ng";
+    cc::Build::new()
+        .std("c11")
+        .define("CONFIG_VERSION", "\"0.14.0\"")
+        .include(vendor)
+        .include("src/engine")
+        .files([
+            format!("{vendor}/quickjs.c"),
+            format!("{vendor}/libregexp.c"),
+            format!("{vendor}/libunicode.c"),
+            format!("{vendor}/dtoa.c"),
+            "src/engine/quickjs_compat.c".into(),
+        ])
+        .warnings(false)
+        .compile("tidetunes_quickjs");
+    println!("cargo:rerun-if-changed=src/engine/quickjs_compat.c");
+    println!("cargo:rerun-if-changed=src/engine/quickjs_compat.h");
+}

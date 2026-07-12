@@ -1,0 +1,79 @@
+package com.github.tidetunes.plugin.runtime
+
+import okio.ByteString.Companion.encodeUtf8
+import okio.FileSystem
+import okio.Path
+import okio.Path.Companion.toPath
+
+class PluginScriptBundleBuilder(private val fileSystem: FileSystem = FileSystem.SYSTEM) {
+    fun build(plugin: PluginRuntimeDescriptor): PluginScriptBundle {
+        val root = plugin.directory.toPath(normalize = true)
+        val segments = mutableListOf(
+            "tide-host-bootstrap.js" to HOST_BOOTSTRAP,
+            "tide-include-bootstrap.js" to "globalThis.include=function(_){return undefined;};",
+        )
+        plugin.includeDirs.forEach { declared ->
+            val dir = resolveUnder(root, declared)
+            if (fileSystem.exists(dir)) {
+                fileSystem.listRecursively(dir)
+                    .filter { path -> path.name.endsWith(".js") && fileSystem.metadata(path).isRegularFile }
+                    .sortedBy { path -> path.relativePathTo(root) }
+                    .forEach { path ->
+                        segments += path.relativePathTo(root) to fileSystem.read(path) { readUtf8() }
+                    }
+            }
+        }
+        val entry = resolveUnder(root, plugin.entryFile)
+        require(fileSystem.metadata(entry).isRegularFile) { "invalid entry file" }
+        segments += plugin.entryFile to fileSystem.read(entry) { readUtf8() }
+        val source = segments.joinToString("\n\n") { (name, code) ->
+            "$code\n//# sourceURL=plugin://${plugin.pluginId}/$name"
+        }
+        return PluginScriptBundle(
+            plugin.pluginId,
+            source,
+            "plugin://${plugin.pluginId}/${plugin.entryFile}",
+            source.encodeUtf8().sha256().hex(),
+        )
+    }
+
+    private fun resolveUnder(root: Path, relative: String): Path {
+        val relativePath = relative.toPath(normalize = true)
+        require(!relativePath.isAbsolute) { "plugin path must be relative: $relative" }
+        val resolved = (root / relative).normalized()
+        require(resolved.isUnderOrSame(root)) { "plugin path escapes plugin root: $relative" }
+        return resolved
+    }
+
+    companion object {
+        val HOST_BOOTSTRAP = """
+            (function(g){
+              function h(n,p){return JSON.parse(__lyricoHostCall(n,JSON.stringify(p||{}))).value}
+              function o(x){x=x||{};return {headers:x.headers||{},contentType:x.contentType,connectTimeoutMs:x.connectTimeoutMs,readTimeoutMs:x.readTimeoutMs,followRedirects:x.followRedirects,bodyBase64:x.bodyBase64||'',bodyBytes:x.bodyBytes||null}}
+              function body(url,b,x){x=o(x);return {url:String(url||''),body:b==null?'':String(b),bodyBase64:x.bodyBase64,bodyBytes:x.bodyBytes,contentType:x.contentType||'application/json; charset=utf-8',headers:x.headers,connectTimeoutMs:x.connectTimeoutMs,readTimeoutMs:x.readTimeoutMs,followRedirects:x.followRedirects}}
+              g.app={getInfo:function(){return h('app.info')},getUserAgent:function(){return h('app.userAgent')}};g.runtime={getInfo:function(){return h('runtime.info')}};
+              var P=g.Platform={app:g.app,runtime:g.runtime};
+              P.cache={get:function(k){return h('cache.get',{key:String(k||'')})},set:function(k,v,t){return h('cache.set',{key:String(k||''),value:v==null?'':String(v),ttlMs:Number(t||0)})},remove:function(k){return h('cache.remove',{key:String(k||'')})},clear:function(){return h('cache.clear')}};
+              P.crypto={md5:function(x){return h('crypto.md5',{text:String(x||'')})},aesEcbPkcs5EncryptBase64:function(x,k){return h('crypto.aesEcbPkcs5EncryptBase64',{text:String(x||''),key:String(k||'')})},aesEcbPkcs5EncryptHex:function(x,k){return h('crypto.aesEcbPkcs5EncryptHex',{text:String(x||''),key:String(k||'')})},aesEcbPkcs5DecryptBase64ToText:function(x,k){return h('crypto.aesEcbPkcs5DecryptBase64ToText',{base64:String(x||''),key:String(k||'')})}};
+              P.base64={encodeText:function(x){return h('base64.encodeText',{text:String(x||'')})},decodeText:function(x){return h('base64.decodeText',{base64:String(x||'')})},dropBytes:function(x,n){return h('base64.dropBytes',{base64:String(x||''),count:n||0})},decodeBytes:function(x){return h('base64.decodeBytes',{base64:String(x||'')})},encodeBytes:function(x){return h('base64.encodeBytes',{bytes:Array.from(x||[])})},encodeUrlText:function(x){return h('base64.encodeUrlText',{text:String(x||'')})},decodeUrlText:function(x){return h('base64.decodeUrlText',{base64Url:String(x||'')})},encodeUrlBytes:function(x){return h('base64.encodeUrlBytes',{bytes:Array.from(x||[])})},decodeUrlBytes:function(x){return h('base64.decodeUrlBytes',{base64Url:String(x||'')})},toUrl:function(x){return h('base64.toUrl',{base64:String(x||'')})},fromUrl:function(x){return h('base64.fromUrl',{base64Url:String(x||'')})}};
+              P.bytes={xor:function(x,k){return h('bytes.xor',{bytes:Array.from(x||[]),key:Array.from(k||[])})},xorBase64:function(x,k){return h('bytes.xorBase64',{base64:String(x||''),key:Array.from(k||[])})}};P.compression={inflateBytesToText:function(x){return h('compression.inflateBytesToText',{bytes:Array.from(x||[])})},inflateBase64ToText:function(x){return h('compression.inflateBase64ToText',{base64:String(x||'')})}};
+              P.http={getText:function(u,x){x=o(x);return h('http.getText',{url:String(u||''),headers:x.headers,connectTimeoutMs:x.connectTimeoutMs,readTimeoutMs:x.readTimeoutMs,followRedirects:x.followRedirects})},postText:function(u,b,x){return h('http.postText',body(u,b,x))},postBytes:function(u,b,x){return h('http.postBytes',body(u,b,x))},get:function(u,x){x=o(x);return h('http.get',{url:String(u||''),headers:x.headers,connectTimeoutMs:x.connectTimeoutMs,readTimeoutMs:x.readTimeoutMs,followRedirects:x.followRedirects})},post:function(u,b,x){return h('http.post',body(u,b,x))},getBytes:function(u,x){x=o(x);return h('http.getBytes',{url:String(u||''),headers:x.headers,connectTimeoutMs:x.connectTimeoutMs,readTimeoutMs:x.readTimeoutMs,followRedirects:x.followRedirects})},postBytesResponse:function(u,b,x){return h('http.postBytesResponse',body(u,b,x))}};
+              P.xml={getRootAttributes:function(x){return h('xml.getRootAttributes',{xml:String(x||'')})},findElements:function(x,q){return h('xml.findElements',{xml:String(x||''),query:q||{}})},replaceChildrenByAttr:function(x,q){return h('xml.replaceChildrenByAttr',{xml:String(x||''),options:q||{}})},removeElements:function(x,q){return h('xml.removeElements',{xml:String(x||''),query:q||{}})}};
+              function log(n,t,m){if(m===undefined){m=t;t='PlatformPlugin'}return h(n,{tag:String(t||'PlatformPlugin'),message:String(m||'')})}P.log={debug:function(t,m){return log('log.debug',t,m)},warn:function(t,m){return log('log.warn',t,m)},error:function(t,m){return log('log.error',t,m)}};
+              g.cache=P.cache;
+            })(globalThis);
+        """.trimIndent()
+    }
+}
+
+private fun Path.isUnderOrSame(root: Path): Boolean {
+    val target = normalized().toString().trimEnd('/', '\\')
+    val rootText = root.normalized().toString().trimEnd('/', '\\')
+    return target == rootText || target.startsWith("$rootText/") || target.startsWith("$rootText\\")
+}
+
+private fun Path.relativePathTo(root: Path): String {
+    val target = normalized().toString()
+    val rootText = root.normalized().toString().trimEnd('/', '\\')
+    return target.removePrefix(rootText).trimStart('/', '\\')
+}

@@ -9,6 +9,7 @@ members = [
     "order-key",
     "storage-backend",
     "audio-metadata",
+    "plugin-runtime",
 ]
 
 [profile.bench]

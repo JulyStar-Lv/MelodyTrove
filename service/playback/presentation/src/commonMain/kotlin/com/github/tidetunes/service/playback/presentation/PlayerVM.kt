@@ -97,6 +97,9 @@ class PlayerVM constructor(
         viewModelScope.launch {
             playbackState.collect { state ->
                 _nowPlayingState.value = _nowPlayingState.value.copy(
+                    currentTrack = _nowPlayingState.value.currentTrack?.copy(
+                        artist = state.currentItem?.artist?.takeIf { it.isNotBlank() },
+                    ),
                     controls = state.toNowPlayingControlsState(),
                 )
             }

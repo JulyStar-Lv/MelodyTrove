@@ -48,7 +48,6 @@ kotlin {
             implementation(project(":feature:sources"))
             implementation(project(":feature:home"))
             implementation(project(":feature:importing"))
-            implementation(project(":feature:onboarding"))
             implementation(project(":feature:queue"))
             implementation(project(":feature:radio"))
             implementation(project(":feature:lyrics"))
@@ -81,6 +80,7 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
+            implementation(libs.kotlinx.coroutines.test)
         }
         androidMain.dependencies {
             implementation(libs.media3.exoplayer)

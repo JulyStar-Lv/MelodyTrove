@@ -24,7 +24,7 @@ class DataStoreSettingsRepository(
 
     override val settings: Flow<AppSettings> = dataStore.data.map { preferences ->
         AppSettings(
-            themeMode = preferences[THEME_MODE_KEY].enumOrDefault(AppThemeMode.System),
+            themeMode = preferences[THEME_MODE_KEY].enumOrDefault(AppThemeMode.Dark),
             dynamicColorEnabled = preferences[DYNAMIC_COLOR_ENABLED_KEY] ?: true,
             languageMode = preferences[LANGUAGE_MODE_KEY].enumOrDefault(AppLanguageMode.System),
             pauseOnDisconnect = preferences[PAUSE_ON_DISCONNECT_KEY] ?: true,

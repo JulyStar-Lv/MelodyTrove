@@ -12,7 +12,6 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         }
     }
 }
-
 val MIGRATION_2_3 = object : Migration(2, 3) {
     override fun migrate(connection: SQLiteConnection) {
         listOf(
@@ -27,7 +26,6 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
         }
     }
 }
-
 val MIGRATION_3_4 = object : Migration(3, 4) {
     override fun migrate(connection: SQLiteConnection) {
         listOf(
@@ -524,3 +522,79 @@ private val sourceSchemaV7Statements = listOf(
     "DROP TABLE IF EXISTS storage",
     "PRAGMA foreign_keys=ON",
 )
+
+
+
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(connection: SQLiteConnection) {
+        listOf(
+           """
+           CREATE TABLE IF NOT EXISTS plugin (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+               pluginId TEXT NOT NULL,
+                name TEXT NOT NULL,
+                versionCode INTEGER NOT NULL,
+                versionName TEXT NOT NULL,
+                author TEXT NOT NULL,
+                description TEXT NOT NULL,
+                apiVersion INTEGER NOT NULL,
+                minHostApiVersion INTEGER NOT NULL,
+                entryFile TEXT NOT NULL,
+                includeDirsJson TEXT NOT NULL,
+                iconPath TEXT,
+                capabilitiesJson TEXT NOT NULL,
+                manifestRawJson TEXT NOT NULL,
+                installedAt INTEGER NOT NULL,
+                updatedAt INTEGER NOT NULL,
+                enabled INTEGER NOT NULL
+            )
+            """.trimIndent(),
+            "CREATE UNIQUE INDEX IF NOT EXISTS index_plugin_pluginId ON plugin(pluginId)",
+            """
+            CREATE TABLE IF NOT EXISTS plugin_config (
+                pluginId TEXT NOT NULL,
+                configKey TEXT NOT NULL,
+                configValue TEXT NOT NULL,
+                updatedAt INTEGER NOT NULL,
+                PRIMARY KEY(pluginId, configKey)
+            )
+            """.trimIndent(),
+       ).forEach { sql ->
+           connection.prepare(sql).use { statement -> statement.step() }
+       }
+   }
+}
+
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(connection: SQLiteConnection) {
+        listOf(
+            """
+            CREATE TABLE IF NOT EXISTS plugin_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                pluginId TEXT NOT NULL,
+                name TEXT NOT NULL,
+                versionCode INTEGER NOT NULL,
+                versionName TEXT NOT NULL,
+                author TEXT NOT NULL,
+                description TEXT NOT NULL,
+                apiVersion INTEGER NOT NULL,
+                minHostApiVersion INTEGER NOT NULL,
+                entryFile TEXT NOT NULL,
+                includeDirsJson TEXT NOT NULL,
+                iconPath TEXT,
+                capabilitiesJson TEXT NOT NULL,
+                manifestRawJson TEXT NOT NULL,
+                installedAt INTEGER NOT NULL,
+                updatedAt INTEGER NOT NULL,
+                enabled INTEGER NOT NULL
+            )
+            """.trimIndent(),
+            "INSERT OR IGNORE INTO plugin_new SELECT * FROM plugin",
+            "DROP TABLE plugin",
+            "ALTER TABLE plugin_new RENAME TO plugin",
+            "CREATE UNIQUE INDEX IF NOT EXISTS index_plugin_pluginId ON plugin(pluginId)",
+        ).forEach { sql ->
+            connection.prepare(sql).use { statement -> statement.step() }
+        }
+    }
+}

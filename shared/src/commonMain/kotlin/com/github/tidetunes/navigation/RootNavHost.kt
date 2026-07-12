@@ -8,7 +8,6 @@ import com.github.tidetunes.feature.downloads.presentation.navigation.downloadsG
 import com.github.tidetunes.feature.importing.presentation.navigation.RouteImportType
 import com.github.tidetunes.feature.importing.presentation.navigation.importGraph
 import com.github.tidetunes.feature.lyrics.presentation.navigation.lyricsGraph
-import com.github.tidetunes.feature.onboarding.presentation.navigation.onboardingGraph
 import com.github.tidetunes.feature.queue.presentation.navigation.queueGraph
 import com.github.tidetunes.feature.radio.presentation.navigation.radioGraph
 import com.github.tidetunes.feature.recentlyadded.presentation.navigation.recentlyAddedGraph
@@ -87,7 +86,6 @@ internal fun RootNavHost(
         radioGraph(navController)
         recentlyAddedGraph(navController)
         recentlyPlayedGraph(navController)
-        onboardingGraph(navController)
         lyricsGraph(navController)
         queueGraph(navController)
         sourcesGraph(

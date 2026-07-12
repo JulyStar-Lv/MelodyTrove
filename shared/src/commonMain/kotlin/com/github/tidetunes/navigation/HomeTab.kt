@@ -12,8 +12,8 @@ enum class HomeTab(
     val painterRes: DrawableResource,
     val label: String,
 ) {
-    HOME(0, Res.drawable.icon_dashboard, "主页"),
-    SEARCH(1, Res.drawable.icon_search, "搜索"),
-    LIBRARY(2, Res.drawable.icon_music_note, "资料库"),
-    SETTINGS(3, Res.drawable.icon_setting, "设置"),
+    HOME(0, Res.drawable.icon_dashboard, "Home"),
+    SEARCH(1, Res.drawable.icon_search, "Search"),
+    LIBRARY(2, Res.drawable.icon_music_note, "Library"),
+    SETTINGS(3, Res.drawable.icon_setting, "Settings"),
 }

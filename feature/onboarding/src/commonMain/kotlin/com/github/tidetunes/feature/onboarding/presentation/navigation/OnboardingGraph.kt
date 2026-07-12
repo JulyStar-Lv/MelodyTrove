@@ -13,7 +13,13 @@ fun NavGraphBuilder.onboardingGraph(
 ) {
     composable<MusicGraph.Onboarding> {
         OnboardingRoot(
-            onOnboardingComplete = { navController.popBackStack() },
+            onOnboardingComplete = {
+                navController.navigate(MusicGraph.Home) {
+                    popUpTo(MusicGraph.Onboarding) {
+                        inclusive = true
+                    }
+                }
+            },
             onNavigateToSources = {
                 navController.navigate(MusicGraph.EditStorage(id = NEW_STORAGE_ID))
             },
