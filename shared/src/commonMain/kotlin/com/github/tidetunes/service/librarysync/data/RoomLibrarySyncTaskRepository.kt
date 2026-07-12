@@ -14,7 +14,7 @@ import com.github.tidetunes.source.storage.toLegacyStorageIdOrNull
 import com.github.tidetunes.source.storage.toLegacyStorageSourceAccountId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-import uniffi.tidetunes_core.StorageId
+import uniffi.tidetunes_backend.StorageId
 
 internal class RoomLibrarySyncTaskRepository(
     private val syncDao: SyncDao,

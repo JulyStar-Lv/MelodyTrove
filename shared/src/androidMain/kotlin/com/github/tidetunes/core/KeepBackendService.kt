@@ -8,7 +8,7 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.github.tidetunes.singleton.Bridge
 import org.koin.android.ext.android.inject
-import uniffi.tidetunes_core.tidetunesLog
+import uniffi.tidetunes_backend.tidetunesLog
 
 
 class KeepBackendService : Service() {

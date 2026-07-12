@@ -17,7 +17,7 @@ import kotlinx.serialization.json.longOrNull
 import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
-import uniffi.tidetunes_core.extractPluginZip
+import uniffi.tidetunes_backend.extractPluginZip
 
 class PluginInstallError(message: String, cause: Throwable? = null) : Exception(message, cause)
 

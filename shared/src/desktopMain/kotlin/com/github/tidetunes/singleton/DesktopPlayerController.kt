@@ -26,9 +26,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import uniffi.tidetunes_core.MusicId
-import uniffi.tidetunes_core.Playlist
-import uniffi.tidetunes_core.PlaylistId
+import uniffi.tidetunes_backend.MusicId
+import uniffi.tidetunes_backend.Playlist
+import uniffi.tidetunes_backend.PlaylistId
 import kotlin.math.max
 
 class DesktopPlayerController(

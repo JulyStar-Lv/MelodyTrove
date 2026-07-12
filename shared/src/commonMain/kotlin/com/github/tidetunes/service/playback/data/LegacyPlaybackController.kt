@@ -19,12 +19,12 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.stateIn
-import uniffi.tidetunes_core.Music
-import uniffi.tidetunes_core.MusicAbstract
-import uniffi.tidetunes_core.MusicId
-import uniffi.tidetunes_core.PlayMode
-import uniffi.tidetunes_core.Playlist
-import uniffi.tidetunes_core.PlaylistId
+import uniffi.tidetunes_backend.Music
+import uniffi.tidetunes_backend.MusicAbstract
+import uniffi.tidetunes_backend.MusicId
+import uniffi.tidetunes_backend.PlayMode
+import uniffi.tidetunes_backend.Playlist
+import uniffi.tidetunes_backend.PlaylistId
 
 class LegacyPlaybackController(
     private val playerRepository: PlayerRepository,

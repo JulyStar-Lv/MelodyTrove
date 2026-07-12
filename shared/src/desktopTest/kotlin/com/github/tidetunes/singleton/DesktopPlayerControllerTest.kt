@@ -55,11 +55,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import okio.Path.Companion.toPath
-import uniffi.tidetunes_core.MusicId
-import uniffi.tidetunes_core.PlaylistId
-import uniffi.tidetunes_core.Storage
-import uniffi.tidetunes_core.StorageId
-import uniffi.tidetunes_core.StorageType
+import uniffi.tidetunes_backend.MusicId
+import uniffi.tidetunes_backend.PlaylistId
+import uniffi.tidetunes_backend.Storage
+import uniffi.tidetunes_backend.StorageId
+import uniffi.tidetunes_backend.StorageType
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals

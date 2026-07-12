@@ -3,7 +3,17 @@
 Date: 2026-06-24 (original) / archived 2026-06-30
 
 This document combines the original pre-migration state assessment and migration plan
-into a single historical archive. The current project architecture is documented in
+into a single historical archive.
+> **Historical naming note (2026-07-13):** This archive preserves the original
+> Rust crate and module names from the pre-rename era. The current names are:
+> `rust-libs/core` → `rust-libs/backend`,
+> `tidetunes-core` → `tidetunes-backend`,
+> `tidetunes_core` → `tidetunes_backend`,
+> `uniffi.tidetunes_core` → `uniffi.tidetunes_backend`.
+> See `final-architecture.md` for current structure.
+> Commands and paths in this document use historical names and are not expected
+> to work verbatim.
+ The current project architecture is documented in
 `final-architecture.md`; active task tracking is in `komi-cmp-task.md`.
 
 ---

@@ -12,9 +12,9 @@ checks were provided at runtime and are not stored in this repository.
 | Room/DataStore persistence | `./gradlew :shared:desktopTest` | Passed; includes Room v2->v3 migration, DataStore play-mode persistence, Search history persistence, RoomLibraryStore playlist/location writes, lyric removal, duration update, generated DAO integration, 50,000-track paging, Room-backed search, source-indexed provider search, and local Search suggestions |
 | Android shared compile | `./gradlew :shared:compileDebugKotlinAndroid` | Passed |
 | iOS shared compile | `./gradlew :shared:compileKotlinIosSimulatorArm64` | Passed |
-| Rust core tests | `cargo test -p tidetunes-core` | Passed; 7 tests |
-| Rust core compile | `cargo check -p tidetunes-core` | Passed |
-| redb code scan | `rg -n "redb|DatabaseServer|database_server|tidetunes-legacy|LegacyLibraryMirror|ctUpsertStorage|ctRemoveStorage|ctListStorage\\(" shared/src rust-libs/core rust-libs/Cargo.toml rust-libs/Cargo.lock -g '!**/build/**' -g '!**/target/**'` | No matches |
+| Rust core tests | `cargo test -p tidetunes-backend` | Passed; 7 tests |
+| Rust core compile | `cargo check -p tidetunes-backend` | Passed |
+| redb code scan | `rg -n "redb|DatabaseServer|database_server|tidetunes-legacy|LegacyLibraryMirror|ctUpsertStorage|ctRemoveStorage|ctListStorage\\(" shared/src rust-libs/backend rust-libs/Cargo.toml rust-libs/Cargo.lock -g '!**/build/**' -g '!**/target/**'` | No matches |
 | Rust formatting | `cargo fmt --manifest-path rust-libs/Cargo.toml --all -- --check` | Passed |
 | Rust clippy | `cargo clippy --manifest-path rust-libs/Cargo.toml --workspace --all-targets -- -D warnings` | Passed |
 | Rust tests | `cargo test --manifest-path rust-libs/Cargo.toml --workspace` | Passed; includes Rust playback gateway, remote scan, metadata, order-key, remote-storage, and Desktop rodio runtime empty-resource coverage |
@@ -116,7 +116,7 @@ persists through KMP Preferences DataStore rather than Room.
 
 ## Notes
 
-- The legacy Rust database path has been removed from `tidetunes-core`; Rust now
+- The legacy Rust database path has been removed from `tidetunes-backend`; Rust now
   receives Room-derived `Storage` values for remote operations.
 - AndroidX `core-ktx`, `lifecycle-runtime-ktx`, and `activity-compose` remain
   pinned to versions consumable by the current `compileSdk 36` and AGP 8.12.x
@@ -140,7 +140,7 @@ persists through KMP Preferences DataStore rather than Room.
 - `services::remote_scan::tests::cancellation_interrupts_an_in_flight_directory_request`
   verifies that cancellation drops a blocked listing future without waiting
   for the remote request timeout.
-- `tidetunes-metadata` tests verify extended normalized tags, synchronized
+- `tidetunes-audio-metadata` tests verify extended normalized tags, synchronized
   lyrics, bounded raw text metadata, codec/lossless properties, and rejection
   of an oversized text tag.
 - OneDrive OAuth tests verify random PKCE verifier/state generation and the
@@ -640,8 +640,8 @@ persists through KMP Preferences DataStore rather than Room.
 - Added `OneDriveDriveInfo` data class and `OneDriveDriveListResult` in `core/data/StorageRepository.kt`.
 - Added `StorageEditorState`, `loadEditorState()`, `testSource()`, `listOneDriveDriveInfos()`, `removeByAccountId()`, `updateOneDriveRefreshTokenByAccountId()`, `loadCredentialByAccountId()`, `findStorageAccount()`, `findStorageAccountByAccountId()`, and `toStorageIdOrNull()` methods to `StorageRepository`.
 - Added `toSourceConnectionTestStatus()` / `toStorageConnectionTestResult()` conversion functions to `core/data/StorageRepository.kt`.
-- `EditStorageVM` no longer imports any `uniffi.tidetunes_core` types (removed `Storage`, `StorageId`, `StorageType`, `StorageConnectionTestResult`, `OneDriveDrive`). Uses `storageAccounts` flow, `StorageAccountInfo`, `OneDriveDriveInfo`, and source-level `StorageRepository` methods.
-- `SourceEditorMapper.kt` no longer imports `uniffi.tidetunes_core.OneDriveDrive`; uses `OneDriveDriveInfo`.
+- `EditStorageVM` no longer imports any `uniffi.tidetunes_backend` types (removed `Storage`, `StorageId`, `StorageType`, `StorageConnectionTestResult`, `OneDriveDrive`). Uses `storageAccounts` flow, `StorageAccountInfo`, `OneDriveDriveInfo`, and source-level `StorageRepository` methods.
+- `SourceEditorMapper.kt` no longer imports `uniffi.tidetunes_backend.OneDriveDrive`; uses `OneDriveDriveInfo`.
 - `SourceEditorStateTest.kt` updated to construct `OneDriveDriveInfo` instead of `OneDriveDrive`.
 - `EditStorageVM` combine chain uses `EditorInputs` data holder for 8-flow composition (Kotlin `combine` maxes at 5 parameters).
 
@@ -655,7 +655,7 @@ persists through KMP Preferences DataStore rather than Room.
 **Changes:**
 - Deleted `AssetVM.kt` and `TideTunesImage.kt` (zero callers, UniFFI-bearing dead code).
 - Removed `AssetVM` Koin registration from `LibraryFeatureModule.kt`.
-- `CreatePlaylistVM` no longer imports `uniffi.tidetunes_core.CreatePlaylistMode`; uses presentation-layer `CreatePlaylistTab` enum instead.
+- `CreatePlaylistVM` no longer imports `uniffi.tidetunes_backend.CreatePlaylistMode`; uses presentation-layer `CreatePlaylistTab` enum instead.
 - `CreatePlaylistRoot.kt` no longer imports `CreatePlaylistMode`; passes `CreatePlaylistTab` directly.
 - Added `AppComponents.kt` in `core/presentation/components/`: `AppTopBar`, `AppIconButton`, `AppSectionHeader`, `AppLoadingIndicator`, `AppEmptyState`, `AppErrorState`.
 - Added `MusicComponents.kt` in `core/presentation/components/`: `MediaSkeleton` (shimmer loading), `AppTrackRow` (shared track row).

@@ -10,15 +10,15 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
-import uniffi.tidetunes_core.RemoteEmbeddedLyrics
-import uniffi.tidetunes_core.RemoteArtwork
-import uniffi.tidetunes_core.RemoteMetadata
-import uniffi.tidetunes_core.RemoteMetadataResult
-import uniffi.tidetunes_core.RemoteRawMetadataEntry
-import uniffi.tidetunes_core.OneDriveDeltaItem
-import uniffi.tidetunes_core.StorageEntry
-import uniffi.tidetunes_core.StorageEntryLoc
-import uniffi.tidetunes_core.StorageId
+import uniffi.tidetunes_backend.RemoteEmbeddedLyrics
+import uniffi.tidetunes_backend.RemoteArtwork
+import uniffi.tidetunes_backend.RemoteMetadata
+import uniffi.tidetunes_backend.RemoteMetadataResult
+import uniffi.tidetunes_backend.RemoteRawMetadataEntry
+import uniffi.tidetunes_backend.OneDriveDeltaItem
+import uniffi.tidetunes_backend.StorageEntry
+import uniffi.tidetunes_backend.StorageEntryLoc
+import uniffi.tidetunes_backend.StorageId
 
 class RemoteLibraryImportCoordinatorTest {
     @Test

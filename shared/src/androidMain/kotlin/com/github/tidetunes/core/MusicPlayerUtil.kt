@@ -17,9 +17,9 @@ import com.github.tidetunes.service.playback.data.PlayerRepository
 import com.github.tidetunes.service.playback.domain.PlayableItem
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-import uniffi.tidetunes_core.Music
-import uniffi.tidetunes_core.MusicAbstract
-import uniffi.tidetunes_core.MusicId
+import uniffi.tidetunes_backend.Music
+import uniffi.tidetunes_backend.MusicAbstract
+import uniffi.tidetunes_backend.MusicId
 
 
 @OptIn(UnstableApi::class)

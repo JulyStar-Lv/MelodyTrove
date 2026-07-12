@@ -14,8 +14,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import uniffi.tidetunes_core.tidetunesError
-import uniffi.tidetunes_core.MusicId
+import uniffi.tidetunes_backend.tidetunesError
+import uniffi.tidetunes_backend.MusicId
 import java.io.IOException
 import java.io.PipedInputStream
 import java.io.PipedOutputStream

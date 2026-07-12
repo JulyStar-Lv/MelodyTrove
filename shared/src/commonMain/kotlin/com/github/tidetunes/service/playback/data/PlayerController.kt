@@ -3,9 +3,9 @@ package com.github.tidetunes.service.playback.data
 import com.github.tidetunes.service.playback.domain.SleepController
 import com.github.tidetunes.service.playback.domain.SleepModeState
 import kotlinx.coroutines.flow.StateFlow
-import uniffi.tidetunes_core.Playlist
-import uniffi.tidetunes_core.MusicId
-import uniffi.tidetunes_core.PlaylistId
+import uniffi.tidetunes_backend.Playlist
+import uniffi.tidetunes_backend.MusicId
+import uniffi.tidetunes_backend.PlaylistId
 
 interface PlayerController : SleepController {
     override val sleepState: StateFlow<SleepModeState>

@@ -2,10 +2,10 @@ package com.github.tidetunes.core.data
 
 import com.github.tidetunes.core.domain.model.SourceEditorDraft
 import com.github.tidetunes.core.domain.model.SourceEditorType
-import uniffi.tidetunes_core.ArgUpsertStorage
-import uniffi.tidetunes_core.Storage
-import uniffi.tidetunes_core.StorageId
-import uniffi.tidetunes_core.StorageType
+import uniffi.tidetunes_backend.ArgUpsertStorage
+import uniffi.tidetunes_backend.Storage
+import uniffi.tidetunes_backend.StorageId
+import uniffi.tidetunes_backend.StorageType
 
 internal fun SourceEditorDraft.toArgUpsertStorage(): ArgUpsertStorage {
     return ArgUpsertStorage(

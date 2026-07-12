@@ -7,13 +7,13 @@ import com.github.tidetunes.core.data.StorageRepositoryImpl
 import androidx.compose.ui.graphics.ImageBitmap
 import com.github.tidetunes.core.DataSourceKeyH
 import com.github.tidetunes.platform.byteArrayToImageBitmap
-import uniffi.tidetunes_core.AssetStream
-import uniffi.tidetunes_core.ctGetAsset
-import uniffi.tidetunes_core.ctGetAssetStream
-import uniffi.tidetunes_core.tidetunesError
-import uniffi.tidetunes_core.DataSourceKey
-import uniffi.tidetunes_core.MusicId
-import uniffi.tidetunes_core.StorageEntryLoc
+import uniffi.tidetunes_backend.AssetStream
+import uniffi.tidetunes_backend.ctGetAsset
+import uniffi.tidetunes_backend.ctGetAssetStream
+import uniffi.tidetunes_backend.tidetunesError
+import uniffi.tidetunes_backend.DataSourceKey
+import uniffi.tidetunes_backend.MusicId
+import uniffi.tidetunes_backend.StorageEntryLoc
 
 class AssetRepository(
     private val bridge: Bridge,

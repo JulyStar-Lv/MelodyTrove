@@ -28,16 +28,16 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import uniffi.tidetunes_core.ArgUpsertStorage
-import uniffi.tidetunes_core.Storage
-import uniffi.tidetunes_core.StorageConnectionTestResult
-import uniffi.tidetunes_core.OneDriveDriveList
-import uniffi.tidetunes_core.ctExchangeOnedriveCode
-import uniffi.tidetunes_core.ctListOnedriveDrives
-import uniffi.tidetunes_core.ctStartOnedriveOauth
-import uniffi.tidetunes_core.ctTestStorage
-import uniffi.tidetunes_core.StorageId
-import uniffi.tidetunes_core.StorageType
+import uniffi.tidetunes_backend.ArgUpsertStorage
+import uniffi.tidetunes_backend.Storage
+import uniffi.tidetunes_backend.StorageConnectionTestResult
+import uniffi.tidetunes_backend.OneDriveDriveList
+import uniffi.tidetunes_backend.ctExchangeOnedriveCode
+import uniffi.tidetunes_backend.ctListOnedriveDrives
+import uniffi.tidetunes_backend.ctStartOnedriveOauth
+import uniffi.tidetunes_backend.ctTestStorage
+import uniffi.tidetunes_backend.StorageId
+import uniffi.tidetunes_backend.StorageType
 
 
 class StorageRepositoryImpl(
@@ -352,6 +352,6 @@ fun StorageConnectionTestResult.toSourceConnectionTestStatus(): SourceConnection
     }
 }
 
-fun uniffi.tidetunes_core.StorageId.toSourceAccountId(): SourceAccountId {
+fun uniffi.tidetunes_backend.StorageId.toSourceAccountId(): SourceAccountId {
     return storageSourceAccountId(value)
 }

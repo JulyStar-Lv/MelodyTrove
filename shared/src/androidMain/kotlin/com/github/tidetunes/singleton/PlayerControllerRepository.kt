@@ -29,14 +29,14 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import uniffi.tidetunes_core.ArgRemoveMusicFromPlaylist
-import uniffi.tidetunes_core.Music
-import uniffi.tidetunes_core.MusicAbstract
-import uniffi.tidetunes_core.MusicId
-import uniffi.tidetunes_core.Playlist
-import uniffi.tidetunes_core.PlaylistId
-import uniffi.tidetunes_core.StorageId
-import uniffi.tidetunes_core.tidetunesLog
+import uniffi.tidetunes_backend.ArgRemoveMusicFromPlaylist
+import uniffi.tidetunes_backend.Music
+import uniffi.tidetunes_backend.MusicAbstract
+import uniffi.tidetunes_backend.MusicId
+import uniffi.tidetunes_backend.Playlist
+import uniffi.tidetunes_backend.PlaylistId
+import uniffi.tidetunes_backend.StorageId
+import uniffi.tidetunes_backend.tidetunesLog
 import kotlin.math.max
 
 internal interface AndroidPlayerStateStore {

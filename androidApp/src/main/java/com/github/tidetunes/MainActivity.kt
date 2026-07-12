@@ -25,7 +25,7 @@ import com.github.tidetunes.singleton.PermissionRepository
 import com.github.tidetunes.singleton.PlayerControllerRepository
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
-import uniffi.tidetunes_core.tidetunesLog
+import uniffi.tidetunes_backend.tidetunesLog
 import kotlin.system.exitProcess
 
 class MainActivity : ComponentActivity() {

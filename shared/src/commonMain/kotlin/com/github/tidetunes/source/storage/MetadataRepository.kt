@@ -3,13 +3,13 @@ package com.github.tidetunes.source.storage
 import com.github.tidetunes.singleton.Bridge
 import com.github.tidetunes.core.data.StorageRepositoryImpl
 
-import uniffi.tidetunes_core.RemoteMetadata
-import uniffi.tidetunes_core.RemoteMetadataRequest
-import uniffi.tidetunes_core.RemoteMetadataResult
-import uniffi.tidetunes_core.StorageEntry
-import uniffi.tidetunes_core.StorageEntryLoc
-import uniffi.tidetunes_core.ctReadRemoteMetadata
-import uniffi.tidetunes_core.ctReadRemoteMetadataBatch
+import uniffi.tidetunes_backend.RemoteMetadata
+import uniffi.tidetunes_backend.RemoteMetadataRequest
+import uniffi.tidetunes_backend.RemoteMetadataResult
+import uniffi.tidetunes_backend.StorageEntry
+import uniffi.tidetunes_backend.StorageEntryLoc
+import uniffi.tidetunes_backend.ctReadRemoteMetadata
+import uniffi.tidetunes_backend.ctReadRemoteMetadataBatch
 
 class MetadataRepository(
     private val bridge: Bridge,

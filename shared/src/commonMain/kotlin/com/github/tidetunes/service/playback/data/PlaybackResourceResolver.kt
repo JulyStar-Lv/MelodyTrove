@@ -11,9 +11,9 @@ import com.github.tidetunes.source.api.LegacyStoragePlaybackResolver
 import com.github.tidetunes.source.storage.LegacyStorageLookup
 import com.github.tidetunes.source.api.legacyStorageTrackMediaId
 import com.github.tidetunes.source.storage.toLegacyStorageSourceAccountId
-import uniffi.tidetunes_core.Music
-import uniffi.tidetunes_core.StorageId
-import uniffi.tidetunes_core.StorageType
+import uniffi.tidetunes_backend.Music
+import uniffi.tidetunes_backend.StorageId
+import uniffi.tidetunes_backend.StorageType
 
 class PlaybackResourceResolver(
     private val storageLookup: LegacyStorageLookup,

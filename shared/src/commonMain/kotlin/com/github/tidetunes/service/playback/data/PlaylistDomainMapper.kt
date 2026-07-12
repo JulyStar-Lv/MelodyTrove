@@ -1,13 +1,13 @@
 package com.github.tidetunes.service.playback.data
 
 import com.github.tidetunes.core.domain.model.PlaylistSummary
-import uniffi.tidetunes_core.MusicAbstract
-import uniffi.tidetunes_core.MusicId
-import uniffi.tidetunes_core.MusicMeta
-import uniffi.tidetunes_core.Playlist
-import uniffi.tidetunes_core.PlaylistAbstract
-import uniffi.tidetunes_core.PlaylistId
-import uniffi.tidetunes_core.PlaylistMeta
+import uniffi.tidetunes_backend.MusicAbstract
+import uniffi.tidetunes_backend.MusicId
+import uniffi.tidetunes_backend.MusicMeta
+import uniffi.tidetunes_backend.Playlist
+import uniffi.tidetunes_backend.PlaylistAbstract
+import uniffi.tidetunes_backend.PlaylistId
+import uniffi.tidetunes_backend.PlaylistMeta
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 

@@ -14,10 +14,10 @@ import com.github.tidetunes.source.api.toLegacyStorageArtworkTarget
 import com.github.tidetunes.source.storage.toLegacyStorageIdOrNull
 import okio.FileSystem
 import okio.Path.Companion.toPath
-import uniffi.tidetunes_core.MusicId
-import uniffi.tidetunes_core.StorageEntryLoc
-import uniffi.tidetunes_core.StorageId
-import uniffi.tidetunes_core.ctGetAsset
+import uniffi.tidetunes_backend.MusicId
+import uniffi.tidetunes_backend.StorageEntryLoc
+import uniffi.tidetunes_backend.StorageId
+import uniffi.tidetunes_backend.ctGetAsset
 
 class LegacyArtworkRepository(
     private val bridge: Bridge,

@@ -3,8 +3,8 @@ import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import uniffi.tidetunes_core.PluginCallRequest
-import uniffi.tidetunes_core.PluginRuntimeHandle
+import uniffi.tidetunes_backend.PluginCallRequest
+import uniffi.tidetunes_backend.PluginRuntimeHandle
 
 class RustPluginRuntime(private val handle:PluginRuntimeHandle):PluginRuntime{
  private val mutex=Mutex();private val nextId=atomic(0L);private val currentId=atomic(0L);private val closed=atomic(false)

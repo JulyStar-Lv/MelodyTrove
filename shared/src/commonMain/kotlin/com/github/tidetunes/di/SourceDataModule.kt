@@ -30,8 +30,8 @@ import com.github.tidetunes.source.storage.toStorageType
 import com.github.tidetunes.source.webdav.WebDavMusicSource
 import org.koin.dsl.module
 import org.koin.core.qualifier.named
-import uniffi.tidetunes_core.ListStorageEntryChildrenResp
-import uniffi.tidetunes_core.StorageId
+import uniffi.tidetunes_backend.ListStorageEntryChildrenResp
+import uniffi.tidetunes_backend.StorageId
 
 val sourceDataModule = module {
     single { StorageRepositoryImpl(get(), get(), get(), get()) }

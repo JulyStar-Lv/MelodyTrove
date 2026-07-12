@@ -19,9 +19,9 @@ import com.github.tidetunes.source.api.SourceSearchFailureReason
 import com.github.tidetunes.source.api.SourceSearchResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
-import uniffi.tidetunes_core.Storage
-import uniffi.tidetunes_core.StorageId
-import uniffi.tidetunes_core.StorageType
+import uniffi.tidetunes_backend.Storage
+import uniffi.tidetunes_backend.StorageId
+import uniffi.tidetunes_backend.StorageType
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs

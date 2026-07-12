@@ -5,17 +5,17 @@ import com.github.tidetunes.service.playback.domain.PlaybackStatus
 import com.github.tidetunes.service.playback.domain.RepeatMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import uniffi.tidetunes_core.Music
-import uniffi.tidetunes_core.MusicAbstract
-import uniffi.tidetunes_core.MusicId
-import uniffi.tidetunes_core.MusicMeta
-import uniffi.tidetunes_core.PlayMode
-import uniffi.tidetunes_core.Playlist
-import uniffi.tidetunes_core.PlaylistAbstract
-import uniffi.tidetunes_core.PlaylistId
-import uniffi.tidetunes_core.PlaylistMeta
-import uniffi.tidetunes_core.StorageEntryLoc
-import uniffi.tidetunes_core.StorageId
+import uniffi.tidetunes_backend.Music
+import uniffi.tidetunes_backend.MusicAbstract
+import uniffi.tidetunes_backend.MusicId
+import uniffi.tidetunes_backend.MusicMeta
+import uniffi.tidetunes_backend.PlayMode
+import uniffi.tidetunes_backend.Playlist
+import uniffi.tidetunes_backend.PlaylistAbstract
+import uniffi.tidetunes_backend.PlaylistId
+import uniffi.tidetunes_backend.PlaylistMeta
+import uniffi.tidetunes_backend.StorageEntryLoc
+import uniffi.tidetunes_backend.StorageId
 import kotlin.time.Duration.Companion.milliseconds
 
 class LegacyPlaybackControllerTest {

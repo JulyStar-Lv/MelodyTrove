@@ -9,7 +9,7 @@ import com.github.tidetunes.source.api.BuiltInSourceIds
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
-import uniffi.tidetunes_core.StorageId
+import uniffi.tidetunes_backend.StorageId
 
 class SourcesStateTest {
     @Test

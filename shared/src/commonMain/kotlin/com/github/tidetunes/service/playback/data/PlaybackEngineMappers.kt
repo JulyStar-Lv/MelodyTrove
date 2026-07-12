@@ -3,8 +3,8 @@ package com.github.tidetunes.service.playback.data
 import com.github.tidetunes.service.playback.domain.PlayableItem
 import com.github.tidetunes.service.playback.domain.PlaybackEngineResource
 import com.github.tidetunes.source.api.PlaybackResource
-import uniffi.tidetunes_core.Music
-import uniffi.tidetunes_core.MusicAbstract
+import uniffi.tidetunes_backend.Music
+import uniffi.tidetunes_backend.MusicAbstract
 
 internal fun PlaybackResource.toPlaybackEngineResource(): PlaybackEngineResource {
     return PlaybackEngineResource(
