@@ -38,13 +38,40 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android 17 preview SDK
+      - name: Install Android 17 SDK
+        shell: bash
         run: |
+          set -euo pipefail
           yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager --channel=3 \
-            "platform-tools" \
-            "platforms;android-37" \
-            "build-tools;37.0.0"
+
+          sdkmanager --channel=3 --list > "$RUNNER_TEMP/sdkmanager-packages.txt"
+
+          if grep -qE '^platforms;android-37([[:space:]]|$)' "$RUNNER_TEMP/sdkmanager-packages.txt"; then
+            platform_package="platforms;android-37"
+          elif grep -qE '^platforms;android-CinnamonBun([[:space:]]|$)' "$RUNNER_TEMP/sdkmanager-packages.txt"; then
+            platform_package="platforms;android-CinnamonBun"
+          else
+            echo "Android 17 SDK package was not found. Available preview platforms:"
+            grep -E '^platforms;android-' "$RUNNER_TEMP/sdkmanager-packages.txt" | tail -n 20 || true
+            exit 1
+          fi
+
+          build_tools_package="$({
+            grep -E '^build-tools;37\.[0-9]+\.[0-9]+([[:space:]]|$)' "$RUNNER_TEMP/sdkmanager-packages.txt" || true
+          } | awk -F '|' '{gsub(/^[ \t]+|[ \t]+$/, "", $1); print $1}' | sort -V | tail -n 1)"
+
+          packages=("platform-tools" "$platform_package")
+          if [[ -n "$build_tools_package" ]]; then
+            packages+=("$build_tools_package")
+          fi
+
+          sdkmanager --channel=3 "${packages[@]}"
+
+          if [[ "$platform_package" == "platforms;android-CinnamonBun" ]] && \
+             [[ ! -e "$ANDROID_SDK_ROOT/platforms/android-37" ]]; then
+            ln -s "$ANDROID_SDK_ROOT/platforms/android-CinnamonBun" \
+              "$ANDROID_SDK_ROOT/platforms/android-37"
+          fi
 
       - name: Set up Android NDK
         uses: nttld/setup-ndk@v1
@@ -89,6 +116,13 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+
+      - name: Install Linux native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            libasound2-dev \
+            pkg-config
 
       - name: Set up Rust
         run: |
