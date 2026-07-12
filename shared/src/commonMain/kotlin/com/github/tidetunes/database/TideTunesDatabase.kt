@@ -1,4 +1,4 @@
-package com.github.tidetunes.database
+﻿package com.github.tidetunes.database
 
 import androidx.room.ConstructedBy
 import androidx.room.Database
@@ -31,8 +31,10 @@ import kotlinx.coroutines.Dispatchers
         PlaylistEntity::class,
         PlaylistTrackCrossRef::class,
         TrackFts::class,
+        PluginEntity::class,
+        PluginConfigEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = true,
 )
 @ConstructedBy(TideTunesDatabaseConstructor::class)
@@ -49,6 +51,7 @@ abstract class TideTunesDatabase : RoomDatabase() {
     abstract fun sourceErrorDao(): SourceErrorDao
     abstract fun downloadTaskDao(): DownloadTaskDao
     abstract fun trackFtsDao(): TrackFtsDao
+    abstract fun pluginDao(): PluginDao
 }
 
 @Suppress("KotlinNoActualForExpect")
@@ -69,5 +72,6 @@ fun buildDatabase(): TideTunesDatabase {
         .addMigrations(MIGRATION_5_6)
         .addMigrations(MIGRATION_6_7)
         .addMigrations(MIGRATION_7_8)
+        .addMigrations(MIGRATION_8_9)
         .build()
 }
