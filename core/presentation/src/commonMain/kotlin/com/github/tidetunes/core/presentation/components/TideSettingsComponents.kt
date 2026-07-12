@@ -1,7 +1,6 @@
 package com.github.tidetunes.core.presentation.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -50,12 +49,7 @@ fun TideSettingsGroup(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(24.dp))
-                .background(MiuixTheme.colorScheme.surfaceContainer)
-                .border(
-                    width = 1.dp,
-                    color = MiuixTheme.colorScheme.outline.copy(alpha = 0.72f),
-                    shape = RoundedCornerShape(24.dp),
-                ),
+                .background(MiuixTheme.colorScheme.surfaceContainer),
             content = content,
         )
     }

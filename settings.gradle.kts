@@ -24,6 +24,8 @@ rootProject.name = "TideTunes"
 include(":shared")
 include(":core:domain")
 include(":core:presentation")
+include(":core:lyrics-core")
+include(":core:lyrics-ui")
 include(":feature:search")
 include(":feature:downloads")
 include(":feature:settings")

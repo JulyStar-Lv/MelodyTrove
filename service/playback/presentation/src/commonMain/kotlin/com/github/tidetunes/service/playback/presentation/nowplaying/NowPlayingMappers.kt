@@ -10,6 +10,7 @@ public fun CurrentTrackInfo.toNowPlayingTrackItem(): NowPlayingTrackItem {
     return NowPlayingTrackItem(
         id = id,
         title = title,
+        artist = this.artist?.takeIf { it.isNotBlank() },
         durationMs = durationMs,
         artwork = artwork,
         lyrics = lyrics,

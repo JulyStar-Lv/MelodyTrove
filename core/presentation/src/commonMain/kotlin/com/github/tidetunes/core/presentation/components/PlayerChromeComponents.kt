@@ -3,7 +3,6 @@ package com.github.tidetunes.core.presentation.components
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -83,11 +82,6 @@ fun TideMiniPlayerBar(
             .shadow(8.dp, shape, clip = false)
             .clip(shape)
             .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.88f))
-            .border(
-                width = 1.dp,
-                color = MiuixTheme.colorScheme.outline.copy(alpha = 0.72f),
-                shape = shape,
-            )
             .clickable(onClick = onClick),
     ) {
         Box(
@@ -166,11 +160,6 @@ fun TideCompactMiniPlayerBar(
             .padding(horizontal = 8.dp, vertical = 8.dp)
             .clip(RoundedCornerShape(shapes.lg))
             .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.94f))
-            .border(
-                width = 1.dp,
-                color = MiuixTheme.colorScheme.outline.copy(alpha = 0.72f),
-                shape = RoundedCornerShape(shapes.lg),
-            )
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {

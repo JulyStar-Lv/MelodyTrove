@@ -24,6 +24,8 @@ kotlin {
         commonMain.dependencies {
             implementation(project(":core:domain"))
             implementation(project(":core:presentation"))
+            implementation(project(":core:lyrics-core"))
+            implementation(project(":core:lyrics-ui"))
             implementation(project(":service:playback:domain"))
             implementation(project(":service:download:domain"))
             implementation(libs.runtime)
