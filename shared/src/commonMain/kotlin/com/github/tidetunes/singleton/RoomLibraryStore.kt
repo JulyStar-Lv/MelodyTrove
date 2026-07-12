@@ -71,6 +71,10 @@ class RoomLibraryStore(
         )
     }
 
+    suspend fun getTrackPrimaryArtist(trackId: Long): String? {
+        return metadataDao.artistNamesForTrack(trackId).firstOrNull()
+    }
+
     suspend fun getPlaylist(id: PlaylistId): Playlist? {
         if (id.value == LIBRARY_PLAYBACK_PLAYLIST_ID) {
             return getLibraryPlaybackPlaylist()

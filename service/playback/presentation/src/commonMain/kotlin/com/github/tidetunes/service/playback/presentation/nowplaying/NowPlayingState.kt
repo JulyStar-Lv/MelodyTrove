@@ -19,6 +19,7 @@ data class NowPlayingState(
 data class NowPlayingTrackItem(
     val id: Long,
     val title: String,
+    val artist: String? = null,
     val durationMs: Long?,
     val artwork: Artwork?,
     val lyrics: Lyrics = Lyrics(),

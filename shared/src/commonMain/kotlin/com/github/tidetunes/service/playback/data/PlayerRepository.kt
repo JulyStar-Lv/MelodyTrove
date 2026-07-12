@@ -137,7 +137,8 @@ class PlayerRepository(
         _music.value = music
         _playlist.value = playlist
         _scope.launch {
-            _currentTrackInfo.value = music.toCurrentTrackInfo(storageLookup)
+            val artist = roomLibraryStore.getTrackPrimaryArtist(music.meta.id.value)
+            _currentTrackInfo.value = music.toCurrentTrackInfo(storageLookup, artist)
         }
     }
 
@@ -255,7 +256,7 @@ private fun LegacyLyricLoadState?.toLyricsLoadState(): LyricsLoadState {
 
 
 
-private suspend fun Music.toCurrentTrackInfo(storageLookup: LegacyStorageLookup): CurrentTrackInfo {
+private suspend fun Music.toCurrentTrackInfo(storageLookup: LegacyStorageLookup, artist: String?): CurrentTrackInfo {
     val artwork = toPlaybackArtwork()
     return CurrentTrackInfo(
         id = meta.id.value,
@@ -266,6 +267,7 @@ private suspend fun Music.toCurrentTrackInfo(storageLookup: LegacyStorageLookup)
         sourceStorageId = loc.storageId.value,
         sourcePath = loc.path,
         coverArtwork = artwork,
+        artist = artist,
         mediaId = legacyStorageTrackMediaIdOrNull(
             storageLookup = storageLookup,
             sourceStorageId = loc.storageId.value,

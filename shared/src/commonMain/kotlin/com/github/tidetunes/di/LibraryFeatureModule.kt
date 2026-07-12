@@ -15,7 +15,6 @@ import com.github.tidetunes.core.data.PlaylistRepositoryImpl
 import com.github.tidetunes.source.api.PlaylistImportTarget
 import com.github.tidetunes.core.domain.repository.PlaylistRepository
 import com.github.tidetunes.feature.playlist.domain.EditPlaylistGateway
-import com.github.tidetunes.feature.onboarding.di.onboardingFeatureModule
 import com.github.tidetunes.feature.queue.di.queueFeatureModule
 import com.github.tidetunes.core.data.TrackBrowserRepositoryImpl
 import com.github.tidetunes.core.domain.repository.TrackBrowserRepository
@@ -39,7 +38,6 @@ import org.koin.dsl.module
 val libraryFeatureModule = module {
     includes(
         browseFeatureDiModule,
-        onboardingFeatureModule,
         queueFeatureModule,
     )
 

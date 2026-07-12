@@ -249,7 +249,10 @@ impl Drop for HttpRangeReader {
 
 impl HttpRangeReader {
     fn open(uri: &str, http_header_fields: &str) -> Result<Self, String> {
-        let client = Client::new();
+        let client = Client::builder()
+            .no_proxy()
+            .build()
+            .map_err(|error| format!("failed to create http client: {error}"))?;
         let headers = header_map_from_fields(http_header_fields)?;
         let len = probe_http_len(&client, uri, &headers)?;
         if len == 0 {

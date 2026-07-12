@@ -528,10 +528,10 @@ private val sourceSchemaV7Statements = listOf(
 val MIGRATION_8_9 = object : Migration(8, 9) {
     override fun migrate(connection: SQLiteConnection) {
         listOf(
-            """
-            CREATE TABLE IF NOT EXISTS plugin (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                pluginId TEXT NOT NULL,
+           """
+           CREATE TABLE IF NOT EXISTS plugin (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+               pluginId TEXT NOT NULL,
                 name TEXT NOT NULL,
                 versionCode INTEGER NOT NULL,
                 versionName TEXT NOT NULL,
@@ -559,6 +559,40 @@ val MIGRATION_8_9 = object : Migration(8, 9) {
                 PRIMARY KEY(pluginId, configKey)
             )
             """.trimIndent(),
+       ).forEach { sql ->
+           connection.prepare(sql).use { statement -> statement.step() }
+       }
+   }
+}
+
+val MIGRATION_9_10 = object : Migration(9, 10) {
+    override fun migrate(connection: SQLiteConnection) {
+        listOf(
+            """
+            CREATE TABLE IF NOT EXISTS plugin_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                pluginId TEXT NOT NULL,
+                name TEXT NOT NULL,
+                versionCode INTEGER NOT NULL,
+                versionName TEXT NOT NULL,
+                author TEXT NOT NULL,
+                description TEXT NOT NULL,
+                apiVersion INTEGER NOT NULL,
+                minHostApiVersion INTEGER NOT NULL,
+                entryFile TEXT NOT NULL,
+                includeDirsJson TEXT NOT NULL,
+                iconPath TEXT,
+                capabilitiesJson TEXT NOT NULL,
+                manifestRawJson TEXT NOT NULL,
+                installedAt INTEGER NOT NULL,
+                updatedAt INTEGER NOT NULL,
+                enabled INTEGER NOT NULL
+            )
+            """.trimIndent(),
+            "INSERT OR IGNORE INTO plugin_new SELECT * FROM plugin",
+            "DROP TABLE plugin",
+            "ALTER TABLE plugin_new RENAME TO plugin",
+            "CREATE UNIQUE INDEX IF NOT EXISTS index_plugin_pluginId ON plugin(pluginId)",
         ).forEach { sql ->
             connection.prepare(sql).use { statement -> statement.step() }
         }
