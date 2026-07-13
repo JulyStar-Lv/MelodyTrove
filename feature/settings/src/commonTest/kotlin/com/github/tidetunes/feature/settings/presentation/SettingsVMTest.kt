@@ -209,6 +209,14 @@ class SettingsVMTest {
             assertFalse(dialog.toString().contains("must-not-reach-ui"))
             assertFalse(dialog.toString().contains("password", ignoreCase = true))
 
+            viewModel.onAction(SettingsAction.SaveWebDavAccount(""))
+            advanceUntilIdle()
+
+            assertEquals("must-not-reach-ui", storage.upsertedDraft?.secret)
+            assertFalse(viewModel.state.value.toString().contains("must-not-reach-ui"))
+
+            viewModel.onAction(SettingsAction.OpenEditWebDavDialog(accountId))
+            advanceUntilIdle()
             viewModel.onAction(SettingsAction.SaveWebDavAccount("replacement-secret"))
             advanceUntilIdle()
 
@@ -222,7 +230,14 @@ class SettingsVMTest {
         val storage = FakeStorageRepository().apply {
             accounts.value = listOf(
                 sourceAccount(1L, BuiltInSourceIds.Local, "Local", 4),
-                sourceAccount(2L, BuiltInSourceIds.WebDav, "DAV", 6),
+                sourceAccount(
+                    id = 2L,
+                    sourceId = BuiltInSourceIds.WebDav,
+                    title = "DAV",
+                    count = 6,
+                    lastScanAtEpochMs = 1_725_000_000_000L,
+                    lastScanStatus = "SYNCED",
+                ),
                 sourceAccount(3L, BuiltInSourceIds.OneDrive, "OneDrive", 99),
             )
         }
@@ -231,6 +246,9 @@ class SettingsVMTest {
             assertEquals(listOf("Local", "DAV"), viewModel.state.value.sourceAccounts.map { it.title })
             assertEquals(2, viewModel.state.value.enabledSourceCount)
             assertEquals(10, viewModel.state.value.trackCount)
+            val webDav = viewModel.state.value.sourceAccounts.single { it.title == "DAV" }
+            assertEquals(1_725_000_000_000L, webDav.lastScanAtEpochMs)
+            assertEquals("SYNCED", webDav.lastScanStatus)
         }
     }
 
@@ -488,6 +506,8 @@ private fun sourceAccount(
     sourceId: com.github.tidetunes.core.domain.model.SourceId,
     title: String,
     count: Long,
+    lastScanAtEpochMs: Long? = null,
+    lastScanStatus: String? = null,
 ) = StorageAccountInfo(
     accountId = storageSourceAccountId(id),
     sourceId = sourceId,
@@ -496,4 +516,6 @@ private fun sourceAccount(
     title = title,
     subtitle = title,
     musicCount = count,
+    lastScanAtEpochMs = lastScanAtEpochMs,
+    lastScanStatus = lastScanStatus,
 )

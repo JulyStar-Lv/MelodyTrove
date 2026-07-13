@@ -14,6 +14,8 @@ val keystorePropertiesFile = rootProject.file("androidApp/key.properties")
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
+val appVersionName = providers.gradleProperty("appVersionName").get()
+val appVersionCode = providers.gradleProperty("appVersionCode").map(String::toInt).get()
 
 android {
     namespace = "com.github.tidetunes"
@@ -27,8 +29,8 @@ android {
         applicationId = "com.github.tidetunes"
         minSdk = 29
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.3.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

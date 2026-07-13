@@ -61,7 +61,7 @@
     <string name="settings_sources_section">Sources</string>
     <string name="settings_source_local">Local music</string>
     <string name="settings_source_webdav">WebDAV</string>
-    <string name="settings_source_summary">%1$s · %2$d tracks</string>
+    <string name="settings_source_summary">%1$s · %2$s · %3$d tracks</string>
     <string name="settings_source_enabled">Enabled</string>
     <string name="settings_source_disabled">Disabled</string>
     <string name="settings_source_add_local">Add music directory</string>
@@ -74,6 +74,9 @@
     <string name="settings_source_edit_summary">%1$s · root %2$s</string>
     <string name="settings_source_scan">Scan %1$s</string>
     <string name="settings_source_scan_summary">Scan this source now</string>
+    <string name="settings_source_last_scan">Last scan</string>
+    <string name="settings_source_last_scan_summary">%1$s · %2$s</string>
+    <string name="settings_source_never_scanned">Never scanned</string>
     <string name="settings_scan_section">Scan</string>
     <string name="settings_auto_scan">Automatic scan</string>
     <string name="settings_auto_scan_off">Off</string>
@@ -95,6 +98,11 @@
     <string name="settings_metadata_scan_full_description">Scan basic tags, audio properties, artwork, lyrics, and raw tags</string>
     <string name="settings_min_duration">Minimum audio duration</string>
     <string name="settings_min_duration_off">Off</string>
+    <string name="settings_min_duration_custom">Custom minimum duration</string>
+    <string name="settings_min_duration_custom_summary">Current value: %1$d seconds</string>
+    <string name="settings_min_duration_custom_title">Custom minimum duration</string>
+    <string name="settings_min_duration_custom_message">Enter 0–86400 seconds. Use 0 to disable duration filtering.</string>
+    <string name="settings_seconds_unit">Seconds</string>
     <string name="settings_seconds">%1$d seconds</string>
     <string name="settings_scan_unmetered">Background scan only on unmetered networks</string>
     <string name="settings_scan_unmetered_summary">Defer automatic remote scans on metered networks</string>
@@ -207,6 +215,7 @@
     <string name="settings_close">Close</string>
     <string name="settings_custom_cache_title">Custom cache limit</string>
     <string name="settings_custom_cache_message">Enter a limit in MB.</string>
+    <string name="settings_megabytes_unit">MB</string>
     <string name="settings_webdav_add_title">Add WebDAV</string>
     <string name="settings_webdav_edit_title">Edit WebDAV</string>
     <string name="settings_webdav_name">Name (optional)</string>

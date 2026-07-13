@@ -132,8 +132,7 @@ private fun SettingsTopBar(
 internal fun SettingsEntryCard(
     title: String,
     summary: String?,
-    marker: String = title.take(1),
-    accentColor: Color = MiuixTheme.colorScheme.primary,
+    icon: DrawableResource,
     onClick: (() -> Unit)? = null,
 ) {
     TidePreferenceRow(
@@ -141,7 +140,7 @@ internal fun SettingsEntryCard(
         summary = summary,
         onClick = onClick,
         leading = {
-            SettingsLeadingIcon(marker = marker, accentColor = accentColor)
+            SettingsLeadingIcon(drawable = icon)
         },
         trailing = if (onClick != null) {
             { TideChevron(direction = TideChevronDirection.Right) }
@@ -149,6 +148,24 @@ internal fun SettingsEntryCard(
             null
         },
     )
+}
+
+@Composable
+private fun SettingsLeadingIcon(drawable: DrawableResource) {
+    Box(
+        modifier = Modifier
+            .size(36.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MiuixTheme.colorScheme.surfaceContainerHigh),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painter = painterResource(drawable),
+            contentDescription = null,
+            tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            modifier = Modifier.size(16.dp),
+        )
+    }
 }
 
 @Composable
@@ -352,6 +369,7 @@ internal fun SettingsInputDialog(
     title: String,
     message: String,
     value: String,
+    label: String,
     onValueChange: (String) -> Unit,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
@@ -375,7 +393,7 @@ internal fun SettingsInputDialog(
         AppTextField(
             value = value,
             onValueChange = onValueChange,
-            label = "MB",
+            label = label,
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )

@@ -3,9 +3,11 @@
 package com.github.tidetunes.platform
 
 actual fun getAppVersion(): String {
-    return "0.3.0-dev"
+    return GeneratedBuildInfo.appVersionName
 }
 
 actual fun getAppBuildInfo(): String {
-    return "Desktop dev"
+    val osName = System.getProperty("os.name").orEmpty().ifBlank { "Desktop" }
+    val osVersion = System.getProperty("os.version").orEmpty()
+    return listOf(osName, osVersion).filter(String::isNotBlank).joinToString(" ")
 }

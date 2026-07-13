@@ -61,7 +61,7 @@
     <string name="settings_sources_section">音源</string>
     <string name="settings_source_local">本地音乐</string>
     <string name="settings_source_webdav">WebDAV</string>
-    <string name="settings_source_summary">%1$s · %2$d 首曲目</string>
+    <string name="settings_source_summary">%1$s · %2$s · %3$d 首曲目</string>
     <string name="settings_source_enabled">已启用</string>
     <string name="settings_source_disabled">已停用</string>
     <string name="settings_source_add_local">添加音乐目录</string>
@@ -74,6 +74,9 @@
     <string name="settings_source_edit_summary">%1$s · 根目录 %2$s</string>
     <string name="settings_source_scan">扫描 %1$s</string>
     <string name="settings_source_scan_summary">立即扫描此音源</string>
+    <string name="settings_source_last_scan">最近扫描</string>
+    <string name="settings_source_last_scan_summary">%1$s · %2$s</string>
+    <string name="settings_source_never_scanned">尚未扫描</string>
     <string name="settings_scan_section">扫描</string>
     <string name="settings_auto_scan">自动扫描</string>
     <string name="settings_auto_scan_off">关闭</string>
@@ -95,6 +98,11 @@
     <string name="settings_metadata_scan_full_description">扫描基础标签、音频信息、封面、歌词和原始标签</string>
     <string name="settings_min_duration">最短音频时长</string>
     <string name="settings_min_duration_off">关闭</string>
+    <string name="settings_min_duration_custom">自定义最短时长</string>
+    <string name="settings_min_duration_custom_summary">当前值：%1$d 秒</string>
+    <string name="settings_min_duration_custom_title">自定义最短时长</string>
+    <string name="settings_min_duration_custom_message">请输入 0–86400 秒；输入 0 表示关闭时长过滤。</string>
+    <string name="settings_seconds_unit">秒</string>
     <string name="settings_seconds">%1$d 秒</string>
     <string name="settings_scan_unmetered">后台扫描仅非计费网络</string>
     <string name="settings_scan_unmetered_summary">计费网络下延后自动远程扫描</string>
@@ -207,6 +215,7 @@
     <string name="settings_close">关闭</string>
     <string name="settings_custom_cache_title">自定义缓存上限</string>
     <string name="settings_custom_cache_message">请输入 MB 数值。</string>
+    <string name="settings_megabytes_unit">MB</string>
     <string name="settings_webdav_add_title">添加 WebDAV</string>
     <string name="settings_webdav_edit_title">编辑 WebDAV</string>
     <string name="settings_webdav_name">名称（可选）</string>

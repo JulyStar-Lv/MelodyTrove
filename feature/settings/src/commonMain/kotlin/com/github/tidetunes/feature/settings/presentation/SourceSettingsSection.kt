@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import com.github.tidetunes.core.domain.model.AutoScanMode
 import com.github.tidetunes.core.domain.model.DEFAULT_IGNORED_SOURCE_DIRECTORIES
 import com.github.tidetunes.core.domain.model.DuplicateTrackPolicy
+import com.github.tidetunes.core.domain.model.MAX_MINIMUM_AUDIO_DURATION_MS
 import com.github.tidetunes.core.domain.model.MissingFilePolicy
 import com.github.tidetunes.core.domain.model.MetadataScanMode
 import com.github.tidetunes.core.domain.model.SUPPORTED_AUDIO_EXTENSIONS
@@ -31,6 +32,7 @@ import com.github.tidetunes.core.presentation.components.TideTextField
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncFailure
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncStatus
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncTask
+import kotlin.time.Instant
 import org.jetbrains.compose.resources.stringResource
 import tidetunes.feature.settings.generated.resources.*
 import top.yukonga.miuix.kmp.basic.Text
@@ -44,6 +46,8 @@ fun SourceSettingsSection(
 ) {
     val settings = state.settings
     var metadataScanModeDialogOpen by remember { mutableStateOf(false) }
+    var customDurationDialogOpen by remember { mutableStateOf(false) }
+    var customDurationInputSeconds by remember { mutableStateOf("") }
 
     SettingsPageLayout(title = stringResource(Res.string.settings_sources_title), onBack = onBack) {
         SettingsSection(title = stringResource(Res.string.settings_sources_section)) {
@@ -57,6 +61,11 @@ fun SourceSettingsSection(
                     title = sourceTitle,
                     summary = stringResource(
                         Res.string.settings_source_summary,
+                        if (account.isLocal) {
+                            stringResource(Res.string.settings_source_local)
+                        } else {
+                            stringResource(Res.string.settings_source_webdav)
+                        },
                         if (account.enabled) {
                             stringResource(Res.string.settings_source_enabled)
                         } else {
@@ -88,6 +97,10 @@ fun SourceSettingsSection(
                     value = stringResource(Res.string.settings_source_scan_summary),
                     enabled = account.enabled,
                     onClick = { onAction(SettingsAction.ScanSourceAccount(account.accountId)) },
+                )
+                SettingsInfoRow(
+                    title = stringResource(Res.string.settings_source_last_scan),
+                    value = account.lastScanSummary(),
                 )
             }
             if (state.localDirectories.isEmpty()) {
@@ -187,6 +200,19 @@ fun SourceSettingsSection(
                     },
                 )
             }
+            SettingsChoiceRow(
+                title = stringResource(Res.string.settings_min_duration_custom),
+                summary = stringResource(
+                    Res.string.settings_min_duration_custom_summary,
+                    settings.minimumAudioDurationMs / 1_000L,
+                ),
+                selected = settings.minimumAudioDurationMs !in MINIMUM_DURATION_PRESETS_MS,
+                onClick = {
+                    customDurationInputSeconds =
+                        (settings.minimumAudioDurationMs / 1_000L).toString()
+                    customDurationDialogOpen = true
+                },
+            )
             SettingsChoiceRow(
                 title = stringResource(Res.string.settings_missing_file),
                 summary = stringResource(Res.string.settings_missing_mark_summary),
@@ -309,6 +335,25 @@ fun SourceSettingsSection(
             metadataScanModeDialogOpen = false
         },
         onDismiss = { metadataScanModeDialogOpen = false },
+    )
+    SettingsInputDialog(
+        show = customDurationDialogOpen,
+        title = stringResource(Res.string.settings_min_duration_custom_title),
+        message = stringResource(Res.string.settings_min_duration_custom_message),
+        value = customDurationInputSeconds,
+        label = stringResource(Res.string.settings_seconds_unit),
+        onValueChange = { customDurationInputSeconds = it.filter(Char::isDigit) },
+        onConfirm = {
+            customDurationInputSeconds.toLongOrNull()?.let { seconds ->
+                val normalizedSeconds = seconds.coerceIn(
+                    minimumValue = 0L,
+                    maximumValue = MAX_MINIMUM_AUDIO_DURATION_MS / 1_000L,
+                )
+                onAction(SettingsAction.SetMinimumAudioDurationMs(normalizedSeconds * 1_000L))
+                customDurationDialogOpen = false
+            }
+        },
+        onDismiss = { customDurationDialogOpen = false },
     )
     WebDavAccountDialog(state = state, dialog = state.webDavDialog, onAction = onAction)
     SettingsConfirmDialog(
@@ -634,3 +679,23 @@ private fun LibrarySyncStatus.isActiveInSettings(): Boolean {
         this == LibrarySyncStatus.Running ||
         this == LibrarySyncStatus.Paused
 }
+
+@Composable
+private fun SourceAccountSettingsItem.lastScanSummary(): String {
+    val timestamp = lastScanAtEpochMs?.let { epochMs ->
+        runCatching { Instant.fromEpochMilliseconds(epochMs).toString() }.getOrNull()
+    }
+    if (timestamp == null) return stringResource(Res.string.settings_source_never_scanned)
+    val status = when (lastScanStatus) {
+        "RUNNING" -> stringResource(Res.string.settings_scan_status_running)
+        "PAUSED" -> stringResource(Res.string.settings_scan_status_paused)
+        "SYNCED" -> stringResource(Res.string.settings_scan_status_completed)
+        "SYNCED_WITH_ERRORS" -> stringResource(Res.string.settings_scan_status_completed_errors)
+        "CANCELLED" -> stringResource(Res.string.settings_scan_status_cancelled)
+        "FAILED" -> stringResource(Res.string.settings_scan_status_failed)
+        else -> stringResource(Res.string.settings_scan_status_unknown)
+    }
+    return stringResource(Res.string.settings_source_last_scan_summary, status, timestamp)
+}
+
+private val MINIMUM_DURATION_PRESETS_MS = setOf(0L, 15_000L, 30_000L, 60_000L)

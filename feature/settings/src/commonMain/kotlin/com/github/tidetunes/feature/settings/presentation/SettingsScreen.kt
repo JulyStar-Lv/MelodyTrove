@@ -2,8 +2,14 @@ package com.github.tidetunes.feature.settings.presentation
 
 import androidx.compose.runtime.Composable
 import com.github.tidetunes.core.domain.model.AudioFocusMode
-import com.github.tidetunes.core.presentation.theme.TideTunesBrand
 import org.jetbrains.compose.resources.stringResource
+import tidetunes.core.presentation.generated.resources.Res as CoreRes
+import tidetunes.core.presentation.generated.resources.icon_album
+import tidetunes.core.presentation.generated.resources.icon_cloud
+import tidetunes.core.presentation.generated.resources.icon_image
+import tidetunes.core.presentation.generated.resources.icon_music_note
+import tidetunes.core.presentation.generated.resources.icon_play
+import tidetunes.core.presentation.generated.resources.icon_wifitethering
 import tidetunes.feature.settings.generated.resources.*
 
 @Composable
@@ -22,8 +28,7 @@ fun SettingsScreen(
             SettingsEntryCard(
                 title = stringResource(Res.string.settings_appearance_title),
                 summary = stringResource(Res.string.settings_appearance_summary),
-                marker = "◐",
-                accentColor = TideTunesBrand.Primary,
+                icon = CoreRes.drawable.icon_image,
                 onClick = onNavigateToAppearance,
             )
             SettingsEntryCard(
@@ -33,8 +38,7 @@ fun SettingsScreen(
                     AudioFocusMode.Duck -> stringResource(Res.string.settings_playback_summary_duck)
                     AudioFocusMode.Mix -> stringResource(Res.string.settings_playback_summary_mix)
                 },
-                marker = "▷",
-                accentColor = TideTunesBrand.SupportBlue,
+                icon = CoreRes.drawable.icon_play,
                 onClick = onNavigateToPlayback,
             )
             SettingsEntryCard(
@@ -48,8 +52,7 @@ fun SettingsScreen(
                         state.trackCount,
                     )
                 },
-                marker = "◎",
-                accentColor = TideTunesBrand.SupportGreen,
+                icon = CoreRes.drawable.icon_cloud,
                 onClick = onNavigateToSource,
             )
             SettingsEntryCard(
@@ -58,8 +61,7 @@ fun SettingsScreen(
                     Res.string.settings_network_cache_summary,
                     formatBytes(state.settings.audioCacheLimitBytes),
                 ),
-                marker = "≋",
-                accentColor = TideTunesBrand.Secondary,
+                icon = CoreRes.drawable.icon_wifitethering,
                 onClick = onNavigateToNetworkCache,
             )
             SettingsEntryCard(
@@ -68,8 +70,7 @@ fun SettingsScreen(
                     Res.string.settings_storage_summary,
                     formatBytes(state.storageUsage.totalBytes),
                 ),
-                marker = "▦",
-                accentColor = TideTunesBrand.SupportOrange,
+                icon = CoreRes.drawable.icon_album,
                 onClick = onNavigateToStorage,
             )
             SettingsEntryCard(
@@ -78,8 +79,7 @@ fun SettingsScreen(
                     Res.string.settings_about_summary,
                     appVersion.ifBlank { stringResource(Res.string.settings_unavailable) },
                 ),
-                marker = "♪",
-                accentColor = TideTunesBrand.Primary,
+                icon = CoreRes.drawable.icon_music_note,
                 onClick = onNavigateToAbout,
             )
         }

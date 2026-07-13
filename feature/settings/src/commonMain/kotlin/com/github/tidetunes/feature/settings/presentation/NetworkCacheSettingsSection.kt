@@ -107,6 +107,7 @@ fun NetworkCacheSettingsSection(
         title = stringResource(Res.string.settings_custom_cache_title),
         message = stringResource(Res.string.settings_custom_cache_message),
         value = state.customCacheLimitInputMb,
+        label = stringResource(Res.string.settings_megabytes_unit),
         onValueChange = { onAction(SettingsAction.SetCustomCacheLimitInput(it)) },
         onConfirm = { onAction(SettingsAction.ApplyCustomCacheLimit) },
         onDismiss = { onAction(SettingsAction.DismissCustomCacheLimitDialog) },

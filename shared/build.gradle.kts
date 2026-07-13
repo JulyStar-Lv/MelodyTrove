@@ -11,6 +11,9 @@ abstract class GenerateGitInfoTask : DefaultTask() {
     @get:Input
     abstract val gitCommitSha: Property<String>
 
+    @get:Input
+    abstract val appVersionName: Property<String>
+
     @get:OutputDirectory
     abstract val outputDirectory: DirectoryProperty
 
@@ -26,6 +29,7 @@ abstract class GenerateGitInfoTask : DefaultTask() {
 
             internal object GeneratedBuildInfo {
                 const val gitCommitSha: String = "${gitCommitSha.get()}"
+                const val appVersionName: String = "${appVersionName.get()}"
             }
             """.trimIndent() + "\n"
         )
@@ -50,9 +54,11 @@ val generatedGitInfoDirectory = layout.buildDirectory.dir("generated/gitInfo/com
 val gitCommitShaProvider = providers.exec {
     commandLine("git", "rev-parse", "--short=12", "HEAD")
 }.standardOutput.asText.map(String::trim)
+val appVersionNameProvider = providers.gradleProperty("appVersionName")
 
 val generateGitInfo by tasks.registering(GenerateGitInfoTask::class) {
     gitCommitSha.set(gitCommitShaProvider)
+    appVersionName.set(appVersionNameProvider)
     outputDirectory.set(generatedGitInfoDirectory)
 }
 

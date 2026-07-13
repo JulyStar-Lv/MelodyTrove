@@ -8,6 +8,8 @@ plugins {
     alias(libs.plugins.jetbrains.compose)
 }
 
+val appVersionName = providers.gradleProperty("appVersionName").get()
+
 kotlin {
     jvm("desktop")
 
@@ -28,7 +30,7 @@ compose.desktop {
         nativeDistributions {
             targetFormats(TargetFormat.Deb, TargetFormat.Msi, TargetFormat.Dmg)
             packageName = "TideTunes"
-            packageVersion = "1.0.0"
+            packageVersion = appVersionName
         }
     }
 }
