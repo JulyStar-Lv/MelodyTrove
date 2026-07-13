@@ -16,6 +16,7 @@ import com.github.tidetunes.singleton.Bridge
 import com.github.tidetunes.database.ProviderTypes
 import com.github.tidetunes.database.SourceAccountDao
 import com.github.tidetunes.database.SourceAccountEntity
+import com.github.tidetunes.database.SourceAccountSummaryRow
 
 import com.github.tidetunes.platform.currentTimeMillis
 import com.github.tidetunes.core.data.security.CredentialStore
@@ -63,13 +64,12 @@ class StorageRepositoryImpl(
             ensureLocalStorage()
         }
         scope.launch {
-            sourceAccountDao.observeAll().collect { entities ->
-                _storages.value = entities.map { entity ->
+            sourceAccountDao.observeSummaries().collect { summaries ->
+                _storages.value = summaries.map { summary ->
+                    val entity = summary.account
                     entity.toStorage(password = "")
                 }
-                _storageAccounts.value = _storages.value.map { storage ->
-                    storage.toStorageAccountInfo()
-                }
+                _storageAccounts.value = summaries.map(SourceAccountSummaryRow::toStorageAccountInfo)
             }
         }
     }
@@ -150,6 +150,7 @@ class StorageRepositoryImpl(
                 enabled = true,
                 createdAt = previous?.createdAt ?: now,
                 updatedAt = now,
+                rootPath = previous?.rootPath ?: if (normalized.typ == StorageType.WEBDAV) "/" else null,
             )
         )
         return id
@@ -197,6 +198,7 @@ class StorageRepositoryImpl(
                 enabled = true,
                 createdAt = now,
                 updatedAt = now,
+                rootPath = null,
             )
         )
     }
@@ -279,6 +281,15 @@ class StorageRepositoryImpl(
         return loadCredential(id)
     }
 
+    override suspend fun setAccountRootPath(accountId: SourceAccountId, rootPath: String) {
+        val id = accountId.toStorageIdOrNull() ?: return
+        sourceAccountDao.setRootPath(
+            id = id.value,
+            rootPath = rootPath.normalizedRootPath(),
+            updatedAt = currentTimeMillis(),
+        )
+    }
+
     fun findStorageAccount(id: Long): StorageAccountInfo? {
         return _storageAccounts.value.find { it.accountId.toStorageRouteIdOrNull() == id }
     }
@@ -318,21 +329,31 @@ private fun String.toStorageType(): StorageType {
 private const val PENDING_ONEDRIVE_OAUTH_CREDENTIAL_ID = Long.MIN_VALUE
 private const val LOCAL_STORAGE_ID = 1L
 
-fun Storage.toStorageAccountInfo(): StorageAccountInfo {
-    val sourceId = when (typ) {
-        StorageType.LOCAL -> BuiltInSourceIds.Local
-        StorageType.WEBDAV -> BuiltInSourceIds.WebDav
-        StorageType.ONE_DRIVE -> BuiltInSourceIds.OneDrive
+private fun SourceAccountSummaryRow.toStorageAccountInfo(): StorageAccountInfo {
+    val sourceId = when (account.providerType) {
+        ProviderTypes.Local -> BuiltInSourceIds.Local
+        ProviderTypes.WebDav -> BuiltInSourceIds.WebDav
+        ProviderTypes.OneDrive -> BuiltInSourceIds.OneDrive
+        else -> SourceId(account.providerType)
     }
     return StorageAccountInfo(
-        accountId = storageSourceAccountId(id.value),
+        accountId = storageSourceAccountId(account.id),
         sourceId = sourceId,
-        isLocal = typ == StorageType.LOCAL,
-        isOneDrive = typ == StorageType.ONE_DRIVE,
-        title = alias.ifBlank { addr },
-        subtitle = addr.ifBlank { alias },
-        musicCount = musicCount.toLong(),
+        isLocal = account.providerType == ProviderTypes.Local,
+        isOneDrive = account.providerType == ProviderTypes.OneDrive,
+        title = account.displayName.ifBlank { account.endpoint.orEmpty() },
+        subtitle = account.endpoint.orEmpty().ifBlank { account.displayName },
+        musicCount = trackCount,
+        rootPath = account.rootPath,
+        enabled = account.enabled,
+        lastScanAtEpochMs = lastScanAt,
+        lastScanStatus = lastScanStatus,
     )
+}
+
+private fun String.normalizedRootPath(): String {
+    val trimmed = trim().ifBlank { "/" }
+    return if (trimmed.startsWith('/')) trimmed else "/$trimmed"
 }
 fun SourceConnectionTestStatus.toStorageConnectionTestResult(): StorageConnectionTestResult {
     return when (this) {

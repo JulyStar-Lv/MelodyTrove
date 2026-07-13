@@ -1,7 +1,10 @@
 package com.github.tidetunes.service.librarysync.domain
 
 import com.github.tidetunes.core.domain.model.DEFAULT_IGNORED_SOURCE_DIRECTORIES
-import com.github.tidetunes.core.domain.model.MIN_SCANNED_AUDIO_DURATION_MS
+import com.github.tidetunes.core.domain.model.DEFAULT_MINIMUM_AUDIO_DURATION_MS
+import com.github.tidetunes.core.domain.model.DuplicateTrackPolicy
+import com.github.tidetunes.core.domain.model.MetadataScanMode
+import com.github.tidetunes.core.domain.model.MissingFilePolicy
 import com.github.tidetunes.core.domain.model.SourceAccountId
 import kotlinx.coroutines.flow.Flow
 
@@ -35,6 +38,7 @@ data class LibrarySyncRequest(
     val selectedFolderCanonicalPath: String,
     val selectedFolderDisplayPath: String? = null,
     val scanRules: LibrarySyncScanRules = LibrarySyncScanRules(),
+    val metadataScanMode: MetadataScanMode = MetadataScanMode.Full,
     val scanId: String? = null,
     val metadataConcurrency: UInt = DEFAULT_LIBRARY_SYNC_METADATA_CONCURRENCY,
     val importBatchSize: Int = DEFAULT_LIBRARY_SYNC_BATCH_SIZE,
@@ -57,8 +61,9 @@ data class LibrarySyncRequest(
 
 data class LibrarySyncScanRules(
     val scanSubdirectories: Boolean = true,
-    val ignoreShortAudio: Boolean = true,
-    val minDurationMs: Long = MIN_SCANNED_AUDIO_DURATION_MS,
+    val minDurationMs: Long = DEFAULT_MINIMUM_AUDIO_DURATION_MS,
+    val missingFilePolicy: MissingFilePolicy = MissingFilePolicy.MarkUnavailable,
+    val duplicateTrackPolicy: DuplicateTrackPolicy = DuplicateTrackPolicy.SeparateBySource,
     val ignoreHiddenFiles: Boolean = true,
     val ignoredDirectoryNames: Set<String> = DEFAULT_IGNORED_SOURCE_DIRECTORIES.toSet(),
 ) {
@@ -75,6 +80,10 @@ data class LibrarySyncResult(
     val skippedCount: Long,
     val importedCount: Long,
     val failedCount: Long,
+    val metadataRequestCount: Long = 0,
+    val metadataFetchedBytes: Long = 0,
+    val metadataElapsedMs: Long = 0,
+    val artworkCachedBytes: Long = 0,
 )
 
 data class LibrarySyncFailure(

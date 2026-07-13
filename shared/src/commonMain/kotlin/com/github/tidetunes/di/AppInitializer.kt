@@ -7,6 +7,11 @@ import com.github.tidetunes.service.playback.data.PlayerRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.koin.core.Koin
+import com.github.tidetunes.core.data.settings.AutoScanCoordinator
+import com.github.tidetunes.core.domain.repository.SettingsMigration
+import com.github.tidetunes.core.domain.repository.SettingsRepository
+import com.github.tidetunes.platform.applyAppLanguageMode
+import kotlinx.coroutines.flow.first
 
 /**
  * Shared app initialization called by every platform entry point
@@ -28,9 +33,12 @@ object AppInitializer {
      */
     fun reloadRepositories(koin: Koin, scope: CoroutineScope) {
         scope.launch {
+            koin.get<SettingsMigration>().migrate()
+            applyAppLanguageMode(koin.get<SettingsRepository>().settings.first().languageMode)
             koin.get<PlayerRepository>().reload()
             koin.get<StorageRepositoryImpl>().reload()
             koin.get<PlaylistRepositoryImpl>().reload()
+            koin.get<AutoScanCoordinator>().runStartupScan()
         }
     }
 }

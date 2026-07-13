@@ -1,3 +1,5 @@
+@file:JvmName("DesktopAppVersionKt")
+
 package com.github.tidetunes.platform
 
 actual fun getAppVersion(): String {

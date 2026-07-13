@@ -23,5 +23,6 @@ interface StorageRepository {
     suspend fun updateOneDriveRefreshTokenByAccountId(accountId: SourceAccountId, refreshToken: String)
     fun findStorageAccountByAccountId(accountId: SourceAccountId): StorageAccountInfo?
     suspend fun loadCredentialByAccountId(accountId: SourceAccountId): StoredCredential?
+    suspend fun setAccountRootPath(accountId: SourceAccountId, rootPath: String)
     suspend fun removeByAccountId(accountId: SourceAccountId)
 }

@@ -26,8 +26,12 @@ import com.github.tidetunes.database.TrackEntity
 import com.github.tidetunes.database.TrackGenreCrossRef
 import com.github.tidetunes.database.TrackSourceRefEntity
 import com.github.tidetunes.platform.currentTimeMillis
+import com.github.tidetunes.core.domain.model.DuplicateTrackPolicy
+import com.github.tidetunes.core.domain.model.MetadataScanMode
+import com.github.tidetunes.core.domain.model.toOptions
+import com.github.tidetunes.core.domain.model.MissingFilePolicy
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncScanRules
-import com.github.tidetunes.source.storage.MetadataRepository
+import com.github.tidetunes.source.storage.RemoteMetadataReader
 import com.github.tidetunes.source.storage.RemoteScannerRepository
 import com.github.tidetunes.core.data.StorageRepositoryImpl
 import kotlinx.coroutines.CancellationException
@@ -51,6 +55,7 @@ data class RemoteLibraryImportRequest(
     val selectedFolderDisplayPath: String? = null,
     val entries: List<StorageEntry>,
     val scanRules: LibrarySyncScanRules = LibrarySyncScanRules(),
+    val metadataScanMode: MetadataScanMode = MetadataScanMode.Full,
     val scanId: String? = null,
     val metadataConcurrency: UInt = DEFAULT_METADATA_CONCURRENCY,
     val importBatchSize: Int = DEFAULT_IMPORT_BATCH_SIZE,
@@ -64,6 +69,10 @@ data class RemoteLibraryImportResult(
     val skippedCount: Long,
     val importedCount: Long,
     val failedCount: Long,
+    val metadataRequestCount: Long = 0,
+    val metadataFetchedBytes: Long = 0,
+    val metadataElapsedMs: Long = 0,
+    val artworkCachedBytes: Long = 0,
 )
 
 class RemoteLibraryImportCoordinator(
@@ -71,7 +80,7 @@ class RemoteLibraryImportCoordinator(
     private val trackDao: TrackDao,
     private val metadataDao: MetadataDao,
     private val syncDao: SyncDao,
-    private val metadataRepository: MetadataRepository,
+    private val metadataRepository: RemoteMetadataReader,
     private val remoteScannerRepository: RemoteScannerRepository,
     private val storageRepository: StorageRepositoryImpl,
 ) {
@@ -97,6 +106,7 @@ class RemoteLibraryImportCoordinator(
         selectedFolderDisplayPath: String? = null,
         scanId: String? = null,
         scanRules: LibrarySyncScanRules = LibrarySyncScanRules(),
+        metadataScanMode: MetadataScanMode = MetadataScanMode.Full,
         metadataConcurrency: UInt = DEFAULT_METADATA_CONCURRENCY,
         importBatchSize: Int = DEFAULT_IMPORT_BATCH_SIZE,
     ): RemoteLibraryImportResult {
@@ -108,6 +118,7 @@ class RemoteLibraryImportCoordinator(
             selectedFolderDisplayPath = selectedFolderDisplayPath,
             entries = emptyList(),
             scanRules = scanRules,
+            metadataScanMode = metadataScanMode,
             scanId = scanId,
             metadataConcurrency = metadataConcurrency,
             importBatchSize = importBatchSize,
@@ -167,6 +178,7 @@ class RemoteLibraryImportCoordinator(
         selectedFolderDisplayPath: String? = null,
         scanId: String? = null,
         scanRules: LibrarySyncScanRules = LibrarySyncScanRules(),
+        metadataScanMode: MetadataScanMode = MetadataScanMode.Full,
         metadataConcurrency: UInt = DEFAULT_METADATA_CONCURRENCY,
         importBatchSize: Int = DEFAULT_IMPORT_BATCH_SIZE,
     ): RemoteLibraryImportResult {
@@ -180,6 +192,7 @@ class RemoteLibraryImportCoordinator(
                 selectedFolderDisplayPath = selectedFolderDisplayPath,
                 scanId = scanId,
                 scanRules = scanRules,
+                metadataScanMode = metadataScanMode,
                 metadataConcurrency = metadataConcurrency,
                 importBatchSize = importBatchSize,
             )
@@ -191,6 +204,7 @@ class RemoteLibraryImportCoordinator(
                 selectedFolderDisplayPath = selectedFolderDisplayPath,
                 scanId = scanId,
                 scanRules = scanRules,
+                metadataScanMode = metadataScanMode,
                 metadataConcurrency = metadataConcurrency,
                 importBatchSize = importBatchSize,
             )
@@ -201,6 +215,7 @@ class RemoteLibraryImportCoordinator(
             selectedFolderDisplayPath = selectedFolderDisplayPath,
             entries = emptyList(),
             scanRules = scanRules,
+            metadataScanMode = metadataScanMode,
             scanId = scanId,
             metadataConcurrency = metadataConcurrency,
             importBatchSize = importBatchSize,
@@ -341,6 +356,7 @@ class RemoteLibraryImportCoordinator(
         selectedFolderDisplayPath: String? = null,
         scanId: String? = null,
         scanRules: LibrarySyncScanRules = LibrarySyncScanRules(),
+        metadataScanMode: MetadataScanMode = MetadataScanMode.Full,
         metadataConcurrency: UInt = DEFAULT_METADATA_CONCURRENCY,
         importBatchSize: Int = DEFAULT_IMPORT_BATCH_SIZE,
         deltaLink: String? = null,
@@ -353,6 +369,7 @@ class RemoteLibraryImportCoordinator(
             selectedFolderDisplayPath = selectedFolderDisplayPath,
             entries = emptyList(),
             scanRules = scanRules,
+            metadataScanMode = metadataScanMode,
             scanId = scanId,
             metadataConcurrency = metadataConcurrency,
             importBatchSize = importBatchSize,
@@ -420,6 +437,7 @@ class RemoteLibraryImportCoordinator(
                 previousCursor = previousCursor,
                 currentJob = currentJob,
                 deltaLink = deltaLink ?: execution.libraryRoot.syncCursor,
+                missingFilePolicy = request.scanRules.missingFilePolicy,
             )
             importResult(execution, currentJob, changedCount)
         } catch (error: Throwable) {
@@ -509,6 +527,7 @@ class RemoteLibraryImportCoordinator(
             previousCursor = previousCursor,
             currentJob = job,
             deltaLink = deltaLink ?: execution.libraryRoot.syncCursor,
+            missingFilePolicy = request.scanRules.missingFilePolicy,
         )
         return importResult(execution, job, changedCount) to job
     }
@@ -521,6 +540,7 @@ class RemoteLibraryImportCoordinator(
         countEntriesAsScanned: Boolean = true,
     ): ImportBatchResult {
         val now = currentTimeMillis()
+        val metadataOptions = request.metadataScanMode.toOptions()
         val batchPaths = entries.map { normalizeRemotePath(it.path) }
         val existing = database.sourceItemDao()
             .findByPaths(request.storageId, batchPaths)
@@ -549,6 +569,7 @@ class RemoteLibraryImportCoordinator(
             metadataRepository.readBatch(
                 entries = plan.metadataEntries,
                 concurrency = request.metadataConcurrency,
+                options = metadataOptions,
             )
         }
         val metadataByPath = metadataResults
@@ -557,7 +578,19 @@ class RemoteLibraryImportCoordinator(
                 normalizeRemotePath(result.entry.path) to metadata
             }
             .toMap()
-        val shortAudioPaths = if (request.scanRules.ignoreShortAudio) {
+        val batchMetadataRequestCount = metadataByPath.values.sumMetric {
+            it.metadataRequestCount
+        }
+        val batchMetadataFetchedBytes = metadataByPath.values.sumMetric {
+            it.metadataFetchedBytes
+        }
+        val batchMetadataElapsedMs = metadataByPath.values.sumMetric {
+            it.metadataElapsedMs
+        }
+        val batchArtworkCachedBytes = metadataByPath.values.sumMetric {
+            it.artworkCachedBytes
+        }
+        val shortAudioPaths = if (request.scanRules.minDurationMs > 0L) {
             metadataByPath
                 .filterValues { metadata -> metadata.isShorterThan(request.scanRules.minDurationMs) }
                 .keys
@@ -637,7 +670,11 @@ class RemoteLibraryImportCoordinator(
                     val sourceItem = row.sourceItem
                     val existingTrack = existingRefsBySourceItemId[sourceItem.id]
                         ?.let { existingTracksById[it.trackId] }
-                        ?: findCanonicalTrack(metadata, sourceItem)
+                        ?: findCanonicalTrack(
+                            metadata = metadata,
+                            sourceItem = sourceItem,
+                            duplicateTrackPolicy = request.scanRules.duplicateTrackPolicy,
+                        )
                     val track = buildTrackEntity(
                         entry = entry,
                         metadata = metadata,
@@ -669,8 +706,6 @@ class RemoteLibraryImportCoordinator(
                 if (trackIds.isNotEmpty()) {
                     metadataDao.deleteTrackArtistsForTracks(trackIds)
                     metadataDao.deleteTrackGenresForTracks(trackIds)
-                    metadataDao.deleteLyricsForTracks(trackIds)
-                    metadataDao.deleteRawMetadataForTracks(trackIds)
                 }
                 val trackArtists = trackContexts.flatMap { context ->
                     context.metadata.trackArtists().mapIndexedNotNull { position, name ->
@@ -716,36 +751,31 @@ class RemoteLibraryImportCoordinator(
                 if (albumArtists.isNotEmpty()) {
                     metadataDao.upsertAlbumArtists(albumArtists)
                 }
-                val artwork = trackContexts
-                    .mapNotNull { context ->
-                        buildArtworkEntity(
+                metadataDao.updateOptionalMetadata(
+                    updates = trackContexts.map { context ->
+                        OptionalMetadataUpdate(
                             trackId = context.track.id,
                             albumId = context.track.albumId,
-                            artwork = context.metadata.artwork ?: return@mapNotNull null,
+                            metadata = context.metadata,
                         )
-                    }
-                    .distinctBy { it.contentHash }
-                if (artwork.isNotEmpty()) {
-                    metadataDao.upsertArtwork(artwork)
-                }
-                val lyrics = trackContexts.mapNotNull { context ->
-                    buildLyricsEntity(context.track.id, context.metadata, now)
-                }
-                if (lyrics.isNotEmpty()) {
-                    metadataDao.upsertLyrics(lyrics)
-                }
-                val rawMetadata = trackContexts.flatMap { context ->
-                    buildRawMetadataEntities(context.track.id, context.metadata)
-                }
-                if (rawMetadata.isNotEmpty()) {
-                    metadataDao.upsertRawMetadata(rawMetadata)
-                }
+                    },
+                    options = metadataOptions,
+                    now = now,
+                )
                 updatedJob = currentJob.copy(
                     scannedCount = currentJob.scannedCount +
                         if (countEntriesAsScanned) entries.size else 0,
                     importedCount = currentJob.importedCount + tracks.size,
                     skippedCount = currentJob.skippedCount + plan.metadataSkippedCount + shortSkippedCount,
                     failedCount = currentJob.failedCount + batchFailedCount,
+                    metadataRequestCount = currentJob.metadataRequestCount
+                        .saturatedAdd(batchMetadataRequestCount),
+                    metadataFetchedBytes = currentJob.metadataFetchedBytes
+                        .saturatedAdd(batchMetadataFetchedBytes),
+                    metadataElapsedMs = currentJob.metadataElapsedMs
+                        .saturatedAdd(batchMetadataElapsedMs),
+                    artworkCachedBytes = currentJob.artworkCachedBytes
+                        .saturatedAdd(batchArtworkCachedBytes),
                     checkpoint = entries.lastOrNull()?.path,
                     errorMessage = failureDetails.summaryOrNull() ?: currentJob.errorMessage,
                     updatedAt = now,
@@ -778,10 +808,17 @@ class RemoteLibraryImportCoordinator(
     private suspend fun findCanonicalTrack(
         metadata: RemoteMetadata,
         sourceItem: SourceItemEntity,
+        duplicateTrackPolicy: DuplicateTrackPolicy,
     ): TrackEntity? {
+        if (duplicateTrackPolicy == DuplicateTrackPolicy.KeepAll) return null
         val recordingId = metadata.musicbrainzRecordingId?.takeIf { it.isNotBlank() }
         if (recordingId != null) {
-            trackDao.findByMusicBrainzRecordingId(recordingId).singleOrNull()?.let { return it }
+            trackDao.findByMusicBrainzRecordingId(recordingId)
+                .singleOrNull()
+                ?.takeIf { track ->
+                    database.trackSourceRefDao().hasSourceAccount(track.id, sourceItem.sourceAccountId)
+                }
+                ?.let { return it }
         }
 
         val durationMs = metadata.durationMs.toLongOrNull() ?: return null
@@ -791,7 +828,11 @@ class RemoteLibraryImportCoordinator(
                 isrc = isrc,
                 minDurationMs = durationMs - DURATION_MATCH_TOLERANCE_MS,
                 maxDurationMs = durationMs + DURATION_MATCH_TOLERANCE_MS,
-            ).singleOrNull()?.let { return it }
+            ).singleOrNull()
+                ?.takeIf { track ->
+                    database.trackSourceRefDao().hasSourceAccount(track.id, sourceItem.sourceAccountId)
+                }
+                ?.let { return it }
         }
 
         val title = metadata.title?.takeIf { it.isNotBlank() }
@@ -804,7 +845,9 @@ class RemoteLibraryImportCoordinator(
             albumKey = metadata.album.normalizedMatchKey(),
             minDurationMs = durationMs - DURATION_MATCH_TOLERANCE_MS,
             maxDurationMs = durationMs + DURATION_MATCH_TOLERANCE_MS,
-        ).singleOrNull()
+        ).singleOrNull()?.takeIf { track ->
+            database.trackSourceRefDao().hasSourceAccount(track.id, sourceItem.sourceAccountId)
+        }
     }
 
     private suspend fun ensureAlbums(
@@ -872,6 +915,7 @@ class RemoteLibraryImportCoordinator(
         previousCursor: SourceSyncCursorEntity?,
         currentJob: ImportJobEntity,
         deltaLink: String?,
+        missingFilePolicy: MissingFilePolicy,
     ): ImportJobEntity {
         val now = currentTimeMillis()
         val completedJob = currentJob.copy(
@@ -884,13 +928,23 @@ class RemoteLibraryImportCoordinator(
         )
         database.useWriterConnection { connection ->
             connection.immediateTransaction {
-                database.sourceItemDao().markMissingDeleted(
-                    libraryRootId = execution.libraryRoot.id,
-                    scanId = execution.scanId,
-                    now = now,
-                )
-                database.trackSourceRefDao()
-                    .markUnavailableForDeletedSourceItems(execution.libraryRoot.id, now)
+                when (missingFilePolicy) {
+                    MissingFilePolicy.MarkUnavailable -> {
+                        database.sourceItemDao().markMissingDeleted(
+                            libraryRootId = execution.libraryRoot.id,
+                            scanId = execution.scanId,
+                            now = now,
+                        )
+                        database.trackSourceRefDao()
+                            .markUnavailableForDeletedSourceItems(execution.libraryRoot.id, now)
+                    }
+                    MissingFilePolicy.RemoveOnScan -> {
+                        database.sourceItemDao().deleteMissingForLibraryRoot(
+                            libraryRootId = execution.libraryRoot.id,
+                            scanId = execution.scanId,
+                        )
+                    }
+                }
                 syncDao.upsertCursor(
                     SourceSyncCursorEntity(
                         id = previousCursor?.id ?: 0,
@@ -1039,6 +1093,10 @@ class RemoteLibraryImportCoordinator(
             skippedCount = job.skippedCount,
             importedCount = job.importedCount,
             failedCount = job.failedCount,
+            metadataRequestCount = job.metadataRequestCount,
+            metadataFetchedBytes = job.metadataFetchedBytes,
+            metadataElapsedMs = job.metadataElapsedMs,
+            artworkCachedBytes = job.artworkCachedBytes,
         )
     }
 
@@ -1059,6 +1117,18 @@ class RemoteLibraryImportCoordinator(
             errorMessage = null,
             createdAt = startedAt,
             updatedAt = startedAt,
+            metadataScanMode = request.metadataScanMode.name,
+            metadataConcurrency = request.metadataConcurrency.toLong(),
+            importBatchSize = request.importBatchSize,
+            scanSubdirectories = request.scanRules.scanSubdirectories,
+            ignoreShortAudio = request.scanRules.minDurationMs > 0,
+            minDurationMs = request.scanRules.minDurationMs,
+            ignoreHiddenFiles = request.scanRules.ignoreHiddenFiles,
+            ignoredDirectoryNames = request.scanRules.ignoredDirectoryNames
+                .sorted()
+                .joinToString(SNAPSHOT_LIST_SEPARATOR),
+            missingFilePolicy = request.scanRules.missingFilePolicy.name,
+            duplicateTrackPolicy = request.scanRules.duplicateTrackPolicy.name,
         )
         syncDao.upsertJob(job)
         database.sourceErrorDao().deleteByImportJob(scanId)
@@ -1824,6 +1894,18 @@ private fun ULong.toLongOrNull(): Long? {
     return toLong()
 }
 
+private inline fun Iterable<RemoteMetadata>.sumMetric(
+    metric: (RemoteMetadata) -> ULong,
+): Long {
+    return fold(0L) { total, metadata ->
+        total.saturatedAdd(metric(metadata).toLongOrNull() ?: Long.MAX_VALUE)
+    }
+}
+
+private fun Long.saturatedAdd(value: Long): Long {
+    return if (value > 0 && this > Long.MAX_VALUE - value) Long.MAX_VALUE else this + value
+}
+
 private object ImportJobStatus {
     const val PAUSED = "PAUSED"
     const val RUNNING = "RUNNING"
@@ -1871,6 +1953,7 @@ private const val MAX_DELTA_PAGES = 1_000
 private const val MAX_DELTA_ITEMS = 100_000
 private const val MAX_FAILURE_SUMMARY_ITEMS = 7
 private const val MAX_IMPORT_JOB_ERROR_MESSAGE_LENGTH = 512
+private const val SNAPSHOT_LIST_SEPARATOR = "|"
 
 private val versionTokens = listOf(
     "live",

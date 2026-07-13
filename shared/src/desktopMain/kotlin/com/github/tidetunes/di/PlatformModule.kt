@@ -13,6 +13,8 @@ import com.github.tidetunes.service.playback.data.DesktopAdvancedPlaybackControl
 import com.github.tidetunes.service.playback.domain.AdvancedPlaybackController
 import org.koin.core.module.Module
 import org.koin.dsl.module
+import com.github.tidetunes.core.data.settings.DesktopNetworkStatusProvider
+import com.github.tidetunes.core.domain.repository.NetworkStatusProvider
 
 actual val platformModule: Module = module {
     single<DesktopPlaybackEngine> { RodioDesktopPlaybackEngine() }
@@ -34,8 +36,11 @@ actual val platformModule: Module = module {
             playbackResourceResolver = get(),
             playbackEngine = get(),
             scope = get(),
+            settingsRepository = get(),
+            networkStatusProvider = get(),
         )
     }
     single<PermissionChecker> { DesktopPermissionChecker() }
     single<AdvancedPlaybackController> { DesktopAdvancedPlaybackController() }
+    single<NetworkStatusProvider> { DesktopNetworkStatusProvider() }
 }

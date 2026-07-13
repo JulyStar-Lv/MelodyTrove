@@ -1,8 +1,12 @@
 package com.github.tidetunes.source.storage
 
-import com.github.tidetunes.singleton.Bridge
 import com.github.tidetunes.core.data.StorageRepositoryImpl
+import com.github.tidetunes.core.domain.model.MetadataScanMode
+import com.github.tidetunes.core.domain.model.MetadataScanOptions
+import com.github.tidetunes.core.domain.model.toOptions
+import com.github.tidetunes.singleton.Bridge
 
+import uniffi.tidetunes_backend.MetadataReadOptions
 import uniffi.tidetunes_backend.RemoteMetadata
 import uniffi.tidetunes_backend.RemoteMetadataRequest
 import uniffi.tidetunes_backend.RemoteMetadataResult
@@ -11,11 +15,27 @@ import uniffi.tidetunes_backend.StorageEntryLoc
 import uniffi.tidetunes_backend.ctReadRemoteMetadata
 import uniffi.tidetunes_backend.ctReadRemoteMetadataBatch
 
+interface RemoteMetadataReader {
+    suspend fun read(
+        entry: StorageEntry,
+        options: MetadataScanOptions = MetadataScanMode.Full.toOptions(),
+    ): RemoteMetadata?
+
+    suspend fun readBatch(
+        entries: List<StorageEntry>,
+        concurrency: UInt = 4u,
+        options: MetadataScanOptions = MetadataScanMode.Full.toOptions(),
+    ): List<RemoteMetadataResult>
+}
+
 class MetadataRepository(
     private val bridge: Bridge,
     private val storageRepository: StorageRepositoryImpl,
-) {
-    suspend fun read(entry: StorageEntry): RemoteMetadata? {
+) : RemoteMetadataReader {
+    override suspend fun read(
+        entry: StorageEntry,
+        options: MetadataScanOptions,
+    ): RemoteMetadata? {
         val size = entry.size ?: return null
         if (entry.isDir || size == 0uL) return null
         val storage = storageRepository.storageForRust(entry.storageId) ?: return null
@@ -28,13 +48,15 @@ class MetadataRepository(
                     path = entry.path,
                 ),
                 size = size,
+                options = options.toRustOptions(),
             )
         }
     }
 
-    suspend fun readBatch(
+    override suspend fun readBatch(
         entries: List<StorageEntry>,
-        concurrency: UInt = 4u,
+        concurrency: UInt,
+        options: MetadataScanOptions,
     ): List<RemoteMetadataResult> {
         require(concurrency in 1u..16u) {
             "metadata concurrency must be between 1 and 16"
@@ -62,8 +84,17 @@ class MetadataRepository(
                 backend = it,
                 storage = storage,
                 requests = requests,
+                options = options.toRustOptions(),
                 concurrency = concurrency,
             )
         }
     }
+}
+
+internal fun MetadataScanOptions.toRustOptions(): MetadataReadOptions {
+    return MetadataReadOptions(
+        readArtwork = readArtwork,
+        readLyrics = readLyrics,
+        readRawMetadata = readRawMetadata,
+    )
 }

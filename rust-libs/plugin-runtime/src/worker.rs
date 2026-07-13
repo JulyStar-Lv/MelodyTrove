@@ -32,9 +32,7 @@ enum RuntimeCommand {
         timeout_ms: u64,
         response: Sender<Result<String, PluginRuntimeError>>,
     },
-    Close {
-        response: Sender<()>,
-    },
+    Close,
 }
 pub struct PluginRuntime {
     sender: Sender<RuntimeCommand>,
@@ -101,9 +99,7 @@ impl PluginRuntime {
         self.control.close();
         if let Ok(mut h) = self.join_handle.lock() {
             if let Some(j) = h.take() {
-                let (tx, rx) = flume::bounded(1);
-                let _ = self.sender.send(RuntimeCommand::Close { response: tx });
-                let _ = rx.recv();
+                let _ = self.sender.send(RuntimeCommand::Close);
                 let _ = j.join();
             }
         }
@@ -149,14 +145,13 @@ fn run(
                     },
                 );
                 let result = engine.call(&function_name, &request_json);
-                let should_destroy = matches!(
-                    result,
-                    Err(
-                        PluginRuntimeError::Timeout
+                let should_destroy =
+                    matches!(
+                        result,
+                        Err(PluginRuntimeError::Timeout
                             | PluginRuntimeError::OutOfMemory
-                            | PluginRuntimeError::Poisoned
-                    )
-                ) || control.poisoned.load(std::sync::atomic::Ordering::Acquire);
+                            | PluginRuntimeError::Poisoned)
+                    ) || control.poisoned.load(std::sync::atomic::Ordering::Acquire);
                 if should_destroy {
                     control
                         .poisoned
@@ -168,10 +163,7 @@ fn run(
                     break;
                 }
             }
-            RuntimeCommand::Close { response } => {
-                let _ = response.send(());
-                break;
-            }
+            RuntimeCommand::Close => break,
         }
     }
 }

@@ -2,7 +2,6 @@ package com.github.tidetunes.feature.settings.presentation
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class ScanFailureFormatterTest {
 
@@ -16,8 +15,7 @@ class ScanFailureFormatterTest {
 
         assertEquals("王心凌 - 睫毛弯弯.flac", display.fileName)
         assertEquals("/我的音乐", display.directory)
-        assertTrue(display.reason.contains("元数据读取失败"))
-        assertTrue(display.reason.contains("4 MB"))
+        assertEquals(ScanFailureReason.ByteBudget(4L * 1024 * 1024), display.reason)
     }
 
     @Test
@@ -26,7 +24,7 @@ class ScanFailureFormatterTest {
 
         assertEquals("Missing.flac", display.fileName)
         assertEquals("/Music", display.directory)
-        assertEquals("元数据读取失败：未读取到可用元数据", display.reason)
+        assertEquals(ScanFailureReason.MissingMetadata, display.reason)
     }
 
     @Test
@@ -35,7 +33,7 @@ class ScanFailureFormatterTest {
 
         assertEquals("Track.ape", display.fileName)
         assertEquals("/Music", display.directory)
-        assertEquals("元数据读取失败：不支持的音频容器或文件格式", display.reason)
+        assertEquals(ScanFailureReason.UnsupportedContainer, display.reason)
     }
 
     @Test
@@ -50,6 +48,6 @@ class ScanFailureFormatterTest {
 
         assertEquals("杨千嬅 - 咖啡因.flac", display.fileName)
         assertEquals("/我的音乐", display.directory)
-        assertEquals("远程文件读取失败：服务器返回 HTTP 500（服务器内部错误）", display.reason)
+        assertEquals(ScanFailureReason.RemoteRead("500 Internal Server Error"), display.reason)
     }
 }

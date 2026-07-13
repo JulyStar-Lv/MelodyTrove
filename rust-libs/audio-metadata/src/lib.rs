@@ -2,6 +2,7 @@ use std::{
     collections::HashMap,
     io::{self, Read, Seek, SeekFrom},
     sync::{Arc, Mutex},
+    time::Instant,
 };
 
 use bytes::Bytes;
@@ -14,6 +15,15 @@ use lofty::{
     tag::{Accessor, ItemKey, ItemValue, Tag},
 };
 use tidetunes_storage_backend::{ByteRange, StorageBackend};
+
+#[cfg(test)]
+thread_local! {
+    static ARTWORK_PARSE_ATTEMPTS: std::cell::Cell<usize> = std::cell::Cell::new(0);
+    static NO_ARTWORK_PARSE_ATTEMPTS: std::cell::Cell<usize> = std::cell::Cell::new(0);
+    static ARTWORK_EXTRACTION_ATTEMPTS: std::cell::Cell<usize> = std::cell::Cell::new(0);
+    static LYRICS_EXTRACTION_ATTEMPTS: std::cell::Cell<usize> = std::cell::Cell::new(0);
+    static RAW_METADATA_EXTRACTION_ATTEMPTS: std::cell::Cell<usize> = std::cell::Cell::new(0);
+}
 
 const MAX_TEXT_TAG_ENTRIES: usize = 2_048;
 const MAX_TEXT_TAG_VALUE_BYTES: usize = 256 * 1024;
@@ -110,7 +120,7 @@ pub struct RemoteRangeReader {
     source: Arc<dyn RangeSource>,
     limits: ReaderLimits,
     position: u64,
-    state: Mutex<ReaderState>,
+    state: Arc<Mutex<ReaderState>>,
 }
 
 impl RemoteRangeReader {
@@ -122,7 +132,7 @@ impl RemoteRangeReader {
             source,
             limits,
             position: 0,
-            state: Mutex::new(ReaderState::default()),
+            state: Arc::new(Mutex::new(ReaderState::default())),
         })
     }
 
@@ -286,36 +296,116 @@ pub struct NormalizedMetadata {
     pub lossless: Option<bool>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MetadataReadOptions {
+    pub read_artwork: bool,
+    pub read_lyrics: bool,
+    pub read_raw_metadata: bool,
+}
+
+impl Default for MetadataReadOptions {
+    fn default() -> Self {
+        Self {
+            read_artwork: true,
+            read_lyrics: true,
+            read_raw_metadata: true,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct MetadataReadStats {
+    pub request_count: u64,
+    pub fetched_bytes: u64,
+    pub elapsed_ms: u64,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct MetadataReadResult {
+    pub metadata: NormalizedMetadata,
+    pub stats: MetadataReadStats,
+}
+
 pub fn read_metadata(
     source: Arc<dyn RangeSource>,
     limits: ReaderLimits,
 ) -> Result<NormalizedMetadata, MetadataError> {
-    match read_metadata_with_cover_art(source.clone(), limits, true) {
-        Ok(metadata) => Ok(metadata),
-        Err(error) if is_reader_budget_error(&error) => {
-            read_metadata_with_cover_art(source, limits, false)
-        }
-        Err(error) => Err(error),
-    }
+    read_metadata_with_options(source, limits, MetadataReadOptions::default())
+        .map(|result| result.metadata)
 }
 
-fn read_metadata_with_cover_art(
+pub fn read_metadata_with_options(
     source: Arc<dyn RangeSource>,
     limits: ReaderLimits,
-    read_cover_art: bool,
-) -> Result<NormalizedMetadata, MetadataError> {
-    let reader = RemoteRangeReader::new(source, limits)?;
-    let tagged_file = Probe::new(reader)
-        .options(ParseOptions::new().read_cover_art(read_cover_art))
-        .guess_file_type()?
-        .read()?;
-    let properties = tagged_file.properties();
-    let file_type = tagged_file.file_type();
-    let tag = tagged_file
-        .primary_tag()
-        .or_else(|| tagged_file.first_tag());
+    options: MetadataReadOptions,
+) -> Result<MetadataReadResult, MetadataError> {
+    let started_at = Instant::now();
+    let (first_result, first_stats) =
+        read_metadata_attempt(source.clone(), limits, options, options.read_artwork)?;
+    let (metadata, mut stats) = match first_result {
+        Ok(metadata) => (metadata, first_stats),
+        Err(error) if options.read_artwork && is_reader_budget_error(&error) => {
+            let retry_options = MetadataReadOptions {
+                read_artwork: false,
+                ..options
+            };
+            let (retry_result, retry_stats) =
+                read_metadata_attempt(source, limits, retry_options, false)?;
+            let metadata = retry_result?;
+            (
+                metadata,
+                MetadataReadStats {
+                    request_count: first_stats.request_count + retry_stats.request_count,
+                    fetched_bytes: first_stats.fetched_bytes + retry_stats.fetched_bytes,
+                    elapsed_ms: 0,
+                },
+            )
+        }
+        Err(error) => return Err(error),
+    };
+    stats.elapsed_ms = started_at
+        .elapsed()
+        .as_millis()
+        .try_into()
+        .unwrap_or(u64::MAX);
+    Ok(MetadataReadResult { metadata, stats })
+}
 
-    normalize_metadata(tag, properties, file_type)
+fn read_metadata_attempt(
+    source: Arc<dyn RangeSource>,
+    limits: ReaderLimits,
+    options: MetadataReadOptions,
+    read_cover_art: bool,
+) -> Result<(Result<NormalizedMetadata, MetadataError>, MetadataReadStats), MetadataError> {
+    #[cfg(test)]
+    if read_cover_art {
+        ARTWORK_PARSE_ATTEMPTS.with(|count| count.set(count.get() + 1));
+    } else {
+        NO_ARTWORK_PARSE_ATTEMPTS.with(|count| count.set(count.get() + 1));
+    }
+    let reader = RemoteRangeReader::new(source, limits)?;
+    let state = reader.state.clone();
+    let result = (|| {
+        let tagged_file = Probe::new(reader)
+            .options(ParseOptions::new().read_cover_art(read_cover_art))
+            .guess_file_type()?
+            .read()?;
+        let properties = tagged_file.properties();
+        let file_type = tagged_file.file_type();
+        let tag = tagged_file
+            .primary_tag()
+            .or_else(|| tagged_file.first_tag());
+
+        normalize_metadata(tag, properties, file_type, options)
+    })();
+    let state = state.lock().unwrap();
+    let stats = MetadataReadStats {
+        request_count: state.requests as u64,
+        fetched_bytes: state.read_bytes,
+        elapsed_ms: 0,
+    };
+
+    Ok((result, stats))
 }
 
 fn is_reader_budget_error(error: &MetadataError) -> bool {
@@ -336,6 +426,7 @@ fn normalize_metadata(
     tag: Option<&Tag>,
     properties: &FileProperties,
     file_type: FileType,
+    options: MetadataReadOptions,
 ) -> Result<NormalizedMetadata, MetadataError> {
     let artist = tag.and_then(|tag| tag.artist().map(|value| value.into_owned()));
     let mut artists: Vec<String> = tag
@@ -350,12 +441,18 @@ fn normalize_metadata(
             artists.insert(0, primary.clone());
         }
     }
-    let raw_metadata = match tag {
-        Some(tag) => extract_raw_metadata(tag)?,
-        None => Vec::new(),
+    let raw_metadata = match (options.read_raw_metadata, tag) {
+        (true, Some(tag)) => extract_raw_metadata(tag)?,
+        _ => Vec::new(),
     };
-    let lyrics = tag.and_then(extract_lyrics);
-    let artwork = tag.and_then(extract_artwork);
+    let lyrics = options
+        .read_lyrics
+        .then(|| tag.and_then(extract_lyrics))
+        .flatten();
+    let artwork = options
+        .read_artwork
+        .then(|| tag.and_then(extract_artwork))
+        .flatten();
     let (codec, container, lossless) = audio_format(file_type);
 
     Ok(NormalizedMetadata {
@@ -418,6 +515,8 @@ fn normalize_metadata(
 }
 
 fn extract_artwork(tag: &Tag) -> Option<EmbeddedArtwork> {
+    #[cfg(test)]
+    ARTWORK_EXTRACTION_ATTEMPTS.with(|count| count.set(count.get() + 1));
     let picture = tag.get_picture_type(PictureType::CoverFront).or_else(|| {
         tag.pictures()
             .iter()
@@ -464,6 +563,8 @@ fn replay_gain(tag: &Tag, key: ItemKey) -> Option<f64> {
 }
 
 fn extract_lyrics(tag: &Tag) -> Option<EmbeddedLyrics> {
+    #[cfg(test)]
+    LYRICS_EXTRACTION_ATTEMPTS.with(|count| count.set(count.get() + 1));
     for (key, synchronized) in [(ItemKey::Lyrics, true), (ItemKey::UnsyncLyrics, false)] {
         for item in tag.get_items(key) {
             let Some(content) = item.value().text().filter(|value| !value.trim().is_empty()) else {
@@ -489,6 +590,8 @@ fn looks_synchronized(content: &str) -> bool {
 }
 
 fn extract_raw_metadata(tag: &Tag) -> Result<Vec<RawMetadataEntry>, MetadataError> {
+    #[cfg(test)]
+    RAW_METADATA_EXTRACTION_ATTEMPTS.with(|count| count.set(count.get() + 1));
     let mut total_bytes = 0;
     let mut entries = Vec::new();
     for item in tag.items() {
@@ -595,6 +698,7 @@ mod tests {
         reader.read_exact(&mut tail).unwrap();
         assert_eq!(&tail, b"89");
         assert_eq!(reader.request_count(), 2);
+        assert_eq!(reader.fetched_bytes(), 6);
     }
 
     #[test]
@@ -637,6 +741,7 @@ mod tests {
 
     #[test]
     fn retries_flac_metadata_without_artwork_after_reader_budget_error() {
+        reset_parse_attempt_counts();
         let flac = minimal_flac_with_picture(2 * 1024);
         let metadata = read_metadata(
             Arc::new(MemorySource(Bytes::from(flac))),
@@ -654,6 +759,158 @@ mod tests {
         assert_eq!(metadata.sample_rate, Some(44_100));
         assert_eq!(metadata.channels, Some(2));
         assert_eq!(metadata.codec.as_deref(), Some("FLAC"));
+        assert_eq!(parse_attempt_counts(), (1, 1));
+    }
+
+    #[test]
+    fn disabled_artwork_starts_with_a_single_no_artwork_parse() {
+        reset_parse_attempt_counts();
+        let flac = minimal_flac_with_picture(2 * 1024);
+        let result = read_metadata_with_options(
+            Arc::new(MemorySource(Bytes::from(flac))),
+            ReaderLimits {
+                block_size: 256,
+                max_requests: 32,
+                max_read_bytes: 512,
+            },
+            MetadataReadOptions {
+                read_artwork: false,
+                read_lyrics: true,
+                read_raw_metadata: true,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(result.metadata.title.as_deref(), Some("Large Art"));
+        assert_eq!(result.metadata.artwork, None);
+        assert!(result.stats.request_count > 0);
+        assert!(result.stats.fetched_bytes > 0);
+        assert_eq!(parse_attempt_counts(), (0, 1));
+    }
+
+    #[test]
+    fn disabled_options_skip_optional_extraction_work() {
+        reset_extraction_attempt_counts();
+        let mut tag = Tag::new(TagType::VorbisComments);
+        tag.insert_text(ItemKey::TrackTitle, "Song".to_string());
+        tag.insert_text(ItemKey::Comment, "x".repeat(MAX_TEXT_TAG_VALUE_BYTES + 1));
+        tag.push(TagItem::new(
+            ItemKey::Lyrics,
+            ItemValue::Text("[00:01.00]Line".to_string()),
+        ));
+        tag.push_picture(
+            Picture::unchecked(minimal_png(64, 64))
+                .pic_type(PictureType::CoverFront)
+                .mime_type(MimeType::Png)
+                .build(),
+        );
+
+        let metadata = normalize_metadata(
+            Some(&tag),
+            &FileProperties::default(),
+            FileType::Flac,
+            MetadataReadOptions {
+                read_artwork: false,
+                read_lyrics: false,
+                read_raw_metadata: false,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(metadata.title.as_deref(), Some("Song"));
+        assert_eq!(metadata.artwork, None);
+        assert_eq!(metadata.lyrics, None);
+        assert!(metadata.raw_metadata.is_empty());
+        assert_eq!(extraction_attempt_counts(), (0, 0, 0));
+    }
+
+    #[test]
+    fn disabled_optional_metadata_keeps_core_tags_and_audio_properties() {
+        let mut tag = Tag::new(TagType::VorbisComments);
+        tag.insert_text(ItemKey::TrackTitle, "Song".to_string());
+        tag.insert_text(ItemKey::TrackArtist, "Artist".to_string());
+        tag.insert_text(ItemKey::AlbumArtist, "Album Artist".to_string());
+        tag.insert_text(ItemKey::AlbumTitle, "Album".to_string());
+        tag.insert_text(ItemKey::Genre, "Jazz".to_string());
+        tag.insert_text(ItemKey::RecordingDate, "2026-01-02".to_string());
+        tag.insert_text(ItemKey::TrackNumber, "3".to_string());
+        tag.insert_text(ItemKey::DiscNumber, "1".to_string());
+        tag.insert_text(ItemKey::Isrc, "US-AAA-26-00001".to_string());
+        tag.insert_text(ItemKey::MusicBrainzRecordingId, "recording-id".to_string());
+
+        let metadata = normalize_metadata(
+            Some(&tag),
+            &FileProperties::new(
+                std::time::Duration::from_secs(180),
+                Some(1_000),
+                Some(900),
+                Some(48_000),
+                Some(24),
+                Some(2),
+                None,
+            ),
+            FileType::Flac,
+            MetadataReadOptions {
+                read_artwork: false,
+                read_lyrics: false,
+                read_raw_metadata: false,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(metadata.title.as_deref(), Some("Song"));
+        assert_eq!(metadata.artist.as_deref(), Some("Artist"));
+        assert_eq!(metadata.artists, vec!["Artist"]);
+        assert_eq!(metadata.album_artist.as_deref(), Some("Album Artist"));
+        assert_eq!(metadata.album.as_deref(), Some("Album"));
+        assert_eq!(metadata.genre.as_deref(), Some("Jazz"));
+        assert_eq!(metadata.date.as_deref(), Some("2026-01-02"));
+        assert_eq!(metadata.track_number, Some(3));
+        assert_eq!(metadata.disc_number, Some(1));
+        assert_eq!(metadata.duration_ms, 180_000);
+        assert_eq!(metadata.sample_rate, Some(48_000));
+        assert_eq!(metadata.bit_depth, Some(24));
+        assert_eq!(metadata.channels, Some(2));
+        assert_eq!(metadata.overall_bitrate, Some(1_000));
+        assert_eq!(metadata.audio_bitrate, Some(900));
+        assert_eq!(metadata.codec.as_deref(), Some("FLAC"));
+        assert_eq!(metadata.container.as_deref(), Some("FLAC"));
+        assert_eq!(metadata.lossless, Some(true));
+        assert_eq!(metadata.isrc.as_deref(), Some("US-AAA-26-00001"));
+        assert_eq!(
+            metadata.musicbrainz_recording_id.as_deref(),
+            Some("recording-id")
+        );
+    }
+
+    #[test]
+    fn full_options_extract_all_optional_metadata() {
+        reset_extraction_attempt_counts();
+        let mut tag = Tag::new(TagType::VorbisComments);
+        tag.insert_text(ItemKey::Comment, "raw value".to_string());
+        tag.push(TagItem::new(
+            ItemKey::Lyrics,
+            ItemValue::Text("[00:01.00]Line".to_string()),
+        ));
+        tag.push_picture(
+            Picture::unchecked(minimal_png(64, 64))
+                .pic_type(PictureType::CoverFront)
+                .mime_type(MimeType::Png)
+                .build(),
+        );
+
+        let metadata = normalize_metadata(
+            Some(&tag),
+            &FileProperties::default(),
+            FileType::Flac,
+            MetadataReadOptions::default(),
+        )
+        .unwrap();
+
+        assert!(metadata.artwork.is_some());
+        assert!(metadata.lyrics.is_some());
+        assert!(!metadata.raw_metadata.is_empty());
+        assert_eq!(extraction_attempt_counts(), (1, 1, 1));
     }
 
     #[test]
@@ -697,6 +954,7 @@ mod tests {
                 None,
             ),
             FileType::Flac,
+            MetadataReadOptions::default(),
         )
         .unwrap();
 
@@ -746,8 +1004,13 @@ mod tests {
                 .build(),
         );
 
-        let metadata =
-            normalize_metadata(Some(&tag), &FileProperties::default(), FileType::Flac).unwrap();
+        let metadata = normalize_metadata(
+            Some(&tag),
+            &FileProperties::default(),
+            FileType::Flac,
+            MetadataReadOptions::default(),
+        )
+        .unwrap();
 
         let artwork = metadata.artwork.expect("artwork should be extracted");
         assert_eq!(artwork.mime_type.as_deref(), Some("image/png"));
@@ -767,8 +1030,13 @@ mod tests {
                 .build(),
         );
 
-        let metadata =
-            normalize_metadata(Some(&tag), &FileProperties::default(), FileType::Flac).unwrap();
+        let metadata = normalize_metadata(
+            Some(&tag),
+            &FileProperties::default(),
+            FileType::Flac,
+            MetadataReadOptions::default(),
+        )
+        .unwrap();
 
         assert_eq!(metadata.artwork, None);
     }
@@ -778,8 +1046,13 @@ mod tests {
         let mut tag = Tag::new(TagType::VorbisComments);
         tag.insert_text(ItemKey::Comment, "x".repeat(MAX_TEXT_TAG_VALUE_BYTES + 1));
 
-        let error =
-            normalize_metadata(Some(&tag), &FileProperties::default(), FileType::Flac).unwrap_err();
+        let error = normalize_metadata(
+            Some(&tag),
+            &FileProperties::default(),
+            FileType::Flac,
+            MetadataReadOptions::default(),
+        )
+        .unwrap_err();
 
         assert!(matches!(error, MetadataError::TextTagValueTooLarge(_)));
     }
@@ -801,6 +1074,32 @@ mod tests {
         wav.extend_from_slice(&(data.len() as u32).to_le_bytes());
         wav.extend_from_slice(&data);
         wav
+    }
+
+    fn reset_parse_attempt_counts() {
+        ARTWORK_PARSE_ATTEMPTS.with(|count| count.set(0));
+        NO_ARTWORK_PARSE_ATTEMPTS.with(|count| count.set(0));
+    }
+
+    fn parse_attempt_counts() -> (usize, usize) {
+        (
+            ARTWORK_PARSE_ATTEMPTS.with(|count| count.get()),
+            NO_ARTWORK_PARSE_ATTEMPTS.with(|count| count.get()),
+        )
+    }
+
+    fn reset_extraction_attempt_counts() {
+        ARTWORK_EXTRACTION_ATTEMPTS.with(|count| count.set(0));
+        LYRICS_EXTRACTION_ATTEMPTS.with(|count| count.set(0));
+        RAW_METADATA_EXTRACTION_ATTEMPTS.with(|count| count.set(0));
+    }
+
+    fn extraction_attempt_counts() -> (usize, usize, usize) {
+        (
+            ARTWORK_EXTRACTION_ATTEMPTS.with(|count| count.get()),
+            LYRICS_EXTRACTION_ATTEMPTS.with(|count| count.get()),
+            RAW_METADATA_EXTRACTION_ATTEMPTS.with(|count| count.get()),
+        )
     }
 
     fn minimal_flac_with_picture(picture_bytes: usize) -> Vec<u8> {

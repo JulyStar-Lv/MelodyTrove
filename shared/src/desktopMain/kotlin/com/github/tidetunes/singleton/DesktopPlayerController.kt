@@ -9,12 +9,11 @@ import com.github.tidetunes.service.playback.data.PlayerRepository
 import com.github.tidetunes.service.playback.domain.SleepModeState
 import com.github.tidetunes.platform.currentTimeMillis
 import com.github.tidetunes.service.playback.data.PlaybackResourceResolver
-import com.github.tidetunes.service.playback.data.toPlayableItem
-import com.github.tidetunes.service.playback.data.toPlaybackEngineResource
-import com.github.tidetunes.service.playback.domain.PlaybackEngineLoadRequest
-import com.github.tidetunes.service.playback.domain.PlaybackEngineLoadResult
+import com.github.tidetunes.service.playback.data.PlaybackPreparationResult
+import com.github.tidetunes.service.playback.data.preparePlayback
+import com.github.tidetunes.core.domain.repository.SettingsRepository
+import com.github.tidetunes.core.domain.repository.NetworkStatusProvider
 import com.github.tidetunes.source.api.PlaybackResource
-import com.github.tidetunes.source.api.SourcePlaybackResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -24,6 +23,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import uniffi.tidetunes_backend.MusicId
@@ -40,11 +40,14 @@ class DesktopPlayerController(
     private val playbackResourceResolver: PlaybackResourceResolver,
     private val playbackEngine: DesktopPlaybackEngine,
     private val scope: CoroutineScope,
+    private val settingsRepository: SettingsRepository? = null,
+    private val networkStatusProvider: NetworkStatusProvider? = null,
 ) : PlayerController {
     private val sleep = MutableStateFlow(SleepModeState())
     private var sleepJob: Job? = null
     private var playbackJob: Job? = null
     private var playbackResource: PlaybackResource? = null
+    private var pendingNetworkRecovery: Pair<MusicId, PlaylistId>? = null
 
     override val sleepState: StateFlow<SleepModeState> = sleep.asStateFlow()
 
@@ -73,6 +76,18 @@ class DesktopPlayerController(
             storageRepository.preRemoveStorageEvent.collect { id ->
                 if (playerRepository.music.value?.loc?.storageId == id) {
                     stop()
+                }
+            }
+        }
+        networkStatusProvider?.let { provider ->
+            scope.launch {
+                provider.status.collect { network ->
+                    val pending = pendingNetworkRecovery ?: return@collect
+                    val settings = settingsRepository?.settings?.first() ?: return@collect
+                    if (network.isOnline && settings.resumePlaybackAfterNetworkRecovery) {
+                        pendingNetworkRecovery = null
+                        play(pending.first, pending.second)
+                    }
                 }
             }
         }
@@ -107,41 +122,31 @@ class DesktopPlayerController(
                     return@launch
                 }
 
-                val resource = when (val result = playbackResourceResolver.resolve(music)) {
-                    is SourcePlaybackResult.Success -> result.resource
-                    is SourcePlaybackResult.Failure -> {
-                        toastRepository.emitToast("Unable to open audio stream")
-                        playerRepository.resetCurrent()
-                        return@launch
-                    }
-                }
-                playbackResource = resource
-
-                val loadResult = withContext(Dispatchers.IO) {
-                    playbackEngine.load(
-                        PlaybackEngineLoadRequest(
-                            item = music.toPlayableItem(playlist.abstr.meta.id.value),
-                            resource = resource.toPlaybackEngineResource(),
-                        )
+                val preparation = withContext(Dispatchers.IO) {
+                    preparePlayback(
+                        music = music,
+                        playlistId = playlist.abstr.meta.id.value,
+                        playbackResourceResolver = playbackResourceResolver,
+                        playbackEngine = playbackEngine,
+                        settingsRepository = settingsRepository,
+                        networkStatusProvider = networkStatusProvider,
                     )
                 }
-
-                when (loadResult) {
-                    PlaybackEngineLoadResult.Ready -> {
+                when (preparation) {
+                    is PlaybackPreparationResult.Ready -> {
+                        playbackResource = preparation.resource
+                        pendingNetworkRecovery = null
                         playerRepository.setCurrent(music, playlist)
                         playbackEngine.play()
                         playerRepository.setIsPlaying(true)
                         playerRepository.notifyDurationChanged()
                     }
-                    is PlaybackEngineLoadResult.Unsupported -> {
-                        releasePlaybackResource()
-                        toastRepository.emitToast("Desktop playback engine cannot load this audio stream")
-                        playerRepository.resetCurrent()
-                    }
-                    is PlaybackEngineLoadResult.Failure -> {
-                        releasePlaybackResource()
+                    PlaybackPreparationResult.NetworkBlocked,
+                    PlaybackPreparationResult.Failed -> {
+                        pendingNetworkRecovery = id to playlistId
                         toastRepository.emitToast("Unable to open audio stream")
                         playerRepository.resetCurrent()
+                        playerRepository.setIsLoading(false)
                     }
                 }
             } catch (error: CancellationException) {

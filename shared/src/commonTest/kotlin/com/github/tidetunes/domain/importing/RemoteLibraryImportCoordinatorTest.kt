@@ -519,6 +519,10 @@ class RemoteLibraryImportCoordinatorTest {
         codec = "FLAC",
         container = "FLAC",
         lossless = true,
+        metadataRequestCount = 2u,
+        metadataFetchedBytes = 512u,
+        metadataElapsedMs = 10u,
+        artworkCachedBytes = if (artwork == null) 0u else 128u,
     )
 
     private fun artwork(

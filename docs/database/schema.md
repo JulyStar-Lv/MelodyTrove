@@ -354,6 +354,18 @@ exported under
 | `importedCount` | 已成功导入曲目数量。 |
 | `skippedCount` | 因未变化等原因跳过的数量。 |
 | `failedCount` | 导入失败数量。 |
+| `metadataScanMode` | 任务创建时的元数据扫描模式快照：Fast、Standard 或 Full。 |
+| `metadataConcurrency` | 元数据读取并发度快照。 |
+| `importBatchSize` | 导入批大小快照。 |
+| `scanSubdirectories` | 是否递归扫描子目录。 |
+| `ignoreShortAudio` / `minDurationMs` | 短音频过滤规则快照。 |
+| `ignoreHiddenFiles` / `ignoredDirectoryNames` | 隐藏文件和忽略目录规则快照。 |
+| `missingFilePolicy` | 缺失文件处理策略快照。 |
+| `duplicateTrackPolicy` | 重复曲目处理策略快照。 |
+| `metadataRequestCount` | 元数据 Range 请求累计次数。 |
+| `metadataFetchedBytes` | 元数据 Range 请求累计传输字节。 |
+| `metadataElapsedMs` | 元数据读取累计耗时，单位毫秒。 |
+| `artworkCachedBytes` | 本次任务新增写入封面缓存的字节数。 |
 | `checkpoint` | 恢复或调试用 checkpoint。 |
 | `errorMessage` | 任务级错误消息。 |
 | `createdAt` | 任务创建时间。 |
@@ -439,7 +451,9 @@ or `sync_cursor`. Those tables are read only by historical migration code.
    time when the source has no ETag.
 6. Read metadata only for changed items through Rust metadata APIs.
 7. Upsert `source_item`, canonical `track`, normalized album/artist/genre
-   relationships, lyrics, artwork metadata, raw tags, and `track_source_ref`.
+   relationships, and `track_source_ref`; update lyrics, artwork metadata, and
+   raw tags only when the task's metadata options requested them. Skipped
+   families are neither deleted nor overwritten.
 8. Persist item-level failures to `source_error` with the current
    `importJobId`.
 9. Mark missing source items and their refs unavailable only after a complete
@@ -462,6 +476,10 @@ hundreds of files with complete task-level status through `LibrarySyncTask`:
   the main counters. `scannedCount` is the discovered total once folder
   enumeration completes.
 - `checkpoint` exposes the last processed path for resumable/debug display.
+- Scan mode, scan rules, concurrency, batch size, and policies are persisted as
+  a task snapshot and reused by pause/resume/retry.
+- `metadataRequestCount`, `metadataFetchedBytes`, `metadataElapsedMs`, and
+  `artworkCachedBytes` expose the Rust metadata-read cost.
 - `errorMessage`, `createdAt`, and `updatedAt` support error and time display.
 - `LibrarySyncTask` also derives `processedCount`, `pendingCount`,
   `successfulCount`, and `hasProgress` from those persisted counters so UI code
@@ -527,3 +545,6 @@ user playlist data as part of source disappearance.
   `source_item_property`, `track_source_ref`, `source_sync_cursor`, and
   `source_error`; rebuilds `track` and `import_job`; migrates old storage,
   selected-folder, remote-file, and sync-cursor data; then drops the old tables.
+- `MIGRATION_11_12` adds the scan configuration snapshot and metadata request,
+  byte, elapsed-time, and artwork-cache counters to `import_job`. Defaults keep
+  historical jobs compatible with Full scanning and the existing scan rules.

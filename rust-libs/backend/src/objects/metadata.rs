@@ -1,5 +1,12 @@
 use crate::schema::StorageEntryLoc;
 
+#[derive(Debug, Clone, Copy, uniffi::Record)]
+pub struct MetadataReadOptions {
+    pub read_artwork: bool,
+    pub read_lyrics: bool,
+    pub read_raw_metadata: bool,
+}
+
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct RemoteRawMetadataEntry {
     pub key: String,
@@ -75,6 +82,10 @@ pub struct RemoteMetadata {
     pub codec: Option<String>,
     pub container: Option<String>,
     pub lossless: Option<bool>,
+    pub metadata_request_count: u64,
+    pub metadata_fetched_bytes: u64,
+    pub metadata_elapsed_ms: u64,
+    pub artwork_cached_bytes: u64,
 }
 
 #[derive(Debug, Clone, uniffi::Record)]

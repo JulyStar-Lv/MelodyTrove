@@ -2,6 +2,7 @@ package com.github.tidetunes.feature.settings.presentation
 
 import com.github.tidetunes.core.domain.model.AppLanguageMode
 import com.github.tidetunes.core.domain.model.AppThemeMode
+import com.github.tidetunes.core.domain.model.MetadataScanMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -17,6 +18,12 @@ class SettingsActionTest {
     fun `language action carries selected mode`() {
         val action = SettingsAction.SetLanguageMode(AppLanguageMode.English)
         assertEquals(AppLanguageMode.English, action.mode)
+    }
+
+    @Test
+    fun `metadata scan action carries selected mode`() {
+        val action = SettingsAction.SetWebDavMetadataScanMode(MetadataScanMode.Fast)
+        assertEquals(MetadataScanMode.Fast, action.mode)
     }
 
     @Test

@@ -2,14 +2,17 @@ use std::{fs, path::PathBuf, sync::Arc};
 
 use futures_util::{stream, StreamExt};
 use sha2::{Digest, Sha256};
-use tidetunes_audio_metadata::{read_metadata, EmbeddedArtwork, ReaderLimits, StorageRangeSource};
+use tidetunes_audio_metadata::{
+    read_metadata_with_options, EmbeddedArtwork, MetadataReadOptions as AudioMetadataReadOptions,
+    ReaderLimits, StorageRangeSource,
+};
 
 use crate::{
     ctx::BackendContext,
     error::{BError, BResult},
     objects::{
-        RemoteArtwork, RemoteEmbeddedLyrics, RemoteMetadata, RemoteMetadataRequest,
-        RemoteMetadataResult, RemoteRawMetadataEntry, Storage,
+        MetadataReadOptions, RemoteArtwork, RemoteEmbeddedLyrics, RemoteMetadata,
+        RemoteMetadataRequest, RemoteMetadataResult, RemoteRawMetadataEntry, Storage,
     },
     schema::StorageEntryLoc,
     services::build_storage_backend,
@@ -22,6 +25,7 @@ pub async fn ct_read_remote_metadata(
     storage: Storage,
     entry: StorageEntryLoc,
     size: u64,
+    options: MetadataReadOptions,
 ) -> BResult<RemoteMetadata> {
     if size == 0 {
         return Err(BError::CustomError {
@@ -30,21 +34,32 @@ pub async fn ct_read_remote_metadata(
     }
     let storage_backend = build_storage_backend(backend.get_context(), storage)?;
     let source = Arc::new(StorageRangeSource::new(storage_backend, entry.path, size));
-    let metadata = tidetunes_async_runtime::tokio_runtime()
-        .spawn_blocking(move || read_metadata(source, ReaderLimits::default()))
+    let read_result = tidetunes_async_runtime::tokio_runtime()
+        .spawn_blocking(move || {
+            read_metadata_with_options(
+                source,
+                ReaderLimits::default(),
+                AudioMetadataReadOptions {
+                    read_artwork: options.read_artwork,
+                    read_lyrics: options.read_lyrics,
+                    read_raw_metadata: options.read_raw_metadata,
+                },
+            )
+        })
         .await
         .map_err(|error| BError::CustomError {
             message: format!("metadata task failed: {error}"),
         })??;
-    let artwork = match metadata.artwork {
+    let metadata = read_result.metadata;
+    let (artwork, artwork_cached_bytes) = match metadata.artwork {
         Some(artwork) => match cache_remote_artwork(backend.get_context(), artwork) {
             Ok(value) => value,
             Err(error) => {
                 tracing::warn!("failed to cache embedded artwork: {error}");
-                None
+                (None, 0)
             }
         },
-        None => None,
+        None => (None, 0),
     };
 
     Ok(RemoteMetadata {
@@ -108,6 +123,10 @@ pub async fn ct_read_remote_metadata(
         codec: metadata.codec,
         container: metadata.container,
         lossless: metadata.lossless,
+        metadata_request_count: read_result.stats.request_count,
+        metadata_fetched_bytes: read_result.stats.fetched_bytes,
+        metadata_elapsed_ms: read_result.stats.elapsed_ms,
+        artwork_cached_bytes,
     })
 }
 
@@ -116,6 +135,7 @@ pub async fn ct_read_remote_metadata_batch(
     backend: Arc<Backend>,
     storage: Storage,
     requests: Vec<RemoteMetadataRequest>,
+    options: MetadataReadOptions,
     concurrency: u32,
 ) -> BResult<Vec<RemoteMetadataResult>> {
     if !(1..=16).contains(&concurrency) {
@@ -130,7 +150,15 @@ pub async fn ct_read_remote_metadata_batch(
             let storage = storage.clone();
             async move {
                 let entry = request.entry;
-                match ct_read_remote_metadata(backend, storage, entry.clone(), request.size).await {
+                match ct_read_remote_metadata(
+                    backend,
+                    storage,
+                    entry.clone(),
+                    request.size,
+                    options,
+                )
+                .await
+                {
                     Ok(metadata) => RemoteMetadataResult {
                         request_index: index as u64,
                         entry,
@@ -150,19 +178,47 @@ pub async fn ct_read_remote_metadata_batch(
         .collect::<Vec<_>>()
         .await;
     results.sort_by_key(|result| result.request_index);
+    let successful = results
+        .iter()
+        .filter_map(|result| result.metadata.as_ref())
+        .collect::<Vec<_>>();
+    tracing::info!(
+        read_artwork = options.read_artwork,
+        read_lyrics = options.read_lyrics,
+        read_raw_metadata = options.read_raw_metadata,
+        tracks = results.len(),
+        succeeded = successful.len(),
+        requests = successful
+            .iter()
+            .map(|metadata| metadata.metadata_request_count)
+            .sum::<u64>(),
+        fetched_bytes = successful
+            .iter()
+            .map(|metadata| metadata.metadata_fetched_bytes)
+            .sum::<u64>(),
+        elapsed_ms = successful
+            .iter()
+            .map(|metadata| metadata.metadata_elapsed_ms)
+            .sum::<u64>(),
+        artwork_cached_bytes = successful
+            .iter()
+            .map(|metadata| metadata.artwork_cached_bytes)
+            .sum::<u64>(),
+        "remote metadata batch completed"
+    );
     Ok(results)
 }
 
 fn cache_remote_artwork(
     cx: &BackendContext,
     artwork: EmbeddedArtwork,
-) -> BResult<Option<RemoteArtwork>> {
+) -> BResult<(Option<RemoteArtwork>, u64)> {
     if artwork.data.is_empty() {
-        return Ok(None);
+        return Ok((None, 0));
     }
     let cache_dir = cx.get_app_cache_dir();
     if cache_dir.trim().is_empty() {
-        return Ok(None);
+        return Ok((None, 0));
     }
 
     let content_hash = format!("{:x}", Sha256::digest(&artwork.data));
@@ -172,21 +228,27 @@ fn cache_remote_artwork(
         message: format!("failed to create artwork cache directory: {error}"),
     })?;
     let local_path = artwork_dir.join(format!("{content_hash}.{extension}"));
-    if !local_path.exists() {
+    let cached_bytes = if !local_path.exists() {
         fs::write(&local_path, &artwork.data).map_err(|error| BError::CustomError {
             message: format!("failed to write artwork cache file: {error}"),
         })?;
-    }
+        artwork.data.len() as u64
+    } else {
+        0
+    };
 
-    Ok(Some(RemoteArtwork {
-        content_hash,
-        local_path: local_path.to_string_lossy().into_owned(),
-        thumbnail_path: None,
-        width: artwork.width,
-        height: artwork.height,
-        mime_type: artwork.mime_type,
-        picture_type: Some(artwork.picture_type),
-    }))
+    Ok((
+        Some(RemoteArtwork {
+            content_hash,
+            local_path: local_path.to_string_lossy().into_owned(),
+            thumbnail_path: None,
+            width: artwork.width,
+            height: artwork.height,
+            mime_type: artwork.mime_type,
+            picture_type: Some(artwork.picture_type),
+        }),
+        cached_bytes,
+    ))
 }
 
 fn artwork_extension(mime_type: Option<&str>) -> &'static str {
@@ -212,7 +274,7 @@ mod tests {
         cx.set_app_cache_dir(cache_dir.to_str().unwrap());
         let data = vec![1, 2, 3, 4];
 
-        let artwork = cache_remote_artwork(
+        let (artwork, cached_bytes) = cache_remote_artwork(
             &cx,
             EmbeddedArtwork {
                 data: data.clone(),
@@ -222,8 +284,8 @@ mod tests {
                 height: Some(256),
             },
         )
-        .unwrap()
-        .expect("artwork should be cached");
+        .unwrap();
+        let artwork = artwork.expect("artwork should be cached");
 
         let expected_hash = format!("{:x}", Sha256::digest(&data));
         assert_eq!(expected_hash, artwork.content_hash);
@@ -235,6 +297,20 @@ mod tests {
         assert_eq!(Some("image/png".to_string()), artwork.mime_type);
         assert_eq!(Some("CoverFront".to_string()), artwork.picture_type);
         assert_eq!(data, fs::read(&artwork.local_path).unwrap());
+        assert_eq!(4, cached_bytes);
+
+        let (_, duplicate_cached_bytes) = cache_remote_artwork(
+            &cx,
+            EmbeddedArtwork {
+                data: data.clone(),
+                mime_type: Some("image/png".to_string()),
+                picture_type: "CoverFront".to_string(),
+                width: Some(128),
+                height: Some(256),
+            },
+        )
+        .unwrap();
+        assert_eq!(0, duplicate_cached_bytes);
 
         let _ = fs::remove_dir_all(cache_dir);
     }
@@ -255,7 +331,8 @@ mod tests {
         )
         .unwrap();
 
-        assert!(artwork.is_none());
+        assert!(artwork.0.is_none());
+        assert_eq!(0, artwork.1);
     }
 
     fn unique_temp_dir(prefix: &str) -> PathBuf {

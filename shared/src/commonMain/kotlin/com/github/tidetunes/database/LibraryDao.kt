@@ -652,6 +652,9 @@ interface MetadataDao {
 
 @Dao
 interface SyncDao {
+    @Query("DELETE FROM import_job")
+    suspend fun deleteAllJobs()
+
     @Query("SELECT * FROM import_job WHERE status IN ('QUEUED', 'RUNNING', 'PAUSED') ORDER BY createdAt")
     fun observeActiveJobs(): Flow<List<ImportJobEntity>>
 

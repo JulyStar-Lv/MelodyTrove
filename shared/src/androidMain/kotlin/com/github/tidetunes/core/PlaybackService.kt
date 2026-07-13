@@ -3,6 +3,9 @@ package com.github.tidetunes.core
 import android.app.PendingIntent
 import android.content.Intent
 import android.os.Bundle
+import android.content.Context
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -19,6 +22,7 @@ import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import com.github.tidetunes.core.domain.model.AppSettings
+import com.github.tidetunes.core.domain.model.AudioFocusMode
 import com.github.tidetunes.core.domain.repository.SettingsRepository
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
@@ -55,6 +59,7 @@ class PlaybackService : MediaSessionService() {
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
     private var _mediaSession: MediaSession? = null
     private var playbackResource: PlaybackResource? = null
+    private var audioFocusController: PlaybackAudioFocusController? = null
 
     @OptIn(UnstableApi::class)
     override fun onCreate() {
@@ -71,12 +76,15 @@ class PlaybackService : MediaSessionService() {
         val player = ExoPlayer.Builder(context)
             .setAudioAttributes(
                 mediaAudioAttributes(),
-                !AppSettings.Default.allowMixedPlayback
+                false,
             )
             .setHandleAudioBecomingNoisy(AppSettings.Default.pauseOnDisconnect)
             .setWakeMode(WAKE_MODE_NETWORK)
             .setMediaSourceFactory(ProgressiveMediaSource.Factory(DefaultDataSource.Factory(context)))
             .build()
+        audioFocusController = PlaybackAudioFocusController(this, player).apply {
+            updateMode(AppSettings.Default.audioFocusMode)
+        }
         _mediaSession = MediaSession.Builder(this, player)
             .setSessionActivity(pendingIntent)
             .setCallback(object : MediaSession.Callback {
@@ -146,6 +154,10 @@ class PlaybackService : MediaSessionService() {
                 playerRepository.setIsPlaying(isPlaying)
             }
 
+            override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                if (playWhenReady) audioFocusController?.requestFocus()
+            }
+
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_ENDED) {
                     playOnComplete()
@@ -169,10 +181,7 @@ class PlaybackService : MediaSessionService() {
 
         serviceScope.launch(Dispatchers.Main) {
             settingsRepository.settings.collect { settings ->
-                player.setAudioAttributes(
-                    mediaAudioAttributes(),
-                    !settings.allowMixedPlayback,
-                )
+                audioFocusController?.updateMode(settings.audioFocusMode)
                 player.setHandleAudioBecomingNoisy(settings.pauseOnDisconnect)
             }
         }
@@ -205,6 +214,8 @@ class PlaybackService : MediaSessionService() {
             releasePlaybackResource()
         }
         _mediaSession?.player?.release()
+        audioFocusController?.release()
+        audioFocusController = null
         _mediaSession?.release()
         _mediaSession = null
         serviceScope.cancel()
@@ -266,6 +277,85 @@ class PlaybackService : MediaSessionService() {
         }
     }
 }
+
+private class PlaybackAudioFocusController(
+    context: Context,
+    private val player: Player,
+) {
+    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    private var mode = AudioFocusMode.Pause
+    private var resumeOnGain = false
+    private var ducked = false
+    private val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+        .setAudioAttributes(
+            android.media.AudioAttributes.Builder()
+                .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
+                .build()
+        )
+        .setOnAudioFocusChangeListener(::onAudioFocusChange)
+        .build()
+
+    fun updateMode(value: AudioFocusMode) {
+        mode = value
+        if (mode == AudioFocusMode.Mix) {
+            restoreVolume()
+            resumeOnGain = false
+            audioManager.abandonAudioFocusRequest(focusRequest)
+        }
+    }
+
+    fun requestFocus() {
+        if (mode == AudioFocusMode.Mix) return
+        val result = audioManager.requestAudioFocus(focusRequest)
+        if (result != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) player.pause()
+    }
+
+    fun release() {
+        restoreVolume()
+        audioManager.abandonAudioFocusRequest(focusRequest)
+    }
+
+    private fun onAudioFocusChange(change: Int) {
+        when (change) {
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                restoreVolume()
+                if (resumeOnGain) {
+                    resumeOnGain = false
+                    player.play()
+                }
+            }
+            AudioManager.AUDIOFOCUS_LOSS -> {
+                restoreVolume()
+                resumeOnGain = false
+                player.pause()
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> pauseForTransientLoss()
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                when (mode) {
+                    AudioFocusMode.Pause -> pauseForTransientLoss()
+                    AudioFocusMode.Duck -> {
+                        player.volume = DUCK_VOLUME
+                        ducked = true
+                    }
+                    AudioFocusMode.Mix -> Unit
+                }
+            }
+        }
+    }
+
+    private fun pauseForTransientLoss() {
+        resumeOnGain = player.isPlaying
+        player.pause()
+    }
+
+    private fun restoreVolume() {
+        if (ducked) player.volume = 1f
+        ducked = false
+    }
+}
+
+private const val DUCK_VOLUME = 0.2f
 
 private fun mediaAudioAttributes(): AudioAttributes {
     return AudioAttributes.Builder()

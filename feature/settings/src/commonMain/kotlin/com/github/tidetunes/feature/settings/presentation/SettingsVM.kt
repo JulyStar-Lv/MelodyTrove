@@ -3,8 +3,13 @@ package com.github.tidetunes.feature.settings.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.tidetunes.core.domain.model.AppSettings
+import com.github.tidetunes.core.domain.model.DiagnosticsExportResult
 import com.github.tidetunes.core.domain.model.LocalMusicDirectory
 import com.github.tidetunes.core.domain.model.MAX_AUDIO_CACHE_LIMIT_BYTES
+import com.github.tidetunes.core.domain.model.MAX_IMAGE_CACHE_LIMIT_BYTES
+import com.github.tidetunes.core.domain.model.MetadataScanMode
+import com.github.tidetunes.core.domain.model.metadataScanModeFor
+import com.github.tidetunes.core.domain.model.MetadataRefreshTarget
 import com.github.tidetunes.core.domain.model.SettingsCapabilities
 import com.github.tidetunes.core.domain.model.SourceAccountId
 import com.github.tidetunes.core.domain.model.SourceConnectionTestStatus
@@ -13,8 +18,11 @@ import com.github.tidetunes.core.domain.model.SourceEditorType
 import com.github.tidetunes.core.domain.model.StorageAccountInfo
 import com.github.tidetunes.core.domain.model.StorageUsage
 import com.github.tidetunes.core.domain.model.normalizeAudioCacheLimitBytes
+import com.github.tidetunes.core.domain.model.normalizeImageCacheLimitBytes
 import com.github.tidetunes.core.domain.model.storageSourceAccountId
 import com.github.tidetunes.core.domain.model.toStorageRouteIdOrNull
+import com.github.tidetunes.core.domain.repository.DiagnosticsService
+import com.github.tidetunes.core.domain.repository.LibraryMaintenanceService
 import com.github.tidetunes.core.domain.repository.SettingsRepository
 import com.github.tidetunes.core.domain.repository.SourceSettingsRepository
 import com.github.tidetunes.core.domain.repository.StorageRepository
@@ -25,6 +33,9 @@ import com.github.tidetunes.service.librarysync.domain.LibrarySyncFailure
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncRequest
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncScanRules
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncTask
+import com.github.tidetunes.service.librarysync.domain.MetadataRefreshController
+import com.github.tidetunes.service.librarysync.domain.MetadataRefreshRequest
+import com.github.tidetunes.service.librarysync.domain.MetadataRefreshScope
 import com.github.tidetunes.source.api.BuiltInSourceIds
 import com.github.tidetunes.source.api.ImportRepository
 import com.github.tidetunes.source.api.SourceDirectorySelection
@@ -35,29 +46,37 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.getString
+import tidetunes.feature.settings.generated.resources.*
 
 class SettingsVM(
     private val settingsRepository: SettingsRepository,
     private val sourceSettingsRepository: SourceSettingsRepository,
     private val storageRepository: StorageRepository,
     private val storageUsageRepository: StorageUsageRepository,
+    private val diagnosticsService: DiagnosticsService,
+    private val libraryMaintenanceService: LibraryMaintenanceService,
     private val toastRepository: ToastRepository,
     private val importRepository: ImportRepository,
     private val librarySyncController: LibrarySyncController,
+    private val metadataRefreshController: MetadataRefreshController,
     private val capabilities: SettingsCapabilities,
+    private val textProvider: SettingsTextProvider,
 ) : ViewModel() {
     private val storageUsage = MutableStateFlow(StorageUsage.Unknown)
     private val storageRefreshing = MutableStateFlow(false)
     private val pendingConfirmation = MutableStateFlow<SettingsConfirmation?>(null)
-    private val customCacheLimitDialogOpen = MutableStateFlow(false)
+    private val customCacheLimitDialog = MutableStateFlow<CacheLimitType?>(null)
     private val customCacheLimitInputMb = MutableStateFlow("")
     private val sourceOperationInProgress = MutableStateFlow(false)
+    private val maintenanceOperationInProgress = MutableStateFlow(false)
     private val webDavDialog = MutableStateFlow<WebDavAccountDialogState?>(null)
     private val webDavConnectionTestStatus = MutableStateFlow(SourceConnectionTestStatus.None)
     private val webDavConnectionTestMessage = MutableStateFlow<String?>(null)
@@ -69,11 +88,8 @@ class SettingsVM(
     @OptIn(ExperimentalCoroutinesApi::class)
     private val failureDetails = failureDialogTaskId
         .flatMapLatest { taskId ->
-            if (taskId == null) {
-                flowOf(emptyList())
-            } else {
-                librarySyncController.observeFailures(taskId)
-            }
+            if (taskId == null) flowOf(emptyList())
+            else librarySyncController.observeFailures(taskId)
         }
         .stateIn(
             scope = viewModelScope,
@@ -87,12 +103,14 @@ class SettingsVM(
         storageUsage,
         storageRefreshing,
         pendingConfirmation,
-        customCacheLimitDialogOpen,
+        customCacheLimitDialog,
         customCacheLimitInputMb,
         sourceSettingsRepository.localDirectories,
         storageRepository.storageAccounts,
         librarySyncController.recentTasks,
         sourceOperationInProgress,
+        maintenanceOperationInProgress,
+        libraryMaintenanceService.rebuildState,
         webDavDialog,
         webDavConnectionTestStatus,
         webDavConnectionTestMessage,
@@ -102,17 +120,13 @@ class SettingsVM(
         val settings = values[0] as AppSettings
         val localDirectories = values[6] as List<LocalMusicDirectory>
         val storageAccounts = values[7] as List<StorageAccountInfo>
-        val scanTasks = values[8] as List<LibrarySyncTask>
-        val webDavAccounts = storageAccounts
-            .filter { account -> account.sourceId == BuiltInSourceIds.WebDav }
-            .map { account ->
-                WebDavAccountSettingsItem(
-                    accountId = account.accountId,
-                    title = account.title.ifBlank { "WebDAV" },
-                    subtitle = account.subtitle,
-                    rootPath = settings.webDavRootPaths[account.accountId.value] ?: "/",
-                )
+        val sourceAccounts = storageAccounts
+            .filter { account ->
+                account.sourceId == BuiltInSourceIds.Local ||
+                    account.sourceId == BuiltInSourceIds.WebDav
             }
+            .map(StorageAccountInfo::toSettingsItem)
+        val scanTasks = values[8] as List<LibrarySyncTask>
 
         SettingsUiState(
             settings = settings,
@@ -120,17 +134,19 @@ class SettingsVM(
             storageUsage = values[1] as StorageUsage,
             storageRefreshing = values[2] as Boolean,
             pendingConfirmation = values[3] as SettingsConfirmation?,
-            customCacheLimitDialogOpen = values[4] as Boolean,
+            customCacheLimitDialog = values[4] as CacheLimitType?,
             customCacheLimitInputMb = values[5] as String,
             localDirectories = localDirectories,
-            webDavAccounts = webDavAccounts,
-            scanTasks = scanTasks.filterRelevantToSettings(localDirectories, webDavAccounts),
+            sourceAccounts = sourceAccounts,
+            scanTasks = scanTasks.filterRelevantToSettings(localDirectories, sourceAccounts),
             sourceOperationInProgress = values[9] as Boolean,
-            webDavDialog = values[10] as WebDavAccountDialogState?,
-            webDavConnectionTestStatus = values[11] as SourceConnectionTestStatus,
-            webDavConnectionTestMessage = values[12] as String?,
-            failureDialogTaskId = values[13] as String?,
-            failureDetails = values[14] as List<LibrarySyncFailure>,
+            maintenanceOperationInProgress = values[10] as Boolean,
+            rebuildState = values[11] as com.github.tidetunes.core.domain.model.LibraryRebuildState,
+            webDavDialog = values[12] as WebDavAccountDialogState?,
+            webDavConnectionTestStatus = values[13] as SourceConnectionTestStatus,
+            webDavConnectionTestMessage = values[14] as String?,
+            failureDialogTaskId = values[15] as String?,
+            failureDetails = values[16] as List<LibrarySyncFailure>,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -140,44 +156,95 @@ class SettingsVM(
 
     init {
         refreshStorageUsage()
-        viewModelScope.launch {
-            val settings = settingsRepository.settings.first()
-            sourceSettingsRepository.setLocalMusicEnabled(settings.localMusicEnabled)
-            sourceSettingsRepository.setWebDavEnabled(settings.webDavEnabled)
-            storageRepository.reload()
-        }
+        viewModelScope.launch { storageRepository.reload() }
     }
 
     fun onAction(action: SettingsAction) {
         when (action) {
-            is SettingsAction.SetThemeMode -> viewModelScope.launch {
-                settingsRepository.setThemeMode(action.mode)
-            }
-            is SettingsAction.SetDynamicColorEnabled -> viewModelScope.launch {
+            is SettingsAction.SetThemeMode -> updateSetting { settingsRepository.setThemeMode(action.mode) }
+            is SettingsAction.SetDynamicColorEnabled -> updateSetting {
                 if (capabilities.dynamicColorSupported || !action.enabled) {
                     settingsRepository.setDynamicColorEnabled(action.enabled)
                 }
             }
-            is SettingsAction.SetLanguageMode -> viewModelScope.launch {
+            is SettingsAction.SetLanguageMode -> updateSetting {
                 settingsRepository.setLanguageMode(action.mode)
-                toastRepository.emitToast("语言将在重启后生效")
+                emitFeedback(Res.string.settings_feedback_language_restart)
             }
-            is SettingsAction.SetPauseOnDisconnect -> viewModelScope.launch {
-                settingsRepository.setPauseOnDisconnect(action.enabled)
+            is SettingsAction.SetAudioFocusMode -> updateSetting {
+                if (capabilities.audioFocusSupported) {
+                    settingsRepository.setAudioFocusMode(action.mode)
+                }
             }
-            is SettingsAction.SetAllowMixedPlayback -> viewModelScope.launch {
-                settingsRepository.setAllowMixedPlayback(action.enabled)
+            is SettingsAction.SetPauseOnDisconnect -> updateSetting {
+                if (capabilities.deviceDisconnectSupported || !action.enabled) {
+                    settingsRepository.setPauseOnDisconnect(action.enabled)
+                }
             }
-            is SettingsAction.SetKeepScreenOnInPlayer -> viewModelScope.launch {
+            is SettingsAction.SetGaplessPlaybackEnabled -> updateSetting {
+                if (capabilities.gaplessPlaybackSupported || !action.enabled) {
+                    settingsRepository.setGaplessPlaybackEnabled(action.enabled)
+                }
+            }
+            is SettingsAction.SetRetryPlaybackOnFailure -> updateSetting {
+                settingsRepository.setRetryPlaybackOnFailure(action.enabled)
+            }
+            is SettingsAction.SetResumePlaybackAfterNetworkRecovery -> updateSetting {
+                if (capabilities.networkStatusSupported || !action.enabled) {
+                    settingsRepository.setResumePlaybackAfterNetworkRecovery(action.enabled)
+                }
+            }
+            is SettingsAction.SetKeepScreenOnInPlayer -> updateSetting {
                 settingsRepository.setKeepScreenOnInPlayer(action.enabled)
             }
-            is SettingsAction.SetLocalMusicEnabled -> setLocalMusicEnabled(action.enabled)
-            is SettingsAction.SetLocalScanSubdirectories -> viewModelScope.launch {
-                settingsRepository.setLocalScanSubdirectories(action.enabled)
+            is SettingsAction.SetAutoScanMode -> updateSetting {
+                settingsRepository.setAutoScanMode(action.mode)
             }
-            is SettingsAction.SetIgnoreShortAudio -> viewModelScope.launch {
-                settingsRepository.setIgnoreShortAudio(action.enabled)
+            is SettingsAction.SetBackgroundScanEnabled -> updateSetting {
+                if (capabilities.backgroundScanSupported) {
+                    settingsRepository.setBackgroundScanEnabled(action.enabled)
+                }
             }
+            is SettingsAction.SetScanOnlyOnUnmeteredNetwork -> updateSetting {
+                settingsRepository.setScanOnlyOnUnmeteredNetwork(action.enabled)
+            }
+            is SettingsAction.SetScanSubdirectories -> updateSetting {
+                settingsRepository.setScanSubdirectories(action.enabled)
+            }
+            is SettingsAction.SetWebDavMetadataScanMode -> updateSetting {
+                settingsRepository.setWebDavMetadataScanMode(action.mode)
+            }
+            is SettingsAction.SetMinimumAudioDurationMs -> updateSetting {
+                settingsRepository.setMinimumAudioDurationMs(action.value)
+            }
+            is SettingsAction.SetMissingFilePolicy -> updateSetting {
+                settingsRepository.setMissingFilePolicy(action.policy)
+            }
+            is SettingsAction.SetDuplicateTrackPolicy -> updateSetting {
+                settingsRepository.setDuplicateTrackPolicy(action.policy)
+            }
+            is SettingsAction.SetAllowMeteredStreaming -> updateSetting {
+                if (capabilities.networkStatusSupported || !action.enabled) {
+                    settingsRepository.setAllowMeteredStreaming(action.enabled)
+                }
+            }
+            is SettingsAction.SetBackgroundSyncOnlyOnUnmeteredNetwork -> updateSetting {
+                if (capabilities.backgroundScanSupported || !action.enabled) {
+                    settingsRepository.setBackgroundSyncOnlyOnUnmeteredNetwork(action.enabled)
+                }
+            }
+            is SettingsAction.SetNetworkRetryCount -> updateSetting {
+                settingsRepository.setNetworkRetryCount(action.value)
+            }
+            is SettingsAction.SetConnectionTimeoutSeconds -> updateSetting {
+                settingsRepository.setConnectionTimeoutSeconds(action.value)
+            }
+            is SettingsAction.SetAudioPreloadBytes -> updateSetting {
+                if (capabilities.audioPreloadSupported || action.bytes == 0L) {
+                    settingsRepository.setAudioPreloadBytes(action.bytes)
+                }
+            }
+            is SettingsAction.SetAccountEnabled -> setAccountEnabled(action.accountId, action.enabled)
             SettingsAction.RequestAddLocalDirectory -> requestAddLocalDirectory()
             is SettingsAction.RequestRemoveLocalDirectory -> {
                 pendingConfirmation.value = SettingsConfirmation.RemoveLocalDirectory(
@@ -185,96 +252,87 @@ class SettingsVM(
                     title = action.title,
                 )
             }
+            SettingsAction.ScanAllSources -> scanAllSources()
+            SettingsAction.RefreshMissingArtwork -> refreshMissingMetadata(MetadataRefreshTarget.Artwork)
+            SettingsAction.RefreshMissingLyrics -> refreshMissingMetadata(MetadataRefreshTarget.Lyrics)
             SettingsAction.ScanLocalMusic -> scanLocalMusic()
-            is SettingsAction.SetWebDavEnabled -> setWebDavEnabled(action.enabled)
-            is SettingsAction.SetWebDavScanSubdirectories -> viewModelScope.launch {
-                settingsRepository.setWebDavScanSubdirectories(action.enabled)
-            }
             SettingsAction.OpenAddWebDavDialog -> openAddWebDavDialog()
             is SettingsAction.OpenEditWebDavDialog -> openEditWebDavDialog(action.accountId)
             SettingsAction.DismissWebDavDialog -> dismissWebDavDialog()
-            is SettingsAction.SetWebDavDialogName -> updateWebDavDialog {
-                it.copy(name = action.value)
-            }
+            is SettingsAction.SetWebDavDialogName -> updateWebDavDialog { it.copy(name = action.value) }
             is SettingsAction.SetWebDavDialogServerUrl -> updateWebDavDialog {
                 it.copy(serverUrl = action.value)
             }
             is SettingsAction.SetWebDavDialogUsername -> updateWebDavDialog {
                 it.copy(username = action.value)
             }
-            is SettingsAction.SetWebDavDialogPassword -> updateWebDavDialog {
-                it.copy(password = action.value)
-            }
             is SettingsAction.SetWebDavDialogRootPath -> updateWebDavDialog {
                 it.copy(rootPath = action.value)
             }
-            SettingsAction.TestWebDavConnection -> testWebDavConnection()
-            SettingsAction.SaveWebDavAccount -> saveWebDavAccount()
+            SettingsAction.ResetWebDavConnectionTest -> resetWebDavTest()
+            is SettingsAction.TestWebDavConnection -> testWebDavConnection(action.password)
+            is SettingsAction.SaveWebDavAccount -> saveWebDavAccount(action.password)
             is SettingsAction.RequestDeleteWebDavAccount -> {
                 pendingConfirmation.value = SettingsConfirmation.DeleteWebDavAccount(
                     accountId = action.accountId,
                     title = action.title,
                 )
             }
-            is SettingsAction.ScanWebDavAccount -> scanWebDavAccount(action.accountId)
+            is SettingsAction.ScanSourceAccount -> scanSourceAccount(action.accountId)
             is SettingsAction.CancelScan -> cancelScan(action.scanId)
-            is SettingsAction.OpenScanFailures -> {
-                failureDialogTaskId.value = action.scanId
-            }
-            SettingsAction.DismissScanFailures -> {
-                failureDialogTaskId.value = null
-            }
-            is SettingsAction.SetAudioCacheLimitBytes -> viewModelScope.launch {
-                settingsRepository.setAudioCacheLimitBytes(action.bytes)
-            }
+            is SettingsAction.OpenScanFailures -> failureDialogTaskId.value = action.scanId
+            SettingsAction.DismissScanFailures -> failureDialogTaskId.value = null
+            is SettingsAction.SetAudioCacheLimitBytes -> setCacheLimit(CacheLimitType.Audio, action.bytes)
+            is SettingsAction.SetImageCacheLimitBytes -> setCacheLimit(CacheLimitType.Image, action.bytes)
             is SettingsAction.SetCustomCacheLimitInput -> {
-                customCacheLimitInputMb.value = action.value.filter { it.isDigit() }
+                customCacheLimitInputMb.value = action.value.filter(Char::isDigit)
             }
-            SettingsAction.OpenCustomCacheLimitDialog -> {
-                customCacheLimitInputMb.value = currentCacheLimitMbInput()
-                customCacheLimitDialogOpen.value = true
+            is SettingsAction.OpenCustomCacheLimitDialog -> {
+                customCacheLimitInputMb.value = currentCacheLimitMbInput(action.type)
+                customCacheLimitDialog.value = action.type
             }
-            SettingsAction.DismissCustomCacheLimitDialog -> {
-                customCacheLimitDialogOpen.value = false
-            }
+            SettingsAction.DismissCustomCacheLimitDialog -> customCacheLimitDialog.value = null
             SettingsAction.ApplyCustomCacheLimit -> applyCustomCacheLimit()
             SettingsAction.RefreshStorageUsage -> refreshStorageUsage()
-            SettingsAction.RequestClearAudio -> {
-                pendingConfirmation.value = SettingsConfirmation.ClearAudio
+            SettingsAction.RequestClearAudio -> pendingConfirmation.value = SettingsConfirmation.ClearAudio
+            SettingsAction.RequestClearImage -> pendingConfirmation.value = SettingsConfirmation.ClearImage
+            SettingsAction.RequestClearAllCaches -> {
+                pendingConfirmation.value = SettingsConfirmation.ClearAllCaches
             }
-            SettingsAction.RequestClearImage -> {
-                pendingConfirmation.value = SettingsConfirmation.ClearImage
+            SettingsAction.RequestResetDefaults -> {
+                pendingConfirmation.value = SettingsConfirmation.ResetDefaults
             }
-            SettingsAction.DismissConfirmation -> {
-                pendingConfirmation.value = null
+            SettingsAction.RequestRebuildLibrary -> {
+                pendingConfirmation.value = SettingsConfirmation.RebuildLibrary
             }
+            SettingsAction.ExportDiagnostics -> exportDiagnostics()
+            SettingsAction.DismissConfirmation -> pendingConfirmation.value = null
             SettingsAction.ConfirmPendingAction -> confirmPendingAction()
         }
     }
 
-    private fun setLocalMusicEnabled(enabled: Boolean) {
+    private fun updateSetting(block: suspend () -> Unit) {
         viewModelScope.launch {
-            settingsRepository.setLocalMusicEnabled(enabled)
-            sourceSettingsRepository.setLocalMusicEnabled(enabled)
-            storageRepository.reload()
+            runCatching { block() }.onFailure { error ->
+                emitFeedback(Res.string.settings_feedback_save_failed, error.userMessage())
+            }
         }
     }
 
-    private fun setWebDavEnabled(enabled: Boolean) {
+    private fun setAccountEnabled(accountId: SourceAccountId, enabled: Boolean) {
         viewModelScope.launch {
-            settingsRepository.setWebDavEnabled(enabled)
-            sourceSettingsRepository.setWebDavEnabled(enabled)
-            storageRepository.reload()
+            runCatching {
+                sourceSettingsRepository.setAccountEnabled(accountId, enabled)
+                storageRepository.reload()
+            }.onFailure { error ->
+                emitFeedback(Res.string.settings_feedback_source_update_failed, error.userMessage())
+            }
         }
     }
 
     private fun requestAddLocalDirectory() {
-        importRepository.prepareCurrentDirectory { selection ->
-            syncSelectedDirectory(selection)
-        }
-        viewModelScope.launch {
-            events.send(SettingsEvent.OpenLibraryFolderImport)
-        }
+        importRepository.prepareCurrentDirectory(::syncSelectedDirectory)
+        viewModelScope.launch { events.send(SettingsEvent.OpenLibraryFolderImport) }
     }
 
     private fun syncSelectedDirectory(selection: SourceDirectorySelection) {
@@ -285,17 +343,58 @@ class SettingsVM(
                     selectedFolderRemoteId = selection.remoteId,
                     selectedFolderCanonicalPath = selection.path,
                     selectedFolderDisplayPath = selection.path,
-                    scanRules = state.value.settings.localScanRules(),
+                    scanRules = state.value.settings.scanRules(),
+                    metadataScanMode = metadataScanModeFor(selection.accountId),
                 ),
-                startMessage = "开始扫描音乐目录",
+                startMessage = textProvider.get(
+                    Res.string.settings_feedback_scan_start,
+                    selection.path,
+                ),
             )
         }
     }
 
-    private fun scanLocalMusic() {
+    private fun scanAllSources() {
+        scanLocalMusic(showEmptyMessage = false)
+        state.value.sourceAccounts
+            .filter { item -> item.isWebDav && item.enabled }
+            .forEach { item -> scanWebDavAccount(item.accountId) }
+    }
+
+    private fun refreshMissingMetadata(target: MetadataRefreshTarget) {
+        viewModelScope.launch {
+            maintenanceOperationInProgress.value = true
+            runCatching {
+                metadataRefreshController.refresh(
+                    MetadataRefreshRequest(
+                        scope = MetadataRefreshScope.MissingWebDavTracks,
+                        target = target,
+                    )
+                )
+            }.onSuccess { result ->
+                emitFeedback(
+                    Res.string.settings_feedback_metadata_complete,
+                    result.refreshedCount.toString(),
+                    result.failedCount.toString(),
+                    formatBytes(result.metadataFetchedBytes),
+                )
+            }.onFailure { error ->
+                if (error is CancellationException) throw error
+                emitFeedback(Res.string.settings_feedback_metadata_failed, error.userMessage())
+            }
+            maintenanceOperationInProgress.value = false
+        }
+    }
+
+    private fun scanLocalMusic(showEmptyMessage: Boolean = true) {
+        val localAccount = state.value.sourceAccounts.firstOrNull(SourceAccountSettingsItem::isLocal)
         val directories = state.value.localDirectories
-        if (directories.isEmpty()) {
-            viewModelScope.launch { toastRepository.emitToast("请先添加本地音乐目录") }
+        if (localAccount?.enabled != true || directories.isEmpty()) {
+            if (showEmptyMessage) {
+                viewModelScope.launch {
+                    emitFeedback(Res.string.settings_feedback_local_source_required)
+                }
+            }
             return
         }
         directories.forEach { directory ->
@@ -306,12 +405,26 @@ class SettingsVM(
                         selectedFolderRemoteId = null,
                         selectedFolderCanonicalPath = directory.path,
                         selectedFolderDisplayPath = directory.path,
-                        scanRules = state.value.settings.localScanRules(),
+                        scanRules = state.value.settings.scanRules(),
                     ),
-                    startMessage = "开始扫描 ${directory.displayName}",
+                    startMessage = textProvider.get(
+                        Res.string.settings_feedback_scan_start,
+                        directory.displayName,
+                    ),
                 )
             }
         }
+    }
+
+    private fun scanSourceAccount(accountId: SourceAccountId) {
+        val account = state.value.sourceAccounts.firstOrNull { it.accountId == accountId } ?: return
+        if (account.isLocal) scanLocalMusic() else if (account.isWebDav) scanWebDavAccount(accountId)
+    }
+
+    private fun metadataScanModeFor(accountId: SourceAccountId): MetadataScanMode {
+        val isWebDav = state.value.sourceAccounts
+            .any { account -> account.accountId == accountId && account.isWebDav }
+        return state.value.settings.metadataScanModeFor(isWebDav)
     }
 
     private fun openAddWebDavDialog() {
@@ -324,14 +437,13 @@ class SettingsVM(
             val routeId = accountId.toStorageRouteIdOrNull() ?: return@launch
             val editorState = storageRepository.loadEditorState(routeId) ?: return@launch
             val credential = storageRepository.loadCredentialByAccountId(accountId)
-            val rootPath = state.value.settings.webDavRootPaths[accountId.value] ?: "/"
+            val account = state.value.sourceAccounts.firstOrNull { it.accountId == accountId }
             webDavDialog.value = WebDavAccountDialogState(
                 accountId = accountId,
                 name = editorState.draft.alias,
                 serverUrl = editorState.draft.address,
                 username = credential?.username.orEmpty(),
-                password = "",
-                rootPath = rootPath,
+                rootPath = account?.rootPath ?: "/",
             )
             resetWebDavTest()
         }
@@ -343,65 +455,73 @@ class SettingsVM(
     }
 
     private fun updateWebDavDialog(block: (WebDavAccountDialogState) -> WebDavAccountDialogState) {
-        val current = webDavDialog.value ?: return
-        webDavDialog.value = block(current)
+        webDavDialog.value = webDavDialog.value?.let(block)
         resetWebDavTest()
     }
 
-    private fun testWebDavConnection() {
+    private fun testWebDavConnection(password: String) {
         val dialog = webDavDialog.value ?: return
         viewModelScope.launch {
-            val draft = dialog.toWebDavDraftOrNull() ?: return@launch
+            val draft = dialog.toWebDavDraftOrNull(password) ?: return@launch
             webDavConnectionTestStatus.value = SourceConnectionTestStatus.Testing
-            webDavConnectionTestMessage.value = "测试中"
-            val result = runCatching { storageRepository.testSource(draft) }
-            result.onSuccess { status ->
-                webDavConnectionTestStatus.value = status
-                webDavConnectionTestMessage.value = when (status) {
-                    SourceConnectionTestStatus.Success -> "连接成功，扫描时会校验根目录 ${dialog.rootPath.normalizedRootPath()}"
-                    SourceConnectionTestStatus.Error -> "连接失败，请检查地址和账号"
-                    SourceConnectionTestStatus.Testing -> "测试中"
-                    SourceConnectionTestStatus.None -> null
+            webDavConnectionTestMessage.value = textProvider.get(
+                Res.string.settings_feedback_connection_testing
+            )
+            runCatching { storageRepository.testSource(draft) }
+                .onSuccess { status ->
+                    webDavConnectionTestStatus.value = status
+                    webDavConnectionTestMessage.value = when (status) {
+                        SourceConnectionTestStatus.Success -> textProvider.get(
+                            Res.string.settings_feedback_connection_success
+                        )
+                        SourceConnectionTestStatus.Error -> textProvider.get(
+                            Res.string.settings_feedback_connection_check
+                        )
+                        SourceConnectionTestStatus.Testing -> textProvider.get(
+                            Res.string.settings_feedback_connection_testing
+                        )
+                        SourceConnectionTestStatus.None -> null
+                    }
                 }
-            }.onFailure { error ->
-                webDavConnectionTestStatus.value = SourceConnectionTestStatus.Error
-                webDavConnectionTestMessage.value = "连接失败：${error.message ?: "未知错误"}"
-            }
+                .onFailure { error ->
+                    webDavConnectionTestStatus.value = SourceConnectionTestStatus.Error
+                    webDavConnectionTestMessage.value = textProvider.get(
+                        Res.string.settings_feedback_connection_failed,
+                        error.userMessage(),
+                    )
+                }
         }
     }
 
-    private fun saveWebDavAccount() {
+    private fun saveWebDavAccount(password: String) {
         val dialog = webDavDialog.value ?: return
         viewModelScope.launch {
-            val draft = dialog.toWebDavDraftOrNull() ?: return@launch
+            val draft = dialog.toWebDavDraftOrNull(password) ?: return@launch
             sourceOperationInProgress.value = true
-            val result = runCatching {
+            runCatching {
                 val accountId = storageRepository.upsertSource(draft)
-                settingsRepository.setWebDavRootPath(
-                    accountId = accountId,
-                    rootPath = dialog.rootPath.normalizedRootPath(),
-                )
+                storageRepository.setAccountRootPath(accountId, dialog.rootPath)
                 storageRepository.reload()
-                accountId
-            }
-            sourceOperationInProgress.value = false
-            result.onSuccess {
+            }.onSuccess {
                 webDavDialog.value = null
                 resetWebDavTest()
-                toastRepository.emitToast("已保存 WebDAV 账号")
+                emitFeedback(Res.string.settings_feedback_webdav_saved)
             }.onFailure { error ->
-                toastRepository.emitToast("保存失败：${error.message ?: "未知错误"}")
+                emitFeedback(Res.string.settings_feedback_webdav_save_failed, error.userMessage())
             }
+            sourceOperationInProgress.value = false
         }
     }
 
     private fun scanWebDavAccount(accountId: SourceAccountId) {
-        if (!state.value.settings.webDavEnabled) {
-            viewModelScope.launch { toastRepository.emitToast("请先开启 WebDAV") }
+        val account = state.value.sourceAccounts.firstOrNull { it.accountId == accountId }
+        if (account?.enabled != true) {
+            viewModelScope.launch {
+                emitFeedback(Res.string.settings_feedback_webdav_enable_required)
+            }
             return
         }
-        val account = state.value.webDavAccounts.firstOrNull { it.accountId == accountId }
-        val rootPath = account?.rootPath?.normalizedRootPath() ?: "/"
+        val rootPath = account.rootPath.normalizedRootPath()
         viewModelScope.launch {
             syncFolder(
                 request = LibrarySyncRequest(
@@ -409,9 +529,13 @@ class SettingsVM(
                     selectedFolderRemoteId = null,
                     selectedFolderCanonicalPath = rootPath,
                     selectedFolderDisplayPath = rootPath,
-                    scanRules = state.value.settings.webDavScanRules(),
+                    scanRules = state.value.settings.scanRules(),
+                    metadataScanMode = state.value.settings.webDavMetadataScanMode,
                 ),
-                startMessage = "开始扫描 ${account?.title ?: "WebDAV"}",
+                startMessage = textProvider.get(
+                    Res.string.settings_feedback_scan_start,
+                    account.title,
+                ),
             )
         }
     }
@@ -419,68 +543,112 @@ class SettingsVM(
     private fun cancelScan(scanId: String) {
         viewModelScope.launch {
             val cancelled = librarySyncController.cancel(scanId)
-            toastRepository.emitToast(if (cancelled) "已取消扫描" else "当前扫描无法取消")
+            emitFeedback(
+                if (cancelled) Res.string.settings_feedback_scan_cancelled
+                else Res.string.settings_feedback_scan_not_cancelled
+            )
         }
     }
 
-    private suspend fun WebDavAccountDialogState.toWebDavDraftOrNull(): SourceEditorDraft? {
+    private suspend fun WebDavAccountDialogState.toWebDavDraftOrNull(
+        password: String,
+    ): SourceEditorDraft? {
         val address = serverUrl.trim()
         if (address.isBlank()) {
-            toastRepository.emitToast("请输入服务器 URL")
+            emitFeedback(Res.string.settings_feedback_url_required)
             return null
         }
         val usernameValue = username.trim()
-        val typedPassword = password
         val previousCredential = accountId?.let { storageRepository.loadCredentialByAccountId(it) }
-        val wantsAnonymous = usernameValue.isBlank() && typedPassword.isBlank()
-        val secretValue = if (wantsAnonymous) {
-            ""
-        } else {
-            typedPassword.ifBlank { previousCredential?.secret.orEmpty() }
-        }
+        val anonymous = usernameValue.isBlank() && password.isBlank()
+        val secretValue = if (anonymous) "" else password.ifBlank { previousCredential?.secret.orEmpty() }
         if (usernameValue.isNotBlank() && secretValue.isBlank()) {
-            toastRepository.emitToast("请输入密码，或清空用户名以匿名访问")
+            emitFeedback(Res.string.settings_feedback_password_required)
             return null
         }
-
         return SourceEditorDraft(
             id = accountId?.toStorageRouteIdOrNull(),
             address = address,
             alias = name.trim(),
-            username = if (wantsAnonymous) "" else usernameValue,
+            username = if (anonymous) "" else usernameValue,
             secret = secretValue,
-            isAnonymous = wantsAnonymous,
+            isAnonymous = anonymous,
             storageType = SourceEditorType.WebDav,
         )
     }
 
-    private suspend fun syncFolder(
-        request: LibrarySyncRequest,
-        startMessage: String,
-    ) {
+    private suspend fun syncFolder(request: LibrarySyncRequest, startMessage: String) {
         toastRepository.emitToast(startMessage)
-        val result = runCatching { librarySyncController.syncFolder(request) }
-        result.onSuccess { value ->
-            toastRepository.emitToast(
-                "扫描完成：总数 ${value.scannedCount}，导入 ${value.importedCount}，失败 ${value.failedCount}"
-            )
-            storageRepository.reload()
-        }.onFailure { error ->
-            if (error is CancellationException) throw error
-            toastRepository.emitToast("扫描失败：${error.message ?: "未知错误"}")
+        runCatching { librarySyncController.syncFolder(request) }
+            .onSuccess { value ->
+                emitFeedback(
+                    Res.string.settings_feedback_scan_complete,
+                    value.scannedCount.toString(),
+                    value.importedCount.toString(),
+                    value.failedCount.toString(),
+                    formatBytes(value.metadataFetchedBytes),
+                )
+                storageRepository.reload()
+            }
+            .onFailure { error ->
+                if (error is CancellationException) throw error
+                emitFeedback(Res.string.settings_feedback_scan_failed, error.userMessage())
+            }
+    }
+
+    private fun setCacheLimit(type: CacheLimitType, bytes: Long) {
+        viewModelScope.launch {
+            runCatching {
+                when (type) {
+                    CacheLimitType.Audio -> settingsRepository.setAudioCacheLimitBytes(bytes)
+                    CacheLimitType.Image -> settingsRepository.setImageCacheLimitBytes(bytes)
+                }
+                val settings = settingsRepository.settings.first()
+                storageUsageRepository.enforceCacheLimits(
+                    audioLimitBytes = settings.audioCacheLimitBytes,
+                    imageLimitBytes = settings.imageCacheLimitBytes,
+                )
+                refreshStorageUsage()
+            }.onFailure { error ->
+                emitFeedback(Res.string.settings_feedback_cache_limit_failed, error.userMessage())
+            }
         }
     }
 
     private fun applyCustomCacheLimit() {
-        val maxMb = MAX_AUDIO_CACHE_LIMIT_BYTES / BYTES_PER_MB
-        val inputMb = customCacheLimitInputMb.value.toLongOrNull() ?: 0L
-        val normalizedMb = inputMb.coerceIn(0L, maxMb)
+        val type = customCacheLimitDialog.value ?: return
+        val maxBytes = when (type) {
+            CacheLimitType.Audio -> MAX_AUDIO_CACHE_LIMIT_BYTES
+            CacheLimitType.Image -> MAX_IMAGE_CACHE_LIMIT_BYTES
+        }
+        val maxMb = maxBytes / BYTES_PER_MB
+        val normalizedMb = (customCacheLimitInputMb.value.toLongOrNull() ?: 0L).coerceIn(0L, maxMb)
         customCacheLimitInputMb.value = normalizedMb.toString()
-        customCacheLimitDialogOpen.value = false
+        customCacheLimitDialog.value = null
+        val bytes = normalizedMb * BYTES_PER_MB
+        setCacheLimit(
+            type = type,
+            bytes = when (type) {
+                CacheLimitType.Audio -> normalizeAudioCacheLimitBytes(bytes)
+                CacheLimitType.Image -> normalizeImageCacheLimitBytes(bytes)
+            },
+        )
+    }
+
+    private fun exportDiagnostics() {
         viewModelScope.launch {
-            settingsRepository.setAudioCacheLimitBytes(
-                normalizeAudioCacheLimitBytes(normalizedMb * BYTES_PER_MB)
-            )
+            maintenanceOperationInProgress.value = true
+            when (val result = diagnosticsService.exportDiagnostics()) {
+                is DiagnosticsExportResult.Success -> emitFeedback(
+                    Res.string.settings_feedback_diagnostics_exported,
+                    result.path,
+                )
+                is DiagnosticsExportResult.Failure -> emitFeedback(
+                    Res.string.settings_feedback_diagnostics_failed,
+                    result.message,
+                )
+            }
+            maintenanceOperationInProgress.value = false
         }
     }
 
@@ -488,30 +656,37 @@ class SettingsVM(
         val action = pendingConfirmation.value ?: return
         pendingConfirmation.value = null
         viewModelScope.launch {
-            when (action) {
-                SettingsConfirmation.ClearAudio -> {
-                    storageUsageRepository.clearAudioCache()
-                    toastRepository.emitToast("已清理音频缓存")
-                    refreshStorageUsage()
+            maintenanceOperationInProgress.value = true
+            runCatching {
+                when (action) {
+                    SettingsConfirmation.ClearAudio -> storageUsageRepository.clearAudioCache()
+                    SettingsConfirmation.ClearImage -> storageUsageRepository.clearImageCache()
+                    SettingsConfirmation.ClearAllCaches -> storageUsageRepository.clearAllCaches()
+                    SettingsConfirmation.ResetDefaults -> {
+                        settingsRepository.resetToDefaults()
+                        storageUsageRepository.enforceCacheLimits(
+                            AppSettings.Default.audioCacheLimitBytes,
+                            AppSettings.Default.imageCacheLimitBytes,
+                        )
+                    }
+                    SettingsConfirmation.RebuildLibrary -> libraryMaintenanceService.rebuildLibrary()
+                    is SettingsConfirmation.RemoveLocalDirectory -> {
+                        sourceSettingsRepository.removeLocalDirectory(action.id)
+                    }
+                    is SettingsConfirmation.DeleteWebDavAccount -> {
+                        storageRepository.removeByAccountId(action.accountId)
+                        storageRepository.reload()
+                        webDavDialog.value = null
+                        resetWebDavTest()
+                    }
                 }
-                SettingsConfirmation.ClearImage -> {
-                    storageUsageRepository.clearImageCache()
-                    toastRepository.emitToast("已清理图片缓存")
-                    refreshStorageUsage()
-                }
-                is SettingsConfirmation.RemoveLocalDirectory -> {
-                    sourceSettingsRepository.removeLocalDirectory(action.id)
-                    toastRepository.emitToast("已移除目录，不会删除本地文件")
-                }
-                is SettingsConfirmation.DeleteWebDavAccount -> {
-                    storageRepository.removeByAccountId(action.accountId)
-                    settingsRepository.removeWebDavRootPath(action.accountId)
-                    storageRepository.reload()
-                    webDavDialog.value = null
-                    resetWebDavTest()
-                    toastRepository.emitToast("已删除 WebDAV 账号，不会删除远程文件")
-                }
+            }.onSuccess {
+                emitFeedback(action.successMessageResource())
+                refreshStorageUsage()
+            }.onFailure { error ->
+                emitFeedback(Res.string.settings_feedback_operation_failed, error.userMessage())
             }
+            maintenanceOperationInProgress.value = false
         }
     }
 
@@ -529,38 +704,80 @@ class SettingsVM(
         webDavConnectionTestMessage.value = null
     }
 
-    private fun currentCacheLimitMbInput(): String {
-        val bytes = state.value.settings.audioCacheLimitBytes
+    private fun currentCacheLimitMbInput(type: CacheLimitType): String {
+        val bytes = when (type) {
+            CacheLimitType.Audio -> state.value.settings.audioCacheLimitBytes
+            CacheLimitType.Image -> state.value.settings.imageCacheLimitBytes
+        }
         return (bytes / BYTES_PER_MB).toString()
     }
+
+    private suspend fun emitFeedback(resource: StringResource, vararg formatArgs: Any) {
+        toastRepository.emitToast(textProvider.get(resource, *formatArgs))
+    }
+
+    private suspend fun Throwable.userMessage(): String =
+        message?.takeIf(String::isNotBlank)
+            ?: textProvider.get(Res.string.settings_feedback_unknown_error)
+}
+
+fun interface SettingsTextProvider {
+    suspend fun get(resource: StringResource, vararg formatArgs: Any): String
+}
+
+internal class ComposeSettingsTextProvider : SettingsTextProvider {
+    override suspend fun get(resource: StringResource, vararg formatArgs: Any): String {
+        return getString(resource, *formatArgs)
+    }
+}
+
+private fun StorageAccountInfo.toSettingsItem(): SourceAccountSettingsItem {
+    return SourceAccountSettingsItem(
+        accountId = accountId,
+        title = title,
+        subtitle = subtitle,
+        rootPath = rootPath,
+        enabled = enabled,
+        trackCount = musicCount,
+        lastScanAtEpochMs = lastScanAtEpochMs,
+        lastScanStatus = lastScanStatus,
+        isLocal = sourceId == BuiltInSourceIds.Local,
+        isWebDav = sourceId == BuiltInSourceIds.WebDav,
+    )
 }
 
 private fun List<LibrarySyncTask>.filterRelevantToSettings(
     localDirectories: List<LocalMusicDirectory>,
-    webDavAccounts: List<WebDavAccountSettingsItem>,
+    sourceAccounts: List<SourceAccountSettingsItem>,
 ): List<LibrarySyncTask> {
-    val localAccountIds = localDirectories.map { it.accountId }.toSet() + storageSourceAccountId(LOCAL_STORAGE_ID)
-    val webDavAccountIds = webDavAccounts.map { it.accountId }.toSet()
-    return filter { task -> task.accountId in localAccountIds || task.accountId in webDavAccountIds }
+    val localAccountIds = localDirectories.map(LocalMusicDirectory::accountId).toSet() +
+        storageSourceAccountId(LOCAL_STORAGE_ID)
+    val accountIds = sourceAccounts.map(SourceAccountSettingsItem::accountId).toSet()
+    return filter { task -> task.accountId in localAccountIds || task.accountId in accountIds }
 }
 
-private fun String.normalizedRootPath(): String {
-    val trimmed = trim().ifBlank { "/" }
-    return if (trimmed.startsWith("/")) trimmed else "/$trimmed"
+private fun String?.normalizedRootPath(): String {
+    val trimmed = this?.trim().orEmpty().ifBlank { "/" }
+    return if (trimmed.startsWith('/')) trimmed else "/$trimmed"
 }
 
-private fun AppSettings.localScanRules(): LibrarySyncScanRules {
+internal fun AppSettings.scanRules(): LibrarySyncScanRules {
     return LibrarySyncScanRules(
-        scanSubdirectories = localScanSubdirectories,
-        ignoreShortAudio = ignoreShortAudio,
+        scanSubdirectories = scanSubdirectories,
+        minDurationMs = minimumAudioDurationMs,
+        missingFilePolicy = missingFilePolicy,
+        duplicateTrackPolicy = duplicateTrackPolicy,
     )
 }
 
-private fun AppSettings.webDavScanRules(): LibrarySyncScanRules {
-    return LibrarySyncScanRules(
-        scanSubdirectories = webDavScanSubdirectories,
-        ignoreShortAudio = ignoreShortAudio,
-    )
+private fun SettingsConfirmation.successMessageResource(): StringResource = when (this) {
+    SettingsConfirmation.ClearAudio -> Res.string.settings_feedback_audio_cleared
+    SettingsConfirmation.ClearImage -> Res.string.settings_feedback_image_cleared
+    SettingsConfirmation.ClearAllCaches -> Res.string.settings_feedback_all_cleared
+    SettingsConfirmation.ResetDefaults -> Res.string.settings_feedback_defaults_restored
+    SettingsConfirmation.RebuildLibrary -> Res.string.settings_feedback_library_rebuilt
+    is SettingsConfirmation.RemoveLocalDirectory -> Res.string.settings_feedback_directory_removed
+    is SettingsConfirmation.DeleteWebDavAccount -> Res.string.settings_feedback_webdav_deleted
 }
 
 private const val BYTES_PER_MB = 1_048_576L

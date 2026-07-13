@@ -7,6 +7,10 @@ import androidx.sqlite.SQLiteConnection
 import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import com.github.tidetunes.core.data.CreatePlaylistRequest
 import com.github.tidetunes.core.domain.model.SourceAccountId
+import com.github.tidetunes.core.domain.model.MetadataScanMode
+import com.github.tidetunes.core.domain.model.toOptions
+import com.github.tidetunes.domain.importing.OptionalMetadataUpdate
+import com.github.tidetunes.domain.importing.updateOptionalMetadata
 import com.github.tidetunes.source.api.BuiltInSourceIds
 import com.github.tidetunes.source.api.SourceNode
 import com.github.tidetunes.source.api.SourceNodeSelection
@@ -16,6 +20,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import uniffi.tidetunes_backend.LyricLoadState
+import uniffi.tidetunes_backend.RemoteArtwork
+import uniffi.tidetunes_backend.RemoteEmbeddedLyrics
+import uniffi.tidetunes_backend.RemoteMetadata
+import uniffi.tidetunes_backend.RemoteRawMetadataEntry
 import uniffi.tidetunes_backend.MusicId
 import uniffi.tidetunes_backend.StorageEntryLoc
 import uniffi.tidetunes_backend.StorageId
@@ -27,6 +35,51 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class RoomLibraryIntegrationTest {
+    @Test
+    fun migrationElevenToTwelveAddsMetadataScanSnapshotAndStatistics() {
+        val connection = BundledSQLiteDriver().open(":memory:")
+        try {
+            connection.execute(
+                """
+                CREATE TABLE import_job (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    libraryRootId INTEGER NOT NULL,
+                    status TEXT NOT NULL,
+                    scannedCount INTEGER NOT NULL,
+                    importedCount INTEGER NOT NULL,
+                    skippedCount INTEGER NOT NULL,
+                    failedCount INTEGER NOT NULL,
+                    checkpoint TEXT,
+                    errorMessage TEXT,
+                    createdAt INTEGER NOT NULL,
+                    updatedAt INTEGER NOT NULL
+                )
+                """.trimIndent()
+            )
+            connection.execute(
+                "INSERT INTO import_job VALUES ('job', 1, 'PAUSED', 0, 0, 0, 0, NULL, NULL, 1, 1)"
+            )
+
+            MIGRATION_11_12.migrate(connection)
+
+            val columns = columns(connection, "import_job")
+            assertTrue("metadataScanMode" in columns)
+            assertTrue("metadataConcurrency" in columns)
+            assertTrue("scanSubdirectories" in columns)
+            assertTrue("metadataFetchedBytes" in columns)
+            connection.prepare(
+                "SELECT metadataScanMode, metadataConcurrency, importBatchSize FROM import_job"
+            ).use { statement ->
+                assertTrue(statement.step())
+                assertEquals("Full", statement.getText(0))
+                assertEquals(8, statement.getLong(1))
+                assertEquals(200, statement.getLong(2))
+            }
+        } finally {
+            connection.close()
+        }
+    }
+
     @Test
     fun migrationOneToTwoAddsExtendedTrackMetadataColumns() {
         val connection = BundledSQLiteDriver().open(":memory:")
@@ -472,6 +525,100 @@ class RoomLibraryIntegrationTest {
         assertEquals("[00:01.00]New", metadataDao.getLyrics(1)?.content)
         assertEquals("New", metadataDao.rawMetadataForTrack(1).single().value)
     }
+
+    @Test
+    fun fastStandardAndFullModesPreserveOrUpdateRequestedMetadata() =
+        withDatabase { database ->
+            database.trackDao().upsertAll(listOf(track(id = 1)))
+            val metadataDao = database.metadataDao()
+            metadataDao.upsertLyrics(
+                listOf(
+                    LyricsEntity(
+                        trackId = 1,
+                        format = "TEXT",
+                        language = null,
+                        synchronized = false,
+                        content = "Old lyrics",
+                        sourcePath = null,
+                        updatedAt = 1,
+                    )
+                )
+            )
+            metadataDao.upsertRawMetadata(
+                listOf(RawMetadataEntity(0, 1, "Composer", "Old raw", null, null))
+            )
+            metadataDao.upsertArtwork(
+                listOf(
+                    ArtworkEntity(
+                        trackId = 1,
+                        albumId = null,
+                        contentHash = "old-art",
+                        localPath = "/cache/old.jpg",
+                        thumbnailPath = null,
+                        width = null,
+                        height = null,
+                        mimeType = "image/jpeg",
+                        pictureType = "CoverFront",
+                    )
+                )
+            )
+
+            val update = OptionalMetadataUpdate(
+                trackId = 1,
+                albumId = null,
+                metadata = optionalMetadata("New lyrics", "New raw", "new-art"),
+            )
+            database.useWriterConnection { connection ->
+                connection.immediateTransaction {
+                    metadataDao.updateOptionalMetadata(
+                        updates = listOf(update),
+                        options = MetadataScanMode.Fast.toOptions(),
+                        now = 2,
+                    )
+                }
+            }
+            assertEquals("Old lyrics", metadataDao.getLyrics(1)?.content)
+            assertEquals("Old raw", metadataDao.rawMetadataForTrack(1).single().value)
+            assertEquals("old-art", metadataDao.getArtworkForTrack(1)?.contentHash)
+
+            database.useWriterConnection { connection ->
+                connection.immediateTransaction {
+                    metadataDao.updateOptionalMetadata(
+                        updates = listOf(update),
+                        options = MetadataScanMode.Standard.toOptions(),
+                        now = 3,
+                    )
+                }
+            }
+            assertEquals("New lyrics", metadataDao.getLyrics(1)?.content)
+            assertEquals("Old raw", metadataDao.rawMetadataForTrack(1).single().value)
+            assertEquals("old-art", metadataDao.getArtworkForTrack(1)?.contentHash)
+
+            database.useWriterConnection { connection ->
+                connection.immediateTransaction {
+                    metadataDao.updateOptionalMetadata(
+                        updates = listOf(update),
+                        options = MetadataScanMode.Full.toOptions(),
+                        now = 4,
+                    )
+                }
+            }
+            assertEquals("New lyrics", metadataDao.getLyrics(1)?.content)
+            assertEquals("New raw", metadataDao.rawMetadataForTrack(1).single().value)
+            assertEquals("new-art", metadataDao.getArtworkForTrack(1)?.contentHash)
+
+            val artworkId = metadataDao.getArtworkByContentHash("new-art")?.id
+            database.useWriterConnection { connection ->
+                connection.immediateTransaction {
+                    metadataDao.updateOptionalMetadata(
+                        updates = listOf(update),
+                        options = MetadataScanMode.Full.toOptions(),
+                        now = 5,
+                    )
+                }
+            }
+            assertEquals(artworkId, metadataDao.getArtworkByContentHash("new-art")?.id)
+        }
 
     @Test
     fun artworkCacheKeysCanBeReadByTrackAlbumAndHash() = withDatabase { database ->
@@ -991,6 +1138,73 @@ class RoomLibraryIntegrationTest {
             connection.execute(sql)
         }
     }
+
+    private fun optionalMetadata(
+        lyrics: String,
+        rawValue: String,
+        artworkHash: String,
+    ) = RemoteMetadata(
+        title = "Song",
+        artist = "Artist",
+        artists = listOf("Artist"),
+        albumArtist = null,
+        album = null,
+        composer = null,
+        lyricist = null,
+        conductor = null,
+        genre = null,
+        grouping = null,
+        comment = null,
+        copyright = null,
+        publisher = null,
+        date = null,
+        originalReleaseDate = null,
+        trackNumber = null,
+        trackTotal = null,
+        discNumber = null,
+        discTotal = null,
+        bpm = null,
+        musicalKey = null,
+        isrc = null,
+        musicbrainzRecordingId = null,
+        musicbrainzTrackId = null,
+        musicbrainzReleaseId = null,
+        musicbrainzReleaseGroupId = null,
+        musicbrainzArtistId = null,
+        musicbrainzReleaseArtistId = null,
+        musicbrainzWorkId = null,
+        replayGainTrackGain = null,
+        replayGainTrackPeak = null,
+        replayGainAlbumGain = null,
+        replayGainAlbumPeak = null,
+        lyrics = RemoteEmbeddedLyrics(lyrics, false, null, null),
+        artwork = RemoteArtwork(
+            contentHash = artworkHash,
+            localPath = "/cache/$artworkHash.jpg",
+            thumbnailPath = null,
+            width = null,
+            height = null,
+            mimeType = "image/jpeg",
+            pictureType = "CoverFront",
+        ),
+        rawMetadata = listOf(
+            RemoteRawMetadataEntry("Composer", rawValue, null, null)
+        ),
+        durationMs = 1u,
+        sampleRate = null,
+        bitDepth = null,
+        channels = null,
+        channelLayout = null,
+        overallBitrate = null,
+        audioBitrate = null,
+        codec = null,
+        container = null,
+        lossless = null,
+        metadataRequestCount = 1u,
+        metadataFetchedBytes = 128u,
+        metadataElapsedMs = 2u,
+        artworkCachedBytes = 64u,
+    )
 
     private fun SQLiteConnection.execute(sql: String) {
         prepare(sql).use { statement ->

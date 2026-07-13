@@ -1,10 +1,17 @@
 package com.github.tidetunes.core.data.settings
 
+import androidx.datastore.preferences.core.edit
 import com.github.tidetunes.core.data.datastore.createAppDataStore
 import com.github.tidetunes.core.domain.model.AppLanguageMode
 import com.github.tidetunes.core.domain.model.AppSettings
 import com.github.tidetunes.core.domain.model.AppThemeMode
-import com.github.tidetunes.core.domain.model.SourceAccountId
+import com.github.tidetunes.core.domain.model.AudioFocusMode
+import com.github.tidetunes.core.domain.model.AutoScanMode
+import com.github.tidetunes.core.domain.model.DuplicateTrackPolicy
+import com.github.tidetunes.core.domain.model.MAX_AUDIO_CACHE_LIMIT_BYTES
+import com.github.tidetunes.core.domain.model.MAX_IMAGE_CACHE_LIMIT_BYTES
+import com.github.tidetunes.core.domain.model.MissingFilePolicy
+import com.github.tidetunes.core.domain.model.MetadataScanMode
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -13,54 +20,129 @@ import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class DataStoreSettingsRepositoryTest {
     @Test
-    fun persistsSettingsInDataStore() = runBlocking {
-        val file = File.createTempFile("tidetunes-settings-", ".preferences_pb").apply {
-            delete()
+    fun persistsAndReloadsSettings() = withRepository { dataStore, repository ->
+        assertEquals(AppSettings.Default, repository.settingsValue())
+
+        repository.setThemeMode(AppThemeMode.Light)
+        repository.setDynamicColorEnabled(false)
+        repository.setLanguageMode(AppLanguageMode.English)
+        repository.setAudioFocusMode(AudioFocusMode.Duck)
+        repository.setPauseOnDisconnect(false)
+        repository.setGaplessPlaybackEnabled(true)
+        repository.setRetryPlaybackOnFailure(false)
+        repository.setResumePlaybackAfterNetworkRecovery(false)
+        repository.setKeepScreenOnInPlayer(true)
+        repository.setAutoScanMode(AutoScanMode.OnStartup)
+        repository.setBackgroundScanEnabled(true)
+        repository.setScanOnlyOnUnmeteredNetwork(false)
+        repository.setScanSubdirectories(false)
+        repository.setWebDavMetadataScanMode(MetadataScanMode.Full)
+        repository.setMinimumAudioDurationMs(15_000L)
+        repository.setMissingFilePolicy(MissingFilePolicy.RemoveOnScan)
+        repository.setDuplicateTrackPolicy(DuplicateTrackPolicy.KeepAll)
+        repository.setAllowMeteredStreaming(false)
+        repository.setBackgroundSyncOnlyOnUnmeteredNetwork(false)
+        repository.setNetworkRetryCount(4)
+        repository.setConnectionTimeoutSeconds(45)
+        repository.setAudioPreloadBytes(8L * 1024L * 1024L)
+        repository.setAudioCacheLimitBytes(512L * 1024L * 1024L)
+        repository.setImageCacheLimitBytes(128L * 1024L * 1024L)
+
+        val settings = DataStoreSettingsRepository(dataStore).settingsValue()
+        assertEquals(AppThemeMode.Light, settings.themeMode)
+        assertFalse(settings.dynamicColorEnabled)
+        assertEquals(AppLanguageMode.English, settings.languageMode)
+        assertEquals(AudioFocusMode.Duck, settings.audioFocusMode)
+        assertFalse(settings.pauseOnDisconnect)
+        assertTrue(settings.gaplessPlaybackEnabled)
+        assertFalse(settings.retryPlaybackOnFailure)
+        assertFalse(settings.resumePlaybackAfterNetworkRecovery)
+        assertTrue(settings.keepScreenOnInPlayer)
+        assertEquals(AutoScanMode.OnStartup, settings.autoScanMode)
+        assertTrue(settings.backgroundScanEnabled)
+        assertFalse(settings.scanOnlyOnUnmeteredNetwork)
+        assertFalse(settings.scanSubdirectories)
+        assertEquals(MetadataScanMode.Full, settings.webDavMetadataScanMode)
+        assertEquals(15_000L, settings.minimumAudioDurationMs)
+        assertEquals(MissingFilePolicy.RemoveOnScan, settings.missingFilePolicy)
+        assertEquals(DuplicateTrackPolicy.KeepAll, settings.duplicateTrackPolicy)
+        assertFalse(settings.allowMeteredStreaming)
+        assertFalse(settings.backgroundSyncOnlyOnUnmeteredNetwork)
+        assertEquals(4, settings.networkRetryCount)
+        assertEquals(45, settings.connectionTimeoutSeconds)
+        assertEquals(8L * 1024L * 1024L, settings.audioPreloadBytes)
+        assertEquals(512L * 1024L * 1024L, settings.audioCacheLimitBytes)
+        assertEquals(128L * 1024L * 1024L, settings.imageCacheLimitBytes)
+    }
+
+    @Test
+    fun migratesLegacyPlaybackAndScanValues() = withRepository { dataStore, repository ->
+        dataStore.edit { preferences ->
+            preferences[ALLOW_MIXED_PLAYBACK_KEY] = true
+            preferences[IGNORE_SHORT_AUDIO_KEY] = false
+            preferences[LOCAL_SCAN_SUBDIRECTORIES_KEY] = false
         }
 
+        val migrated = repository.settingsValue()
+        assertEquals(AudioFocusMode.Mix, migrated.audioFocusMode)
+        assertEquals(0L, migrated.minimumAudioDurationMs)
+        assertFalse(migrated.scanSubdirectories)
+
+        dataStore.edit { preferences ->
+            preferences[ALLOW_MIXED_PLAYBACK_KEY] = false
+            preferences[IGNORE_SHORT_AUDIO_KEY] = true
+        }
+        val second = repository.settingsValue()
+        assertEquals(AudioFocusMode.Pause, second.audioFocusMode)
+        assertEquals(30_000L, second.minimumAudioDurationMs)
+    }
+
+    @Test
+    fun invalidValuesFallBackOrClampAndResetClearsSettings() = withRepository { dataStore, repository ->
+        dataStore.edit { preferences ->
+            preferences[AUDIO_FOCUS_MODE_KEY] = "invalid"
+            preferences[AUTO_SCAN_MODE_KEY] = "invalid"
+            preferences[WEB_DAV_METADATA_SCAN_MODE_KEY] = "invalid"
+            preferences[NETWORK_RETRY_COUNT_KEY] = 99
+            preferences[CONNECTION_TIMEOUT_SECONDS_KEY] = -1
+            preferences[AUDIO_CACHE_LIMIT_BYTES_KEY] = Long.MAX_VALUE
+            preferences[IMAGE_CACHE_LIMIT_BYTES_KEY] = Long.MAX_VALUE
+        }
+
+        val normalized = repository.settingsValue()
+        assertEquals(AudioFocusMode.Pause, normalized.audioFocusMode)
+        assertEquals(AutoScanMode.Off, normalized.autoScanMode)
+        assertEquals(MetadataScanMode.Standard, normalized.webDavMetadataScanMode)
+        assertEquals(5, normalized.networkRetryCount)
+        assertEquals(5, normalized.connectionTimeoutSeconds)
+        assertEquals(MAX_AUDIO_CACHE_LIMIT_BYTES, normalized.audioCacheLimitBytes)
+        assertEquals(MAX_IMAGE_CACHE_LIMIT_BYTES, normalized.imageCacheLimitBytes)
+
+        repository.setThemeMode(AppThemeMode.Light)
+        repository.resetToDefaults()
+        assertEquals(AppSettings.Default, repository.settingsValue())
+    }
+
+    private fun withRepository(
+        block: suspend (
+            androidx.datastore.core.DataStore<androidx.datastore.preferences.core.Preferences>,
+            DataStoreSettingsRepository,
+        ) -> Unit,
+    ) = runBlocking {
+        val file = File.createTempFile("tidetunes-settings-", ".preferences_pb").apply { delete() }
         try {
             val dataStore = createAppDataStore { file.absolutePath.toPath() }
-            val repository = DataStoreSettingsRepository(dataStore)
-
-            assertEquals(
-                AppSettings.Default,
-                withTimeout(5_000) { repository.settings.first() },
-            )
-
-            repository.setThemeMode(AppThemeMode.Dark)
-            repository.setDynamicColorEnabled(false)
-            repository.setLanguageMode(AppLanguageMode.English)
-            repository.setPauseOnDisconnect(false)
-            repository.setAllowMixedPlayback(true)
-            repository.setKeepScreenOnInPlayer(true)
-            repository.setLocalMusicEnabled(false)
-            repository.setLocalScanSubdirectories(false)
-            repository.setIgnoreShortAudio(false)
-            repository.setWebDavEnabled(true)
-            repository.setWebDavScanSubdirectories(false)
-            repository.setWebDavRootPath(SourceAccountId("storage:2"), "/Music")
-            repository.setAudioCacheLimitBytes(512L * 1024L * 1024L)
-
-            val reloaded = DataStoreSettingsRepository(dataStore)
-            val settings = withTimeout(5_000) { reloaded.settings.first() }
-            assertEquals(AppThemeMode.Dark, settings.themeMode)
-            assertFalse(settings.dynamicColorEnabled)
-            assertEquals(AppLanguageMode.English, settings.languageMode)
-            assertFalse(settings.pauseOnDisconnect)
-            assertEquals(true, settings.allowMixedPlayback)
-            assertEquals(true, settings.keepScreenOnInPlayer)
-            assertFalse(settings.localMusicEnabled)
-            assertFalse(settings.localScanSubdirectories)
-            assertFalse(settings.ignoreShortAudio)
-            assertEquals(true, settings.webDavEnabled)
-            assertFalse(settings.webDavScanSubdirectories)
-            assertEquals("/Music", settings.webDavRootPaths["storage:2"])
-            assertEquals(512L * 1024L * 1024L, settings.audioCacheLimitBytes)
+            block(dataStore, DataStoreSettingsRepository(dataStore, applyLanguageMode = {}))
         } finally {
             file.delete()
         }
+    }
+
+    private suspend fun DataStoreSettingsRepository.settingsValue(): AppSettings {
+        return withTimeout(5_000) { settings.first() }
     }
 }

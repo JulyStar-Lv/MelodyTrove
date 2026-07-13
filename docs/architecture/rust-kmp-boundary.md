@@ -1,6 +1,6 @@
 # Rust and KMP boundary
 
-Date: 2026-06-25
+Last updated: 2026-07-14
 
 ## Responsibilities
 
@@ -28,7 +28,7 @@ introduced incrementally.
 
 ```text
 KMP MetadataRepository
-  -> ctReadRemoteMetadata
+  -> ctReadRemoteMetadata(MetadataReadOptions)
   -> StorageRangeSource
   -> StorageBackend.get_range(start..=end)
   -> RemoteRangeReader (Read + Seek, block cache, budgets)
@@ -37,7 +37,23 @@ KMP MetadataRepository
        - normalized people, release, identifiers, ReplayGain, and audio properties
        - embedded lyrics descriptor
        - bounded generic text-tag list
+       - request count, fetched bytes, elapsed time, and cached artwork bytes
 ```
+
+`MetadataScanMode` has one domain mapping to Rust read options:
+
+| Mode | Artwork | Lyrics | Raw metadata |
+| --- | --- | --- | --- |
+| Fast | No | No | No |
+| Standard | No | Yes | No |
+| Full | Yes | Yes | Yes |
+
+The options are passed once per batch through UniFFI. Rust applies
+`ParseOptions::read_cover_art(false)` before Lofty reads the file, and it does
+not run artwork, lyric, or raw-tag extraction when the corresponding option is
+disabled. This is pre-read/pre-extraction pruning, not post-processing of a
+fully parsed result. The legacy no-options Rust entry point delegates to Full
+for compatibility. Local and OneDrive scans also retain Full behavior.
 
 Remote range reads use finite `bytes=start-end` requests. A successful remote
 response must be `206 Partial Content` with a matching `Content-Range`.
@@ -50,10 +66,10 @@ timeouts on FLAC files with large metadata regions; 256 KiB reduced requests by
 63.9% and scan time by 70.1%, while keeping average transfer near 0.50 MiB per
 file. These are scanner safeguards, not playback limits.
 
-The initial pass still disables artwork decoding. Text metadata is bounded to
-2,048 entries, 256 KiB per value, and 1 MiB total per file. Oversized input
-returns an explicit metadata budget error instead of crossing FFI or being
-written as an unbounded Room value. Parsed fields now include multi-artist
+Artwork decoding is enabled only for Full or an artwork-specific refresh. Text
+metadata is bounded to 2,048 entries, 256 KiB per value, and 1 MiB total per
+file. Oversized input returns an explicit metadata budget error instead of
+crossing FFI or being written as an unbounded Room value. Parsed fields now include multi-artist
 credits, composer, lyricist, conductor, grouping, comments, copyright,
 publisher/label, original release date, BPM, key, ISRC, MusicBrainz IDs,
 ReplayGain values, embedded lyrics, channel layout, codec/container, and
@@ -75,14 +91,14 @@ EditStorageVM.prepareImportLibraryFolder
   -> for each bounded batch:
        - match by canonical path, then stable remoteId when available
        - compare size + ETag or Last-Modified fingerprints
-       - MetadataRepository.readBatch(concurrency = 2..4 typical, 4 default)
+       - MetadataRepository.readBatch(options, bounded concurrency)
        - Room transaction
             - upsert changed source_item rows
             - mark unchanged source items as seen
             - upsert album, artist, genre, and relationship rows
             - upsert normalized track metadata
             - upsert track_source_ref rows
-            - replace embedded lyrics and bounded raw text tags
+            - update artwork, lyrics, and raw tags only when requested
             - persist import_job counters and checkpoint
   -> after the Rust session reports done:
        - mark source items not seen by this scan as deleted/unavailable
@@ -99,9 +115,9 @@ EditStorageVM.prepareImportLibraryFolder
 The scanner uses repeated single-level remote listings rather than unbounded
 Depth: infinity WebDAV requests. Rust retains only its directory queue, the
 current directory response, and one bounded file batch. KMP defaults to
-100-file batches, keeping SQLite `IN` arguments, the metadata FFI request,
-metadata results, and each Room transaction bounded for 1,000- to 100,000-file
-libraries.
+200-file batches and metadata concurrency 8, keeping SQLite `IN` arguments, the
+metadata FFI request, metadata results, and each Room transaction bounded for
+1,000- to 100,000-file libraries.
 
 `import_job` is created before remote enumeration begins and is updated after
 every committed batch. Cancelling the Rust scan session preserves already
@@ -116,6 +132,21 @@ the existing `source_item` primary key. If size and ETag/Last-Modified are
 unchanged, the coordinator updates only the source inventory and skips metadata
 Range reads. If the item revision also changed, metadata is refreshed while the
 existing canonical `track` primary key and creation timestamp are retained.
+
+Every import job stores the effective metadata mode, scan rules, concurrency,
+batch size, missing-file policy, and duplicate policy. Resume and retry rebuild
+their request from this snapshot rather than from current Settings. The job also
+accumulates metadata Range request count, fetched bytes, elapsed milliseconds,
+and newly cached artwork bytes.
+
+## Metadata backfill
+
+Settings exposes missing-artwork and missing-lyrics maintenance actions for
+WebDAV tracks. The same controller also supports a single track or album and a
+raw/all target for non-UI callers. Candidate lookup uses persisted source refs,
+so unchanged ETag or modified-time values do not block a refresh. Each target
+maps to minimum read options (for example, artwork-only is `true/false/false`),
+and Room updates only that requested optional metadata family.
 
 The coordinator also accepts an already-built complete snapshot for tests and
 future delta implementations; that path uses the same bounded batch writer. The

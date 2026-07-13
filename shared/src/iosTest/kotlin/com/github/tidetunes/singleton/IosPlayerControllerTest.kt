@@ -489,6 +489,17 @@ private object EmptyTrackSourceRefDao : TrackSourceRefDao {
         return 0
     }
 
+    override suspend fun webDavMetadataCandidatesForTrack(trackId: Long) =
+        emptyList<com.github.tidetunes.database.MetadataRefreshCandidate>()
+
+    override suspend fun webDavMetadataCandidatesForAlbum(albumId: Long) =
+        emptyList<com.github.tidetunes.database.MetadataRefreshCandidate>()
+
+    override suspend fun missingWebDavMetadataCandidates(target: String) =
+        emptyList<com.github.tidetunes.database.MetadataRefreshCandidate>()
+
+    override suspend fun hasSourceAccount(trackId: Long, sourceAccountId: Long) = false
+
     override suspend fun upsertAll(refs: List<TrackSourceRefEntity>) = Unit
 
     override suspend fun markAvailableBySourceItemIds(sourceItemIds: List<Long>, now: Long) = Unit

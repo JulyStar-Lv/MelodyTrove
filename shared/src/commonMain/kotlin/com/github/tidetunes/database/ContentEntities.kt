@@ -92,6 +92,34 @@ data class ImportJobEntity(
     val errorMessage: String?,
     val createdAt: Long,
     val updatedAt: Long,
+    @androidx.room.ColumnInfo(defaultValue = "'Full'")
+    val metadataScanMode: String = "Full",
+    @androidx.room.ColumnInfo(defaultValue = "8")
+    val metadataConcurrency: Long = 8,
+    @androidx.room.ColumnInfo(defaultValue = "200")
+    val importBatchSize: Int = 200,
+    @androidx.room.ColumnInfo(defaultValue = "1")
+    val scanSubdirectories: Boolean = true,
+    @androidx.room.ColumnInfo(defaultValue = "1")
+    val ignoreShortAudio: Boolean = true,
+    @androidx.room.ColumnInfo(defaultValue = "30000")
+    val minDurationMs: Long = 30_000,
+    @androidx.room.ColumnInfo(defaultValue = "1")
+    val ignoreHiddenFiles: Boolean = true,
+    @androidx.room.ColumnInfo(defaultValue = "'.cache|.trash|@eaDir|__MACOSX'")
+    val ignoredDirectoryNames: String = ".cache|.trash|@eaDir|__MACOSX",
+    @androidx.room.ColumnInfo(defaultValue = "'MarkUnavailable'")
+    val missingFilePolicy: String = "MarkUnavailable",
+    @androidx.room.ColumnInfo(defaultValue = "'SeparateBySource'")
+    val duplicateTrackPolicy: String = "SeparateBySource",
+    @androidx.room.ColumnInfo(defaultValue = "0")
+    val metadataRequestCount: Long = 0,
+    @androidx.room.ColumnInfo(defaultValue = "0")
+    val metadataFetchedBytes: Long = 0,
+    @androidx.room.ColumnInfo(defaultValue = "0")
+    val metadataElapsedMs: Long = 0,
+    @androidx.room.ColumnInfo(defaultValue = "0")
+    val artworkCachedBytes: Long = 0,
 )
 
 data class ImportJobWithFolder(

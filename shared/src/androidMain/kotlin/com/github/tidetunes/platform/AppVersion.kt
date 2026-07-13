@@ -1,3 +1,5 @@
+@file:JvmName("AndroidAppVersionKt")
+
 package com.github.tidetunes.platform
 
 import android.content.pm.PackageManager

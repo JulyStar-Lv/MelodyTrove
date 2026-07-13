@@ -1,6 +1,6 @@
 # TideTunes test report
 
-Last updated: 2026-06-28
+Last updated: 2026-07-14
 
 This report tracks verified migration gates. Secrets used for live WebDAV
 checks were provided at runtime and are not stored in this repository.
@@ -9,6 +9,13 @@ checks were provided at runtime and are not stored in this repository.
 
 | Area | Command | Result |
 | --- | --- | --- |
+| Selective WebDAV metadata scanning | `cargo test -p tidetunes-audio-metadata -p tidetunes-backend`, focused `:core:domain:desktopTest`, `:service:librarysync:domain:desktopTest`, `:feature:settings:desktopTest`, and `:shared:desktopTest` suites | Passed; 12 audio-metadata tests, 14 backend tests, and 56 focused Kotlin/Room tests cover mode mapping, preservation of core tags and audio properties when optional reads are disabled, pre-read artwork pruning, optional extraction pruning, option propagation, conditional persistence, v11-to-v12 migration, settings migration/persistence and immediate use, task snapshot resume/retry, minimum-option artwork/lyrics/raw backfill, backfill preservation during later Fast scans, and read statistics |
+| Selective scan cross-platform gate | `./gradlew :shared:compileDebugKotlinAndroid :androidApp:assembleDebug :desktopApp:compileKotlinDesktop :shared:compileKotlinIosSimulatorArm64 -x :shared:generateGitInfo` | Passed; Android APK, Desktop, iOS Simulator, generated Room accessors, and regenerated UniFFI Kotlin bindings compile together |
+| Selective scan module all-tests | `./gradlew :service:librarysync:domain:allTests :feature:settings:allTests -x :shared:generateGitInfo` | Passed on Desktop, Android debug/release unit tests, and iOS Simulator |
+| Repository-wide unit tests | `JAVA_HOME=/Applications/Android\ Studio.app/Contents/jbr/Contents/Home ./gradlew test` | Passed; 1,458 Gradle tasks executed or reused, including Android debug/release unit tests for Settings and Shared |
+| Settings and platform gate | `./gradlew :feature:settings:allTests :shared:desktopTest :shared:compileKotlinDesktop :shared:compileDebugKotlinAndroid :shared:compileKotlinIosSimulatorArm64` | Passed on Desktop, Android, and iOS Simulator |
+| Android lint | `JAVA_HOME=/Applications/Android\ Studio.app/Contents/jbr/Contents/Home ./gradlew lint` | Blocked by repository baseline/tooling issues: Android lint expects Kotlin 2.2 metadata while the project and dependencies use Kotlin 2.4, and the existing `core/presentation/DropShadow.kt` reports `SuspiciousModifierThen` |
+| Rust workspace current gate | `cargo fmt --all -- --check && cargo test --workspace` | Passed; 68 Rust unit tests plus all doc tests completed, including repeated plugin-runtime timeout/shutdown coverage |
 | Room/DataStore persistence | `./gradlew :shared:desktopTest` | Passed; includes Room v2->v3 migration, DataStore play-mode persistence, Search history persistence, RoomLibraryStore playlist/location writes, lyric removal, duration update, generated DAO integration, 50,000-track paging, Room-backed search, source-indexed provider search, and local Search suggestions |
 | Android shared compile | `./gradlew :shared:compileDebugKotlinAndroid` | Passed |
 | iOS shared compile | `./gradlew :shared:compileKotlinIosSimulatorArm64` | Passed |

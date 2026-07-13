@@ -8,6 +8,10 @@ data class StorageAccountInfo(
     val title: String,
     val subtitle: String,
     val musicCount: Long,
+    val rootPath: String? = null,
+    val enabled: Boolean = true,
+    val lastScanAtEpochMs: Long? = null,
+    val lastScanStatus: String? = null,
 )
 
 data class OneDriveDriveInfo(

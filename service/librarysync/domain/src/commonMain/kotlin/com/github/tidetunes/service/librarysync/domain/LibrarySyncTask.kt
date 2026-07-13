@@ -1,5 +1,6 @@
 package com.github.tidetunes.service.librarysync.domain
 
+import com.github.tidetunes.core.domain.model.MetadataScanMode
 import com.github.tidetunes.core.domain.model.SourceAccountId
 
 data class LibrarySyncTask(
@@ -18,6 +19,14 @@ data class LibrarySyncTask(
     val errorMessage: String?,
     val createdAtEpochMs: Long,
     val updatedAtEpochMs: Long,
+    val metadataScanMode: MetadataScanMode = MetadataScanMode.Full,
+    val metadataConcurrency: UInt = DEFAULT_LIBRARY_SYNC_METADATA_CONCURRENCY,
+    val importBatchSize: Int = DEFAULT_LIBRARY_SYNC_BATCH_SIZE,
+    val scanRules: LibrarySyncScanRules = LibrarySyncScanRules(),
+    val metadataRequestCount: Long = 0,
+    val metadataFetchedBytes: Long = 0,
+    val metadataElapsedMs: Long = 0,
+    val artworkCachedBytes: Long = 0,
 ) {
     init {
         require(id.isNotBlank()) { "Library sync task id cannot be blank" }

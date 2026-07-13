@@ -8,9 +8,23 @@ import com.github.tidetunes.service.download.data.scheduler.IosUrlSessionDownloa
 import com.github.tidetunes.service.download.domain.DownloadTaskScheduler
 import org.koin.core.module.Module
 import org.koin.dsl.module
+import com.github.tidetunes.core.data.settings.IosNetworkStatusProvider
+import com.github.tidetunes.core.domain.repository.NetworkStatusProvider
 
 actual val platformModule: Module = module {
-    single<PlayerController> { IosPlayerController(get(), get(), get(), get(), get(), get(), get()) }
+    single<PlayerController> {
+        IosPlayerController(
+            playerRepository = get(),
+            toastRepository = get(),
+            playlistRepository = get(),
+            storageRepository = get(),
+            roomLibraryStore = get(),
+            playbackResourceResolver = get(),
+            scope = get(),
+            settingsRepository = get(),
+            networkStatusProvider = get(),
+        )
+    }
     single<PermissionChecker> { IosPermissionChecker() }
     single<DownloadTaskScheduler> {
         IosUrlSessionDownloadScheduler(
@@ -20,4 +34,5 @@ actual val platformModule: Module = module {
             scope = get(),
         )
     }
+    single<NetworkStatusProvider> { IosNetworkStatusProvider() }
 }

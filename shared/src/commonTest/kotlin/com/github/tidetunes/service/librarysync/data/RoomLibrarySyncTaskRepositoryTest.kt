@@ -1,6 +1,9 @@
 package com.github.tidetunes.service.librarysync.data
 
 import com.github.tidetunes.core.domain.model.SourceAccountId
+import com.github.tidetunes.core.domain.model.DuplicateTrackPolicy
+import com.github.tidetunes.core.domain.model.MetadataScanMode
+import com.github.tidetunes.core.domain.model.MissingFilePolicy
 import com.github.tidetunes.database.ImportJobEntity
 import com.github.tidetunes.database.ImportJobWithFolder
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncStatus
@@ -32,6 +35,15 @@ class RoomLibrarySyncTaskRepositoryTest {
         assertEquals(10, task.successfulCount)
         assertEquals("/Music/A.flac", task.checkpoint)
         assertEquals(null, task.errorMessage)
+        assertEquals(MetadataScanMode.Standard, task.metadataScanMode)
+        assertEquals(3u, task.metadataConcurrency)
+        assertEquals(40, task.importBatchSize)
+        assertEquals(false, task.scanRules.scanSubdirectories)
+        assertEquals(15_000, task.scanRules.minDurationMs)
+        assertEquals(false, task.scanRules.ignoreHiddenFiles)
+        assertEquals(setOf("cache", "trash"), task.scanRules.ignoredDirectoryNames)
+        assertEquals(MissingFilePolicy.RemoveOnScan, task.scanRules.missingFilePolicy)
+        assertEquals(DuplicateTrackPolicy.KeepAll, task.scanRules.duplicateTrackPolicy)
         assertTrue(task.hasError)
     }
 
@@ -68,6 +80,16 @@ class RoomLibrarySyncTaskRepositoryTest {
                 errorMessage = errorMessage,
                 createdAt = 100,
                 updatedAt = 200,
+                metadataScanMode = "Standard",
+                metadataConcurrency = 3,
+                importBatchSize = 40,
+                scanSubdirectories = false,
+                ignoreShortAudio = true,
+                minDurationMs = 15_000,
+                ignoreHiddenFiles = false,
+                ignoredDirectoryNames = "cache|trash",
+                missingFilePolicy = "RemoveOnScan",
+                duplicateTrackPolicy = "KeepAll",
             ),
             sourceAccountId = 42,
             providerRootId = "folder-42",

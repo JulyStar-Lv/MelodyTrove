@@ -598,3 +598,37 @@ val MIGRATION_9_10 = object : Migration(9, 10) {
         }
     }
 }
+
+val MIGRATION_10_11 = object : Migration(10, 11) {
+    override fun migrate(connection: SQLiteConnection) {
+        listOf(
+            "ALTER TABLE source_account ADD COLUMN rootPath TEXT",
+            "UPDATE source_account SET rootPath = '/' WHERE providerType = 'webdav'",
+        ).forEach { sql ->
+            connection.prepare(sql).use { statement -> statement.step() }
+        }
+    }
+}
+
+val MIGRATION_11_12 = object : Migration(11, 12) {
+    override fun migrate(connection: SQLiteConnection) {
+        listOf(
+            "ALTER TABLE import_job ADD COLUMN metadataScanMode TEXT NOT NULL DEFAULT 'Full'",
+            "ALTER TABLE import_job ADD COLUMN metadataConcurrency INTEGER NOT NULL DEFAULT 8",
+            "ALTER TABLE import_job ADD COLUMN importBatchSize INTEGER NOT NULL DEFAULT 200",
+            "ALTER TABLE import_job ADD COLUMN scanSubdirectories INTEGER NOT NULL DEFAULT 1",
+            "ALTER TABLE import_job ADD COLUMN ignoreShortAudio INTEGER NOT NULL DEFAULT 1",
+            "ALTER TABLE import_job ADD COLUMN minDurationMs INTEGER NOT NULL DEFAULT 30000",
+            "ALTER TABLE import_job ADD COLUMN ignoreHiddenFiles INTEGER NOT NULL DEFAULT 1",
+            "ALTER TABLE import_job ADD COLUMN ignoredDirectoryNames TEXT NOT NULL DEFAULT '.cache|.trash|@eaDir|__MACOSX'",
+            "ALTER TABLE import_job ADD COLUMN missingFilePolicy TEXT NOT NULL DEFAULT 'MarkUnavailable'",
+            "ALTER TABLE import_job ADD COLUMN duplicateTrackPolicy TEXT NOT NULL DEFAULT 'SeparateBySource'",
+            "ALTER TABLE import_job ADD COLUMN metadataRequestCount INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE import_job ADD COLUMN metadataFetchedBytes INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE import_job ADD COLUMN metadataElapsedMs INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE import_job ADD COLUMN artworkCachedBytes INTEGER NOT NULL DEFAULT 0",
+        ).forEach { sql ->
+            connection.prepare(sql).use { statement -> statement.step() }
+        }
+    }
+}

@@ -1,5 +1,36 @@
 import gobley.gradle.GobleyHost
 import gobley.gradle.cargo.dsl.jvm
+import org.gradle.api.DefaultTask
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.TaskAction
+
+abstract class GenerateGitInfoTask : DefaultTask() {
+    @get:Input
+    abstract val gitCommitSha: Property<String>
+
+    @get:OutputDirectory
+    abstract val outputDirectory: DirectoryProperty
+
+    @TaskAction
+    fun generate() {
+        val file = outputDirectory.file(
+            "com/github/tidetunes/platform/GeneratedBuildInfo.kt"
+        ).get().asFile
+        file.parentFile.mkdirs()
+        file.writeText(
+            """
+            package com.github.tidetunes.platform
+
+            internal object GeneratedBuildInfo {
+                const val gitCommitSha: String = "${gitCommitSha.get()}"
+            }
+            """.trimIndent() + "\n"
+        )
+    }
+}
 
 plugins {
     alias(libs.plugins.convention.kmp.library)
@@ -13,6 +44,16 @@ plugins {
 
 compose.resources {
     publicResClass = true
+}
+
+val generatedGitInfoDirectory = layout.buildDirectory.dir("generated/gitInfo/commonMain/kotlin")
+val gitCommitShaProvider = providers.exec {
+    commandLine("git", "rev-parse", "--short=12", "HEAD")
+}.standardOutput.asText.map(String::trim)
+
+val generateGitInfo by tasks.registering(GenerateGitInfoTask::class) {
+    gitCommitSha.set(gitCommitShaProvider)
+    outputDirectory.set(generatedGitInfoDirectory)
 }
 
 kotlin {
@@ -30,6 +71,9 @@ kotlin {
     }
 
     sourceSets {
+        commonMain {
+            kotlin.srcDir(generatedGitInfoDirectory)
+        }
         commonMain.dependencies {
             implementation(project(":core:domain"))
             implementation(project(":core:presentation"))
@@ -98,6 +142,12 @@ kotlin {
             }
         }
     }
+}
+
+tasks.matching { task ->
+    task.name.startsWith("compileKotlin") || task.name.startsWith("ksp")
+}.configureEach {
+    dependsOn(generateGitInfo)
 }
 
 dependencies {

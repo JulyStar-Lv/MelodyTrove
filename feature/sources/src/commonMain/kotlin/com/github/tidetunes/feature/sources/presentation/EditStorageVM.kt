@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.tidetunes.core.domain.model.SourceAccountId
 import com.github.tidetunes.core.domain.model.OneDriveDriveInfo
+import com.github.tidetunes.core.domain.model.metadataScanModeFor
+import com.github.tidetunes.core.domain.repository.SettingsRepository
 import com.github.tidetunes.core.domain.repository.StorageRepository
 import com.github.tidetunes.core.domain.repository.ToastRepository
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncController
@@ -17,6 +19,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -48,6 +51,7 @@ class EditStorageVM constructor(
     private val toastRepository: ToastRepository,
     private val importRepository: ImportRepository,
     private val librarySyncController: LibrarySyncController,
+    private val settingsRepository: SettingsRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -301,6 +305,9 @@ class EditStorageVM constructor(
         importRepository.prepareCurrentDirectory { selection ->
             viewModelScope.launch {
                 toastRepository.emitToast("Importing library folder...")
+                val metadataScanMode = settingsRepository.settings.first().metadataScanModeFor(
+                    isWebDav = _draft.value.storageType == SourceEditorType.WebDav,
+                )
                 val result = runCatching {
                     librarySyncController.syncFolder(
                         LibrarySyncRequest(
@@ -308,6 +315,7 @@ class EditStorageVM constructor(
                             selectedFolderRemoteId = selection.remoteId,
                             selectedFolderCanonicalPath = selection.path,
                             selectedFolderDisplayPath = selection.path,
+                            metadataScanMode = metadataScanMode,
                         )
                     )
                 }

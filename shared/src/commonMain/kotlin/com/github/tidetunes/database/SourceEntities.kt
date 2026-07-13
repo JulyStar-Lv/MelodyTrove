@@ -23,6 +23,7 @@ data class SourceAccountEntity(
     val enabled: Boolean,
     val createdAt: Long,
     val updatedAt: Long,
+    val rootPath: String? = null,
 )
 
 @Entity(

@@ -20,15 +20,21 @@ class FileStorageUsageRepository(
 
         val audioBytes = sumExisting(AUDIO_CACHE_DIR_NAMES.map { cacheDir / it })
         val imageBytes = sumExisting(IMAGE_CACHE_DIR_NAMES.map { cacheDir / it })
+        val downloadBytes = sumExisting(
+            DOWNLOAD_DIR_NAMES.flatMap { name -> listOf(cacheDir / name, documentDir / name) }
+        )
         val databaseBytes = databasePath?.let { sumExisting(databaseRelatedPaths(it)) }
         val logBytes = null
-        val totalBytes = sumExisting(
-            listOfNotNull(cacheDir, documentDir, databasePath).distinct()
-        )
+        val totalRoots = mutableListOf(cacheDir, documentDir)
+        if (databasePath != null && totalRoots.none { root -> databasePath.isWithin(root) }) {
+            totalRoots += databasePath
+        }
+        val totalBytes = sumExisting(totalRoots.distinct())
 
         return StorageUsage(
             audioBytes = audioBytes,
             imageBytes = imageBytes,
+            downloadBytes = downloadBytes,
             databaseBytes = databaseBytes,
             logBytes = logBytes,
             totalBytes = totalBytes,
@@ -41,6 +47,17 @@ class FileStorageUsageRepository(
 
     override suspend fun clearImageCache() {
         deleteChildren(IMAGE_CACHE_DIR_NAMES.map { getAppCacheDir().toPath() / it })
+    }
+
+    override suspend fun clearAllCaches() {
+        clearAudioCache()
+        clearImageCache()
+    }
+
+    override suspend fun enforceCacheLimits(audioLimitBytes: Long, imageLimitBytes: Long) {
+        val cacheDir = getAppCacheDir().toPath()
+        pruneToLimit(AUDIO_CACHE_DIR_NAMES.map { cacheDir / it }, audioLimitBytes)
+        pruneToLimit(IMAGE_CACHE_DIR_NAMES.map { cacheDir / it }, imageLimitBytes)
     }
 
     private fun sumExisting(paths: List<Path>): Long {
@@ -77,6 +94,39 @@ class FileStorageUsageRepository(
             }
         }
     }
+
+    private fun pruneToLimit(paths: List<Path>, limitBytes: Long) {
+        if (limitBytes <= 0L) {
+            deleteChildren(paths)
+            return
+        }
+        val files = paths.flatMap { path ->
+            val metadata = fileSystem.metadataOrNull(path) ?: return@flatMap emptyList()
+            when {
+                metadata.isRegularFile -> listOf(path)
+                metadata.isDirectory -> fileSystem.listRecursively(path).filter { child ->
+                    fileSystem.metadataOrNull(child)?.isRegularFile == true
+                }.toList()
+                else -> emptyList()
+            }
+        }.distinct()
+        var totalBytes = files.sumOf { path -> fileSystem.metadataOrNull(path)?.size ?: 0L }
+        if (totalBytes <= limitBytes) return
+        files.sortedBy { path ->
+            fileSystem.metadataOrNull(path)?.lastModifiedAtMillis ?: Long.MIN_VALUE
+        }.forEach { path ->
+            if (totalBytes <= limitBytes) return
+            val size = fileSystem.metadataOrNull(path)?.size ?: 0L
+            fileSystem.delete(path, mustExist = false)
+            totalBytes -= size
+        }
+    }
+}
+
+private fun Path.isWithin(root: Path): Boolean {
+    if (this == root) return true
+    val rootPrefix = root.toString().trimEnd('/') + "/"
+    return toString().startsWith(rootPrefix)
 }
 
 private fun databaseRelatedPaths(databasePath: Path): List<Path> {
@@ -103,3 +153,5 @@ private val IMAGE_CACHE_DIR_NAMES = listOf(
     "covers",
     "thumbnails",
 )
+
+private val DOWNLOAD_DIR_NAMES = listOf("downloads")

@@ -1,11 +1,12 @@
 package com.github.tidetunes.core.data.settings
 
 import com.github.tidetunes.core.domain.model.LocalMusicDirectory
+import com.github.tidetunes.core.domain.model.SourceAccountId
 import com.github.tidetunes.core.domain.model.storageSourceAccountId
+import com.github.tidetunes.core.domain.model.toStorageRouteIdOrNull
 import com.github.tidetunes.core.domain.repository.SourceSettingsRepository
 import com.github.tidetunes.database.LibraryRootDao
 import com.github.tidetunes.database.LibraryRootEntity
-import com.github.tidetunes.database.ProviderTypes
 import com.github.tidetunes.database.SourceAccountDao
 import com.github.tidetunes.platform.currentTimeMillis
 import kotlinx.coroutines.flow.Flow
@@ -20,20 +21,9 @@ class RoomSourceSettingsRepository(
             roots.map { root -> root.toLocalMusicDirectory() }
         }
 
-    override suspend fun setLocalMusicEnabled(enabled: Boolean) {
-        sourceAccountDao.setEnabledByProviderType(
-            providerType = ProviderTypes.Local,
-            enabled = enabled,
-            updatedAt = currentTimeMillis(),
-        )
-    }
-
-    override suspend fun setWebDavEnabled(enabled: Boolean) {
-        sourceAccountDao.setEnabledByProviderType(
-            providerType = ProviderTypes.WebDav,
-            enabled = enabled,
-            updatedAt = currentTimeMillis(),
-        )
+    override suspend fun setAccountEnabled(accountId: SourceAccountId, enabled: Boolean) {
+        val id = accountId.toStorageRouteIdOrNull() ?: return
+        sourceAccountDao.setEnabled(id = id, enabled = enabled, updatedAt = currentTimeMillis())
     }
 
     override suspend fun removeLocalDirectory(id: String) {

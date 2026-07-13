@@ -3,6 +3,8 @@ package com.github.tidetunes.platform
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import org.jetbrains.skia.Image
+import com.github.tidetunes.core.domain.model.AppLanguageMode
+import java.util.Locale
 
 actual fun getAppDocumentDir(): String {
     return "${System.getProperty("user.home")}/.tidetunes"
@@ -18,6 +20,39 @@ actual fun getAppDatabasePath(): String? {
 
 actual fun isSystemDynamicColorAvailable(): Boolean {
     return false
+}
+
+actual fun platformSettingsCapabilities() =
+    com.github.tidetunes.core.domain.model.SettingsCapabilities(
+        dynamicColorSupported = false,
+        customMusicDirectorySupported = true,
+        secureCredentialStoreSupported = desktopSecureCredentialStoreAvailable(),
+        desktopMediaKeysSupported = true,
+        diagnosticsExportSupported = true,
+    )
+
+private val systemLocaleAtStartup: Locale = Locale.getDefault()
+
+actual fun applyAppLanguageMode(mode: AppLanguageMode) {
+    Locale.setDefault(
+        when (mode) {
+            AppLanguageMode.System -> systemLocaleAtStartup
+            AppLanguageMode.Chinese -> Locale.forLanguageTag("zh-Hans")
+            AppLanguageMode.English -> Locale.ENGLISH
+        }
+    )
+}
+
+private fun desktopSecureCredentialStoreAvailable(): Boolean {
+    val osName = System.getProperty("os.name").orEmpty()
+    return when {
+        osName.startsWith("Mac", ignoreCase = true) -> true
+        osName.startsWith("Windows", ignoreCase = true) -> true
+        osName.startsWith("Linux", ignoreCase = true) -> runCatching {
+            ProcessBuilder("which", "secret-tool").start().waitFor() == 0
+        }.getOrDefault(false)
+        else -> false
+    }
 }
 
 actual fun currentTimeMillis(): Long = System.currentTimeMillis()

@@ -2,6 +2,7 @@ package com.github.tidetunes.di
 
 import com.github.tidetunes.domain.importing.RemoteLibraryImportCoordinator
 import com.github.tidetunes.source.storage.MetadataRepository
+import com.github.tidetunes.source.storage.RemoteMetadataReader
 import com.github.tidetunes.source.storage.RemoteScannerRepository
 import com.github.tidetunes.core.data.StorageRepositoryImpl
 import com.github.tidetunes.core.domain.repository.StorageRepository
@@ -126,6 +127,7 @@ val sourceDataModule = module {
         )
     }
     single { MetadataRepository(get(), get()) }
+    single<RemoteMetadataReader> { get<MetadataRepository>() }
     single { RemoteScannerRepository(get(), get()) }
     single {
         RemoteLibraryImportCoordinator(

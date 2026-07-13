@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import com.github.tidetunes.core.presentation.components.AppSwitch
 import com.github.tidetunes.core.presentation.components.AppTextField
@@ -59,6 +60,9 @@ import tidetunes.core.presentation.generated.resources.icon_search
 import tidetunes.core.presentation.generated.resources.icon_setting
 import tidetunes.core.presentation.generated.resources.icon_timelapse
 import tidetunes.core.presentation.generated.resources.icon_wifitethering
+import tidetunes.feature.settings.generated.resources.Res as SettingsRes
+import tidetunes.feature.settings.generated.resources.settings_cancel
+import tidetunes.feature.settings.generated.resources.settings_save
 
 @Composable
 internal fun SettingsPageLayout(
@@ -231,11 +235,13 @@ internal fun SettingsInfoRow(
 internal fun SettingsDangerRow(
     title: String,
     summary: String,
+    enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
     TidePreferenceRow(
         title = title,
         summary = summary,
+        enabled = enabled,
         onClick = onClick,
         titleColor = MiuixTheme.colorScheme.error,
         showDivider = false,
@@ -325,7 +331,7 @@ internal fun SettingsConfirmDialog(
             horizontalArrangement = Arrangement.End,
         ) {
             TideTextButton(
-                text = "Cancel",
+                text = stringResource(SettingsRes.string.settings_cancel),
                 variant = TideTextButtonVariant.Default,
                 size = TideTextButtonSize.Medium,
                 onClick = onDismiss,
@@ -344,6 +350,7 @@ internal fun SettingsConfirmDialog(
 internal fun SettingsInputDialog(
     show: Boolean,
     title: String,
+    message: String,
     value: String,
     onValueChange: (String) -> Unit,
     onConfirm: () -> Unit,
@@ -360,7 +367,7 @@ internal fun SettingsInputDialog(
         )
         Spacer(modifier = Modifier.height(TideTunesTokens.spacing.xs))
         Text(
-            text = "请输入 0 到 10240 MB。",
+            text = message,
             style = MiuixTheme.textStyles.body2,
             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
         )
@@ -378,13 +385,13 @@ internal fun SettingsInputDialog(
             horizontalArrangement = Arrangement.End,
         ) {
             TideTextButton(
-                text = "Cancel",
+                text = stringResource(SettingsRes.string.settings_cancel),
                 variant = TideTextButtonVariant.Default,
                 size = TideTextButtonSize.Medium,
                 onClick = onDismiss,
             )
             TideTextButton(
-                text = "Save",
+                text = stringResource(SettingsRes.string.settings_save),
                 variant = TideTextButtonVariant.Primary,
                 size = TideTextButtonSize.Medium,
                 onClick = onConfirm,
@@ -407,7 +414,7 @@ private fun ChoiceIndicator(selected: Boolean) {
 }
 
 internal fun formatBytes(bytes: Long?): String {
-    if (bytes == null) return "暂不可用"
+    if (bytes == null) return "—"
     if (bytes < 1024L) return "$bytes B"
     val kb = bytes / 1024.0
     if (kb < 1024.0) return "${formatOneDecimal(kb)} KB"

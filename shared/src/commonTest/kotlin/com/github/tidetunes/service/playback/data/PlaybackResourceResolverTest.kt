@@ -4,6 +4,7 @@ import com.github.tidetunes.core.domain.model.MediaId
 import com.github.tidetunes.core.domain.model.SourceAccountId
 import com.github.tidetunes.core.domain.model.SourceId
 import com.github.tidetunes.database.ProviderTypes
+import com.github.tidetunes.database.MetadataRefreshCandidate
 import com.github.tidetunes.database.SourceAccountEntity
 import com.github.tidetunes.database.SourceItemEntity
 import com.github.tidetunes.database.SourceItemTypes
@@ -231,9 +232,17 @@ class PlaybackResourceResolverTest {
             return emptyList()
         }
 
+        override suspend fun webDavMetadataCandidatesForTrack(trackId: Long) = emptyList<MetadataRefreshCandidate>()
+
+        override suspend fun webDavMetadataCandidatesForAlbum(albumId: Long) = emptyList<MetadataRefreshCandidate>()
+
+        override suspend fun missingWebDavMetadataCandidates(target: String) = emptyList<MetadataRefreshCandidate>()
+
         override suspend fun countForTrack(trackId: Long): Int {
             return 0
         }
+
+        override suspend fun hasSourceAccount(trackId: Long, sourceAccountId: Long) = false
 
         override suspend fun upsertAll(refs: List<TrackSourceRefEntity>) = Unit
 

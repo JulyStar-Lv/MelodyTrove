@@ -2,6 +2,7 @@ package com.github.tidetunes.service.librarysync.data
 
 import com.github.tidetunes.domain.importing.RemoteLibraryImportCoordinator
 import com.github.tidetunes.domain.importing.RemoteLibraryImportResult
+import com.github.tidetunes.core.domain.model.MetadataScanMode
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncController
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncFailure
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncRequest
@@ -66,6 +67,7 @@ internal class LegacyLibrarySyncController(
                     selectedFolderDisplayPath = request.selectedFolderDisplayPath,
                     scanId = request.scanId,
                     scanRules = request.scanRules,
+                    metadataScanMode = request.metadataScanMode,
                     metadataConcurrency = request.metadataConcurrency,
                     importBatchSize = request.importBatchSize,
                 )
@@ -77,6 +79,7 @@ internal class LegacyLibrarySyncController(
                     selectedFolderDisplayPath = request.selectedFolderDisplayPath,
                     scanId = request.scanId,
                     scanRules = request.scanRules,
+                    metadataScanMode = request.metadataScanMode,
                     metadataConcurrency = request.metadataConcurrency,
                     importBatchSize = request.importBatchSize,
                 )
@@ -135,6 +138,7 @@ internal interface LegacyLibrarySyncImporter {
         selectedFolderDisplayPath: String?,
         scanId: String?,
         scanRules: LibrarySyncScanRules,
+        metadataScanMode: MetadataScanMode,
         metadataConcurrency: UInt,
         importBatchSize: Int,
     ): RemoteLibraryImportResult
@@ -146,6 +150,7 @@ internal interface LegacyLibrarySyncImporter {
         selectedFolderDisplayPath: String?,
         scanId: String?,
         scanRules: LibrarySyncScanRules,
+        metadataScanMode: MetadataScanMode,
         metadataConcurrency: UInt,
         importBatchSize: Int,
     ): RemoteLibraryImportResult
@@ -173,6 +178,7 @@ internal class RemoteLibraryImportGateway(
         selectedFolderDisplayPath: String?,
         scanId: String?,
         scanRules: LibrarySyncScanRules,
+        metadataScanMode: MetadataScanMode,
         metadataConcurrency: UInt,
         importBatchSize: Int,
     ): RemoteLibraryImportResult {
@@ -183,6 +189,7 @@ internal class RemoteLibraryImportGateway(
             selectedFolderDisplayPath = selectedFolderDisplayPath,
             scanId = scanId,
             scanRules = scanRules,
+            metadataScanMode = metadataScanMode,
             metadataConcurrency = metadataConcurrency,
             importBatchSize = importBatchSize,
         )
@@ -195,6 +202,7 @@ internal class RemoteLibraryImportGateway(
         selectedFolderDisplayPath: String?,
         scanId: String?,
         scanRules: LibrarySyncScanRules,
+        metadataScanMode: MetadataScanMode,
         metadataConcurrency: UInt,
         importBatchSize: Int,
     ): RemoteLibraryImportResult {
@@ -205,6 +213,7 @@ internal class RemoteLibraryImportGateway(
             selectedFolderDisplayPath = selectedFolderDisplayPath,
             scanId = scanId,
             scanRules = scanRules,
+            metadataScanMode = metadataScanMode,
             metadataConcurrency = metadataConcurrency,
             importBatchSize = importBatchSize,
         )
@@ -220,6 +229,10 @@ private fun RemoteLibraryImportResult.toLibrarySyncResult(): LibrarySyncResult {
         skippedCount = skippedCount,
         importedCount = importedCount,
         failedCount = failedCount,
+        metadataRequestCount = metadataRequestCount,
+        metadataFetchedBytes = metadataFetchedBytes,
+        metadataElapsedMs = metadataElapsedMs,
+        artworkCachedBytes = artworkCachedBytes,
     )
 }
 
@@ -229,6 +242,10 @@ private fun LibrarySyncTask.toLibrarySyncRequest(scanId: String): LibrarySyncReq
         selectedFolderRemoteId = selectedFolderRemoteId,
         selectedFolderCanonicalPath = folderPath,
         selectedFolderDisplayPath = folderDisplayPath,
+        scanRules = scanRules,
         scanId = scanId,
+        metadataScanMode = metadataScanMode,
+        metadataConcurrency = metadataConcurrency,
+        importBatchSize = importBatchSize,
     )
 }

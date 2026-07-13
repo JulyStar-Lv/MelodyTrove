@@ -12,9 +12,11 @@ fun SettingsRoot(
     page: SettingsPage,
     appVersion: String,
     appBuildInfo: String,
+    gitCommitSha: String,
     onNavigateToAppearance: () -> Unit,
     onNavigateToPlayback: () -> Unit,
     onNavigateToSource: () -> Unit,
+    onNavigateToNetworkCache: () -> Unit,
     onNavigateToStorage: () -> Unit,
     onNavigateToAbout: () -> Unit,
     onNavigateToLicenses: () -> Unit,
@@ -36,10 +38,11 @@ fun SettingsRoot(
     when (page) {
         SettingsPage.Home -> SettingsScreen(
             state = state,
-            onAction = settingsVM::onAction,
+            appVersion = appVersion,
             onNavigateToAppearance = onNavigateToAppearance,
             onNavigateToPlayback = onNavigateToPlayback,
             onNavigateToSource = onNavigateToSource,
+            onNavigateToNetworkCache = onNavigateToNetworkCache,
             onNavigateToStorage = onNavigateToStorage,
             onNavigateToAbout = onNavigateToAbout,
         )
@@ -58,6 +61,11 @@ fun SettingsRoot(
             onBack = onBack,
             onAction = settingsVM::onAction,
         )
+        SettingsPage.NetworkCache -> NetworkCacheSettingsSection(
+            state = state,
+            onBack = onBack,
+            onAction = settingsVM::onAction,
+        )
         SettingsPage.Storage -> StorageSettingsSection(
             state = state,
             onBack = onBack,
@@ -66,9 +74,11 @@ fun SettingsRoot(
         SettingsPage.About -> AboutSettingsSection(
             appVersion = appVersion,
             appBuildInfo = appBuildInfo,
+            gitCommitSha = gitCommitSha,
             onBack = onBack,
             onOpenLicenses = onNavigateToLicenses,
             onOpenRepository = { uriHandler.openUri(TIDE_TUNES_REPOSITORY_URL) },
+            onOpenIssues = { uriHandler.openUri(TIDE_TUNES_ISSUES_URL) },
         )
         SettingsPage.Licenses -> LicensesSettingsScreen(onBack = onBack)
     }

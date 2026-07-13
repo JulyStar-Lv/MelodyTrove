@@ -1,6 +1,7 @@
 package com.github.tidetunes.service.librarysync.data
 
 import com.github.tidetunes.core.domain.model.SourceAccountId
+import com.github.tidetunes.core.domain.model.MetadataScanMode
 import com.github.tidetunes.domain.importing.RemoteLibraryImportResult
 import com.github.tidetunes.service.librarysync.domain.DEFAULT_LIBRARY_SYNC_BATCH_SIZE
 import com.github.tidetunes.service.librarysync.domain.DEFAULT_LIBRARY_SYNC_METADATA_CONCURRENCY
@@ -34,6 +35,7 @@ class LegacyLibrarySyncControllerTest {
             request(
                 selectedFolderRemoteId = null,
                 scanId = "scan-42",
+                metadataScanMode = MetadataScanMode.Fast,
                 metadataConcurrency = 2u,
                 importBatchSize = 25,
             )
@@ -45,6 +47,7 @@ class LegacyLibrarySyncControllerTest {
         assertEquals(null, importer.scanCalls.single().selectedFolderRemoteId)
         assertEquals("/Music", importer.scanCalls.single().selectedFolderCanonicalPath)
         assertEquals("scan-42", importer.scanCalls.single().scanId)
+        assertEquals(MetadataScanMode.Fast, importer.scanCalls.single().metadataScanMode)
         assertEquals(2u, importer.scanCalls.single().metadataConcurrency)
         assertEquals(25, importer.scanCalls.single().importBatchSize)
         assertEquals(7L, result.importedCount)
@@ -234,6 +237,7 @@ class LegacyLibrarySyncControllerTest {
         assertEquals("scan-42", importer.scanCalls.single().scanId)
         assertEquals("folder-42", importer.scanCalls.single().selectedFolderRemoteId)
         assertEquals("/Music", importer.scanCalls.single().selectedFolderCanonicalPath)
+        assertEquals(MetadataScanMode.Fast, importer.scanCalls.single().metadataScanMode)
         assertEquals(
             listOf(ActiveCheck(SourceAccountId("storage:42"), "scan-42")),
             taskRepository.activeChecks,
@@ -264,6 +268,7 @@ class LegacyLibrarySyncControllerTest {
         assertEquals(1, importer.scanCalls.size)
         assertEquals("scan-42", importer.scanCalls.single().scanId)
         assertEquals(null, importer.scanCalls.single().selectedFolderRemoteId)
+        assertEquals(MetadataScanMode.Fast, importer.scanCalls.single().metadataScanMode)
     }
 
     @Test
@@ -305,6 +310,7 @@ class LegacyLibrarySyncControllerTest {
         selectedFolderCanonicalPath: String = "/Music",
         selectedFolderDisplayPath: String? = null,
         scanId: String? = null,
+        metadataScanMode: MetadataScanMode = MetadataScanMode.Full,
         metadataConcurrency: UInt = DEFAULT_LIBRARY_SYNC_METADATA_CONCURRENCY,
         importBatchSize: Int = DEFAULT_LIBRARY_SYNC_BATCH_SIZE,
     ): LibrarySyncRequest {
@@ -314,6 +320,7 @@ class LegacyLibrarySyncControllerTest {
             selectedFolderCanonicalPath = selectedFolderCanonicalPath,
             selectedFolderDisplayPath = selectedFolderDisplayPath,
             scanId = scanId,
+            metadataScanMode = metadataScanMode,
             metadataConcurrency = metadataConcurrency,
             importBatchSize = importBatchSize,
         )
@@ -356,6 +363,7 @@ class LegacyLibrarySyncControllerTest {
             errorMessage = null,
             createdAtEpochMs = 100,
             updatedAtEpochMs = 200,
+            metadataScanMode = MetadataScanMode.Fast,
         )
     }
 }
@@ -437,6 +445,7 @@ private class FakeLegacyLibrarySyncImporter(
         selectedFolderDisplayPath: String?,
         scanId: String?,
         scanRules: LibrarySyncScanRules,
+        metadataScanMode: MetadataScanMode,
         metadataConcurrency: UInt,
         importBatchSize: Int,
     ): RemoteLibraryImportResult {
@@ -447,6 +456,7 @@ private class FakeLegacyLibrarySyncImporter(
             selectedFolderDisplayPath = selectedFolderDisplayPath,
             scanId = scanId,
             scanRules = scanRules,
+            metadataScanMode = metadataScanMode,
             metadataConcurrency = metadataConcurrency,
             importBatchSize = importBatchSize,
         )
@@ -460,6 +470,7 @@ private class FakeLegacyLibrarySyncImporter(
         selectedFolderDisplayPath: String?,
         scanId: String?,
         scanRules: LibrarySyncScanRules,
+        metadataScanMode: MetadataScanMode,
         metadataConcurrency: UInt,
         importBatchSize: Int,
     ): RemoteLibraryImportResult {
@@ -470,6 +481,7 @@ private class FakeLegacyLibrarySyncImporter(
             selectedFolderDisplayPath = selectedFolderDisplayPath,
             scanId = scanId,
             scanRules = scanRules,
+            metadataScanMode = metadataScanMode,
             metadataConcurrency = metadataConcurrency,
             importBatchSize = importBatchSize,
         )
@@ -496,6 +508,7 @@ private data class ScanCall(
     val selectedFolderDisplayPath: String?,
     val scanId: String?,
     val scanRules: LibrarySyncScanRules,
+    val metadataScanMode: MetadataScanMode,
     val metadataConcurrency: UInt,
     val importBatchSize: Int,
 )
@@ -507,6 +520,7 @@ private data class OneDriveCall(
     val selectedFolderDisplayPath: String?,
     val scanId: String?,
     val scanRules: LibrarySyncScanRules,
+    val metadataScanMode: MetadataScanMode,
     val metadataConcurrency: UInt,
     val importBatchSize: Int,
 )

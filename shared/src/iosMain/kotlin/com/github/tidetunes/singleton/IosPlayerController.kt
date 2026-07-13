@@ -9,12 +9,11 @@ import com.github.tidetunes.service.playback.data.PlayerRepository
 import com.github.tidetunes.service.playback.domain.SleepModeState
 import com.github.tidetunes.platform.currentTimeMillis
 import com.github.tidetunes.service.playback.data.PlaybackResourceResolver
-import com.github.tidetunes.service.playback.data.toPlayableItem
-import com.github.tidetunes.service.playback.data.toPlaybackEngineResource
-import com.github.tidetunes.service.playback.domain.PlaybackEngineLoadRequest
-import com.github.tidetunes.service.playback.domain.PlaybackEngineLoadResult
+import com.github.tidetunes.service.playback.data.PlaybackPreparationResult
+import com.github.tidetunes.service.playback.data.preparePlayback
+import com.github.tidetunes.core.domain.repository.NetworkStatusProvider
+import com.github.tidetunes.core.domain.repository.SettingsRepository
 import com.github.tidetunes.source.api.PlaybackResource
-import com.github.tidetunes.source.api.SourcePlaybackResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -23,6 +22,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import uniffi.tidetunes_backend.MusicId
@@ -41,11 +41,14 @@ class IosPlayerController internal constructor(
     private val scope: CoroutineScope,
     private val playbackEngine: IosPlaybackEngine,
     private val mainDispatcher: CoroutineDispatcher,
+    private val settingsRepository: SettingsRepository? = null,
+    private val networkStatusProvider: NetworkStatusProvider? = null,
 ) : PlayerController {
     private val sleep = MutableStateFlow(SleepModeState())
     private var sleepJob: Job? = null
     private var playbackJob: Job? = null
     private var playbackResource: PlaybackResource? = null
+    private var pendingNetworkRecovery: Pair<MusicId, PlaylistId>? = null
 
     override val sleepState = sleep.asStateFlow()
 
@@ -57,6 +60,8 @@ class IosPlayerController internal constructor(
         roomLibraryStore: RoomLibraryStore,
         playbackResourceResolver: PlaybackResourceResolver,
         scope: CoroutineScope,
+        settingsRepository: SettingsRepository,
+        networkStatusProvider: NetworkStatusProvider,
     ) : this(
         playerRepository = playerRepository,
         toastRepository = toastRepository,
@@ -67,6 +72,8 @@ class IosPlayerController internal constructor(
         scope = scope,
         playbackEngine = AvPlayerIosPlaybackEngine(),
         mainDispatcher = Dispatchers.Main,
+        settingsRepository = settingsRepository,
+        networkStatusProvider = networkStatusProvider,
     )
 
     init {
@@ -94,6 +101,18 @@ class IosPlayerController internal constructor(
             storageRepository.preRemoveStorageEvent.collect { id ->
                 if (playerRepository.music.value?.loc?.storageId == id) {
                     stop()
+                }
+            }
+        }
+        networkStatusProvider?.let { provider ->
+            scope.launch {
+                provider.status.collect { network ->
+                    val pending = pendingNetworkRecovery ?: return@collect
+                    val settings = settingsRepository?.settings?.first() ?: return@collect
+                    if (network.isOnline && settings.resumePlaybackAfterNetworkRecovery) {
+                        pendingNetworkRecovery = null
+                        play(pending.first, pending.second)
+                    }
                 }
             }
         }
@@ -129,25 +148,25 @@ class IosPlayerController internal constructor(
                     return@launch
                 }
 
-                val resource = when (val result = playbackResourceResolver.resolve(music)) {
-                    is SourcePlaybackResult.Success -> result.resource
-                    is SourcePlaybackResult.Failure -> {
+                when (
+                    val preparation = preparePlayback(
+                        music = music,
+                        playlistId = playlist.abstr.meta.id.value,
+                        playbackResourceResolver = playbackResourceResolver,
+                        playbackEngine = playbackEngine,
+                        settingsRepository = settingsRepository,
+                        networkStatusProvider = networkStatusProvider,
+                    )
+                ) {
+                    is PlaybackPreparationResult.Ready -> {
+                        playbackResource = preparation.resource
+                        pendingNetworkRecovery = null
+                    }
+                    PlaybackPreparationResult.NetworkBlocked,
+                    PlaybackPreparationResult.Failed -> {
+                        pendingNetworkRecovery = id to playlistId
                         toastRepository.emitToast("Unable to open audio stream")
                         playerRepository.resetCurrent()
-                        return@launch
-                    }
-                }
-                playbackResource = resource
-                val loadRequest = PlaybackEngineLoadRequest(
-                    item = music.toPlayableItem(playlist.abstr.meta.id.value),
-                    resource = resource.toPlaybackEngineResource(),
-                )
-                when (playbackEngine.load(loadRequest)) {
-                    PlaybackEngineLoadResult.Ready -> Unit
-                    is PlaybackEngineLoadResult.Unsupported,
-                    is PlaybackEngineLoadResult.Failure -> {
-                        releasePlaybackResource()
-                        toastRepository.emitToast("Unable to open audio stream")
                         return@launch
                     }
                 }

@@ -3,10 +3,26 @@ package com.github.tidetunes.feature.settings.presentation
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncFailure
 
 internal data class ScanFailureDisplay(
-    val fileName: String,
+    val fileName: String?,
     val directory: String?,
-    val reason: String,
+    val reason: ScanFailureReason,
 )
+
+internal sealed interface ScanFailureReason {
+    data object Unknown : ScanFailureReason
+
+    data class RemoteRead(val httpStatus: String?) : ScanFailureReason
+
+    data class ByteBudget(val limitBytes: Long?) : ScanFailureReason
+
+    data object UnsupportedContainer : ScanFailureReason
+
+    data object MissingMetadata : ScanFailureReason
+
+    data class MetadataError(val detail: String) : ScanFailureReason
+
+    data class Raw(val detail: String) : ScanFailureReason
+}
 
 internal fun LibrarySyncFailure.toScanFailureDisplay(): ScanFailureDisplay =
     message.toScanFailureDisplay()
@@ -18,9 +34,9 @@ internal fun String.toScanFailureDisplay(): ScanFailureDisplay {
         ?.trim()
         ?.takeIf(String::isNotBlank)
     return ScanFailureDisplay(
-        fileName = decodedPath?.fileNameOrNull() ?: "未知文件",
+        fileName = decodedPath?.fileNameOrNull(),
         directory = decodedPath?.directoryOrNull(),
-        reason = rawReason.toReadableReason(),
+        reason = rawReason.toScanFailureReason(),
     )
 }
 
@@ -55,9 +71,9 @@ private fun String.directoryOrNull(): String? {
     }
 }
 
-private fun String.toReadableReason(): String {
+private fun String.toScanFailureReason(): ScanFailureReason {
     val reason = trim().percentDecodeUtf8()
-    if (reason.isBlank()) return "未知错误"
+    if (reason.isBlank()) return ScanFailureReason.Unknown
 
     val lowercase = reason.lowercase()
     return when {
@@ -65,12 +81,7 @@ private fun String.toReadableReason(): String {
             val httpStatus = HttpStatusRegex.find(reason)
                 ?.groupValues
                 ?.getOrNull(1)
-                ?.let(::readableHttpStatus)
-            if (httpStatus != null) {
-                "远程文件读取失败：服务器返回 $httpStatus"
-            } else {
-                "远程文件读取失败：服务器返回错误"
-            }
+            ScanFailureReason.RemoteRead(httpStatus)
         }
 
         "metadata scan exceeded byte budget" in lowercase -> {
@@ -78,43 +89,21 @@ private fun String.toReadableReason(): String {
                 ?.groupValues
                 ?.getOrNull(1)
                 ?.toLongOrNull()
-                ?.toReadableBytes()
-            buildString {
-                append("元数据读取失败：文件标签或内嵌封面超过扫描读取上限")
-                if (limit != null) append("（$limit）")
-            }
+            ScanFailureReason.ByteBudget(limit)
         }
 
-        "unsupported container" in lowercase -> "元数据读取失败：不支持的音频容器或文件格式"
-        "元数据读取无返回结果" in reason -> "元数据读取失败：未读取到可用元数据"
+        "unsupported container" in lowercase -> ScanFailureReason.UnsupportedContainer
+        "元数据读取无返回结果" in reason -> ScanFailureReason.MissingMetadata
         lowercase.startsWith("metadata error:") -> {
-            "元数据读取失败：${reason.removePrefix("metadata error:").trim()}"
+            ScanFailureReason.MetadataError(reason.substringAfter(':').trim())
         }
 
-        else -> reason
+        else -> ScanFailureReason.Raw(reason)
     }
 }
 
 private val ByteBudgetRegex = Regex("""byte budget \((\d+)\)""")
 private val HttpStatusRegex = Regex("""HTTP status .*?\(([^)]+)\)""", RegexOption.IGNORE_CASE)
-
-private fun readableHttpStatus(status: String): String =
-    when {
-        status.startsWith("500 ") -> "HTTP 500（服务器内部错误）"
-        status.startsWith("404 ") -> "HTTP 404（文件不存在）"
-        status.startsWith("401 ") -> "HTTP 401（未授权）"
-        status.startsWith("403 ") -> "HTTP 403（无访问权限）"
-        else -> "HTTP $status"
-    }
-
-private fun Long.toReadableBytes(): String {
-    val megabyte = 1024L * 1024L
-    return if (this % megabyte == 0L) {
-        "${this / megabyte} MB"
-    } else {
-        "$this bytes"
-    }
-}
 
 private fun String.percentDecodeUtf8(): String {
     if ('%' !in this) return this

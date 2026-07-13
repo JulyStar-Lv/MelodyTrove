@@ -1,15 +1,21 @@
 package com.github.tidetunes.service.librarysync.data
 
 import com.github.tidetunes.core.domain.model.SourceAccountId
+import com.github.tidetunes.core.domain.model.DuplicateTrackPolicy
+import com.github.tidetunes.core.domain.model.MetadataScanMode
+import com.github.tidetunes.core.domain.model.MissingFilePolicy
 import com.github.tidetunes.database.ImportJobWithFolder
 import com.github.tidetunes.database.SourceErrorEntity
 import com.github.tidetunes.database.SourceErrorDao
 import com.github.tidetunes.database.SyncDao
 import com.github.tidetunes.platform.currentTimeMillis
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncFailure
+import com.github.tidetunes.service.librarysync.domain.LibrarySyncScanRules
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncStatus
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncTask
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncTaskRepository
+import com.github.tidetunes.service.librarysync.domain.MAX_LIBRARY_SYNC_IMPORT_BATCH_SIZE
+import com.github.tidetunes.service.librarysync.domain.MAX_LIBRARY_SYNC_METADATA_CONCURRENCY
 import com.github.tidetunes.source.storage.toLegacyStorageIdOrNull
 import com.github.tidetunes.source.storage.toLegacyStorageSourceAccountId
 import kotlinx.coroutines.flow.Flow
@@ -97,8 +103,35 @@ internal fun ImportJobWithFolder.toLibrarySyncTask(): LibrarySyncTask {
         errorMessage = job.errorMessage?.takeIf { it.isNotBlank() },
         createdAtEpochMs = job.createdAt,
         updatedAtEpochMs = job.updatedAt,
+        metadataScanMode = job.metadataScanMode.enumOrDefault(MetadataScanMode.Full),
+        metadataConcurrency = job.metadataConcurrency
+            .coerceIn(1, MAX_LIBRARY_SYNC_METADATA_CONCURRENCY.toLong())
+            .toUInt(),
+        importBatchSize = job.importBatchSize.coerceIn(1, MAX_LIBRARY_SYNC_IMPORT_BATCH_SIZE),
+        scanRules = LibrarySyncScanRules(
+            scanSubdirectories = job.scanSubdirectories,
+            minDurationMs = if (job.ignoreShortAudio) job.minDurationMs else 0,
+            missingFilePolicy = job.missingFilePolicy.enumOrDefault(MissingFilePolicy.MarkUnavailable),
+            duplicateTrackPolicy = job.duplicateTrackPolicy
+                .enumOrDefault(DuplicateTrackPolicy.SeparateBySource),
+            ignoreHiddenFiles = job.ignoreHiddenFiles,
+            ignoredDirectoryNames = job.ignoredDirectoryNames
+                .split(SNAPSHOT_LIST_SEPARATOR)
+                .filter(String::isNotBlank)
+                .toSet(),
+        ),
+        metadataRequestCount = job.metadataRequestCount,
+        metadataFetchedBytes = job.metadataFetchedBytes,
+        metadataElapsedMs = job.metadataElapsedMs,
+        artworkCachedBytes = job.artworkCachedBytes,
     )
 }
+
+private inline fun <reified T : Enum<T>> String.enumOrDefault(default: T): T {
+    return enumValues<T>().firstOrNull { it.name == this } ?: default
+}
+
+private const val SNAPSHOT_LIST_SEPARATOR = "|"
 
 internal fun String.toLibrarySyncStatus(): LibrarySyncStatus {
     return when (this) {

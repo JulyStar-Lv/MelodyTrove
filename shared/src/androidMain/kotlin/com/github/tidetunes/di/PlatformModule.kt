@@ -10,9 +10,25 @@ import org.koin.core.module.Module
 import org.koin.core.module.dsl.singleOf
 import org.koin.dsl.bind
 import org.koin.dsl.module
+import com.github.tidetunes.core.data.settings.AndroidNetworkStatusProvider
+import com.github.tidetunes.core.domain.repository.NetworkStatusProvider
 
 actual val platformModule: Module = module {
-    single { PlayerControllerRepository(get(), get(), get(), get(), get(), get(), get(), get()) } bind PlayerController::class
+    single {
+        PlayerControllerRepository(
+            playerRepository = get(),
+            toastRepository = get(),
+            playlistRepository = get(),
+            storageRepository = get(),
+            bridge = get(),
+            roomLibraryStore = get(),
+            playbackResourceResolver = get(),
+            _scope = get(),
+            settingsRepository = get(),
+            networkStatusProvider = get(),
+        )
+    } bind PlayerController::class
     single { PermissionRepository(get()) } bind PermissionChecker::class
     single<DownloadTaskScheduler> { AndroidWorkManagerDownloadScheduler() }
+    single<NetworkStatusProvider> { AndroidNetworkStatusProvider() }
 }

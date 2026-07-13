@@ -11,12 +11,11 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import com.github.tidetunes.service.playback.data.PlaybackResourceResolver
-import com.github.tidetunes.service.playback.data.toPlayableItem
-import com.github.tidetunes.service.playback.data.toPlaybackEngineResource
-import com.github.tidetunes.service.playback.domain.PlaybackEngineLoadRequest
-import com.github.tidetunes.service.playback.domain.PlaybackEngineLoadResult
+import com.github.tidetunes.service.playback.data.PlaybackPreparationResult
+import com.github.tidetunes.service.playback.data.preparePlayback
+import com.github.tidetunes.core.domain.repository.SettingsRepository
+import com.github.tidetunes.core.domain.repository.NetworkStatusProvider
 import com.github.tidetunes.source.api.PlaybackResource
-import com.github.tidetunes.source.api.SourcePlaybackResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -28,6 +27,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import uniffi.tidetunes_backend.ArgRemoveMusicFromPlaylist
 import uniffi.tidetunes_backend.Music
@@ -79,6 +79,8 @@ class PlayerControllerRepository internal constructor(
     private val _scope: CoroutineScope,
     initialPlaybackEngine: AndroidPlaybackEngine?,
     private val mainDispatcher: CoroutineDispatcher,
+    private val settingsRepository: SettingsRepository? = null,
+    private val networkStatusProvider: NetworkStatusProvider? = null,
 ) : PlayerController {
     private var _mediaController: MediaController? = null
     private val _playlist = playerState.playlist
@@ -91,6 +93,7 @@ class PlayerControllerRepository internal constructor(
     private var playbackEngine: AndroidPlaybackEngine? = initialPlaybackEngine
     private val nextMusic = playerState.nextMusic
     private val previousMusic = playerState.previousMusic
+    private var pendingNetworkRecovery: Pair<MusicId, PlaylistId>? = null
 
     override val sleepState = _sleep.asStateFlow()
 
@@ -103,6 +106,8 @@ class PlayerControllerRepository internal constructor(
         roomLibraryStore: RoomLibraryStore,
         playbackResourceResolver: PlaybackResourceResolver,
         _scope: CoroutineScope,
+        settingsRepository: SettingsRepository,
+        networkStatusProvider: NetworkStatusProvider,
     ) : this(
         playerState = AndroidPlayerRepositoryStateStore(playerRepository),
         toastRepository = toastRepository,
@@ -124,6 +129,8 @@ class PlayerControllerRepository internal constructor(
         _scope = _scope,
         initialPlaybackEngine = null,
         mainDispatcher = Dispatchers.Main,
+        settingsRepository = settingsRepository,
+        networkStatusProvider = networkStatusProvider,
     )
 
     init {
@@ -131,6 +138,18 @@ class PlayerControllerRepository internal constructor(
             removalEvents.preRemovePlaylistEvent.collect { id ->
                 if (_playlist.value?.abstr?.meta?.id == id) {
                     stop()
+                }
+            }
+        }
+        networkStatusProvider?.let { provider ->
+            _scope.launch(mainDispatcher) {
+                provider.status.collect { network ->
+                    val pending = pendingNetworkRecovery ?: return@collect
+                    val settings = settingsRepository?.settings?.first() ?: return@collect
+                    if (network.isOnline && settings.resumePlaybackAfterNetworkRecovery) {
+                        pendingNetworkRecovery = null
+                        play(pending.first, pending.second)
+                    }
                 }
             }
         }
@@ -217,25 +236,25 @@ class PlayerControllerRepository internal constructor(
                     return@launch
                 }
 
-                val resource = when (val result = playbackResourceResolver.resolve(music)) {
-                    is SourcePlaybackResult.Success -> result.resource
-                    is SourcePlaybackResult.Failure -> {
+                when (
+                    val preparation = preparePlayback(
+                        music = music,
+                        playlistId = playlist.abstr.meta.id.value,
+                        playbackResourceResolver = playbackResourceResolver,
+                        playbackEngine = engine,
+                        settingsRepository = settingsRepository,
+                        networkStatusProvider = networkStatusProvider,
+                    )
+                ) {
+                    is PlaybackPreparationResult.Ready -> {
+                        playbackResource = preparation.resource
+                        pendingNetworkRecovery = null
+                    }
+                    PlaybackPreparationResult.NetworkBlocked,
+                    PlaybackPreparationResult.Failed -> {
+                        pendingNetworkRecovery = id to playlistId
                         toastRepository.emitToast("Unable to open audio stream")
                         playerState.resetCurrent()
-                        return@launch
-                    }
-                }
-                playbackResource = resource
-                val loadRequest = PlaybackEngineLoadRequest(
-                    item = music.toPlayableItem(playlist.abstr.meta.id.value),
-                    resource = resource.toPlaybackEngineResource(),
-                )
-                when (engine.load(loadRequest)) {
-                    PlaybackEngineLoadResult.Ready -> Unit
-                    is PlaybackEngineLoadResult.Unsupported,
-                    is PlaybackEngineLoadResult.Failure -> {
-                        releasePlaybackResource()
-                        toastRepository.emitToast("Unable to open audio stream")
                         return@launch
                     }
                 }

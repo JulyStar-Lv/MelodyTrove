@@ -5,6 +5,7 @@ Features
 ----
 
 - WebDAV and OneDrive support
+- Fast, Standard, and Full WebDAV metadata scan modes
 - Playlist-based, music cover and lyric support
 - Unified Room KMP library on Android, iOS, and Desktop
 - Source-agnostic canonical tracks with multi-source playback references
@@ -20,6 +21,13 @@ lyrics, artwork metadata, playlists, and downloads.
 Source adapters handle auth, browse, scan, and playback-resource resolution.
 The import coordinator is the write boundary into Room, and transient playback
 URLs, headers, tokens, and cookies are not persisted.
+
+WebDAV metadata scanning defaults to Standard for new users: core tags and
+embedded lyrics are read, while artwork and raw tags are skipped. Fast reads
+only core tags; Full also reads artwork and raw tags. Existing installations
+with a WebDAV account migrate once to Full to preserve their previous behavior.
+Skipped optional metadata is left unchanged, and Settings can backfill missing
+artwork or lyrics later without requiring the remote file fingerprint to change.
 
 Roadmap
 ----
