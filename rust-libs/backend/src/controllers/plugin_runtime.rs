@@ -1,3 +1,4 @@
+use sha2::{Digest, Sha256};
 use std::{
     fs,
     io::{Read, Write},
@@ -25,7 +26,10 @@ pub struct PluginRuntimeOptions {
     pub allow_http: bool,
     pub allow_https: bool,
     pub allow_private_network: bool,
+    pub max_http_request_bytes: u64,
     pub max_http_response_bytes: u64,
+    pub max_plugin_cache_bytes: u64,
+    pub max_inflate_bytes: u64,
 }
 
 #[derive(Clone, uniffi::Record)]
@@ -142,7 +146,10 @@ pub fn create_plugin_runtime(
         allow_http: options.allow_http,
         allow_https: options.allow_https,
         allow_private_network: options.allow_private_network,
+        max_http_request_bytes: options.max_http_request_bytes as usize,
         max_http_response_bytes: options.max_http_response_bytes as usize,
+        max_cache_bytes: options.max_plugin_cache_bytes as usize,
+        max_inflate_bytes: options.max_inflate_bytes as usize,
         ..Default::default()
     });
     let runtime = PluginRuntime::new(
@@ -156,6 +163,20 @@ pub fn create_plugin_runtime(
     )
     .map_err(PluginRuntimeException::from)?;
     Ok(Arc::new(PluginRuntimeHandle { runtime }))
+}
+
+#[uniffi::export]
+pub fn clear_plugin_cache(
+    cache_directory: String,
+    plugin_id: String,
+) -> Result<(), PluginRuntimeException> {
+    let hash = format!("{:x}", Sha256::digest(plugin_id.as_bytes()));
+    let directory = PathBuf::from(cache_directory).join("plugins").join(hash);
+    if directory.exists() {
+        fs::remove_dir_all(directory)
+            .map_err(|error| PluginRuntimeException::Internal(error.to_string()))?;
+    }
+    Ok(())
 }
 
 #[uniffi::export]
