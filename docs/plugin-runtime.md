@@ -1,44 +1,118 @@
 # TideTunes Plugin Runtime
 
-This document records the scope and validation path for the Lyrico Plugin API v3 compatible runtime.
+TideTunes implements JavaScript metadata plugins as Lyrico Plugin API v3 compatible
+`MetaSource` instances. Plugins are imported from local ZIP files and are never treated as
+general playback `MusicSource` implementations.
 
-## Scope
+## Production pipeline
 
-- User plugins are imported manually from local ZIP files. TideTunes does not ship, download, recommend, or auto-enable real third-party plugins.
-- The Rust runtime owns QuickJS, Host API execution, HTTP/XML/cache/crypto helpers, timeout/cancel handling, and per-plugin cache isolation.
-- Kotlin owns ZIP import metadata, script bundling, runtime lifecycle, and MetaSource parsing. Business objects are not exposed to Rust.
-- Each enabled plugin gets a lazy, isolated runtime. Calls are serialized for the same plugin; different plugin managers can create independent runtimes.
+The production graph is:
 
-## Import Behavior
-
-- Single-plugin ZIPs and aggregate ZIPs are extracted through the Rust `extract_plugin_zip` UniFFI function.
-- Extraction rejects path traversal, symlinks, excessive file count, excessive depth, and excessive total uncompressed size.
-- The installer recursively discovers `manifest.json` files, validates API version, entry file, include directories, icon path, duplicate plugin IDs, and downgrade conflicts.
-- Installed plugins are stored disabled by default. Manual lookup remains allowed by the runtime model; automatic and batch lookup default to disabled.
-
-## Runtime Behavior
-
-- Scripts are loaded in this order: host bootstrap, include bootstrap, sorted include-directory `.js` files, then entry script.
-- `include(path)` is a compatibility no-op. The runtime does not read plugin files after bundling.
-- Host API calls go through `__lyricoHostCall(name, JSON.stringify(payload))` and return `{ "value": ... }`.
-- Default limits are 4 MiB QuickJS heap, 2 MiB QuickJS stack, 5 seconds per JS call, and 16 MiB per HTTP response.
-- Timeout, OOM, poisoned, and internal runtime failures invalidate the Kotlin runtime cache. The Rust worker exits so QuickJS is destroyed before the next call rebuilds the runtime.
-
-## Validation Commands
-
-Run these before declaring this feature complete:
-
-```powershell
-$env:ANDROID_HOME="$env:LOCALAPPDATA\Android\Sdk"
-$env:ANDROID_SDK_ROOT=$env:ANDROID_HOME
-cargo test -p tidetunes-plugin-runtime --manifest-path rust-libs/Cargo.toml
-.\gradlew.bat :shared:compileKotlinDesktop :shared:desktopTest --tests "com.github.tidetunes.plugin.*" --no-daemon --console=plain
-.\gradlew.bat :shared:compileDebugKotlinAndroid --no-daemon --console=plain
-pnpm run audit:release
+```text
+Plugin ZIP -> PluginInstaller -> PluginRepository -> InstalledPlugin
+  -> PluginMetaSourceRegistry -> LyricoJsMetaSource -> MetadataLookupUseCase
+  -> PluginRuntimeManager -> QuickJS/Host API
 ```
 
-## Current Limitations
+`PluginMetaSourceRegistry` observes the Room-backed repository and updates the shared
+`MetaSourceRegistry`. It does not create JavaScript runtimes. A runtime is created lazily only
+when a source is called.
 
-- The repository currently contains runtime and repository plumbing, but no TideTunes Compose plugin management screen or navigation entry.
-- MetaSource adapter classes exist, but they still need to be wired into TideTunes' active metadata lookup flows.
-- Real third-party plugin ZIPs must only be tested locally through user-provided paths and must not be committed.
+The Settings screen exposes a Plugins destination for local ZIP import, enable/disable,
+manual/automatic/batch permissions, manifest capabilities, `configFields`, cache clearing,
+last runtime error, and uninstall. Password fields use masked input.
+
+## Import and manifest behavior
+
+- Single-plugin and aggregate ZIPs are extracted by the bounded Rust extractor.
+- Extraction rejects path traversal, absolute paths, links, excessive file count/depth, and
+  excessive uncompressed size.
+- Installation validates reverse-domain plugin IDs, API v3, `minHostApiVersion`, version,
+  capabilities, `.js` entry, include directories, supported icon type, and config fields.
+- Entry, include, and icon paths must resolve below the plugin root and exist with the expected
+  type.
+- Installation uses staging plus replacement; a failed update leaves the prior version usable.
+  Downgrades are rejected.
+- New plugins are persisted with `enabled = false`, manual permission enabled, and automatic and
+  batch permissions disabled.
+- Disabling and uninstalling invalidate the runtime and clear private candidate contexts.
+  Uninstall also removes plugin files, configuration, cache, and database records.
+
+## Lyrico v3 requests and results
+
+- `searchSongs` sends `keyword`, `page`, `pageSize`, `separator`, and merged `config`.
+- `getLyrics` sends `{ song, config }`. The nested song includes the candidate fields and the
+  same plugin's private `internal` value, plus matching `sourceId` and `pluginId`.
+- `searchCovers` sends `keyword`, `pageSize`, and merged `config`.
+- Song parsing accepts arrays and `items`, `results`, `songs`, or `data` wrappers, documented
+  aliases, array artists, numeric IDs, simple `fields`, and per-plugin private `internal`.
+- Cover parsing accepts URL strings, explicit cover objects, song-shaped objects, and the same
+  wrappers plus `covers`.
+- Lyrics parsing accepts structured line/word timing, translated and romanized tracks, all v3
+  raw lyric types, `notFound`, and the legacy TideTunes `lines` shape.
+- The QuickJS boundary returns JavaScript strings directly and JSON-serializes other values.
+  `null` and `undefined` normalize to the JSON text `null`; JSON strings are not double encoded.
+
+Private `internal` data is stored in a bounded, TTL-based, thread-safe token store. Tokens are
+random and scoped to the producing plugin. The value is not written to normal music tags or
+passed to another plugin.
+
+## Permissions
+
+`enabled` is the master switch for every formal lookup. An enabled plugin must additionally
+allow the requested `PluginLookupMode`:
+
+| Mode | Required flag |
+| --- | --- |
+| `MANUAL` | `allowManualLookup` |
+| `AUTOMATIC` | `allowAutomaticLookup` |
+| `BATCH` | `allowBatchLookup` |
+
+Denied calls throw `PluginLookupDeniedException` with the plugin ID and lookup mode. Automatic
+and batch selection therefore never opts a newly installed plugin in implicitly.
+
+## Runtime lifecycle and limits
+
+- Each plugin has an isolated QuickJS worker; calls for one plugin are serialized while different
+  plugins do not share an execution lock.
+- The cache key includes plugin ID, version code, update timestamp, and bundled source hash.
+- Load and call operations have distinct operation IDs and use the QuickJS interrupt handler for
+  timeout, cancellation, runtime close, and poisoned state.
+- Timeout, cancellation, OOM, poisoned, or internal failures invalidate the Kotlin cache and
+  destroy the worker. A later call creates a fresh runtime.
+- A poisoned or closed worker rejects new commands before queueing, avoiding an orphaned request
+  during worker shutdown.
+- `close`, runtime invalidation, and `closeAll` are idempotent; close uses a bounded join.
+
+Default `PluginRuntimeSettings` values are 32 MiB heap, 2 MiB stack, 10 second load timeout,
+15 second call timeout, 30 second manual-operation timeout, 16 MiB HTTP response limit, and
+4 MiB per-plugin cache limit.
+
+## Host API and security
+
+The bootstrap exposes `Platform.app`, `Platform.runtime`, `Platform.cache`, `Platform.crypto`,
+`Platform.base64`, `Platform.bytes`, `Platform.compression`, `Platform.http`, `Platform.xml`, and
+`Platform.log`, including the Lyrico global app/runtime shortcuts. Cache paths are isolated by a
+hash of the plugin ID.
+
+HTTP adds a TideTunes User-Agent, supports text/binary bodies and responses, applies request and
+response limits, and revalidates and pins resolved addresses on every redirect. HTTPS is enabled
+by default; plaintext HTTP and private-network access require explicit host settings. Sensitive
+header names and response bodies are not emitted to plugin logs.
+
+## Validation
+
+The focused contract suite includes a generated API v3 ZIP whose functions return
+`JSON.stringify(...)`; it verifies import, default permissions, enablement, bundle/load,
+`searchSongs`, private `internal` round-trip to `getLyrics`, structured lyric parsing,
+`searchCovers`, and runtime close.
+
+See [testing/test-report.md](testing/test-report.md) for the commands and current platform result.
+
+## Known limitations
+
+- TideTunes does not ship or download third-party plugin ZIPs; real plugins remain user supplied.
+- `include(path)` is a compatibility no-op after all configured include-directory JavaScript has
+  been bundled in deterministic order. Plugins cannot read arbitrary files at runtime.
+- iOS Rust cinterop cannot be compiled on a Windows host. Run the iOS Simulator gate on macOS CI
+  or a macOS development machine.

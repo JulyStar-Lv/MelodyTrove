@@ -5,6 +5,47 @@ Last updated: 2026-07-14
 This report tracks verified migration gates. Secrets used for live WebDAV
 checks were provided at runtime and are not stored in this repository.
 
+## Lyrico Plugin API v3 validation (2026-07-14)
+
+### Compatibility matrix
+
+| Area | Status | Coverage |
+| --- | --- | --- |
+| Requests | Passed | `searchSongs` keyword/page/pageSize/separator/config; nested `getLyrics.song` with fields/internal; `searchCovers` keyword/pageSize/config |
+| Song results | Passed | Arrays; items/results/songs/data wrappers; field aliases; artist arrays; numeric IDs; invalid-item isolation; fields/internal |
+| Cover results | Passed | URL arrays, explicit objects, song objects, all wrappers, URL aliases and dimensions |
+| Lyrics | Passed | Structured line/word timing, translation/romanization matching, all raw v3 types, notFound, legacy lines |
+| QuickJS bridge | Passed | Object, array, JSON string, null, undefined, number, boolean; no double encoding |
+| Runtime | Passed | Load/call timeout, cancellation races, poisoned-worker queue rejection, lazy rebuild, idempotent close |
+| Permissions/context | Passed | Enabled master switch, manual/automatic/batch flags, bounded random plugin-scoped context tokens |
+| Production integration | Passed | Room repository mapping, observable MetaSource registry, resilient lookup use case, Settings navigation and management UI |
+| Host API/security | Passed | App/runtime/cache/crypto/base64/bytes/compression/http/xml/log; redirect DNS revalidation; private-network and size limits |
+
+The Desktop ZIP integration test constructs a strict API v3 plugin at runtime. Its JavaScript
+functions return `JSON.stringify(...)`, `getLyrics` reads `request.song.internal.lyric_id`, and the
+test covers import through runtime close without committing a third-party plugin or credentials.
+
+### Commands executed
+
+| Command | Actual result |
+| --- | --- |
+| `cargo fmt --manifest-path rust-libs/Cargo.toml --all -- --check` | Passed |
+| `cargo clippy --manifest-path rust-libs/Cargo.toml --workspace --all-targets -- -D warnings` | Passed |
+| `cargo test --manifest-path rust-libs/Cargo.toml --workspace` | Passed; 79 Rust unit tests plus doc tests, including 20 plugin-runtime tests |
+| `.\gradlew.bat :shared:desktopTest --tests "com.github.tidetunes.plugin.*" --no-daemon --no-configuration-cache --console=plain` | Passed; 16 focused tests: 11 contract/parser/permission/context, 4 production assembly, 1 strict ZIP integration |
+| `.\gradlew.bat :shared:desktopTest --no-daemon --no-configuration-cache --console=plain` | Passed after replacing a Unix-only `/tmp` test path with Okio's system temporary directory; 161 tests, 1 skipped |
+| `.\gradlew.bat :shared:compileKotlinDesktop :desktopApp:compileKotlinDesktop :shared:compileDebugKotlinAndroid :androidApp:assembleDebug --no-daemon --no-configuration-cache --console=plain` | Passed; 905 tasks, Desktop classes and arm64-v8a debug APK generated |
+| `.\gradlew.bat :shared:compileKotlinIosSimulatorArm64 --no-daemon --no-configuration-cache --console=plain` | Blocked on Windows: Kotlin disables the Rust cinterop target on mingw; Kotlin/Native artifact download also hit a TLS handshake failure. Requires macOS validation |
+
+### Known limitations
+
+- iOS Simulator compilation was not verifiable on this Windows host because the shared target has
+  Rust cinterop. This is an environment/platform gate, not reported as passed.
+- Real third-party ZIPs are user supplied and are not committed; the automated test uses the real
+  API v3 format with a synthetic plugin and fictitious URLs.
+- Bundled include-directory scripts are supported, while dynamic runtime file access through
+  `include(path)` remains intentionally unavailable after bundling.
+
 ## Current verified commands
 
 | Area | Command | Result |

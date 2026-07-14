@@ -14,14 +14,8 @@ pub fn md5_hex(data: &[u8]) -> String {
         .collect()
 }
 
-pub fn aes_ecb_encrypt_base64(
-    text: &str,
-    key: &str,
-) -> Result<String, PluginRuntimeError> {
-    Ok(general_purpose::STANDARD.encode(aes_encrypt(
-        text.as_bytes(),
-        key.as_bytes(),
-    )?))
+pub fn aes_ecb_encrypt_base64(text: &str, key: &str) -> Result<String, PluginRuntimeError> {
+    Ok(general_purpose::STANDARD.encode(aes_encrypt(text.as_bytes(), key.as_bytes())?))
 }
 
 pub fn aes_ecb_encrypt_hex(text: &str, key: &str) -> Result<String, PluginRuntimeError> {
@@ -31,10 +25,7 @@ pub fn aes_ecb_encrypt_hex(text: &str, key: &str) -> Result<String, PluginRuntim
         .collect())
 }
 
-pub fn aes_ecb_decrypt_base64(
-    encoded: &str,
-    key: &str,
-) -> Result<String, PluginRuntimeError> {
+pub fn aes_ecb_decrypt_base64(encoded: &str, key: &str) -> Result<String, PluginRuntimeError> {
     let encrypted = general_purpose::STANDARD
         .decode(encoded)
         .or_else(|_| general_purpose::STANDARD_NO_PAD.decode(encoded))

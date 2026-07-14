@@ -9,7 +9,6 @@ import com.github.tidetunes.source.api.BuiltInSourceIds
 import com.github.tidetunes.source.api.legacyStorageArtworkMediaId
 import kotlinx.coroutines.runBlocking
 import okio.FileSystem
-import okio.Path.Companion.toPath
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -185,7 +184,8 @@ class LegacyArtworkRepositoryTest {
     @Test
     fun readsArtworkBytesFromLocalCachePath() {
         val fileSystem = FileSystem.SYSTEM
-        val path = "/tmp/tidetunes-artwork-${Random.nextLong()}.bin".toPath()
+        val path = FileSystem.SYSTEM_TEMPORARY_DIRECTORY /
+            "tidetunes-artwork-${Random.nextLong()}.bin"
         val bytes = byteArrayOf(1, 2, 3, 4)
 
         fileSystem.write(path) {

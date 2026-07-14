@@ -7,7 +7,7 @@ use flate2::read::ZlibDecoder;
 use reqwest::{
     blocking::Client,
     header::{HeaderMap, HeaderName, HeaderValue, CONTENT_TYPE, LOCATION, USER_AGENT},
-    Method, StatusCode,
+    Method,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -163,24 +163,24 @@ impl HostApi {
             "crypto.md5" => Ok(serde_json::Value::String(crypto::md5_hex(
                 required_string(&payload, "text")?.as_bytes(),
             ))),
-            "crypto.aesEcbPkcs5EncryptBase64" => Ok(serde_json::Value::String(
-                crypto::aes_ecb_encrypt_base64(
+            "crypto.aesEcbPkcs5EncryptBase64" => {
+                Ok(serde_json::Value::String(crypto::aes_ecb_encrypt_base64(
                     required_string(&payload, "text")?,
                     required_string(&payload, "key")?,
-                )?,
-            )),
-            "crypto.aesEcbPkcs5EncryptHex" => Ok(serde_json::Value::String(
-                crypto::aes_ecb_encrypt_hex(
+                )?))
+            }
+            "crypto.aesEcbPkcs5EncryptHex" => {
+                Ok(serde_json::Value::String(crypto::aes_ecb_encrypt_hex(
                     required_string(&payload, "text")?,
                     required_string(&payload, "key")?,
-                )?,
-            )),
-            "crypto.aesEcbPkcs5DecryptBase64ToText" => Ok(serde_json::Value::String(
-                crypto::aes_ecb_decrypt_base64(
+                )?))
+            }
+            "crypto.aesEcbPkcs5DecryptBase64ToText" => {
+                Ok(serde_json::Value::String(crypto::aes_ecb_decrypt_base64(
                     required_string(&payload, "base64")?,
                     required_string(&payload, "key")?,
-                )?,
-            )),
+                )?))
+            }
             "base64.encodeText" => Ok(serde_json::Value::String(
                 general_purpose::STANDARD.encode(required_string(&payload, "text")?),
             )),
@@ -191,9 +191,9 @@ impl HostApi {
             "base64.dropBytes" => {
                 let bytes = decode_standard(required_string(&payload, "base64")?)?;
                 let count = payload.get("count").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
-                Ok(serde_json::Value::String(general_purpose::STANDARD.encode(
-                    bytes.get(count..).unwrap_or_default(),
-                )))
+                Ok(serde_json::Value::String(
+                    general_purpose::STANDARD.encode(bytes.get(count..).unwrap_or_default()),
+                ))
             }
             "base64.decodeBytes" => Ok(serde_json::to_value(decode_standard(required_string(
                 &payload, "base64",
@@ -220,9 +220,10 @@ impl HostApi {
             "base64.toUrl" => Ok(serde_json::Value::String(to_url_safe(required_string(
                 &payload, "base64",
             )?))),
-            "base64.fromUrl" => Ok(serde_json::Value::String(to_standard_url(
-                required_string(&payload, "base64Url")?,
-            ))),
+            "base64.fromUrl" => Ok(serde_json::Value::String(to_standard_url(required_string(
+                &payload,
+                "base64Url",
+            )?))),
             "bytes.xor" => Ok(serde_json::to_value(xor_bytes(
                 &required_bytes(&payload, "bytes")?,
                 &required_bytes(&payload, "key")?,
@@ -235,9 +236,7 @@ impl HostApi {
                     general_purpose::STANDARD.encode(xor_bytes(&bytes, &key)?),
                 ))
             }
-            "compression.inflateBytesToText" => {
-                self.inflate(&required_bytes(&payload, "bytes")?)
-            }
+            "compression.inflateBytesToText" => self.inflate(&required_bytes(&payload, "bytes")?),
             "compression.inflateBase64ToText" => {
                 self.inflate(&decode_standard(required_string(&payload, "base64")?)?)
             }
@@ -251,22 +250,27 @@ impl HostApi {
             "xml.getRootAttributes" => xml::root_attributes(required_string(&payload, "xml")?),
             "xml.findElements" => xml::find_elements(
                 required_string(&payload, "xml")?,
-                payload.get("query").cloned().unwrap_or_default(),
+                payload.get("query").unwrap_or(&serde_json::Value::Null),
             ),
             "xml.replaceChildrenByAttr" => xml::replace_children_by_attr(
                 required_string(&payload, "xml")?,
-                payload.get("options").cloned().unwrap_or_default(),
-            ),
+                payload.get("options").unwrap_or(&serde_json::Value::Null),
+            )
+            .map(serde_json::Value::String),
             "xml.removeElements" => xml::remove_elements(
                 required_string(&payload, "xml")?,
-                payload.get("query").cloned().unwrap_or_default(),
-            ),
+                payload.get("query").unwrap_or(&serde_json::Value::Null),
+            )
+            .map(serde_json::Value::String),
             "log.debug" | "log.warn" | "log.error" => {
                 let tag = payload
                     .get("tag")
                     .and_then(|v| v.as_str())
                     .unwrap_or("PlatformPlugin");
-                let message = payload.get("message").and_then(|v| v.as_str()).unwrap_or("");
+                let message = payload
+                    .get("message")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("");
                 eprintln!("[{name}] [{}:{tag}] {message}", self.options.plugin_id);
                 Ok(serde_json::Value::Null)
             }
@@ -364,7 +368,8 @@ impl HostApi {
                 .and_then(|value| value.to_str().ok())
                 .map(str::to_owned);
             let mut data = Vec::new();
-            let mut limited = (&mut response).take((self.options.max_http_response_bytes + 1) as u64);
+            let mut limited =
+                (&mut response).take((self.options.max_http_response_bytes + 1) as u64);
             loop {
                 check_control(control)?;
                 let mut chunk = [0_u8; 8192];
@@ -432,11 +437,7 @@ impl HostApi {
                 return Err(PluginRuntimeError::HostApi("HTTPS is disabled".into()))
             }
             "http" | "https" => {}
-            _ => {
-                return Err(PluginRuntimeError::HostApi(
-                    "unsupported URL scheme".into(),
-                ))
-            }
+            _ => return Err(PluginRuntimeError::HostApi("unsupported URL scheme".into())),
         }
         let host = url
             .host_str()
@@ -555,9 +556,7 @@ impl HostApi {
 
     fn validate_cache_key(&self, key: &str) -> Result<(), PluginRuntimeError> {
         if key.is_empty() || key.len() > 512 || key.contains('\0') {
-            return Err(PluginRuntimeError::HostApi(
-                "invalid cache key".into(),
-            ));
+            return Err(PluginRuntimeError::HostApi("invalid cache key".into()));
         }
         Ok(())
     }
@@ -643,10 +642,7 @@ fn required_string<'a>(
         .ok_or_else(|| PluginRuntimeError::HostApi(format!("missing string: {key}")))
 }
 
-fn required_bytes(
-    value: &serde_json::Value,
-    key: &str,
-) -> Result<Vec<u8>, PluginRuntimeError> {
+fn required_bytes(value: &serde_json::Value, key: &str) -> Result<Vec<u8>, PluginRuntimeError> {
     value
         .get(key)
         .and_then(|value| value.as_array())
@@ -793,6 +789,7 @@ impl CacheIndex {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use reqwest::StatusCode;
     use std::io::{Read, Write};
     use std::net::TcpListener;
     use std::thread;
@@ -811,8 +808,7 @@ mod tests {
 
     fn call(host: &mut HostApi, name: &str, payload: serde_json::Value) -> serde_json::Value {
         let control = OperationControl::default();
-        let value = host.execute(name, payload, &control).unwrap();
-        value
+        host.execute(name, payload, &control).unwrap()
     }
 
     #[test]
@@ -865,10 +861,8 @@ mod tests {
             ),
             serde_json::json!([0, 3, 2])
         );
-        let mut encoder = flate2::write::ZlibEncoder::new(
-            Vec::new(),
-            flate2::Compression::default(),
-        );
+        let mut encoder =
+            flate2::write::ZlibEncoder::new(Vec::new(), flate2::Compression::default());
         encoder.write_all(b"hello").unwrap();
         let bytes = encoder.finish().unwrap();
         assert_eq!(
@@ -962,6 +956,50 @@ mod tests {
         assert!(SUPPORTED_HOST_APIS.contains(&"app.info"));
         assert!(SUPPORTED_HOST_APIS.contains(&"http.postBytesResponse"));
         assert!(SUPPORTED_HOST_APIS.contains(&"xml.removeElements"));
+    }
+
+    #[test]
+    fn xml_host_calls_follow_lyrico_value_contract() {
+        let mut host = host();
+        let xml = r#"<tt xml:lang="en"><translation key="a">Hello</translation><translation key="b">Bye</translation></tt>"#;
+
+        let found = call(
+            &mut host,
+            "xml.findElements",
+            serde_json::json!({
+                "xml": xml,
+                "query": {"tag": "translation", "attrs": {"key": "a"}},
+            }),
+        );
+        assert_eq!(found[0]["text"], "Hello");
+
+        let replaced = call(
+            &mut host,
+            "xml.replaceChildrenByAttr",
+            serde_json::json!({
+                "xml": xml,
+                "options": {
+                    "targetTag": "translation",
+                    "keyAttr": "key",
+                    "replacements": {"a": {"mode": "text", "value": "Hi & bye"}},
+                },
+            }),
+        );
+        let replaced = replaced.as_str().expect("rewritten XML string");
+        assert!(replaced.contains("Hi &amp; bye"));
+
+        let removed = call(
+            &mut host,
+            "xml.removeElements",
+            serde_json::json!({
+                "xml": replaced,
+                "query": {"tag": "translation", "attrs": {"key": "b"}},
+            }),
+        );
+        assert!(!removed
+            .as_str()
+            .expect("rewritten XML string")
+            .contains("Bye"));
     }
 
     #[test]

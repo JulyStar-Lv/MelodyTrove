@@ -133,6 +133,9 @@ impl PluginRuntime {
     }
 
     fn try_send(&self, command: RuntimeCommand) -> Result<(), PluginRuntimeError> {
+        if self.control.is_unavailable() {
+            return Err(PluginRuntimeError::Closed);
+        }
         self.sender.try_send(command).map_err(|error| match error {
             flume::TrySendError::Full(_) => {
                 PluginRuntimeError::Internal("runtime queue is full".into())

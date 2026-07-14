@@ -1,15 +1,18 @@
-# Lyrico Plugin API v3 completion progress
+# Lyrico Plugin API v3 completion status
 
-This branch validates the remaining production integration work for TideTunes JavaScript metadata plugins.
+The production JavaScript metadata path is implemented and covered by focused Rust, Kotlin, ZIP
+integration, and production-assembly tests.
 
-Current validation scope:
+Completed scope:
 
-- QuickJS string/object/null result normalization.
-- Timed and cancellable script loading and function calls.
-- Lyrico v3 request and result contracts.
-- Plugin permissions, private context isolation, cache cleanup and runtime lifecycle.
-- Dynamic `MetaSourceRegistry` production assembly.
-- Resilient manual, automatic and batch metadata lookup.
-- Real Lyrico v3 ZIP integration tests.
+- QuickJS string/object/array/null/undefined normalization without JSON double encoding.
+- Timed and cancellable script loading and calls, poisoned-runtime rejection, and lazy rebuild.
+- Lyrico v3 song, lyric, and cover request/result contracts.
+- Plugin permissions, bounded private context isolation, cache cleanup, and lifecycle invalidation.
+- Dynamic Room-backed `MetaSourceRegistry` production assembly and resilient lookup use case.
+- Settings navigation and minimum cross-platform plugin management UI.
+- Strict Lyrico v3 ZIP test returning `JSON.stringify(...)` end to end.
+- Lyrico Host API modules, including XML mutation, HTTP redirect revalidation, cache, compression,
+  base64/bytes, and crypto helpers.
 
-The final compatibility matrix and executed command results will be recorded in `docs/testing/test-report.md` after CI is green.
+Current validation status and platform limitations are recorded in `docs/testing/test-report.md`.

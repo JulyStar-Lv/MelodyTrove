@@ -43,6 +43,10 @@ impl OperationControl {
         self.closed.store(true, Ordering::Release);
     }
 
+    pub fn is_unavailable(&self) -> bool {
+        self.closed.load(Ordering::Acquire) || self.poisoned.load(Ordering::Acquire)
+    }
+
     pub fn should_interrupt(&self) -> bool {
         let active_id = self.active_operation_id.load(Ordering::Acquire);
         self.closed.load(Ordering::Acquire)

@@ -40,7 +40,7 @@ pub fn find_elements(xml: &str, q: &Value) -> Result<Value, PluginRuntimeError> 
     });
     Ok(Value::Array(out))
 }
-pub fn replace_children(xml: &str, o: &Value) -> Result<String, PluginRuntimeError> {
+pub fn replace_children_by_attr(xml: &str, o: &Value) -> Result<String, PluginRuntimeError> {
     let mut root = parse(xml)?;
     let tag = o.get("targetTag").and_then(Value::as_str).unwrap_or("");
     let key = o.get("keyAttr").and_then(Value::as_str).unwrap_or("");
@@ -296,7 +296,7 @@ mod tests {
         assert_eq!(root_attributes(x).unwrap()["xml:lang"], "en");
         let found = find_elements(x, &json!({"tag":"translation","attrs":{"key":"a"}})).unwrap();
         assert_eq!(found[0]["text"], "Hello");
-        let replaced=replace_children(x,&json!({"targetTag":"translation","keyAttr":"key","replacements":{"a":{"mode":"text","value":"Hi & bye"}}})).unwrap();
+        let replaced=replace_children_by_attr(x,&json!({"targetTag":"translation","keyAttr":"key","replacements":{"a":{"mode":"text","value":"Hi & bye"}}})).unwrap();
         assert!(replaced.contains("Hi &amp; bye"));
         let removed =
             remove_elements(&replaced, &json!({"tag":"translation","attrs":{"key":"b"}})).unwrap();
