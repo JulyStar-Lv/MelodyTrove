@@ -14,11 +14,14 @@ jobs:
   rust-runtime:
     name: Rust format, clippy and tests
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+      - name: Install Linux native dependencies
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config
       - name: Validate Rust workspace
         shell: bash
         run: |
@@ -48,6 +51,7 @@ jobs:
   lyrico-contract:
     name: Lyrico v3 Kotlin contract tests
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -77,9 +81,11 @@ jobs:
             tail -n 250 validation-logs/lyrico-contract.log
             exit 1
           fi
-      - name: Upload Kotlin validation logs
+      - name: Upload Kotlin validation logs and generated Room schemas
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: plugin-runtime-kotlin-logs
-          path: validation-logs
+          path: |
+            validation-logs
+            shared/schemas
