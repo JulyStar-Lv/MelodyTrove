@@ -24,7 +24,10 @@ class PluginRuntimeFactory(
                     allowHttp = settings.allowHttp,
                     allowHttps = settings.allowHttps,
                     allowPrivateNetwork = settings.allowPrivateNetwork,
+                    maxHttpRequestBytes = settings.maxHttpRequestBytes.toULong(),
                     maxHttpResponseBytes = settings.maxHttpResponseBytes.toULong(),
+                    maxPluginCacheBytes = settings.maxPluginCacheBytes.toULong(),
+                    maxInflateBytes = settings.maxInflateBytes.toULong(),
                 ),
             ),
         )
