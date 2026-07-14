@@ -40,6 +40,10 @@ import com.github.tidetunes.core.presentation.components.TideTextButtonVariant
 import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import com.github.tidetunes.plugin.install.ManifestConfigField
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import org.koin.compose.koinInject
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -217,16 +221,26 @@ fun PluginSettingsRoot(
                     },
                     onSaveConfig = {
                         val values = configValues[plugin.id].orEmpty()
-                        runOperation {
-                            plugin.configFields.forEach { field ->
-                                val value = values[field.key]
-                                manager.setConfig(
-                                    pluginId = plugin.id,
-                                    key = field.key,
-                                    value = value?.takeUnless { it.isBlank() && !field.required },
-                                )
+                        val missingRequired = plugin.configFields.firstOrNull { field ->
+                            field.type != "markdown" &&
+                                isPluginConfigFieldVisible(field, values) &&
+                                field.required &&
+                                values[field.key].isNullOrBlank()
+                        }
+                        if (missingRequired != null) {
+                            status = "Required configuration is missing: ${missingRequired.title}"
+                        } else {
+                            runOperation {
+                                plugin.configFields.filterNot { it.type == "markdown" }.forEach { field ->
+                                    val value = values[field.key]
+                                    manager.setConfig(
+                                        pluginId = plugin.id,
+                                        key = field.key,
+                                        value = value?.takeUnless { it.isBlank() && !field.required },
+                                    )
+                                }
+                                "Saved configuration for ${plugin.name}"
                             }
-                            "Saved configuration for ${plugin.name}"
                         }
                     },
                     onClearCache = {
@@ -315,16 +329,18 @@ private fun PluginCard(
                     style = MiuixTheme.textStyles.title4,
                     color = MiuixTheme.colorScheme.onSurface,
                 )
-                plugin.configFields.forEach { field ->
-                    PluginConfigEditor(
-                        field = field,
-                        value = values[field.key].orEmpty(),
-                        enabled = !busy,
-                        onValueChange = { value ->
-                            onValuesChange(values + (field.key to value))
-                        },
-                    )
-                }
+                plugin.configFields
+                    .filter { field -> isPluginConfigFieldVisible(field, values) }
+                    .forEach { field ->
+                        PluginConfigEditor(
+                            field = field,
+                            value = values[field.key].orEmpty(),
+                            enabled = !busy,
+                            onValueChange = { value ->
+                                onValuesChange(values + (field.key to value))
+                            },
+                        )
+                    }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
@@ -400,7 +416,7 @@ private fun PluginConfigEditor(
     onValueChange: (String) -> Unit,
 ) {
     when (field.type) {
-        "boolean" -> TidePreferenceRow(
+        "switch", "boolean" -> TidePreferenceRow(
             title = field.title,
             summary = field.summary,
             enabled = enabled,
@@ -414,27 +430,127 @@ private fun PluginConfigEditor(
             },
             showDivider = false,
         )
-        else -> Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            AppTextField(
-                value = value,
-                onValueChange = onValueChange,
-                modifier = Modifier.fillMaxWidth(),
-                label = field.title,
-                enabled = enabled,
-                singleLine = true,
-                visualTransformation = if (field.type == "password") {
-                    PasswordVisualTransformation()
-                } else {
-                    androidx.compose.ui.text.input.VisualTransformation.None
-                },
-            )
-            field.summary?.let { summary ->
+        "dropdown", "select" -> if (field.options.isEmpty()) {
+            PluginTextConfigEditor(field, value, enabled, onValueChange)
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = summary,
-                    style = MiuixTheme.textStyles.footnote1,
+                    text = field.title,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurface,
+                )
+                field.options.forEach { option ->
+                    TidePreferenceRow(
+                        title = option.label,
+                        summary = option.summary ?: option.value,
+                        enabled = enabled,
+                        onClick = { onValueChange(option.value) },
+                        trailing = {
+                            if (value == option.value) {
+                                Text(
+                                    text = "Selected",
+                                    style = MiuixTheme.textStyles.footnote1,
+                                    color = MiuixTheme.colorScheme.primary,
+                                )
+                            }
+                        },
+                        showDivider = false,
+                    )
+                }
+                field.summary?.let { summary ->
+                    ConfigSummary(summary)
+                }
+            }
+        }
+        "markdown" -> Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = field.title,
+                style = MiuixTheme.textStyles.title4,
+                color = MiuixTheme.colorScheme.onSurface,
+            )
+            field.defaultValue?.takeIf(String::isNotBlank)?.let { content ->
+                Text(
+                    text = content,
+                    style = MiuixTheme.textStyles.body2,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 )
             }
+            field.summary?.let { summary -> ConfigSummary(summary) }
+        }
+        else -> PluginTextConfigEditor(field, value, enabled, onValueChange)
+    }
+}
+
+@Composable
+private fun PluginTextConfigEditor(
+    field: ManifestConfigField,
+    value: String,
+    enabled: Boolean,
+    onValueChange: (String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        AppTextField(
+            value = value,
+            onValueChange = { updated ->
+                onValueChange(
+                    if (field.type == "number") updated.filter(Char::isDigit) else updated,
+                )
+            },
+            modifier = Modifier.fillMaxWidth(),
+            label = field.title,
+            enabled = enabled,
+            singleLine = field.type != "textarea",
+            visualTransformation = if (field.type == "password") {
+                PasswordVisualTransformation()
+            } else {
+                androidx.compose.ui.text.input.VisualTransformation.None
+            },
+        )
+        field.summary?.let { summary ->
+            ConfigSummary(summary)
         }
     }
+}
+
+@Composable
+private fun ConfigSummary(summary: String) {
+    Text(
+        text = summary,
+        style = MiuixTheme.textStyles.footnote1,
+        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+    )
+}
+
+internal fun isPluginConfigFieldVisible(
+    field: ManifestConfigField,
+    values: Map<String, String>,
+): Boolean = field.dependency?.matches(values, depth = 0) ?: true
+
+private fun JsonObject.matches(
+    values: Map<String, String>,
+    depth: Int,
+): Boolean {
+    if (depth > 16) return false
+    (this["match"] as? JsonObject)?.let { match ->
+        val key = (match["key"] as? JsonPrimitive)?.contentOrNull ?: return false
+        val expected = (match["value"] as? JsonPrimitive)?.contentOrNull ?: return false
+        return values[key] == expected
+    }
+    (this["and"] as? JsonObject)?.let { and ->
+        val conditions = and["conditions"] as? JsonArray ?: return false
+        return conditions.all { condition ->
+            (condition as? JsonObject)?.matches(values, depth + 1) == true
+        }
+    }
+    (this["or"] as? JsonObject)?.let { or ->
+        val conditions = or["conditions"] as? JsonArray ?: return false
+        return conditions.any { condition ->
+            (condition as? JsonObject)?.matches(values, depth + 1) == true
+        }
+    }
+    (this["not"] as? JsonObject)?.let { not ->
+        val condition = not["condition"] as? JsonObject ?: return false
+        return !condition.matches(values, depth + 1)
+    }
+    return false
 }

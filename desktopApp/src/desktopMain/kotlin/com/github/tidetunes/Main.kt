@@ -33,7 +33,10 @@ fun main() = application {
     )
 
     Window(
-        onCloseRequest = ::exitApplication,
+        onCloseRequest = {
+            koinApp.close()
+            exitApplication()
+        },
         title = "TideTunes",
         state = windowState,
     ) {

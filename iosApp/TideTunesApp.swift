@@ -2,6 +2,10 @@ import SwiftUI
 import TideTunesShared
 
 private final class AppDelegate: NSObject, UIApplicationDelegate {
+    func applicationWillTerminate(_ application: UIApplication) {
+        MainViewControllerKt.shutdownApplication()
+    }
+
     func application(
         _ application: UIApplication,
         handleEventsForBackgroundURLSession identifier: String,

@@ -5,6 +5,7 @@ import com.github.tidetunes.database.PluginDao
 import com.github.tidetunes.database.PluginEntity
 import com.github.tidetunes.plugin.currentTimeMillis
 import com.github.tidetunes.plugin.install.ManifestConfigField
+import com.github.tidetunes.plugin.install.ManifestConfigOption
 import com.github.tidetunes.plugin.install.ParsedManifest
 import com.github.tidetunes.plugin.runtime.InstalledPlugin
 import com.github.tidetunes.plugin.runtime.PluginConfigProvider
@@ -58,8 +59,18 @@ class PluginRepository(
     suspend fun getPlugin(pluginId: String): PluginSummary? =
         pluginDao.findByPluginId(pluginId)?.toSummary()
 
-    override suspend fun config(pluginId: String): Map<String, String> =
-        pluginDao.configsFor(pluginId).associate { it.configKey to it.configValue }
+    override suspend fun config(pluginId: String): Map<String, String> {
+        val runtimeKeys = pluginDao.findByPluginId(pluginId)
+            ?.toSummary()
+            ?.configFields
+            ?.filterNot { it.type == "markdown" }
+            ?.mapTo(mutableSetOf(), ManifestConfigField::key)
+            .orEmpty()
+        return pluginDao.configsFor(pluginId)
+            .asSequence()
+            .filter { it.configKey in runtimeKeys }
+            .associate { it.configKey to it.configValue }
+    }
 
     suspend fun setConfig(
         pluginId: String,
@@ -82,7 +93,11 @@ class PluginRepository(
 
     suspend fun importPluginDefaults(manifest: ParsedManifest) {
         manifest.configFields
-            .filter { it.defaultValue != null && it.defaultValue.isNotEmpty() }
+            .filter { field ->
+                field.type != "markdown" &&
+                    field.defaultValue != null &&
+                    field.defaultValue.isNotEmpty()
+            }
             .forEach { field ->
                 if (pluginDao.configValue(manifest.id, field.key) == null) {
                     setConfig(manifest.id, field.key, field.defaultValue)
@@ -137,7 +152,7 @@ class PluginRepository(
             includeDirs = includeDirs,
             directory = (pluginsDir / id).toString(),
         ),
-        capabilities = capabilities.toSet(),
+        capabilities = capabilities.ifEmpty { listOf("searchSongs") }.toSet(),
         enabled = enabled,
         allowManualLookup = allowManualLookup,
         allowAutomaticLookup = allowAutomaticLookup,
@@ -183,6 +198,16 @@ class PluginRepository(
                     type = field["type"]?.jsonPrimitive?.content ?: "text",
                     required = field["required"]?.jsonPrimitive?.booleanOrNull == true,
                     defaultValue = field["defaultValue"]?.jsonPrimitive?.contentOrNull,
+                    options = (field["options"] as? JsonArray)
+                        ?.mapNotNull { it as? JsonObject }
+                        ?.map { option ->
+                            ManifestConfigOption(
+                                value = option["value"]?.jsonPrimitive?.content.orEmpty(),
+                                label = option["label"]?.jsonPrimitive?.content.orEmpty(),
+                                summary = option["summary"]?.jsonPrimitive?.contentOrNull,
+                            )
+                        }
+                        .orEmpty(),
                     dependency = field["dependency"] as? JsonObject,
                 )
             }

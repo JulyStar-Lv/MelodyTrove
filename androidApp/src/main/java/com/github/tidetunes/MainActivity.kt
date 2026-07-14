@@ -25,6 +25,7 @@ import com.github.tidetunes.singleton.PermissionRepository
 import com.github.tidetunes.singleton.PlayerControllerRepository
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
+import org.koin.core.context.stopKoin
 import uniffi.tidetunes_backend.tidetunesLog
 import kotlin.system.exitProcess
 
@@ -133,5 +134,10 @@ class TideTunesApplication : Application() {
         super.onCreate()
         appContext = this
         initKoin()
+    }
+
+    override fun onTerminate() {
+        stopKoin()
+        super.onTerminate()
     }
 }

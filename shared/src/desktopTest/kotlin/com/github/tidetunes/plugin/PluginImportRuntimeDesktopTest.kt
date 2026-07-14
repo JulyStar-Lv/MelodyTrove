@@ -2,6 +2,8 @@ package com.github.tidetunes.plugin
 
 import com.github.tidetunes.plugin.install.FakePluginDao
 import com.github.tidetunes.plugin.install.PluginInstaller
+import com.github.tidetunes.plugin.management.PluginRepository
+import com.github.tidetunes.plugin.management.isPluginConfigFieldVisible
 import com.github.tidetunes.plugin.runtime.InstalledPlugin
 import com.github.tidetunes.plugin.runtime.LyricoJsMetaSource
 import com.github.tidetunes.plugin.runtime.PluginCandidateContextStore
@@ -22,6 +24,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 import okio.Path.Companion.toPath
@@ -202,6 +205,121 @@ class PluginImportRuntimeDesktopTest {
         source.clearPrivateContexts()
         manager.closeAll()
         assertTrue(manager.cachedPluginIds().isEmpty())
+    }
+
+    @Test
+    fun importsOfficialLyricoV3ConfigFieldsAndDefaultsEmptyCapabilitiesToSongSearch() = runTest {
+        val temp = Files.createTempDirectory("tidetunes-plugin-config-test")
+        val zip = temp.resolve("plugin.zip")
+        writeZip(
+            zip,
+            mapOf(
+                "manifest.json" to
+                    """
+                    {
+                      "id": "com.tidetunes.test.config",
+                      "name": "Config Metadata",
+                      "versionCode": 1,
+                      "versionName": "1.0.0",
+                      "apiVersion": 3,
+                      "configFields": [
+                        {"key":"intro","title":"Introduction","type":"markdown","defaultValue":"Plugin help"},
+                        {"key":"token","title":"Token","type":"password"},
+                        {"key":"limit","title":"Limit","type":"number","defaultValue":"20"},
+                        {"key":"proxy","title":"Proxy","type":"switch","defaultValue":"false"},
+                        {
+                          "key":"region",
+                          "title":"Region",
+                          "type":"dropdown",
+                          "defaultValue":"us",
+                          "options":[
+                            {"value":"us","label":"United States","summary":"US catalog"},
+                            {"value":"jp","label":"Japan"}
+                          ]
+                        },
+                        {"key":"headers","title":"Headers","type":"textarea","defaultValue":"Accept: application/json"},
+                        {
+                          "key":"proxy_url",
+                          "title":"Proxy URL",
+                          "type":"text",
+                          "dependency":{"match":{"key":"proxy","value":"true"}}
+                        },
+                        {
+                          "key":"and_field",
+                          "title":"AND dependency",
+                          "type":"text",
+                          "dependency":{"and":{"conditions":[
+                            {"match":{"key":"proxy","value":"true"}},
+                            {"match":{"key":"region","value":"us"}}
+                          ]}}
+                        },
+                        {
+                          "key":"or_field",
+                          "title":"OR dependency",
+                          "type":"text",
+                          "dependency":{"or":{"conditions":[
+                            {"match":{"key":"proxy","value":"true"}},
+                            {"match":{"key":"region","value":"jp"}}
+                          ]}}
+                        },
+                        {
+                          "key":"not_field",
+                          "title":"NOT dependency",
+                          "type":"text",
+                          "dependency":{"not":{"condition":{"match":{"key":"proxy","value":"true"}}}}
+                        }
+                      ]
+                    }
+                    """.trimIndent(),
+                "source.js" to
+                    """
+                    function searchSongs(request) {
+                      return JSON.stringify([]);
+                    }
+                    """.trimIndent(),
+            ),
+        )
+
+        val dao = FakePluginDao()
+        val pluginsDir = temp.resolve("plugins").toString().toPath()
+        val result = PluginInstaller(dao, pluginsDir).installAllFromZip(zip.toString().toPath())
+
+        assertTrue(result.failed.isEmpty(), result.failed.toString())
+        val manifest = result.installed.single()
+        assertEquals("", manifest.author)
+        assertEquals("", manifest.description)
+        assertTrue(manifest.capabilities.isEmpty())
+        assertEquals(
+            listOf("markdown", "password", "number", "switch", "dropdown", "textarea", "text"),
+            manifest.configFields.take(7).map { it.type },
+        )
+        assertEquals("United States", manifest.configFields[4].options[0].label)
+        assertEquals("US catalog", manifest.configFields[4].options[0].summary)
+        assertNull(dao.configValue(manifest.id, "intro"))
+        assertEquals("false", dao.configValue(manifest.id, "proxy"))
+        assertEquals("us", dao.configValue(manifest.id, "region"))
+
+        val repository = PluginRepository(dao, pluginsDir)
+        val summary = assertNotNull(repository.getPlugin(manifest.id))
+        assertEquals("United States", summary.configFields[4].options[0].label)
+        assertEquals(setOf("searchSongs"), with(repository) { summary.toInstalledPlugin() }.capabilities)
+        assertTrue("intro" !in repository.config(manifest.id))
+        assertFalse(isPluginConfigFieldVisible(summary.configFields[6], mapOf("proxy" to "false")))
+        assertTrue(isPluginConfigFieldVisible(summary.configFields[6], mapOf("proxy" to "true")))
+        assertFalse(
+            isPluginConfigFieldVisible(summary.configFields[7], mapOf("proxy" to "false", "region" to "us")),
+        )
+        assertTrue(
+            isPluginConfigFieldVisible(summary.configFields[7], mapOf("proxy" to "true", "region" to "us")),
+        )
+        assertFalse(
+            isPluginConfigFieldVisible(summary.configFields[8], mapOf("proxy" to "false", "region" to "us")),
+        )
+        assertTrue(
+            isPluginConfigFieldVisible(summary.configFields[8], mapOf("proxy" to "false", "region" to "jp")),
+        )
+        assertTrue(isPluginConfigFieldVisible(summary.configFields[9], mapOf("proxy" to "false")))
+        assertFalse(isPluginConfigFieldVisible(summary.configFields[9], mapOf("proxy" to "true")))
     }
 
     private fun writeZip(

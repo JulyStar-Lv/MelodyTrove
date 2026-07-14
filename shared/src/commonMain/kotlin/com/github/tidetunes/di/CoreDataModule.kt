@@ -40,7 +40,9 @@ import com.github.tidetunes.source.api.MetaSourceRegistry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.runBlocking
 import okio.Path.Companion.toPath
+import org.koin.dsl.onClose
 import org.koin.dsl.module
 
 val coreDataModule = module {
@@ -106,6 +108,8 @@ val coreDataModule = module {
             resultParser = get(),
             registry = get(),
         )
+    } onClose { registry ->
+        registry?.let { runBlocking { it.shutdown() } }
     }
     single {
         MetadataLookupUseCase(

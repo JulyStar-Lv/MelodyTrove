@@ -20,7 +20,8 @@ when a source is called.
 
 The Settings screen exposes a Plugins destination for local ZIP import, enable/disable,
 manual/automatic/batch permissions, manifest capabilities, `configFields`, cache clearing,
-last runtime error, and uninstall. Password fields use masked input.
+last runtime error, and uninstall. Password fields use masked input; dropdown options and
+manifest dependencies are preserved, while markdown fields are display-only.
 
 ## Import and manifest behavior
 
@@ -29,6 +30,13 @@ last runtime error, and uninstall. Password fields use masked input.
   excessive uncompressed size.
 - Installation validates reverse-domain plugin IDs, API v3, `minHostApiVersion`, version,
   capabilities, `.js` entry, include directories, supported icon type, and config fields.
+- `author` and `description` are optional. Empty capabilities default to `searchSongs`, matching
+  the upstream v3 host behavior; an explicit non-empty list must include `searchSongs`.
+- Official config field types are `text`, `password`, `number`, `switch`, `dropdown`, `textarea`,
+  and `markdown`. Legacy `boolean` and `select` aliases remain accepted. Dropdown options and
+  `match`/`and`/`or`/`not` dependencies are validated and rendered by Settings.
+- Markdown fields are never persisted or sent in request `config`; required editable fields must
+  be populated before Settings saves the plugin configuration.
 - Entry, include, and icon paths must resolve below the plugin root and exist with the expected
   type.
 - Installation uses staging plus replacement; a failed update leaves the prior version usable.
@@ -78,11 +86,15 @@ and batch selection therefore never opts a newly installed plugin in implicitly.
 - The cache key includes plugin ID, version code, update timestamp, and bundled source hash.
 - Load and call operations have distinct operation IDs and use the QuickJS interrupt handler for
   timeout, cancellation, runtime close, and poisoned state.
-- Timeout, cancellation, OOM, poisoned, or internal failures invalidate the Kotlin cache and
-  destroy the worker. A later call creates a fresh runtime.
+- Timeout, cancellation, OOM, poisoned, or internal failures invalidate the Kotlin cache, clear
+  the plugin's private candidate contexts, and destroy the worker. A later call creates a fresh
+  runtime.
 - A poisoned or closed worker rejects new commands before queueing, avoiding an orphaned request
   during worker shutdown.
 - `close`, runtime invalidation, and `closeAll` are idempotent; close uses a bounded join.
+- Closing the Koin application shuts down the registry and all plugin runtimes. Desktop window
+  exit, Android's emulated/test-process termination callback, and iOS application termination
+  invoke that close path. A normal Android process kill relies on OS process resource reclamation.
 
 Default `PluginRuntimeSettings` values are 32 MiB heap, 2 MiB stack, 10 second load timeout,
 15 second call timeout, 30 second manual-operation timeout, 16 MiB HTTP response limit, and
@@ -102,10 +114,11 @@ header names and response bodies are not emitted to plugin logs.
 
 ## Validation
 
-The focused contract suite includes a generated API v3 ZIP whose functions return
-`JSON.stringify(...)`; it verifies import, default permissions, enablement, bundle/load,
-`searchSongs`, private `internal` round-trip to `getLyrics`, structured lyric parsing,
-`searchCovers`, and runtime close.
+The focused contract suite includes generated API v3 ZIPs. One returns `JSON.stringify(...)` and
+verifies import, default permissions, enablement, bundle/load, `searchSongs`, private `internal`
+round-trip to `getLyrics`, structured lyric parsing, `searchCovers`, and runtime close. The other
+uses all official config field types, dropdown options, dependencies, optional descriptive fields,
+and empty capabilities to verify current upstream manifest compatibility.
 
 See [testing/test-report.md](testing/test-report.md) for the commands and current platform result.
 
@@ -114,5 +127,5 @@ See [testing/test-report.md](testing/test-report.md) for the commands and curren
 - TideTunes does not ship or download third-party plugin ZIPs; real plugins remain user supplied.
 - `include(path)` is a compatibility no-op after all configured include-directory JavaScript has
   been bundled in deterministic order. Plugins cannot read arbitrary files at runtime.
-- iOS Rust cinterop cannot be compiled on a Windows host. Run the iOS Simulator gate on macOS CI
-  or a macOS development machine.
+- The Gradle build configures `iosSimulatorArm64`, not an x86_64 simulator target. Generic Xcode
+  builds must select arm64 (or exclude x86_64).

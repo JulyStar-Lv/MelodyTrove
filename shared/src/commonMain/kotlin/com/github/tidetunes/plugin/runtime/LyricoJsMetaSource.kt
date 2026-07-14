@@ -95,11 +95,18 @@ class LyricoJsMetaSource(
     private suspend fun call(
         name: String,
         request: JsonObject,
-    ): String = runtimeManager.call(
-        plugin = plugin.descriptor,
-        functionName = name,
-        requestJson = request.toString(),
-    )
+    ): String = try {
+        runtimeManager.call(
+            plugin = plugin.descriptor,
+            functionName = name,
+            requestJson = request.toString(),
+        )
+    } catch (error: PluginRuntimeError) {
+        if (error.requiresRuntimeRebuild()) {
+            resultParser.clearPlugin(id)
+        }
+        throw error
+    }
 
     private suspend fun configJson(overrides: Map<String, String>): JsonObject = buildJsonObject {
         (configProvider.config(id) + overrides).forEach { (key, value) ->

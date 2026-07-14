@@ -18,12 +18,14 @@ checks were provided at runtime and are not stored in this repository.
 | QuickJS bridge | Passed | Object, array, JSON string, null, undefined, number, boolean; no double encoding |
 | Runtime | Passed | Load/call timeout, cancellation races, poisoned-worker queue rejection, lazy rebuild, idempotent close |
 | Permissions/context | Passed | Enabled master switch, manual/automatic/batch flags, bounded random plugin-scoped context tokens |
-| Production integration | Passed | Room repository mapping, observable MetaSource registry, resilient lookup use case, Settings navigation and management UI |
+| Manifest/Settings | Passed | Optional author/description; official seven config types; dropdown options; dependency visibility; required values; markdown exclusion; empty-capability searchSongs default; boolean/select aliases |
+| Production integration | Passed | Room repository mapping, observable MetaSource registry, resilient lookup use case, Settings management UI, platform shutdown hooks |
 | Host API/security | Passed | App/runtime/cache/crypto/base64/bytes/compression/http/xml/log; redirect DNS revalidation; private-network and size limits |
 
-The Desktop ZIP integration test constructs a strict API v3 plugin at runtime. Its JavaScript
-functions return `JSON.stringify(...)`, `getLyrics` reads `request.song.internal.lyric_id`, and the
-test covers import through runtime close without committing a third-party plugin or credentials.
+The Desktop ZIP integration tests construct strict API v3 plugins at runtime. One plugin returns
+`JSON.stringify(...)`, reads `request.song.internal.lyric_id`, and covers import through runtime
+close. The second uses the complete official config-field set, options, dependencies, optional
+descriptive fields, and empty capabilities without committing third-party code or credentials.
 
 ### Commands executed
 
@@ -32,15 +34,16 @@ test covers import through runtime close without committing a third-party plugin
 | `cargo fmt --manifest-path rust-libs/Cargo.toml --all -- --check` | Passed |
 | `cargo clippy --manifest-path rust-libs/Cargo.toml --workspace --all-targets -- -D warnings` | Passed |
 | `cargo test --manifest-path rust-libs/Cargo.toml --workspace` | Passed; 79 Rust unit tests plus doc tests, including 20 plugin-runtime tests |
-| `.\gradlew.bat :shared:desktopTest --tests "com.github.tidetunes.plugin.*" --no-daemon --no-configuration-cache --console=plain` | Passed; 16 focused tests: 11 contract/parser/permission/context, 4 production assembly, 1 strict ZIP integration |
-| `.\gradlew.bat :shared:desktopTest --no-daemon --no-configuration-cache --console=plain` | Passed after replacing a Unix-only `/tmp` test path with Okio's system temporary directory; 161 tests, 1 skipped |
-| `.\gradlew.bat :shared:compileKotlinDesktop :desktopApp:compileKotlinDesktop :shared:compileDebugKotlinAndroid :androidApp:assembleDebug --no-daemon --no-configuration-cache --console=plain` | Passed; 905 tasks, Desktop classes and arm64-v8a debug APK generated |
-| `.\gradlew.bat :shared:compileKotlinIosSimulatorArm64 --no-daemon --no-configuration-cache --console=plain` | Blocked on Windows: Kotlin disables the Rust cinterop target on mingw; Kotlin/Native artifact download also hit a TLS handshake failure. Requires macOS validation |
+| `JAVA_HOME=/Applications/Android\ Studio.app/Contents/jbr/Contents/Home ./gradlew :shared:desktopTest :shared:compileKotlinDesktop :desktopApp:compileKotlinDesktop :shared:compileDebugKotlinAndroid :androidApp:assembleDebug :shared:compileKotlinIosSimulatorArm64 --no-daemon --no-configuration-cache --console=plain` | Passed; 1,044 tasks executed or reused, 162 Desktop tests with 1 skipped, Desktop compilation, Android debug APK, and iOS Simulator arm64 shared compilation |
+| `./gradlew :shared:desktopTest --tests 'com.github.tidetunes.plugin.PluginImportRuntimeDesktopTest' --no-daemon --no-configuration-cache --console=plain` | Passed; 2 strict ZIP integration tests. The complete focused plugin suite contains 17 tests |
+| `xcodebuild -project iosApp/TideTunes.xcodeproj -scheme TideTunes -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO build` | Passed; Kotlin framework, Swift termination hook, AudioToolbox linkage, and iOS Simulator app bundle built successfully |
 
 ### Known limitations
 
-- iOS Simulator compilation was not verifiable on this Windows host because the shared target has
-  Rust cinterop. This is an environment/platform gate, not reported as passed.
+- The configured iOS Simulator target is arm64 only; generic Xcode builds must not request x86_64.
+- Gradle Desktop tests must run with Java 21 because repository modules emit Java 21 bytecode.
+- Android does not invoke `Application.onTerminate()` for normal production process death; the OS
+  reclaims process resources. The explicit Koin shutdown hook covers emulated/test termination.
 - Real third-party ZIPs are user supplied and are not committed; the automated test uses the real
   API v3 format with a synthetic plugin and fictitious URLs.
 - Bundled include-directory scripts are supported, while dynamic runtime file access through

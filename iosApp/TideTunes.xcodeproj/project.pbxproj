@@ -241,6 +241,8 @@
 					"$(inherited)",
 					"-framework",
 					TideTunesShared,
+					"-framework",
+					AudioToolbox,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.github.tidetunes;
 				PRODUCT_NAME = TideTunes;
@@ -335,6 +337,8 @@
 					"$(inherited)",
 					"-framework",
 					TideTunesShared,
+					"-framework",
+					AudioToolbox,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.github.tidetunes;
 				PRODUCT_NAME = TideTunes;

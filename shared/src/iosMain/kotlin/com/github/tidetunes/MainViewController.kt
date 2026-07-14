@@ -11,6 +11,7 @@ import com.github.tidetunes.service.download.domain.DownloadTaskScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.koin.core.Koin
+import org.koin.core.context.stopKoin
 import platform.UIKit.UIViewController
 
 private var applicationInitialized = false
@@ -54,4 +55,11 @@ fun handleEventsForBackgroundURLSession(
         ?.get<DownloadTaskScheduler>() as? IosUrlSessionDownloadScheduler
     scheduler?.setBackgroundCompletionHandler(identifier, completionHandler)
         ?: completionHandler()
+}
+
+fun shutdownApplication() {
+    if (!applicationInitialized) return
+    stopKoin()
+    applicationKoin = null
+    applicationInitialized = false
 }

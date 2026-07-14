@@ -20,6 +20,8 @@ import okio.Path
 import okio.Path.Companion.toPath
 import uniffi.tidetunes_backend.extractPluginZip
 
+private const val MAX_CONFIG_DEPENDENCY_DEPTH = 16
+
 class PluginInstallError(
     message: String,
     cause: Throwable? = null,
@@ -33,7 +35,14 @@ data class ManifestConfigField(
     val type: String = "text",
     val required: Boolean = false,
     val defaultValue: String? = null,
+    val options: List<ManifestConfigOption> = emptyList(),
     val dependency: JsonObject? = null,
+)
+
+data class ManifestConfigOption(
+    val value: String,
+    val label: String,
+    val summary: String? = null,
 )
 
 data class ParsedManifest(
@@ -85,9 +94,19 @@ class PluginInstaller(
         private val SUPPORTED_CONFIG_TYPES = setOf(
             "text",
             "password",
-            "boolean",
             "number",
+            "switch",
+            "dropdown",
+            "textarea",
+            "markdown",
+            // Legacy TideTunes aliases retained for already-authored local plugins.
+            "boolean",
             "select",
+        )
+        private val SUPPORTED_CAPABILITIES = setOf(
+            "searchSongs",
+            "getLyrics",
+            "searchCovers",
         )
     }
 
@@ -150,6 +169,7 @@ class PluginInstaller(
                     type = field["type"]?.jsonPrimitive?.content ?: "text",
                     required = field["required"]?.jsonPrimitive?.booleanOrNull == true,
                     defaultValue = field["defaultValue"]?.jsonPrimitive?.contentOrNull,
+                    options = field.configOptions(),
                     dependency = field["dependency"] as? JsonObject,
                 )
             }
@@ -159,8 +179,8 @@ class PluginInstaller(
             name = root.string("name"),
             versionCode = root.long("versionCode"),
             versionName = root.string("versionName"),
-            author = root.string("author"),
-            description = root.string("description"),
+            author = root.stringOrNull("author").orEmpty(),
+            description = root.stringOrNull("description").orEmpty(),
             apiVersion = root.int("apiVersion"),
             minHostApiVersion = root.intOrNull("minHostApiVersion") ?: 1,
             entryFile = root.stringOrNull("entry")
@@ -188,6 +208,7 @@ class PluginInstaller(
         require(manifest.minHostApiVersion <= HOST_API_VERSION) {
             "plugin requires host API ${manifest.minHostApiVersion}"
         }
+        require(manifest.minHostApiVersion >= 1) { "minHostApiVersion must be >= 1" }
         require(manifest.versionCode >= 1) { "versionCode must be >= 1" }
         require(manifest.versionName.isNotBlank()) { "versionName is required" }
         require(manifest.name.isNotBlank()) { "plugin name is required" }
@@ -204,6 +225,12 @@ class PluginInstaller(
         require(manifest.capabilities.distinct().size == manifest.capabilities.size) {
             "capabilities contains duplicates"
         }
+        require(manifest.capabilities.all { it in SUPPORTED_CAPABILITIES }) {
+            "capabilities contains an unsupported value"
+        }
+        require(manifest.capabilities.isEmpty() || "searchSongs" in manifest.capabilities) {
+            "a source plugin must declare searchSongs when capabilities are provided"
+        }
         manifest.icon?.let { icon ->
             require(icon.substringAfterLast('.', "").lowercase() in SUPPORTED_ICON_EXTENSIONS) {
                 "unsupported plugin icon type"
@@ -217,6 +244,23 @@ class PluginInstaller(
             require(field.title.isNotBlank()) { "config field title is required: ${field.key}" }
             require(field.type in SUPPORTED_CONFIG_TYPES) {
                 "unsupported config field type '${field.type}' for ${field.key}"
+            }
+            require(field.type != "dropdown" || field.options.isNotEmpty()) {
+                "dropdown config field requires options: ${field.key}"
+            }
+            require(field.options.map(ManifestConfigOption::value).distinct().size == field.options.size) {
+                "config field options contain duplicate values: ${field.key}"
+            }
+            field.options.forEach { option ->
+                require(option.value.isNotBlank()) {
+                    "config field option value is required: ${field.key}"
+                }
+                require(option.label.isNotBlank()) {
+                    "config field option label is required: ${field.key}"
+                }
+            }
+            require(field.dependency?.isValidConfigDependency() != false) {
+                "invalid config field dependency: ${field.key}"
             }
         }
     }
@@ -416,7 +460,11 @@ class PluginInstaller(
         timestamp: Long,
     ) {
         manifest.configFields
-            .filter { it.defaultValue != null && it.defaultValue.isNotEmpty() }
+            .filter { field ->
+                field.type != "markdown" &&
+                    field.defaultValue != null &&
+                    field.defaultValue.isNotEmpty()
+            }
             .forEach { field ->
                 if (pluginDao.configValue(manifest.id, field.key) == null) {
                     pluginDao.setConfig(
@@ -490,6 +538,47 @@ internal fun JsonObject.int(key: String): Int =
 
 internal fun JsonObject.intOrNull(key: String): Int? =
     this[key]?.jsonPrimitive?.intOrNull
+
+private fun JsonObject.configOptions(): List<ManifestConfigOption> =
+    (this["options"] as? JsonArray)
+        ?.mapNotNull { it as? JsonObject }
+        ?.map { option ->
+            ManifestConfigOption(
+                value = option["value"]?.jsonPrimitive?.content.orEmpty(),
+                label = option["label"]?.jsonPrimitive?.content.orEmpty(),
+                summary = option["summary"]?.jsonPrimitive?.contentOrNull,
+            )
+        }
+        .orEmpty()
+
+private fun JsonObject.isValidConfigDependency(depth: Int = 0): Boolean {
+    if (depth > MAX_CONFIG_DEPENDENCY_DEPTH) return false
+    val dependencyTypes = keys.count { it == "match" || it == "and" || it == "or" || it == "not" }
+    if (dependencyTypes != 1) return false
+
+    (this["match"] as? JsonObject)?.let { match ->
+        val key = match["key"]?.jsonPrimitive?.contentOrNull
+        val value = match["value"]?.jsonPrimitive?.contentOrNull
+        return !key.isNullOrBlank() && value != null
+    }
+    (this["and"] as? JsonObject)?.let { and ->
+        val conditions = and["conditions"] as? JsonArray ?: return false
+        return conditions.isNotEmpty() && conditions.all { condition ->
+            (condition as? JsonObject)?.isValidConfigDependency(depth + 1) == true
+        }
+    }
+    (this["or"] as? JsonObject)?.let { or ->
+        val conditions = or["conditions"] as? JsonArray ?: return false
+        return conditions.isNotEmpty() && conditions.all { condition ->
+            (condition as? JsonObject)?.isValidConfigDependency(depth + 1) == true
+        }
+    }
+    (this["not"] as? JsonObject)?.let { not ->
+        val condition = not["condition"] as? JsonObject ?: return false
+        return condition.isValidConfigDependency(depth + 1)
+    }
+    return false
+}
 
 private fun Path.isUnderOrSame(root: Path): Boolean {
     val target = normalized().toString().trimEnd('/', '\\')
