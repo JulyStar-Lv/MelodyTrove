@@ -13,6 +13,10 @@ class PluginRuntimeManager(
         val runtime: PluginRuntime,
     )
 
+    private data class CacheSwap(
+        val previous: PluginRuntime?,
+    )
+
     private val stateMutex = Mutex()
     private val pluginLocks = mutableMapOf<String, Mutex>()
     private val entries = mutableMapOf<String, Entry>()
@@ -27,22 +31,11 @@ class PluginRuntimeManager(
             scriptSourceHash = bundle.sourceHash,
         )
 
-        stateMutex.withLock {
-            checkOpenLocked()
-            entries[plugin.pluginId]
-                ?.takeIf { it.key == key }
-                ?.runtime
-                ?.let { return it }
-        }
+        cachedRuntime(plugin.pluginId, key)?.let { return it }
 
-        return lockFor(plugin.pluginId).withLock {
-            stateMutex.withLock {
-                checkOpenLocked()
-                entries[plugin.pluginId]
-                    ?.takeIf { it.key == key }
-                    ?.runtime
-                    ?.let { return@withLock it }
-            }?.let { return@withLock it }
+        val pluginLock = lockFor(plugin.pluginId)
+        return pluginLock.withLock runtimeLock@{
+            cachedRuntime(plugin.pluginId, key)?.let { return@runtimeLock it }
 
             val created = factory.create(plugin)
             try {
@@ -52,18 +45,20 @@ class PluginRuntimeManager(
                 throw throwable
             }
 
-            val previous = stateMutex.withLock {
+            val swap = stateMutex.withLock {
                 if (closed) {
                     null
                 } else {
-                    entries.put(plugin.pluginId, Entry(key, created))?.runtime
+                    CacheSwap(
+                        previous = entries.put(plugin.pluginId, Entry(key, created))?.runtime,
+                    )
                 }
             }
-            if (closed) {
+            if (swap == null) {
                 created.close()
                 throw PluginRuntimeError.Closed("Plugin runtime manager is closed")
             }
-            if (previous !== created) previous?.close()
+            if (swap.previous !== created) swap.previous?.close()
             created
         }
     }
@@ -86,7 +81,8 @@ class PluginRuntimeManager(
     }
 
     suspend fun invalidate(pluginId: String) {
-        lockFor(pluginId).withLock {
+        val pluginLock = lockFor(pluginId)
+        pluginLock.withLock {
             val runtime = stateMutex.withLock { entries.remove(pluginId)?.runtime }
             runtime?.cancelCurrentCall()
             runtime?.close()
@@ -99,7 +95,6 @@ class PluginRuntimeManager(
 
     suspend fun closeAll() {
         val runtimes = stateMutex.withLock {
-            if (closed && entries.isEmpty()) return
             closed = true
             entries.values.map(Entry::runtime).also { entries.clear() }
         }
@@ -109,11 +104,22 @@ class PluginRuntimeManager(
 
     internal suspend fun cachedPluginIds(): Set<String> = stateMutex.withLock { entries.keys.toSet() }
 
+    private suspend fun cachedRuntime(
+        pluginId: String,
+        key: PluginRuntimeCacheKey,
+    ): PluginRuntime? = stateMutex.withLock {
+        checkOpenLocked()
+        entries[pluginId]
+            ?.takeIf { it.key == key }
+            ?.runtime
+    }
+
     private suspend fun invalidateIfSame(
         pluginId: String,
         expected: PluginRuntime,
     ) {
-        lockFor(pluginId).withLock {
+        val pluginLock = lockFor(pluginId)
+        pluginLock.withLock {
             val removed = stateMutex.withLock {
                 entries[pluginId]
                     ?.takeIf { it.runtime === expected }
