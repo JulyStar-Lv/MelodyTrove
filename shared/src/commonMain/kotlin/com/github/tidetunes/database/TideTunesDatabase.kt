@@ -1,4 +1,4 @@
-﻿package com.github.tidetunes.database
+package com.github.tidetunes.database
 
 import androidx.room.ConstructedBy
 import androidx.room.Database
@@ -33,8 +33,8 @@ import kotlinx.coroutines.Dispatchers
         TrackFts::class,
         PluginEntity::class,
         PluginConfigEntity::class,
-   ],
-   version = TIDE_TUNES_DATABASE_VERSION,
+    ],
+    version = TIDE_TUNES_DATABASE_VERSION,
     exportSchema = true,
 )
 @ConstructedBy(TideTunesDatabaseConstructor::class)
@@ -54,7 +54,7 @@ abstract class TideTunesDatabase : RoomDatabase() {
     abstract fun pluginDao(): PluginDao
 }
 
-const val TIDE_TUNES_DATABASE_VERSION = 12
+const val TIDE_TUNES_DATABASE_VERSION = 13
 
 @Suppress("KotlinNoActualForExpect")
 expect object TideTunesDatabaseConstructor : RoomDatabaseConstructor<TideTunesDatabase> {
@@ -63,20 +63,19 @@ expect object TideTunesDatabaseConstructor : RoomDatabaseConstructor<TideTunesDa
 
 expect fun databaseBuilder(): RoomDatabase.Builder<TideTunesDatabase>
 
-fun buildDatabase(): TideTunesDatabase {
-    return databaseBuilder()
-        .setDriver(BundledSQLiteDriver())
-        .setQueryCoroutineContext(Dispatchers.Default)
-        .addMigrations(MIGRATION_1_2)
-        .addMigrations(MIGRATION_2_3)
-        .addMigrations(MIGRATION_3_4)
-        .addMigrations(MIGRATION_4_5)
-        .addMigrations(MIGRATION_5_6)
-        .addMigrations(MIGRATION_6_7)
-        .addMigrations(MIGRATION_7_8)
-       .addMigrations(MIGRATION_8_9)
-        .addMigrations(MIGRATION_9_10)
-        .addMigrations(MIGRATION_10_11)
-        .addMigrations(MIGRATION_11_12)
-       .build()
-}
+fun buildDatabase(): TideTunesDatabase = databaseBuilder()
+    .setDriver(BundledSQLiteDriver())
+    .setQueryCoroutineContext(Dispatchers.Default)
+    .addMigrations(MIGRATION_1_2)
+    .addMigrations(MIGRATION_2_3)
+    .addMigrations(MIGRATION_3_4)
+    .addMigrations(MIGRATION_4_5)
+    .addMigrations(MIGRATION_5_6)
+    .addMigrations(MIGRATION_6_7)
+    .addMigrations(MIGRATION_7_8)
+    .addMigrations(MIGRATION_8_9)
+    .addMigrations(MIGRATION_9_10)
+    .addMigrations(MIGRATION_10_11)
+    .addMigrations(MIGRATION_11_12)
+    .addMigrations(MIGRATION_12_13)
+    .build()
