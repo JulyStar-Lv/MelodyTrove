@@ -79,7 +79,7 @@ class RustPluginRuntime(
     }
 
     override fun close() {
-        if (!closed.compareAndSet(expect = false, update = true)) return
+        if (!closed.compareAndSet(false, true)) return
         cancelCurrentCall()
         workerScope.cancel()
         handle.shutdown()
