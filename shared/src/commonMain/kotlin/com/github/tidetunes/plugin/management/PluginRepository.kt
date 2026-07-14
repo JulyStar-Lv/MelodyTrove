@@ -16,6 +16,7 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okio.Path
 
@@ -48,11 +49,11 @@ class PluginRepository(
     private val json = Json { ignoreUnknownKeys = true }
 
     fun allPlugins(): Flow<List<PluginSummary>> = pluginDao.all().map { plugins ->
-        plugins.map(PluginEntity::toSummary)
+        plugins.map { plugin -> plugin.toSummary() }
     }
 
     suspend fun allSnapshot(): List<PluginSummary> =
-        pluginDao.allSnapshot().map(PluginEntity::toSummary)
+        pluginDao.allSnapshot().map { plugin -> plugin.toSummary() }
 
     suspend fun getPlugin(pluginId: String): PluginSummary? =
         pluginDao.findByPluginId(pluginId)?.toSummary()
