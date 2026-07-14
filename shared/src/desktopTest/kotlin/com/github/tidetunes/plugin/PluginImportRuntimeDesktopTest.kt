@@ -1,11 +1,12 @@
 package com.github.tidetunes.plugin
 
-import com.github.tidetunes.plugin.install.PluginInstaller
 import com.github.tidetunes.plugin.install.FakePluginDao
+import com.github.tidetunes.plugin.install.PluginInstaller
 import com.github.tidetunes.plugin.runtime.InstalledPlugin
 import com.github.tidetunes.plugin.runtime.LyricoJsMetaSource
 import com.github.tidetunes.plugin.runtime.PluginCandidateContextStore
 import com.github.tidetunes.plugin.runtime.PluginConfigProvider
+import com.github.tidetunes.plugin.runtime.PluginLookupMode
 import com.github.tidetunes.plugin.runtime.PluginResultParser
 import com.github.tidetunes.plugin.runtime.PluginRuntimeDescriptor
 import com.github.tidetunes.plugin.runtime.PluginRuntimeFactory
@@ -27,66 +28,91 @@ import okio.Path.Companion.toPath
 
 class PluginImportRuntimeDesktopTest {
     @Test
-    fun importsAggregateZipAndRunsInstalledPlugin() = runTest {
+    fun importsStrictLyricoV3ZipAndRunsCompleteMetadataFlow() = runTest {
         val temp = Files.createTempDirectory("tidetunes-plugin-import-test")
-        val zip = temp.resolve("plugins.zip")
+        val zip = temp.resolve("plugin.zip")
         writeZip(
             zip,
             mapOf(
-                "metadata/manifest.json" to """
+                "metadata/manifest.json" to
+                    """
                     {
                       "id": "com.tidetunes.test.imported",
                       "name": "Imported Metadata",
                       "versionCode": 1,
                       "versionName": "1.0.0",
-                      "author": "TideTunes",
-                      "description": "Import/runtime smoke test",
+                      "author": "TideTunes Test",
+                      "description": "Lyrico v3 import and runtime contract test",
                       "apiVersion": 3,
                       "minHostApiVersion": 3,
                       "entry": "source.js",
                       "includeDirs": ["lib"],
                       "capabilities": ["searchSongs", "getLyrics", "searchCovers"],
-                      "configFields": [{"key":"region","title":"Region","defaultValue":"us"}]
+                      "configFields": [
+                        {"key":"region","title":"Region","type":"text","defaultValue":"us"}
+                      ]
                     }
-                """.trimIndent(),
-                "metadata/lib/01_helper.js" to """
+                    """.trimIndent(),
+                "metadata/lib/01_helper.js" to
+                    """
                     function importedHelper(value) {
                       return "helper:" + value;
                     }
-                """.trimIndent(),
-                "metadata/source.js" to """
+                    """.trimIndent(),
+                "metadata/source.js" to
+                    """
                     function searchSongs(request) {
+                      if (!request.keyword || request.page !== 1 || request.pageSize !== 20) {
+                        throw new Error("invalid Lyrico search request");
+                      }
+                      if (request.separator !== "/" || request.config.region !== "us") {
+                        throw new Error("missing separator or merged config");
+                      }
                       var info = Platform.runtime.getInfo();
-                      return {
-                        songs: [{
-                          id: "song-1",
-                          title: importedHelper(request.title),
-                          artist: request.artist || "",
-                          fields: {
-                            md5: Platform.crypto.md5("abc"),
-                            hostApiVersion: String(info.hostApiVersion)
-                          },
-                          internal: { lyricToken: "opaque" }
-                        }]
-                      };
+                      return JSON.stringify([{
+                        id: "song-1",
+                        title: importedHelper(request.keyword),
+                        artist: ["Artist A", "Artist B"],
+                        album: "Album",
+                        duration_ms: 123000,
+                        cover_url: "https://example.test/cover.jpg",
+                        fields: {
+                          album: "Album",
+                          md5: Platform.crypto.md5("abc"),
+                          hostApiVersion: String(info.hostApiVersion)
+                        },
+                        internal: { lyric_id: "lyric-1" }
+                      }]);
                     }
+
                     function getLyrics(request) {
-                      return {
-                        lines: [{
-                          text: request.fields.md5 + ":" + request.internal.lyricToken,
-                          startMs: 10,
-                          endMs: 20,
-                          words: [{ text: "opaque", startMs: 10, endMs: 20 }],
-                          translation: "translated",
-                          romanization: "romanized"
-                        }],
-                        rawPlainLrc: "[00:00.01]opaque"
-                      };
+                      if (!request.song || request.song.pluginId !== "com.tidetunes.test.imported") {
+                        throw new Error("missing nested song request");
+                      }
+                      if (request.song.internal.lyric_id !== "lyric-1") {
+                        throw new Error("private context was not returned");
+                      }
+                      return JSON.stringify({
+                        type: "structured",
+                        original: [
+                          [0, 2000, request.song.fields.md5 + ":" + request.song.internal.lyric_id],
+                          [2000, 4000, [[2000, 3000, "Second"], [3000, 4000, " line"]]]
+                        ],
+                        translated: [[0, 2000, "translated"]],
+                        romanization: [[0, 2000, "romanized"]]
+                      });
                     }
+
                     function searchCovers(request) {
-                      return { covers: [{ url: "https://example.test/cover.jpg", width: 300, height: 300 }] };
+                      if (!request.keyword || request.pageSize !== 5) {
+                        throw new Error("invalid Lyrico cover request");
+                      }
+                      return JSON.stringify([{
+                        id: "song-1",
+                        picUrl: "https://example.test/cover.jpg"
+                      }]);
                     }
-                """.trimIndent(),
+                    """.trimIndent(),
             ),
         )
 
@@ -97,9 +123,17 @@ class PluginImportRuntimeDesktopTest {
 
         assertTrue(installResult.failed.isEmpty(), installResult.failed.toString())
         assertEquals(1, installResult.installed.size)
-        val entity = dao.findByPluginId("com.tidetunes.test.imported")
+        var entity = dao.findByPluginId("com.tidetunes.test.imported")
         assertNotNull(entity)
         assertFalse(entity.enabled)
+        assertTrue(entity.allowManualLookup)
+        assertFalse(entity.allowAutomaticLookup)
+        assertFalse(entity.allowBatchLookup)
+        assertEquals("us", dao.configValue(entity.pluginId, "region"))
+
+        dao.setEnabled(entity.pluginId, true)
+        entity = dao.findByPluginId(entity.pluginId)
+        assertNotNull(entity)
 
         val descriptor = PluginRuntimeDescriptor(
             pluginId = entity.pluginId,
@@ -110,15 +144,15 @@ class PluginImportRuntimeDesktopTest {
             includeDirs = listOf("lib"),
             directory = (pluginsDir / entity.pluginId).toString(),
         )
-        val manager = PluginRuntimeManager(
-            PluginRuntimeFactory(
-                PluginRuntimeSettings(
-                    appVersionName = "test",
-                    cacheDirectory = temp.resolve("cache").toString(),
-                ),
-            ),
-            PluginScriptBundleBuilder(),
+        val settings = PluginRuntimeSettings(
+            appVersionName = "test",
+            cacheDirectory = temp.resolve("cache").toString(),
         )
+        val manager = PluginRuntimeManager(
+            factory = PluginRuntimeFactory(settings),
+            bundleBuilder = PluginScriptBundleBuilder(),
+        )
+        val parser = PluginResultParser(PluginCandidateContextStore())
         val source = LyricoJsMetaSource(
             plugin = InstalledPlugin(
                 descriptor = descriptor,
@@ -126,29 +160,54 @@ class PluginImportRuntimeDesktopTest {
                 enabled = true,
             ),
             runtimeManager = manager,
-            configProvider = PluginConfigProvider { mapOf("region" to "us") },
-            resultParser = PluginResultParser(PluginCandidateContextStore()),
+            configProvider = PluginConfigProvider { pluginId ->
+                dao.configsFor(pluginId).associate { it.configKey to it.configValue }
+            },
+            resultParser = parser,
         )
 
-        val songs = source.searchSongs(MetaSongQuery(title = "Title", artist = "Artist"))
+        val songs = source.searchSongs(
+            MetaSongQuery(title = "Title", artist = "Artist"),
+            PluginLookupMode.MANUAL,
+        )
         assertEquals(1, songs.size)
-        assertEquals("helper:Title", songs[0].title)
+        assertEquals("helper:Title Artist", songs[0].title)
+        assertEquals("Artist A/Artist B", songs[0].artist)
         assertEquals("900150983cd24fb0d6963f7d28e17f72", songs[0].fields["md5"])
         assertEquals("3", songs[0].fields["hostApiVersion"])
         assertNotNull(songs[0].contextToken)
 
-        val lyrics = source.getLyrics(songs[0])
+        val lyrics = source.getLyrics(
+            candidate = songs[0],
+            config = emptyMap(),
+            mode = PluginLookupMode.MANUAL,
+        )
         assertNotNull(lyrics)
-        assertEquals("900150983cd24fb0d6963f7d28e17f72:opaque", lyrics.lines.single().text)
-        assertEquals("translated", lyrics.lines.single().translation)
+        assertEquals(
+            "900150983cd24fb0d6963f7d28e17f72:lyric-1",
+            lyrics.lines[0].text,
+        )
+        assertEquals("translated", lyrics.lines[0].translation)
+        assertEquals("romanized", lyrics.lines[0].romanization)
+        assertEquals("Second line", lyrics.lines[1].text)
+        assertEquals(2, lyrics.lines[1].words.size)
 
-        val covers = source.searchCovers(MetaSongQuery(title = "Title"))
+        val covers = source.searchCovers(
+            MetaSongQuery(title = "Title"),
+            PluginLookupMode.MANUAL,
+        )
         assertEquals("https://example.test/cover.jpg", covers.single().url)
+        assertEquals("song-1", covers.single().sourceId)
 
+        source.clearPrivateContexts()
         manager.closeAll()
+        assertTrue(manager.cachedPluginIds().isEmpty())
     }
 
-    private fun writeZip(path: java.nio.file.Path, entries: Map<String, String>) {
+    private fun writeZip(
+        path: java.nio.file.Path,
+        entries: Map<String, String>,
+    ) {
         ZipOutputStream(path.outputStream()).use { zip ->
             entries.forEach { (name, content) ->
                 zip.putNextEntry(ZipEntry(name))
