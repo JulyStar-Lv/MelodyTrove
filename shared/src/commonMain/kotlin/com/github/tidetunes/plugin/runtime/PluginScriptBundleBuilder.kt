@@ -30,7 +30,10 @@ class PluginScriptBundleBuilder(
         }
 
         val declaredIncludesJson = buildJsonArray {
-            includeSources.map(Pair<String, String>::first).distinct().forEach(::add)
+            includeSources
+                .map { (path, _) -> path }
+                .distinct()
+                .forEach { path -> add(path) }
         }.toString()
         val includeBootstrap = """
             (function() {
