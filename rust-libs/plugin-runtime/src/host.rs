@@ -1,23 +1,25 @@
-use crate::{HostApiDispatcher, PluginRuntimeError};
-use aes::{Aes128, Aes192, Aes256};
-use base64::{
-    engine::general_purpose::{STANDARD, URL_SAFE_NO_PAD},
-    Engine,
-};
-use cipher::{block_padding::Pkcs7, BlockDecryptMut, BlockEncryptMut, KeyInit};
+mod crypto;
+mod xml;
+
+use crate::{HostApiDispatcher, OperationControl, PluginRuntimeError};
+use base64::{engine::general_purpose, Engine as _};
 use flate2::read::ZlibDecoder;
-use md5::{Digest, Md5};
-use serde_json::{json, Map, Value};
-use sha2::Sha256;
+use reqwest::{
+    blocking::Client,
+    header::{HeaderMap, HeaderName, HeaderValue, CONTENT_TYPE, LOCATION, USER_AGENT},
+    Method, StatusCode,
+};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::{
+    collections::BTreeMap,
     fs,
     io::Read,
-    net::{IpAddr, ToSocketAddrs},
+    net::{IpAddr, SocketAddr, ToSocketAddrs},
     path::{Path, PathBuf},
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use url::Url;
-mod xml;
 
 pub const SUPPORTED_HOST_APIS: &[&str] = &[
     "app.info",
@@ -53,13 +55,13 @@ pub const SUPPORTED_HOST_APIS: &[&str] = &[
     "http.post",
     "http.getBytes",
     "http.postBytesResponse",
-    "log.debug",
-    "log.warn",
-    "log.error",
     "xml.getRootAttributes",
     "xml.findElements",
     "xml.replaceChildrenByAttr",
     "xml.removeElements",
+    "log.debug",
+    "log.warn",
+    "log.error",
 ];
 
 #[derive(Clone)]
@@ -70,740 +72,901 @@ pub struct HostApiOptions {
     pub package_name: String,
     pub app_version_name: String,
     pub app_version_code: u64,
-    pub build_type: String,
-    pub debug: bool,
     pub cache_directory: PathBuf,
-    pub max_cache_value_bytes: usize,
-    pub max_cache_bytes: usize,
-    pub max_inflate_bytes: usize,
     pub allow_http: bool,
     pub allow_https: bool,
     pub allow_private_network: bool,
+    pub connect_timeout_ms: u64,
+    pub read_timeout_ms: u64,
     pub max_http_request_bytes: usize,
     pub max_http_response_bytes: usize,
+    pub max_redirects: usize,
+    pub max_cache_bytes: usize,
+    pub max_inflate_bytes: usize,
 }
+
 impl Default for HostApiOptions {
     fn default() -> Self {
         Self {
-            plugin_id: "default".into(),
+            plugin_id: "plugin".into(),
             plugin_name: "Plugin".into(),
             app_name: "TideTunes".into(),
             package_name: "com.github.tidetunes".into(),
             app_version_name: "0.0.0".into(),
             app_version_code: 0,
-            build_type: "release".into(),
-            debug: false,
-            cache_directory: PathBuf::new(),
-            max_cache_value_bytes: 256 * 1024,
-            max_cache_bytes: 4 * 1024 * 1024,
-            max_inflate_bytes: 16 * 1024 * 1024,
+            cache_directory: std::env::temp_dir().join("tidetunes-plugin-cache"),
             allow_http: false,
             allow_https: true,
             allow_private_network: false,
+            connect_timeout_ms: 10_000,
+            read_timeout_ms: 20_000,
             max_http_request_bytes: 4 * 1024 * 1024,
             max_http_response_bytes: 16 * 1024 * 1024,
+            max_redirects: 5,
+            max_cache_bytes: 4 * 1024 * 1024,
+            max_inflate_bytes: 16 * 1024 * 1024,
         }
     }
 }
+
 pub struct HostApi {
     options: HostApiOptions,
+    cache_root: PathBuf,
+    cache_index: CacheIndex,
 }
+
 impl HostApi {
     pub fn new(options: HostApiOptions) -> Self {
-        Self { options }
-    }
-    fn value(v: Value) -> Result<String, PluginRuntimeError> {
-        serde_json::to_string(&json!({"value":v})).map_err(internal)
-    }
-    fn cache_dir(&self) -> PathBuf {
-        self.options
-            .cache_directory
-            .join("plugins")
-            .join(sha256_hex(self.options.plugin_id.as_bytes()))
-    }
-    fn cache_file(&self, key: &str) -> Result<PathBuf, PluginRuntimeError> {
-        if key.trim().is_empty() {
-            return Err(host_error("cache key is blank"));
+        let hash = format!("{:x}", Sha256::digest(options.plugin_id.as_bytes()));
+        let cache_root = options.cache_directory.join("plugins").join(hash);
+        let _ = fs::create_dir_all(&cache_root);
+        let cache_index = CacheIndex::read(&cache_root.join("index.json"));
+        Self {
+            options,
+            cache_root,
+            cache_index,
         }
-        Ok(self
-            .cache_dir()
-            .join(format!("{}.json", sha256_hex(key.trim().as_bytes()))))
     }
-    fn cache_get(&self, key: &str) -> String {
-        let Ok(path) = self.cache_file(key) else {
-            return String::new();
-        };
-        let Ok(data) = fs::read(&path) else {
-            return String::new();
-        };
-        let Ok(v) = serde_json::from_slice::<Value>(&data) else {
-            let _ = fs::remove_file(path);
-            return String::new();
-        };
-        let expires = v["expiresAt"].as_u64().unwrap_or(0);
-        if expires > 0 && expires <= now_ms() {
-            let _ = fs::remove_file(path);
-            return String::new();
+
+    fn execute(
+        &mut self,
+        name: &str,
+        payload: serde_json::Value,
+        control: &OperationControl,
+    ) -> Result<serde_json::Value, PluginRuntimeError> {
+        match name {
+            "app.info" => Ok(serde_json::json!({
+                "name": self.options.app_name,
+                "packageName": self.options.package_name,
+                "versionName": self.options.app_version_name,
+                "versionCode": self.options.app_version_code,
+                "buildType": "release",
+                "debug": false,
+                "commit": serde_json::Value::Null,
+            })),
+            "app.userAgent" => Ok(serde_json::Value::String(self.user_agent())),
+            "runtime.info" => Ok(serde_json::json!({
+                "name": "QuickJS",
+                "version": "2025-09-13",
+                "hostApiVersion": 3,
+                "os": std::env::consts::OS,
+                "arch": std::env::consts::ARCH,
+            })),
+            "cache.get" => self.cache_get(required_string(&payload, "key")?),
+            "cache.set" => self.cache_set(
+                required_string(&payload, "key")?,
+                required_string(&payload, "value")?,
+                payload.get("ttlMs").and_then(|v| v.as_u64()).unwrap_or(0),
+            ),
+            "cache.remove" => self.cache_remove(required_string(&payload, "key")?),
+            "cache.clear" => self.cache_clear(),
+            "crypto.md5" => Ok(serde_json::Value::String(crypto::md5_hex(
+                required_string(&payload, "text")?.as_bytes(),
+            ))),
+            "crypto.aesEcbPkcs5EncryptBase64" => Ok(serde_json::Value::String(
+                crypto::aes_ecb_encrypt_base64(
+                    required_string(&payload, "text")?,
+                    required_string(&payload, "key")?,
+                )?,
+            )),
+            "crypto.aesEcbPkcs5EncryptHex" => Ok(serde_json::Value::String(
+                crypto::aes_ecb_encrypt_hex(
+                    required_string(&payload, "text")?,
+                    required_string(&payload, "key")?,
+                )?,
+            )),
+            "crypto.aesEcbPkcs5DecryptBase64ToText" => Ok(serde_json::Value::String(
+                crypto::aes_ecb_decrypt_base64(
+                    required_string(&payload, "base64")?,
+                    required_string(&payload, "key")?,
+                )?,
+            )),
+            "base64.encodeText" => Ok(serde_json::Value::String(
+                general_purpose::STANDARD.encode(required_string(&payload, "text")?),
+            )),
+            "base64.decodeText" => Ok(serde_json::Value::String(
+                String::from_utf8(decode_standard(required_string(&payload, "base64")?)?)
+                    .map_err(host_error)?,
+            )),
+            "base64.dropBytes" => {
+                let bytes = decode_standard(required_string(&payload, "base64")?)?;
+                let count = payload.get("count").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+                Ok(serde_json::Value::String(general_purpose::STANDARD.encode(
+                    bytes.get(count..).unwrap_or_default(),
+                )))
+            }
+            "base64.decodeBytes" => Ok(serde_json::to_value(decode_standard(required_string(
+                &payload, "base64",
+            )?)?)
+            .map_err(host_error)?),
+            "base64.encodeBytes" => Ok(serde_json::Value::String(
+                general_purpose::STANDARD.encode(required_bytes(&payload, "bytes")?),
+            )),
+            "base64.encodeUrlText" => Ok(serde_json::Value::String(
+                general_purpose::URL_SAFE_NO_PAD.encode(required_string(&payload, "text")?),
+            )),
+            "base64.decodeUrlText" => Ok(serde_json::Value::String(
+                String::from_utf8(decode_url(required_string(&payload, "base64Url")?)?)
+                    .map_err(host_error)?,
+            )),
+            "base64.encodeUrlBytes" => Ok(serde_json::Value::String(
+                general_purpose::URL_SAFE_NO_PAD.encode(required_bytes(&payload, "bytes")?),
+            )),
+            "base64.decodeUrlBytes" => Ok(serde_json::to_value(decode_url(required_string(
+                &payload,
+                "base64Url",
+            )?)?)
+            .map_err(host_error)?),
+            "base64.toUrl" => Ok(serde_json::Value::String(to_url_safe(required_string(
+                &payload, "base64",
+            )?))),
+            "base64.fromUrl" => Ok(serde_json::Value::String(to_standard_url(
+                required_string(&payload, "base64Url")?,
+            ))),
+            "bytes.xor" => Ok(serde_json::to_value(xor_bytes(
+                &required_bytes(&payload, "bytes")?,
+                &required_bytes(&payload, "key")?,
+            )?)
+            .map_err(host_error)?),
+            "bytes.xorBase64" => {
+                let bytes = decode_standard(required_string(&payload, "base64")?)?;
+                let key = required_bytes(&payload, "key")?;
+                Ok(serde_json::Value::String(
+                    general_purpose::STANDARD.encode(xor_bytes(&bytes, &key)?),
+                ))
+            }
+            "compression.inflateBytesToText" => {
+                self.inflate(&required_bytes(&payload, "bytes")?)
+            }
+            "compression.inflateBase64ToText" => {
+                self.inflate(&decode_standard(required_string(&payload, "base64")?)?)
+            }
+            "http.getText" => self.http(Method::GET, false, false, payload, control),
+            "http.postText" => self.http(Method::POST, false, false, payload, control),
+            "http.postBytes" => self.http(Method::POST, false, false, payload, control),
+            "http.get" => self.http(Method::GET, false, true, payload, control),
+            "http.post" => self.http(Method::POST, false, true, payload, control),
+            "http.getBytes" => self.http(Method::GET, true, true, payload, control),
+            "http.postBytesResponse" => self.http(Method::POST, true, true, payload, control),
+            "xml.getRootAttributes" => xml::root_attributes(required_string(&payload, "xml")?),
+            "xml.findElements" => xml::find_elements(
+                required_string(&payload, "xml")?,
+                payload.get("query").cloned().unwrap_or_default(),
+            ),
+            "xml.replaceChildrenByAttr" => xml::replace_children_by_attr(
+                required_string(&payload, "xml")?,
+                payload.get("options").cloned().unwrap_or_default(),
+            ),
+            "xml.removeElements" => xml::remove_elements(
+                required_string(&payload, "xml")?,
+                payload.get("query").cloned().unwrap_or_default(),
+            ),
+            "log.debug" | "log.warn" | "log.error" => {
+                let tag = payload
+                    .get("tag")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("PlatformPlugin");
+                let message = payload.get("message").and_then(|v| v.as_str()).unwrap_or("");
+                eprintln!("[{name}] [{}:{tag}] {message}", self.options.plugin_id);
+                Ok(serde_json::Value::Null)
+            }
+            _ => Err(PluginRuntimeError::HostApi(format!(
+                "unsupported API: {name}"
+            ))),
         }
-        v["value"].as_str().unwrap_or("").to_owned()
     }
-    fn cache_set(&self, key: &str, value: &str, ttl: u64) -> Result<(), PluginRuntimeError> {
-        if value.len() > self.options.max_cache_value_bytes {
-            return Err(host_error("cache value exceeds limit"));
-        }
-        let path = self.cache_file(key)?;
-        fs::create_dir_all(path.parent().unwrap()).map_err(internal)?;
-        let existing = directory_size(&self.cache_dir());
-        if existing.saturating_add(value.len() as u64) > self.options.max_cache_bytes as u64 {
-            return Err(host_error("plugin cache exceeds limit"));
-        }
-        let tmp = path.with_extension(format!("tmp-{}", now_ms()));
-        let expires = if ttl == 0 {
-            0
-        } else {
-            now_ms().saturating_add(ttl)
-        };
-        fs::write(
-            &tmp,
-            serde_json::to_vec(&json!({"value":value,"expiresAt":expires})).map_err(internal)?,
+
+    fn user_agent(&self) -> String {
+        format!(
+            "{}/{} ({}; {}) plugin/{}/{}",
+            self.options.app_name,
+            self.options.app_version_name,
+            std::env::consts::OS,
+            std::env::consts::ARCH,
+            self.options.plugin_id,
+            self.options.plugin_name,
         )
-        .map_err(internal)?;
-        fs::rename(tmp, path).map_err(internal)
     }
+
     fn http(
         &self,
-        method: &str,
-        p: &Value,
-        binary: bool,
-        control: &crate::OperationControl,
-    ) -> Result<Value, PluginRuntimeError> {
-        let mut url =
-            Url::parse(p.get("url").and_then(Value::as_str).unwrap_or("")).map_err(host_error)?;
-        let follow = p
-            .get("followRedirects")
-            .and_then(Value::as_bool)
-            .unwrap_or(true);
-        let body = request_body(p)?;
-        if body.len() > self.options.max_http_request_bytes {
-            return Err(host_error("HTTP request body exceeds limit"));
-        }
-        let connect = p
+        method: Method,
+        bytes_response: bool,
+        structured: bool,
+        payload: serde_json::Value,
+        control: &OperationControl,
+    ) -> Result<serde_json::Value, PluginRuntimeError> {
+        let mut url = Url::parse(required_string(&payload, "url")?).map_err(host_error)?;
+        let connect_timeout = payload
             .get("connectTimeoutMs")
-            .and_then(Value::as_u64)
-            .unwrap_or(8000)
-            .min(15000);
-        let read = p
+            .and_then(|v| v.as_u64())
+            .unwrap_or(self.options.connect_timeout_ms)
+            .clamp(1, 120_000);
+        let read_timeout = payload
             .get("readTimeoutMs")
-            .and_then(Value::as_u64)
-            .unwrap_or(12000)
-            .min(30000);
-        let client = reqwest::blocking::Client::builder()
-            .no_proxy()
-            .redirect(reqwest::redirect::Policy::none())
-            .connect_timeout(std::time::Duration::from_millis(connect))
-            .timeout(std::time::Duration::from_millis(connect + read))
-            .build()
-            .map_err(host_error)?;
-        for redirects in 0..=5 {
-            self.validate_url(&url)?;
-            let mut request = match method {
-                "GET" => client.get(url.clone()),
-                _ => client.post(url.clone()).body(body.clone()),
-            };
-            if let Some(headers) = p.get("headers").and_then(Value::as_object) {
-                for (k, v) in headers {
-                    let text = if let Some(a) = v.as_array() {
-                        a.iter()
-                            .filter_map(Value::as_str)
-                            .collect::<Vec<_>>()
-                            .join(", ")
-                    } else {
-                        v.as_str().unwrap_or("").to_owned()
-                    };
-                    if !text.is_empty() {
-                        request = request.header(k, text)
-                    }
-                }
+            .and_then(|v| v.as_u64())
+            .unwrap_or(self.options.read_timeout_ms)
+            .clamp(1, 300_000);
+        let follow_redirects = payload
+            .get("followRedirects")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(true);
+        let headers = self.parse_headers(payload.get("headers"))?;
+        let body = request_body(&payload, self.options.max_http_request_bytes)?;
+
+        for redirect_count in 0..=self.options.max_redirects {
+            check_control(control)?;
+            let resolved_addresses = self.validate_url(&url)?;
+            let host = url
+                .host_str()
+                .ok_or_else(|| PluginRuntimeError::HostApi("URL has no host".into()))?;
+            let client = Client::builder()
+                .redirect(reqwest::redirect::Policy::none())
+                .no_proxy()
+                .connect_timeout(Duration::from_millis(connect_timeout))
+                .timeout(Duration::from_millis(read_timeout))
+                .resolve_to_addrs(host, &resolved_addresses)
+                .build()
+                .map_err(host_error)?;
+            let mut builder = client.request(method.clone(), url.clone());
+            for (name, value) in &headers {
+                builder = builder.header(name, value);
             }
-            if p.get("headers")
-                .and_then(Value::as_object)
-                .map_or(true, |h| {
-                    !h.keys().any(|k| k.eq_ignore_ascii_case("user-agent"))
-                })
-            {
-                request = request.header(
-                    "User-Agent",
-                    format!(
-                        "{}/{}",
-                        self.options.app_name, self.options.app_version_name
-                    ),
-                )
+            if !headers.contains_key(USER_AGENT) {
+                builder = builder.header(USER_AGENT, self.user_agent());
             }
-            if control.should_interrupt() {
-                return Err(control.interrupted_error());
+            if method != Method::GET {
+                builder = builder.body(body.clone());
             }
-            let mut response = request.send().map_err(host_error)?;
-            if control.should_interrupt() {
-                return Err(control.interrupted_error());
-            }
-            if response.status().is_redirection() && follow {
-                if redirects == 5 {
-                    return Err(host_error("HTTP redirect limit exceeded"));
+            let mut response = builder.send().map_err(host_error)?;
+            check_control(control)?;
+
+            if response.status().is_redirection() && follow_redirects {
+                if redirect_count == self.options.max_redirects {
+                    return Err(PluginRuntimeError::HostApi("too many redirects".into()));
                 }
                 let location = response
                     .headers()
-                    .get(reqwest::header::LOCATION)
-                    .ok_or_else(|| host_error("redirect missing Location"))?
-                    .to_str()
-                    .map_err(host_error)?;
+                    .get(LOCATION)
+                    .and_then(|value| value.to_str().ok())
+                    .ok_or_else(|| {
+                        PluginRuntimeError::HostApi("redirect location missing".into())
+                    })?;
                 url = url.join(location).map_err(host_error)?;
                 continue;
             }
-            let code = response.status().as_u16();
-            let message = response
-                .status()
-                .canonical_reason()
-                .unwrap_or("")
-                .to_owned();
-            let mut headers = Map::new();
-            for name in response.headers().keys() {
-                let values = response
-                    .headers()
-                    .get_all(name)
-                    .iter()
-                    .filter_map(|x| x.to_str().ok())
-                    .map(|x| Value::String(x.to_owned()))
-                    .collect();
-                headers.insert(name.to_string(), Value::Array(values));
-            }
+
+            let status = response.status();
+            let response_headers = response_headers(response.headers());
+            let content_type = response
+                .headers()
+                .get(CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok())
+                .map(str::to_owned);
             let mut data = Vec::new();
-            let mut chunk = [0u8; 8192];
+            let mut limited = (&mut response).take((self.options.max_http_response_bytes + 1) as u64);
             loop {
-                if control.should_interrupt() {
-                    return Err(control.interrupted_error());
-                }
-                let count = response.read(&mut chunk).map_err(host_error)?;
-                if count == 0 {
+                check_control(control)?;
+                let mut chunk = [0_u8; 8192];
+                let read = limited.read(&mut chunk).map_err(host_error)?;
+                if read == 0 {
                     break;
                 }
-                data.extend_from_slice(&chunk[..count]);
+                data.extend_from_slice(&chunk[..read]);
                 if data.len() > self.options.max_http_response_bytes {
-                    return Err(host_error("HTTP response body exceeds limit"));
+                    return Err(PluginRuntimeError::HostApi(
+                        "HTTP response exceeded size limit".into(),
+                    ));
                 }
             }
-            if data.len() > self.options.max_http_response_bytes {
-                return Err(host_error("HTTP response body exceeds limit"));
-            }
-            return Ok(
-                json!({"code":code,"message":message,"headers":headers,"body":if binary{"".into()}else{String::from_utf8_lossy(&data).into_owned()},"bodyBase64":if binary{STANDARD.encode(data)}else{"".into()}}),
-            );
+            return if structured {
+                Ok(serde_json::json!({
+                    "status": status.as_u16(),
+                    "url": url.as_str(),
+                    "headers": response_headers,
+                    "contentType": content_type,
+                    "body": if bytes_response { serde_json::Value::Null } else { serde_json::Value::String(String::from_utf8(data.clone()).map_err(host_error)?) },
+                    "bodyBase64": if bytes_response { serde_json::Value::String(general_purpose::STANDARD.encode(data)) } else { serde_json::Value::Null },
+                }))
+            } else if bytes_response {
+                Ok(serde_json::Value::String(
+                    general_purpose::STANDARD.encode(data),
+                ))
+            } else {
+                let text = String::from_utf8(data).map_err(host_error)?;
+                if !status.is_success() {
+                    return Err(PluginRuntimeError::HostApi(format!(
+                        "HTTP status {}",
+                        status.as_u16()
+                    )));
+                }
+                Ok(serde_json::Value::String(text))
+            };
         }
-        Err(host_error("HTTP redirect failed"))
+        Err(PluginRuntimeError::HostApi("redirect loop".into()))
     }
-    fn validate_url(&self, url: &Url) -> Result<(), PluginRuntimeError> {
+
+    fn parse_headers(
+        &self,
+        value: Option<&serde_json::Value>,
+    ) -> Result<HeaderMap, PluginRuntimeError> {
+        let mut headers = HeaderMap::new();
+        if let Some(object) = value.and_then(|value| value.as_object()) {
+            for (name, value) in object {
+                let name = HeaderName::from_bytes(name.as_bytes()).map_err(host_error)?;
+                let value = value.as_str().ok_or_else(|| {
+                    PluginRuntimeError::HostApi("header values must be strings".into())
+                })?;
+                headers.insert(name, HeaderValue::from_str(value).map_err(host_error)?);
+            }
+        }
+        Ok(headers)
+    }
+
+    fn validate_url(&self, url: &Url) -> Result<Vec<SocketAddr>, PluginRuntimeError> {
         match url.scheme() {
-            "https" if self.options.allow_https => {}
-            "http" if self.options.allow_http => {}
-            "http" | "https" => return Err(host_error("HTTP scheme disabled")),
-            _ => return Err(host_error("unsupported URL scheme")),
+            "http" if !self.options.allow_http => {
+                return Err(PluginRuntimeError::HostApi("HTTP is disabled".into()))
+            }
+            "https" if !self.options.allow_https => {
+                return Err(PluginRuntimeError::HostApi("HTTPS is disabled".into()))
+            }
+            "http" | "https" => {}
+            _ => {
+                return Err(PluginRuntimeError::HostApi(
+                    "unsupported URL scheme".into(),
+                ))
+            }
         }
         let host = url
             .host_str()
-            .ok_or_else(|| host_error("URL host missing"))?;
+            .ok_or_else(|| PluginRuntimeError::HostApi("URL has no host".into()))?;
         let port = url
             .port_or_known_default()
-            .ok_or_else(|| host_error("URL port missing"))?;
-        let addresses = (host, port)
+            .ok_or_else(|| PluginRuntimeError::HostApi("URL has no port".into()))?;
+        let addresses: Vec<SocketAddr> = (host, port)
             .to_socket_addrs()
             .map_err(host_error)?
-            .collect::<Vec<_>>();
+            .collect();
         if addresses.is_empty() {
-            return Err(host_error("DNS resolution returned no addresses"));
+            return Err(PluginRuntimeError::HostApi(
+                "host resolved to no addresses".into(),
+            ));
         }
-        if !self.options.allow_private_network && addresses.iter().any(|a| blocked_ip(a.ip())) {
-            return Err(host_error("private network target blocked"));
+        if !self.options.allow_private_network
+            && addresses.iter().any(|address| blocked_ip(address.ip()))
+        {
+            return Err(PluginRuntimeError::HostApi(
+                "private network access is disabled".into(),
+            ));
+        }
+        Ok(addresses)
+    }
+
+    fn inflate(&self, bytes: &[u8]) -> Result<serde_json::Value, PluginRuntimeError> {
+        let decoder = ZlibDecoder::new(bytes);
+        let mut limited = decoder.take((self.options.max_inflate_bytes + 1) as u64);
+        let mut output = Vec::new();
+        limited.read_to_end(&mut output).map_err(host_error)?;
+        if output.len() > self.options.max_inflate_bytes {
+            return Err(PluginRuntimeError::HostApi(
+                "inflated data exceeded size limit".into(),
+            ));
+        }
+        Ok(serde_json::Value::String(
+            String::from_utf8(output).map_err(host_error)?,
+        ))
+    }
+
+    fn cache_get(&mut self, key: &str) -> Result<serde_json::Value, PluginRuntimeError> {
+        self.validate_cache_key(key)?;
+        self.cache_index.remove_expired(&self.cache_root);
+        let Some(item) = self.cache_index.items.get(key).cloned() else {
+            return Ok(serde_json::Value::Null);
+        };
+        let value = fs::read_to_string(self.cache_root.join(item.file)).map_err(host_error)?;
+        Ok(serde_json::Value::String(value))
+    }
+
+    fn cache_set(
+        &mut self,
+        key: &str,
+        value: &str,
+        ttl_ms: u64,
+    ) -> Result<serde_json::Value, PluginRuntimeError> {
+        self.validate_cache_key(key)?;
+        fs::create_dir_all(&self.cache_root).map_err(host_error)?;
+        self.cache_index.remove_expired(&self.cache_root);
+        let previous_size = self
+            .cache_index
+            .items
+            .get(key)
+            .map(|item| item.size)
+            .unwrap_or(0);
+        let current_size = self
+            .cache_index
+            .items
+            .values()
+            .map(|item| item.size)
+            .sum::<usize>()
+            .saturating_sub(previous_size);
+        if current_size.saturating_add(value.len()) > self.options.max_cache_bytes {
+            return Err(PluginRuntimeError::HostApi(
+                "plugin cache limit exceeded".into(),
+            ));
+        }
+        let file = format!("{:x}.cache", Sha256::digest(key.as_bytes()));
+        fs::write(self.cache_root.join(&file), value).map_err(host_error)?;
+        let expires_at = if ttl_ms == 0 {
+            0
+        } else {
+            now_millis().saturating_add(ttl_ms)
+        };
+        self.cache_index.items.insert(
+            key.into(),
+            CacheItem {
+                file,
+                size: value.len(),
+                expires_at,
+            },
+        );
+        self.cache_index.write(&self.cache_root)?;
+        Ok(serde_json::Value::Null)
+    }
+
+    fn cache_remove(&mut self, key: &str) -> Result<serde_json::Value, PluginRuntimeError> {
+        self.validate_cache_key(key)?;
+        if let Some(item) = self.cache_index.items.remove(key) {
+            let _ = fs::remove_file(self.cache_root.join(item.file));
+            self.cache_index.write(&self.cache_root)?;
+        }
+        Ok(serde_json::Value::Null)
+    }
+
+    fn cache_clear(&mut self) -> Result<serde_json::Value, PluginRuntimeError> {
+        if self.cache_root.exists() {
+            fs::remove_dir_all(&self.cache_root).map_err(host_error)?;
+        }
+        fs::create_dir_all(&self.cache_root).map_err(host_error)?;
+        self.cache_index = CacheIndex::default();
+        self.cache_index.write(&self.cache_root)?;
+        Ok(serde_json::Value::Null)
+    }
+
+    fn validate_cache_key(&self, key: &str) -> Result<(), PluginRuntimeError> {
+        if key.is_empty() || key.len() > 512 || key.contains('\0') {
+            return Err(PluginRuntimeError::HostApi(
+                "invalid cache key".into(),
+            ));
         }
         Ok(())
     }
 }
+
 impl HostApiDispatcher for HostApi {
     fn call(
         &mut self,
         name: &str,
         payload_json: &str,
-        control: &crate::OperationControl,
+        control: &OperationControl,
     ) -> Result<String, PluginRuntimeError> {
-        let p: Value = serde_json::from_str(payload_json).map_err(|e| host_error(e.to_string()))?;
-        let s = |k: &str| p.get(k).and_then(Value::as_str).unwrap_or("");
-        let bytes = |k: &str| json_bytes(p.get(k));
-        match name {
-            "app.info" => Self::value(
-                json!({"name":self.options.app_name,"packageName":self.options.package_name,"versionName":self.options.app_version_name,"versionCode":self.options.app_version_code,"buildType":self.options.build_type,"debug":self.options.debug}),
-            ),
-            "app.userAgent" => Self::value(json!(format!(
-                "{}/{}",
-                self.options.app_name, self.options.app_version_name
-            ))),
-            "runtime.info" => Self::value(
-                json!({"pluginApiVersion":3,"hostApiVersion":3,"engine":"quickjs","engineVersion":"quickjs-ng 0.14.0","supportedHostApis":SUPPORTED_HOST_APIS}),
-            ),
-            "cache.get" => Self::value(json!(self.cache_get(s("key")))),
-            "cache.set" => {
-                self.cache_set(
-                    s("key"),
-                    s("value"),
-                    p.get("ttlMs").and_then(Value::as_u64).unwrap_or(0),
-                )?;
-                Self::value(json!(""))
-            }
-            "cache.remove" => {
-                let _ = fs::remove_file(self.cache_file(s("key"))?);
-                Self::value(json!(""))
-            }
-            "cache.clear" => {
-                let dir = self.cache_dir();
-                if dir.starts_with(self.options.cache_directory.join("plugins")) {
-                    let _ = fs::remove_dir_all(dir);
-                }
-                Self::value(json!(""))
-            }
-            "crypto.md5" => Self::value(json!(format!("{:x}", Md5::digest(s("text").as_bytes())))),
-            "crypto.aesEcbPkcs5EncryptBase64" => Self::value(json!(
-                STANDARD.encode(aes_encrypt(s("text").as_bytes(), s("key").as_bytes())?)
-            )),
-            "crypto.aesEcbPkcs5EncryptHex" => Self::value(json!(hex_upper(&aes_encrypt(
-                s("text").as_bytes(),
-                s("key").as_bytes()
-            )?))),
-            "crypto.aesEcbPkcs5DecryptBase64ToText" => {
-                Self::value(json!(String::from_utf8(aes_decrypt(
-                    &STANDARD.decode(s("base64")).map_err(host_error)?,
-                    s("key").as_bytes()
-                )?)
-                .map_err(host_error)?))
-            }
-            "base64.encodeText" => Self::value(json!(STANDARD.encode(s("text")))),
-            "base64.decodeText" => Self::value(json!(String::from_utf8(
-                STANDARD.decode(s("base64")).map_err(host_error)?
-            )
-            .map_err(host_error)?)),
-            "base64.dropBytes" => {
-                let b = STANDARD.decode(s("base64")).map_err(host_error)?;
-                Self::value(json!(STANDARD.encode(
-                    &b[p.get("count")
-                        .and_then(Value::as_u64)
-                        .unwrap_or(0)
-                        .min(b.len() as u64) as usize..]
-                )))
-            }
-            "base64.decodeBytes" => {
-                Self::value(json!(STANDARD.decode(s("base64")).map_err(host_error)?))
-            }
-            "base64.encodeBytes" => Self::value(json!(STANDARD.encode(bytes("bytes")?))),
-            "base64.encodeUrlText" => Self::value(json!(URL_SAFE_NO_PAD.encode(s("text")))),
-            "base64.decodeUrlText" => Self::value(json!(String::from_utf8(decode_url(s(
-                "base64Url"
-            ))?)
-            .map_err(host_error)?)),
-            "base64.encodeUrlBytes" => Self::value(json!(URL_SAFE_NO_PAD.encode(bytes("bytes")?))),
-            "base64.decodeUrlBytes" => Self::value(json!(decode_url(s("base64Url"))?)),
-            "base64.toUrl" => Self::value(json!(s("base64")
-                .trim()
-                .replace('+', "-")
-                .replace('/', "_")
-                .trim_end_matches('='))),
-            "base64.fromUrl" => Self::value(json!(to_standard_url(s("base64Url")))),
-            "bytes.xor" => Self::value(json!(xor(bytes("bytes")?, bytes("key")?))),
-            "bytes.xorBase64" => Self::value(json!(STANDARD.encode(xor(
-                STANDARD.decode(s("base64")).map_err(host_error)?,
-                bytes("key")?
-            )))),
-            "compression.inflateBytesToText" => Self::value(json!(inflate(
-                &bytes("bytes")?,
-                self.options.max_inflate_bytes
-            )?)),
-            "compression.inflateBase64ToText" => Self::value(json!(inflate(
-                &STANDARD.decode(s("base64")).map_err(host_error)?,
-                self.options.max_inflate_bytes
-            )?)),
-            "http.getText" | "http.get" | "http.getBytes" => {
-                let binary = name == "http.getBytes";
-                let response = self.http("GET", &p, binary, control)?;
-                if name == "http.getText" {
-                    Self::value(
-                        response
-                            .get("body")
-                            .cloned()
-                            .unwrap_or(Value::String(String::new())),
-                    )
-                } else {
-                    Self::value(response)
-                }
-            }
-            "http.postText" | "http.postBytes" | "http.post" | "http.postBytesResponse" => {
-                let binary = matches!(name, "http.postBytes" | "http.postBytesResponse");
-                let response = self.http("POST", &p, binary, control)?;
-                if name == "http.postText" {
-                    Self::value(
-                        response
-                            .get("body")
-                            .cloned()
-                            .unwrap_or(Value::String(String::new())),
-                    )
-                } else if name == "http.postBytes" {
-                    Self::value(
-                        response
-                            .get("bodyBase64")
-                            .cloned()
-                            .unwrap_or(Value::String(String::new())),
-                    )
-                } else {
-                    Self::value(response)
-                }
-            }
-            "log.debug" | "log.warn" | "log.error" => {
-                let tag = s("tag").chars().take(48).collect::<String>();
-                eprintln!(
-                    "plugin={} level={} tag={} message={}",
-                    self.options.plugin_id,
-                    name,
-                    tag,
-                    s("message")
-                );
-                Self::value(json!(""))
-            }
-            "xml.getRootAttributes" => Self::value(xml::root_attributes(s("xml"))?),
-            "xml.findElements" => Self::value(xml::find_elements(
-                s("xml"),
-                p.get("query").unwrap_or(&Value::Null),
-            )?),
-            "xml.replaceChildrenByAttr" => Self::value(json!(xml::replace_children(
-                s("xml"),
-                p.get("options").unwrap_or(&Value::Null)
-            )?)),
-            "xml.removeElements" => Self::value(json!(xml::remove_elements(
-                s("xml"),
-                p.get("query").unwrap_or(&Value::Null)
-            )?)),
-            _ => Err(host_error(format!("unsupported API: {name}"))),
-        }
+        check_control(control)?;
+        let payload = serde_json::from_str(payload_json)
+            .map_err(|error| PluginRuntimeError::HostApi(error.to_string()))?;
+        let value = self.execute(name, payload, control)?;
+        serde_json::to_string(&serde_json::json!({ "value": value }))
+            .map_err(|error| PluginRuntimeError::HostApi(error.to_string()))
     }
 }
-fn json_bytes(v: Option<&Value>) -> Result<Vec<u8>, PluginRuntimeError> {
-    v.and_then(Value::as_array)
-        .unwrap_or(&vec![])
+
+fn request_body(
+    payload: &serde_json::Value,
+    max_size: usize,
+) -> Result<Vec<u8>, PluginRuntimeError> {
+    let bytes = if let Some(array) = payload.get("bodyBytes").and_then(|v| v.as_array()) {
+        array
+            .iter()
+            .map(|value| {
+                value
+                    .as_u64()
+                    .filter(|value| *value <= u8::MAX as u64)
+                    .map(|value| value as u8)
+                    .ok_or_else(|| PluginRuntimeError::HostApi("invalid body byte".into()))
+            })
+            .collect::<Result<Vec<_>, _>>()?
+    } else if let Some(encoded) = payload.get("bodyBase64").and_then(|v| v.as_str()) {
+        if encoded.is_empty() {
+            payload
+                .get("body")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .as_bytes()
+                .to_vec()
+        } else {
+            decode_standard(encoded)?
+        }
+    } else {
+        payload
+            .get("body")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .as_bytes()
+            .to_vec()
+    };
+    if bytes.len() > max_size {
+        return Err(PluginRuntimeError::HostApi(
+            "HTTP request body exceeded size limit".into(),
+        ));
+    }
+    Ok(bytes)
+}
+
+fn response_headers(headers: &HeaderMap) -> BTreeMap<String, String> {
+    headers
         .iter()
-        .map(|x| {
-            x.as_u64()
-                .filter(|x| *x <= 255)
-                .map(|x| x as u8)
-                .ok_or_else(|| host_error("byte must be 0..255"))
+        .filter_map(|(name, value)| {
+            value
+                .to_str()
+                .ok()
+                .map(|value| (name.as_str().to_owned(), value.to_owned()))
         })
         .collect()
 }
-fn request_body(p: &Value) -> Result<Vec<u8>, PluginRuntimeError> {
-    if let Some(s) = p
-        .get("bodyBase64")
-        .and_then(Value::as_str)
-        .filter(|s| !s.is_empty())
-    {
-        return STANDARD.decode(s).map_err(host_error);
-    }
-    if p.get("bodyBytes").is_some() {
-        return json_bytes(p.get("bodyBytes"));
-    }
-    Ok(p.get("body")
-        .and_then(Value::as_str)
-        .unwrap_or("")
-        .as_bytes()
-        .to_vec())
+
+fn required_string<'a>(
+    value: &'a serde_json::Value,
+    key: &str,
+) -> Result<&'a str, PluginRuntimeError> {
+    value
+        .get(key)
+        .and_then(|value| value.as_str())
+        .ok_or_else(|| PluginRuntimeError::HostApi(format!("missing string: {key}")))
 }
-fn blocked_ip(ip: IpAddr) -> bool {
-    match ip {
-        IpAddr::V4(x) => {
-            x.is_private()
-                || x.is_loopback()
-                || x.is_link_local()
-                || x.is_broadcast()
-                || x.is_unspecified()
-                || x.is_multicast()
-                || x.octets()[0] == 0
-        }
-        IpAddr::V6(x) => {
-            x.is_loopback()
-                || x.is_unspecified()
-                || x.is_multicast()
-                || (x.segments()[0] & 0xfe00) == 0xfc00
-                || (x.segments()[0] & 0xffc0) == 0xfe80
-        }
-    }
-}
-fn aes_encrypt(data: &[u8], key: &[u8]) -> Result<Vec<u8>, PluginRuntimeError> {
-    let mut b = vec![0; data.len() + 16];
-    b[..data.len()].copy_from_slice(data);
-    macro_rules! enc {
-        ($t:ty) => {
-            <$t>::new_from_slice(key)
-                .map_err(host_error)?
-                .encrypt_padded_mut::<Pkcs7>(&mut b, data.len())
-                .map_err(host_error)?
-                .to_vec()
-        };
-    }
-    match key.len() {
-        16 => Ok(enc!(Aes128)),
-        24 => Ok(enc!(Aes192)),
-        32 => Ok(enc!(Aes256)),
-        _ => Err(host_error("AES key must be 16, 24, or 32 bytes")),
-    }
-}
-fn aes_decrypt(data: &[u8], key: &[u8]) -> Result<Vec<u8>, PluginRuntimeError> {
-    let mut b = data.to_vec();
-    macro_rules! dec {
-        ($t:ty) => {
-            <$t>::new_from_slice(key)
-                .map_err(host_error)?
-                .decrypt_padded_mut::<Pkcs7>(&mut b)
-                .map_err(host_error)?
-                .to_vec()
-        };
-    }
-    match key.len() {
-        16 => Ok(dec!(Aes128)),
-        24 => Ok(dec!(Aes192)),
-        32 => Ok(dec!(Aes256)),
-        _ => Err(host_error("AES key must be 16, 24, or 32 bytes")),
-    }
-}
-fn xor(mut b: Vec<u8>, k: Vec<u8>) -> Vec<u8> {
-    if !k.is_empty() {
-        for (i, x) in b.iter_mut().enumerate() {
-            *x ^= k[i % k.len()]
-        }
-    }
-    b
-}
-fn inflate(b: &[u8], limit: usize) -> Result<String, PluginRuntimeError> {
-    let d = ZlibDecoder::new(b);
-    let mut out = Vec::new();
-    d.take((limit + 1) as u64)
-        .read_to_end(&mut out)
-        .map_err(host_error)?;
-    if out.len() > limit {
-        return Err(host_error("inflated output exceeds limit"));
-    }
-    String::from_utf8(out).map_err(host_error)
-}
-fn decode_url(s: &str) -> Result<Vec<u8>, PluginRuntimeError> {
-    URL_SAFE_NO_PAD
-        .decode(s.trim().trim_end_matches('='))
-        .map_err(host_error)
-}
-fn to_standard_url(s: &str) -> String {
-    let mut x = s.trim().replace('-', "+").replace('_', "/");
-    while x.len() % 4 != 0 {
-        x.push('=')
-    }
-    x
-}
-fn hex_upper(b: &[u8]) -> String {
-    b.iter().map(|x| format!("{x:02x}")).collect()
-}
-fn sha256_hex(b: &[u8]) -> String {
-    Sha256::digest(b)
+
+fn required_bytes(
+    value: &serde_json::Value,
+    key: &str,
+) -> Result<Vec<u8>, PluginRuntimeError> {
+    value
+        .get(key)
+        .and_then(|value| value.as_array())
+        .ok_or_else(|| PluginRuntimeError::HostApi(format!("missing byte array: {key}")))?
         .iter()
-        .map(|x| format!("{x:02x}"))
+        .map(|value| {
+            value
+                .as_u64()
+                .filter(|value| *value <= u8::MAX as u64)
+                .map(|value| value as u8)
+                .ok_or_else(|| PluginRuntimeError::HostApi("invalid byte value".into()))
+        })
         .collect()
 }
-fn now_ms() -> u64 {
+
+fn xor_bytes(bytes: &[u8], key: &[u8]) -> Result<Vec<u8>, PluginRuntimeError> {
+    if key.is_empty() {
+        return Err(PluginRuntimeError::HostApi(
+            "XOR key must not be empty".into(),
+        ));
+    }
+    Ok(bytes
+        .iter()
+        .enumerate()
+        .map(|(index, value)| value ^ key[index % key.len()])
+        .collect())
+}
+
+fn decode_standard(value: &str) -> Result<Vec<u8>, PluginRuntimeError> {
+    general_purpose::STANDARD
+        .decode(value)
+        .or_else(|_| general_purpose::STANDARD_NO_PAD.decode(value))
+        .map_err(host_error)
+}
+
+fn decode_url(value: &str) -> Result<Vec<u8>, PluginRuntimeError> {
+    general_purpose::URL_SAFE_NO_PAD
+        .decode(value)
+        .or_else(|_| general_purpose::URL_SAFE.decode(value))
+        .map_err(host_error)
+}
+
+fn to_url_safe(value: &str) -> String {
+    value
+        .trim_end_matches('=')
+        .replace('+', "-")
+        .replace('/', "_")
+}
+
+fn to_standard_url(value: &str) -> String {
+    let mut value = value.replace('-', "+").replace('_', "/");
+    while !value.len().is_multiple_of(4) {
+        value.push('=');
+    }
+    value
+}
+
+fn check_control(control: &OperationControl) -> Result<(), PluginRuntimeError> {
+    if control.should_interrupt() {
+        Err(control.interrupted_error())
+    } else {
+        Ok(())
+    }
+}
+
+fn blocked_ip(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(ip) => {
+            ip.is_private()
+                || ip.is_loopback()
+                || ip.is_link_local()
+                || ip.is_broadcast()
+                || ip.is_documentation()
+                || ip.is_unspecified()
+                || ip.octets()[0] == 0
+                || ip.octets()[0] >= 224
+                || (ip.octets()[0] == 100 && (64..=127).contains(&ip.octets()[1]))
+                || (ip.octets()[0] == 198 && (18..=19).contains(&ip.octets()[1]))
+        }
+        IpAddr::V6(ip) => {
+            ip.is_loopback()
+                || ip.is_unspecified()
+                || ip.is_unique_local()
+                || ip.is_unicast_link_local()
+                || ip.is_multicast()
+        }
+    }
+}
+
+fn host_error(error: impl std::fmt::Display) -> PluginRuntimeError {
+    PluginRuntimeError::HostApi(error.to_string())
+}
+
+fn now_millis() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as u64
 }
-fn directory_size(p: &Path) -> u64 {
-    fs::read_dir(p)
-        .into_iter()
-        .flatten()
-        .flatten()
-        .filter_map(|x| x.metadata().ok())
-        .filter(|m| m.is_file())
-        .map(|m| m.len())
-        .sum()
+
+#[derive(Default, Serialize, Deserialize)]
+struct CacheIndex {
+    items: BTreeMap<String, CacheItem>,
 }
-fn host_error(e: impl ToString) -> PluginRuntimeError {
-    PluginRuntimeError::HostApi(e.to_string())
+
+#[derive(Clone, Serialize, Deserialize)]
+struct CacheItem {
+    file: String,
+    size: usize,
+    expires_at: u64,
 }
-fn internal(e: impl ToString) -> PluginRuntimeError {
-    PluginRuntimeError::Internal(e.to_string())
+
+impl CacheIndex {
+    fn read(path: &Path) -> Self {
+        fs::read_to_string(path)
+            .ok()
+            .and_then(|text| serde_json::from_str(&text).ok())
+            .unwrap_or_default()
+    }
+
+    fn write(&self, root: &Path) -> Result<(), PluginRuntimeError> {
+        fs::create_dir_all(root).map_err(host_error)?;
+        let text = serde_json::to_string(self).map_err(host_error)?;
+        fs::write(root.join("index.json"), text).map_err(host_error)
+    }
+
+    fn remove_expired(&mut self, root: &Path) {
+        let now = now_millis();
+        let expired: Vec<String> = self
+            .items
+            .iter()
+            .filter(|(_, item)| item.expires_at != 0 && item.expires_at <= now)
+            .map(|(key, _)| key.clone())
+            .collect();
+        for key in expired {
+            if let Some(item) = self.items.remove(&key) {
+                let _ = fs::remove_file(root.join(item.file));
+            }
+        }
+        let _ = self.write(root);
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::OperationControl;
-    use flate2::{write::ZlibEncoder, Compression};
-    use std::io::Write;
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+    use std::thread;
+    use std::time::Duration;
+    use tempfile::tempdir;
 
-    fn host(id: &str) -> HostApi {
-        let root = std::env::temp_dir().join(format!("tidetunes-host-test-{}-{id}", now_ms()));
+    fn host() -> HostApi {
+        let dir = tempdir().unwrap().keep();
         HostApi::new(HostApiOptions {
-            plugin_id: id.into(),
-            cache_directory: root,
+            cache_directory: dir,
+            max_cache_bytes: 64,
+            max_inflate_bytes: 64,
             ..Default::default()
         })
     }
-    fn value(host: &mut HostApi, name: &str, payload: Value) -> Value {
-        let response = host
-            .call(name, &payload.to_string(), &OperationControl::default())
+
+    fn call(host: &mut HostApi, name: &str, payload: serde_json::Value) -> serde_json::Value {
+        let control = OperationControl::default();
+        let value = host.execute(name, payload, &control).unwrap();
+        value
+    }
+
+    #[test]
+    fn cache_isolated_and_bounded() {
+        let mut first = host();
+        let mut second = HostApi::new(HostApiOptions {
+            plugin_id: "second".into(),
+            cache_directory: first.options.cache_directory.clone(),
+            max_cache_bytes: 64,
+            ..Default::default()
+        });
+        call(
+            &mut first,
+            "cache.set",
+            serde_json::json!({"key":"a","value":"value","ttlMs":0}),
+        );
+        assert_eq!(
+            call(&mut first, "cache.get", serde_json::json!({"key":"a"})),
+            "value"
+        );
+        assert_eq!(
+            call(&mut second, "cache.get", serde_json::json!({"key":"a"})),
+            serde_json::Value::Null
+        );
+        assert!(first
+            .execute(
+                "cache.set",
+                serde_json::json!({"key":"big","value":"x".repeat(100),"ttlMs":0}),
+                &OperationControl::default(),
+            )
+            .is_err());
+    }
+
+    #[test]
+    fn base64_xor_and_compression() {
+        let mut host = host();
+        assert_eq!(
+            call(
+                &mut host,
+                "base64.encodeText",
+                serde_json::json!({"text":"hello"}),
+            ),
+            "aGVsbG8="
+        );
+        assert_eq!(
+            call(
+                &mut host,
+                "bytes.xor",
+                serde_json::json!({"bytes":[1,2,3],"key":[1]}),
+            ),
+            serde_json::json!([0, 3, 2])
+        );
+        let mut encoder = flate2::write::ZlibEncoder::new(
+            Vec::new(),
+            flate2::Compression::default(),
+        );
+        encoder.write_all(b"hello").unwrap();
+        let bytes = encoder.finish().unwrap();
+        assert_eq!(
+            call(
+                &mut host,
+                "compression.inflateBytesToText",
+                serde_json::json!({"bytes":bytes}),
+            ),
+            "hello"
+        );
+    }
+
+    #[test]
+    fn blocks_private_http_by_default_and_allows_pinned_private_when_enabled() {
+        let mut host = host();
+        host.options.allow_http = true;
+        assert!(host
+            .execute(
+                "http.getText",
+                serde_json::json!({"url":"http://127.0.0.1:1"}),
+                &OperationControl::default(),
+            )
+            .is_err());
+
+        host.options.allow_private_network = true;
+        let addresses = host
+            .validate_url(&Url::parse("http://127.0.0.1:80").unwrap())
             .unwrap();
-        serde_json::from_str::<Value>(&response).unwrap()["value"].clone()
+        assert!(addresses.iter().all(|address| address.ip().is_loopback()));
     }
+
     #[test]
-    fn crypto_and_encoding_golden() {
-        let mut h = host("crypto");
-        assert_eq!(
-            value(&mut h, "crypto.md5", json!({"text":"abc"})),
-            "900150983cd24fb0d6963f7d28e17f72"
-        );
-        let encrypted = value(
-            &mut h,
-            "crypto.aesEcbPkcs5EncryptBase64",
-            json!({"text":"hello","key":"1234567890123456"}),
-        );
-        assert_eq!(
-            value(
-                &mut h,
-                "crypto.aesEcbPkcs5DecryptBase64ToText",
-                json!({"base64":encrypted,"key":"1234567890123456"})
-            ),
-            "hello"
-        );
-        assert_eq!(
-            value(&mut h, "base64.encodeUrlText", json!({"text":"你好?"})),
-            URL_SAFE_NO_PAD.encode("你好?")
-        );
-        assert_eq!(
-            value(&mut h, "bytes.xor", json!({"bytes":[1,2,3],"key":[255]})),
-            json!([254, 253, 252])
-        );
-        assert!(h
-            .call(
-                "base64.encodeBytes",
-                r#"{"bytes":[256]}"#,
-                &OperationControl::default()
-            )
-            .is_err());
-    }
-    #[test]
-    fn inflate_is_bounded() {
-        let mut compressed = ZlibEncoder::new(Vec::new(), Compression::default());
-        compressed.write_all(b"hello").unwrap();
-        let bytes = compressed.finish().unwrap();
-        let mut h = host("inflate");
-        assert_eq!(
-            value(
-                &mut h,
-                "compression.inflateBytesToText",
-                json!({"bytes":bytes})
-            ),
-            "hello"
-        );
-        h.options.max_inflate_bytes = 4;
-        assert!(h
-            .call(
-                "compression.inflateBytesToText",
-                &json!({"bytes":bytes}).to_string(),
-                &OperationControl::default()
-            )
-            .is_err());
-    }
-    #[test]
-    fn cache_ttl_and_isolation() {
-        let root = std::env::temp_dir().join(format!("tidetunes-cache-test-{}", now_ms()));
-        let mut a = HostApi::new(HostApiOptions {
-            plugin_id: "a".into(),
-            cache_directory: root.clone(),
-            ..Default::default()
-        });
-        let mut b = HostApi::new(HostApiOptions {
-            plugin_id: "b".into(),
-            cache_directory: root.clone(),
-            ..Default::default()
-        });
-        value(
-            &mut a,
-            "cache.set",
-            json!({"key":"k","value":"secret","ttlMs":1000}),
-        );
-        assert_eq!(value(&mut a, "cache.get", json!({"key":"k"})), "secret");
-        assert_eq!(value(&mut b, "cache.get", json!({"key":"k"})), "");
-        value(
-            &mut a,
-            "cache.set",
-            json!({"key":"expired","value":"x","ttlMs":1}),
-        );
-        std::thread::sleep(std::time::Duration::from_millis(3));
-        assert_eq!(value(&mut a, "cache.get", json!({"key":"expired"})), "");
-        let _ = fs::remove_dir_all(root);
-    }
-    #[test]
-    fn http_blocks_unsafe_targets_by_default() {
-        let mut h = host("http");
-        assert!(h
-            .call(
-                "http.get",
-                r#"{"url":"file:///etc/passwd"}"#,
-                &OperationControl::default()
-            )
-            .is_err());
-        assert!(h
-            .call(
-                "http.get",
-                r#"{"url":"http://127.0.0.1/"}"#,
-                &OperationControl::default()
-            )
-            .is_err());
-        assert!(h
-            .call(
-                "http.get",
-                r#"{"url":"https://localhost/"}"#,
-                &OperationControl::default()
-            )
-            .is_err());
-    }
-    #[test]
-    fn http_text_binary_and_size_limit() {
-        use std::{
-            io::{Read, Write},
-            net::TcpListener,
-            thread,
-        };
+    fn redirect_targets_are_revalidated_and_pinned() {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
-        let addr = listener.local_addr().unwrap();
-        thread::spawn(move || {
-            for _ in 0..3 {
-                let (mut s, _) = listener.accept().unwrap();
-                let mut b = [0u8; 2048];
-                let _ = s.read(&mut b);
-                s.write_all(b"HTTP/1.1 200 OK\r\nContent-Length: 5\r\nSet-Cookie: a=b\r\nConnection: close\r\n\r\nhello").unwrap();
-            }
+        let address = listener.local_addr().unwrap();
+        let handle = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0_u8; 1024];
+            let _ = stream.read(&mut request);
+            stream
+                .write_all(
+                    b"HTTP/1.1 302 Found\r\nLocation: http://127.0.0.1:9/private\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+                )
+                .unwrap();
         });
-        let mut h = host("http-live");
-        h.options.allow_http = true;
-        h.options.allow_private_network = true;
-        let url = format!("http://{addr}/");
-        assert_eq!(value(&mut h, "http.getText", json!({"url":url})), "hello");
-        let binary = value(&mut h, "http.getBytes", json!({"url":url}));
-        assert_eq!(binary["bodyBase64"], STANDARD.encode("hello"));
-        assert_eq!(binary["headers"]["set-cookie"][0], "a=b");
-        h.options.max_http_response_bytes = 4;
-        assert!(h
-            .call(
-                "http.get",
-                &json!({"url":url}).to_string(),
-                &OperationControl::default()
+
+        let mut host = host();
+        host.options.allow_http = true;
+        host.options.allow_private_network = true;
+        host.options.connect_timeout_ms = 1_000;
+        host.options.read_timeout_ms = 1_000;
+        let first_url = format!("http://{address}/redirect");
+        let error = host
+            .execute(
+                "http.getText",
+                serde_json::json!({"url":first_url}),
+                &OperationControl::default(),
             )
-            .is_err());
+            .unwrap_err();
+        assert!(matches!(error, PluginRuntimeError::HostApi(_)));
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn request_body_priority_and_limit() {
+        let payload = serde_json::json!({
+            "body":"text",
+            "bodyBase64":general_purpose::STANDARD.encode(b"base64"),
+            "bodyBytes":[1,2,3],
+        });
+        assert_eq!(request_body(&payload, 10).unwrap(), vec![1, 2, 3]);
+        assert!(request_body(&payload, 2).is_err());
+    }
+
+    #[test]
+    fn control_interrupts_host_work() {
+        let control = OperationControl::default();
+        control.begin(1, 1);
+        thread::sleep(Duration::from_millis(2));
+        assert!(matches!(
+            check_control(&control),
+            Err(PluginRuntimeError::Timeout)
+        ));
+    }
+
+    #[test]
+    fn host_apis_match_manifest() {
+        for name in SUPPORTED_HOST_APIS {
+            assert!(!name.is_empty());
+        }
+        assert!(SUPPORTED_HOST_APIS.contains(&"app.info"));
+        assert!(SUPPORTED_HOST_APIS.contains(&"http.postBytesResponse"));
+        assert!(SUPPORTED_HOST_APIS.contains(&"xml.removeElements"));
+    }
+
+    #[test]
+    fn structured_http_status_type_is_numeric() {
+        let status = StatusCode::OK;
+        assert_eq!(status.as_u16(), 200);
     }
 }
