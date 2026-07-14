@@ -6,6 +6,10 @@ data class MetaSongQuery(
     val album: String? = null,
     val durationMs: Long? = null,
     val config: Map<String, String> = emptyMap(),
+    val keyword: String? = null,
+    val page: Int = 1,
+    val pageSize: Int = 20,
+    val separator: String = "/",
 )
 
 data class MetaSongCandidate(
