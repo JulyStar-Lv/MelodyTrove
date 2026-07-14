@@ -1,28 +1,39 @@
 use crate::{engine::QuickJsEngine, HostApiDispatcher, OperationControl, PluginRuntimeError};
 use flume::{Receiver, Sender};
 use std::{
-    sync::{Arc, Mutex},
+    sync::{atomic::Ordering, Arc, Mutex},
     thread::{self, JoinHandle},
+    time::{Duration, Instant},
 };
+
+const CLOSE_JOIN_TIMEOUT: Duration = Duration::from_secs(2);
+const CLOSE_JOIN_POLL_INTERVAL: Duration = Duration::from_millis(10);
+
 #[derive(Clone)]
 pub struct PluginRuntimeOptions {
     pub memory_limit_bytes: u64,
     pub stack_limit_bytes: u64,
     pub default_timeout_ms: u64,
+    pub load_timeout_ms: u64,
 }
+
 impl Default for PluginRuntimeOptions {
     fn default() -> Self {
         Self {
-            memory_limit_bytes: 4 * 1024 * 1024,
+            memory_limit_bytes: 32 * 1024 * 1024,
             stack_limit_bytes: 2 * 1024 * 1024,
-            default_timeout_ms: 5000,
+            default_timeout_ms: 15_000,
+            load_timeout_ms: 10_000,
         }
     }
 }
+
 enum RuntimeCommand {
     Load {
+        operation_id: u64,
         script: String,
         filename: String,
+        timeout_ms: u64,
         response: Sender<Result<(), PluginRuntimeError>>,
     },
     Call {
@@ -34,11 +45,13 @@ enum RuntimeCommand {
     },
     Close,
 }
+
 pub struct PluginRuntime {
     sender: Sender<RuntimeCommand>,
     control: Arc<OperationControl>,
     join_handle: Mutex<Option<JoinHandle<()>>>,
 }
+
 impl PluginRuntime {
     pub fn new(
         options: PluginRuntimeOptions,
@@ -50,24 +63,32 @@ impl PluginRuntime {
         let join = thread::Builder::new()
             .name("tidetunes-plugin-runtime".into())
             .spawn(move || run(receiver, worker_control, options, host))
-            .map_err(|e| PluginRuntimeError::Initialization(e.to_string()))?;
+            .map_err(|error| PluginRuntimeError::Initialization(error.to_string()))?;
         Ok(Self {
             sender,
             control,
             join_handle: Mutex::new(Some(join)),
         })
     }
-    pub fn load(&self, script: String, filename: String) -> Result<(), PluginRuntimeError> {
-        let (tx, rx) = flume::bounded(1);
-        self.sender
-            .send(RuntimeCommand::Load {
-                script,
-                filename,
-                response: tx,
-            })
-            .map_err(|_| PluginRuntimeError::Closed)?;
-        rx.recv().unwrap_or(Err(PluginRuntimeError::Closed))
+
+    pub fn load(
+        &self,
+        operation_id: u64,
+        script: String,
+        filename: String,
+        timeout_ms: u64,
+    ) -> Result<(), PluginRuntimeError> {
+        let (response, receiver) = flume::bounded(1);
+        self.try_send(RuntimeCommand::Load {
+            operation_id,
+            script,
+            filename,
+            timeout_ms,
+            response,
+        })?;
+        receiver.recv().unwrap_or(Err(PluginRuntimeError::Closed))
     }
+
     pub fn call_json(
         &self,
         operation_id: u64,
@@ -75,38 +96,54 @@ impl PluginRuntime {
         request_json: String,
         timeout_ms: u64,
     ) -> Result<String, PluginRuntimeError> {
-        let (tx, rx) = flume::bounded(1);
-        self.sender
-            .try_send(RuntimeCommand::Call {
-                operation_id,
-                function_name,
-                request_json,
-                timeout_ms,
-                response: tx,
-            })
-            .map_err(|e| match e {
-                flume::TrySendError::Full(_) => {
-                    PluginRuntimeError::Internal("runtime queue is full".into())
-                }
-                flume::TrySendError::Disconnected(_) => PluginRuntimeError::Closed,
-            })?;
-        rx.recv().unwrap_or(Err(PluginRuntimeError::Closed))
+        let (response, receiver) = flume::bounded(1);
+        self.try_send(RuntimeCommand::Call {
+            operation_id,
+            function_name,
+            request_json,
+            timeout_ms,
+            response,
+        })?;
+        receiver.recv().unwrap_or(Err(PluginRuntimeError::Closed))
     }
-    pub fn cancel_operation(&self, id: u64) {
-        self.control.cancel(id)
+
+    pub fn cancel_operation(&self, operation_id: u64) {
+        self.control.cancel(operation_id);
     }
+
     pub fn close(&self) {
         self.control.close();
-        if let Ok(mut h) = self.join_handle.lock() {
-            if let Some(j) = h.take() {
-                let _ = self.sender.send(RuntimeCommand::Close);
-                let _ = j.join();
-            }
+        let join = self
+            .join_handle
+            .lock()
+            .ok()
+            .and_then(|mut handle| handle.take());
+        let Some(join) = join else {
+            return;
+        };
+
+        let _ = self.sender.try_send(RuntimeCommand::Close);
+        let deadline = Instant::now() + CLOSE_JOIN_TIMEOUT;
+        while !join.is_finished() && Instant::now() < deadline {
+            thread::sleep(CLOSE_JOIN_POLL_INTERVAL);
+        }
+        if join.is_finished() {
+            let _ = join.join();
         }
     }
+
+    fn try_send(&self, command: RuntimeCommand) -> Result<(), PluginRuntimeError> {
+        self.sender.try_send(command).map_err(|error| match error {
+            flume::TrySendError::Full(_) => {
+                PluginRuntimeError::Internal("runtime queue is full".into())
+            }
+            flume::TrySendError::Disconnected(_) => PluginRuntimeError::Closed,
+        })
+    }
 }
+
 fn run(
-    rx: Receiver<RuntimeCommand>,
+    receiver: Receiver<RuntimeCommand>,
     control: Arc<OperationControl>,
     options: PluginRuntimeOptions,
     host: Box<dyn HostApiDispatcher>,
@@ -117,17 +154,34 @@ fn run(
         control.clone(),
         host,
     ) {
-        Ok(x) => x,
+        Ok(engine) => engine,
         Err(_) => return,
     };
-    while let Ok(cmd) = rx.recv() {
-        match cmd {
+
+    while let Ok(command) = receiver.recv() {
+        match command {
             RuntimeCommand::Load {
+                operation_id,
                 script,
                 filename,
+                timeout_ms,
                 response,
             } => {
-                let _ = response.send(engine.eval(&script, &filename));
+                control.begin(
+                    operation_id,
+                    effective_timeout(timeout_ms, options.load_timeout_ms),
+                );
+                let result = engine.eval(&script, &filename);
+                let should_destroy = should_destroy_after_load(&result)
+                    || control.poisoned.load(Ordering::Acquire);
+                if should_destroy {
+                    control.poisoned.store(true, Ordering::Release);
+                }
+                control.finish(operation_id);
+                let _ = response.send(result);
+                if should_destroy {
+                    break;
+                }
             }
             RuntimeCommand::Call {
                 operation_id,
@@ -138,26 +192,15 @@ fn run(
             } => {
                 control.begin(
                     operation_id,
-                    if timeout_ms == 0 {
-                        options.default_timeout_ms
-                    } else {
-                        timeout_ms
-                    },
+                    effective_timeout(timeout_ms, options.default_timeout_ms),
                 );
                 let result = engine.call(&function_name, &request_json);
-                let should_destroy =
-                    matches!(
-                        result,
-                        Err(PluginRuntimeError::Timeout
-                            | PluginRuntimeError::OutOfMemory
-                            | PluginRuntimeError::Poisoned)
-                    ) || control.poisoned.load(std::sync::atomic::Ordering::Acquire);
+                let should_destroy = should_destroy_after_call(&result)
+                    || control.poisoned.load(Ordering::Acquire);
                 if should_destroy {
-                    control
-                        .poisoned
-                        .store(true, std::sync::atomic::Ordering::Release)
+                    control.poisoned.store(true, Ordering::Release);
                 }
-                control.finish();
+                control.finish(operation_id);
                 let _ = response.send(result);
                 if should_destroy {
                     break;
@@ -167,9 +210,46 @@ fn run(
         }
     }
 }
+
+fn effective_timeout(requested: u64, fallback: u64) -> u64 {
+    if requested == 0 {
+        fallback.max(1)
+    } else {
+        requested
+    }
+}
+
+fn should_destroy_after_load<T>(result: &Result<T, PluginRuntimeError>) -> bool {
+    matches!(
+        result,
+        Err(
+            PluginRuntimeError::Timeout
+                | PluginRuntimeError::Cancelled
+                | PluginRuntimeError::Closed
+                | PluginRuntimeError::OutOfMemory
+                | PluginRuntimeError::Poisoned
+                | PluginRuntimeError::Internal(_)
+        )
+    )
+}
+
+fn should_destroy_after_call<T>(result: &Result<T, PluginRuntimeError>) -> bool {
+    matches!(
+        result,
+        Err(
+            PluginRuntimeError::Timeout
+                | PluginRuntimeError::Cancelled
+                | PluginRuntimeError::Closed
+                | PluginRuntimeError::OutOfMemory
+                | PluginRuntimeError::Poisoned
+                | PluginRuntimeError::Internal(_)
+        )
+    )
+}
+
 impl Drop for PluginRuntime {
     fn drop(&mut self) {
-        self.close()
+        self.close();
     }
 }
 
@@ -177,39 +257,146 @@ impl Drop for PluginRuntime {
 mod tests {
     use super::*;
     use crate::NoopHostApi;
+
     fn runtime() -> PluginRuntime {
         PluginRuntime::new(Default::default(), Box::new(NoopHostApi)).unwrap()
     }
+
+    fn load(runtime: &PluginRuntime, script: &str) {
+        runtime
+            .load(1, script.into(), "test.js".into(), 1_000)
+            .unwrap();
+    }
+
     #[test]
     fn eval_and_call_json() {
-        let r = runtime();
-        r.load(
-            "function echo(x){return x} function nope(){return undefined}".into(),
-            "test.js".into(),
-        )
-        .unwrap();
+        let runtime = runtime();
+        load(
+            &runtime,
+            "function echo(x){return x} function nope(){return undefined}",
+        );
         assert_eq!(
-            r.call_json(1, "echo".into(), r#"{"a":1}"#.into(), 1000)
+            runtime
+                .call_json(2, "echo".into(), r#"{"a":1}"#.into(), 1_000)
                 .unwrap(),
             r#"{"a":1}"#
         );
         assert_eq!(
-            r.call_json(2, "nope".into(), "{}".into(), 1000).unwrap(),
+            runtime
+                .call_json(3, "nope".into(), "{}".into(), 1_000)
+                .unwrap(),
             "null"
         );
     }
+
     #[test]
-    fn errors_and_timeout() {
-        let r = runtime();
-        r.load("function loop(){while(true){}}".into(), "test.js".into())
-            .unwrap();
+    fn return_values_are_normalized_without_double_encoding() {
+        let runtime = runtime();
+        load(
+            &runtime,
+            r#"
+                function jsonString(){return JSON.stringify([{id:"1",title:"Song"}])}
+                function objectValue(){return {id:"1",title:"Song"}}
+                function arrayValue(){return [{id:"1"}]}
+                function nullValue(){return null}
+                function undefinedValue(){return undefined}
+                function numberValue(){return 7}
+                function booleanValue(){return true}
+            "#,
+        );
+
+        assert_eq!(
+            runtime
+                .call_json(2, "jsonString".into(), "{}".into(), 1_000)
+                .unwrap(),
+            r#"[{"id":"1","title":"Song"}]"#
+        );
+        assert_eq!(
+            runtime
+                .call_json(3, "objectValue".into(), "{}".into(), 1_000)
+                .unwrap(),
+            r#"{"id":"1","title":"Song"}"#
+        );
+        assert_eq!(
+            runtime
+                .call_json(4, "arrayValue".into(), "{}".into(), 1_000)
+                .unwrap(),
+            r#"[{"id":"1"}]"#
+        );
+        assert_eq!(
+            runtime
+                .call_json(5, "nullValue".into(), "{}".into(), 1_000)
+                .unwrap(),
+            "null"
+        );
+        assert_eq!(
+            runtime
+                .call_json(6, "undefinedValue".into(), "{}".into(), 1_000)
+                .unwrap(),
+            "null"
+        );
+        assert_eq!(
+            runtime
+                .call_json(7, "numberValue".into(), "{}".into(), 1_000)
+                .unwrap(),
+            "7"
+        );
+        assert_eq!(
+            runtime
+                .call_json(8, "booleanValue".into(), "{}".into(), 1_000)
+                .unwrap(),
+            "true"
+        );
+    }
+
+    #[test]
+    fn errors_and_call_timeout() {
+        let runtime = runtime();
+        load(&runtime, "function loop(){while(true){}}");
         assert!(matches!(
-            r.call_json(1, "missing".into(), "{}".into(), 1000),
+            runtime.call_json(2, "missing".into(), "{}".into(), 1_000),
             Err(PluginRuntimeError::FunctionNotFound(_))
         ));
         assert!(matches!(
-            r.call_json(2, "loop".into(), "{}".into(), 10),
+            runtime.call_json(3, "loop".into(), "{}".into(), 10),
             Err(PluginRuntimeError::Timeout)
         ));
+        assert!(matches!(
+            runtime.call_json(4, "loop".into(), "{}".into(), 10),
+            Err(PluginRuntimeError::Closed)
+        ));
+    }
+
+    #[test]
+    fn top_level_infinite_loop_times_out_and_destroys_worker() {
+        let runtime = runtime();
+        assert!(matches!(
+            runtime.load(1, "while(true){}".into(), "loop.js".into(), 10),
+            Err(PluginRuntimeError::Timeout)
+        ));
+        assert!(matches!(
+            runtime.call_json(2, "anything".into(), "{}".into(), 10),
+            Err(PluginRuntimeError::Closed)
+        ));
+    }
+
+    #[test]
+    fn cancellation_before_worker_begin_is_honoured() {
+        let runtime = Arc::new(runtime());
+        load(&runtime, "function loop(){while(true){}}");
+        let worker_runtime = runtime.clone();
+        let call = thread::spawn(move || {
+            worker_runtime.call_json(99, "loop".into(), "{}".into(), 5_000)
+        });
+        runtime.cancel_operation(99);
+
+        assert!(matches!(call.join().unwrap(), Err(PluginRuntimeError::Cancelled)));
+    }
+
+    #[test]
+    fn close_is_idempotent() {
+        let runtime = runtime();
+        runtime.close();
+        runtime.close();
     }
 }
