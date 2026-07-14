@@ -1,28 +1,59 @@
 package com.github.tidetunes.plugin.runtime
 
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
 import okio.ByteString.Companion.encodeUtf8
 import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
 
-class PluginScriptBundleBuilder(private val fileSystem: FileSystem = FileSystem.SYSTEM) {
+class PluginScriptBundleBuilder(
+    private val fileSystem: FileSystem = FileSystem.SYSTEM,
+) {
     fun build(plugin: PluginRuntimeDescriptor): PluginScriptBundle {
         val root = plugin.directory.toPath(normalize = true)
-        val segments = mutableListOf(
-            "tide-host-bootstrap.js" to HOST_BOOTSTRAP,
-            "tide-include-bootstrap.js" to "globalThis.include=function(_){return undefined;};",
-        )
+        val includeSources = mutableListOf<Pair<String, String>>()
         plugin.includeDirs.forEach { declared ->
-            val dir = resolveUnder(root, declared)
-            if (fileSystem.exists(dir)) {
-                fileSystem.listRecursively(dir)
-                    .filter { path -> path.name.endsWith(".js") && fileSystem.metadata(path).isRegularFile }
-                    .sortedBy { path -> path.relativePathTo(root) }
+            val directory = resolveUnder(root, declared)
+            if (fileSystem.exists(directory)) {
+                fileSystem.listRecursively(directory)
+                    .filter { path ->
+                        path.name.endsWith(".js", ignoreCase = true) &&
+                            fileSystem.metadata(path).isRegularFile
+                    }
+                    .sortedBy { path -> path.relativePathTo(directory) }
                     .forEach { path ->
-                        segments += path.relativePathTo(root) to fileSystem.read(path) { readUtf8() }
+                        includeSources += path.relativePathTo(root) to
+                            fileSystem.read(path) { readUtf8() }
                     }
             }
         }
+
+        val declaredIncludesJson = buildJsonArray {
+            includeSources.map(Pair<String, String>::first).distinct().forEach(::add)
+        }.toString()
+        val includeBootstrap = """
+            (function() {
+              var __lyricoDeclaredIncludes = $declaredIncludesJson;
+              var __lyricoDeclaredIncludeMap = Object.create(null);
+              __lyricoDeclaredIncludes.forEach(function(path) {
+                __lyricoDeclaredIncludeMap[path] = true;
+              });
+              globalThis.include = function(path) {
+                path = String(path || "");
+                if (!Object.prototype.hasOwnProperty.call(__lyricoDeclaredIncludeMap, path)) {
+                  throw new Error("Include path is not declared in includeDirs: " + path);
+                }
+              };
+            })();
+        """.trimIndent()
+
+        val segments = mutableListOf(
+            "tide-host-bootstrap.js" to HOST_BOOTSTRAP,
+            "tide-include-bootstrap.js" to includeBootstrap,
+        )
+        segments += includeSources
+
         val entry = resolveUnder(root, plugin.entryFile)
         require(fileSystem.metadata(entry).isRegularFile) { "invalid entry file" }
         segments += plugin.entryFile to fileSystem.read(entry) { readUtf8() }
@@ -30,10 +61,10 @@ class PluginScriptBundleBuilder(private val fileSystem: FileSystem = FileSystem.
             "$code\n//# sourceURL=plugin://${plugin.pluginId}/$name"
         }
         return PluginScriptBundle(
-            plugin.pluginId,
-            source,
-            "plugin://${plugin.pluginId}/${plugin.entryFile}",
-            source.encodeUtf8().sha256().hex(),
+            pluginId = plugin.pluginId,
+            source = source,
+            filename = "plugin://${plugin.pluginId}/${plugin.entryFile}",
+            sourceHash = source.encodeUtf8().sha256().hex(),
         )
     }
 
@@ -48,7 +79,10 @@ class PluginScriptBundleBuilder(private val fileSystem: FileSystem = FileSystem.
     companion object {
         val HOST_BOOTSTRAP = """
             (function(g){
-              function h(n,p){return JSON.parse(__lyricoHostCall(n,JSON.stringify(p||{}))).value}
+              var nativeHostCall=g.__lyricoHostCall;
+              if(typeof nativeHostCall!=='function'){throw new Error('Host API unavailable')}
+              try{delete g.__lyricoHostCall}catch(_){g.__lyricoHostCall=undefined}
+              function h(n,p){return JSON.parse(nativeHostCall(n,JSON.stringify(p||{}))).value}
               function o(x){x=x||{};return {headers:x.headers||{},contentType:x.contentType,connectTimeoutMs:x.connectTimeoutMs,readTimeoutMs:x.readTimeoutMs,followRedirects:x.followRedirects,bodyBase64:x.bodyBase64||'',bodyBytes:x.bodyBytes||null}}
               function withContentType(headers,contentType){var out={},has=false;headers=headers||{};Object.keys(headers).forEach(function(k){out[k]=headers[k];if(String(k).toLowerCase()==='content-type')has=true});if(!has)out['Content-Type']=contentType;return out}
               function body(url,b,x,defaultContentType){x=o(x);var contentType=x.contentType||defaultContentType;return {url:String(url||''),body:b==null?'':String(b),bodyBase64:x.bodyBase64,bodyBytes:x.bodyBytes,contentType:contentType,headers:withContentType(x.headers,contentType),connectTimeoutMs:x.connectTimeoutMs,readTimeoutMs:x.readTimeoutMs,followRedirects:x.followRedirects}}
@@ -77,5 +111,10 @@ private fun Path.isUnderOrSame(root: Path): Boolean {
 private fun Path.relativePathTo(root: Path): String {
     val target = normalized().toString()
     val rootText = root.normalized().toString().trimEnd('/', '\\')
+    require(
+        target.trimEnd('/', '\\') == rootText ||
+            target.startsWith("$rootText/") ||
+            target.startsWith("$rootText\\"),
+    ) { "path is not under root" }
     return target.removePrefix(rootText).trimStart('/', '\\')
 }
