@@ -167,7 +167,7 @@ class MetadataLookupUseCase(
         mode: PluginLookupMode,
         block: suspend () -> T,
     ): T = if (mode == PluginLookupMode.MANUAL) {
-        withTimeout(manualOperationTimeoutMs.coerceAtLeast(1), block)
+        withTimeout(manualOperationTimeoutMs.coerceAtLeast(1)) { block() }
     } else {
         block()
     }
