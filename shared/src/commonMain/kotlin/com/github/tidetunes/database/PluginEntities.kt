@@ -1,10 +1,13 @@
-﻿package com.github.tidetunes.database
+package com.github.tidetunes.database
 
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "plugin", indices = [Index(value = ["pluginId"], unique = true)])
+@Entity(
+    tableName = "plugin",
+    indices = [Index(value = ["pluginId"], unique = true)],
+)
 data class PluginEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val pluginId: String,
@@ -23,9 +26,17 @@ data class PluginEntity(
     val installedAt: Long,
     val updatedAt: Long,
     val enabled: Boolean,
+    val allowManualLookup: Boolean = true,
+    val allowAutomaticLookup: Boolean = false,
+    val allowBatchLookup: Boolean = false,
+    val lastError: String? = null,
+    val lastErrorAt: Long? = null,
 )
 
-@Entity(tableName = "plugin_config", primaryKeys = ["pluginId", "configKey"])
+@Entity(
+    tableName = "plugin_config",
+    primaryKeys = ["pluginId", "configKey"],
+)
 data class PluginConfigEntity(
     val pluginId: String,
     val configKey: String,
