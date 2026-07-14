@@ -1,5 +1,6 @@
 package com.github.tidetunes.plugin.install
 
+import com.github.tidetunes.database.PluginConfigEntity
 import com.github.tidetunes.database.PluginDao
 import com.github.tidetunes.database.PluginEntity
 import com.github.tidetunes.plugin.currentTimeMillis
@@ -19,7 +20,10 @@ import okio.Path
 import okio.Path.Companion.toPath
 import uniffi.tidetunes_backend.extractPluginZip
 
-class PluginInstallError(message: String, cause: Throwable? = null) : Exception(message, cause)
+class PluginInstallError(
+    message: String,
+    cause: Throwable? = null,
+) : Exception(message, cause)
 
 data class ManifestConfigField(
     val key: String,
@@ -49,7 +53,11 @@ data class ParsedManifest(
     val raw: String,
 )
 
-data class PluginInstallFailure(val root: String, val reason: String)
+data class PluginInstallFailure(
+    val root: String,
+    val reason: String,
+)
+
 data class PluginInstallResult(
     val installed: List<ParsedManifest>,
     val failed: List<PluginInstallFailure> = emptyList(),
@@ -64,10 +72,23 @@ class PluginInstaller(
     companion object {
         const val REQUIRED_API_VERSION = 3
         const val HOST_API_VERSION = 3
+
         private const val MAX_ARCHIVE_FILES = 512L
         private const val MAX_ARCHIVE_BYTES = 64L * 1024L * 1024L
         private const val MAX_ARCHIVE_DEPTH = 32L
         private const val MAX_PLUGIN_COUNT = 32
+
+        private val PLUGIN_ID_PATTERN = Regex(
+            "^[A-Za-z][A-Za-z0-9_-]*(\\.[A-Za-z][A-Za-z0-9_-]*)+$",
+        )
+        private val SUPPORTED_ICON_EXTENSIONS = setOf("png", "jpg", "jpeg", "webp")
+        private val SUPPORTED_CONFIG_TYPES = setOf(
+            "text",
+            "password",
+            "boolean",
+            "number",
+            "select",
+        )
     }
 
     suspend fun installFromZip(zipPath: Path): ParsedManifest {
@@ -79,85 +100,51 @@ class PluginInstaller(
         return result.installed.first()
     }
 
-    suspend fun installAllFromZip(zipPath: Path): PluginInstallResult = withContext(Dispatchers.Default) {
-        val tempDir = pluginsDir / ".tmp-import-${currentTimeMillis()}"
-        try {
-            fileSystem.createDirectories(tempDir)
-            extractPluginZip(
-                zipPath.toString(),
-                tempDir.toString(),
-                MAX_ARCHIVE_FILES.toULong(),
-                MAX_ARCHIVE_BYTES.toULong(),
-                MAX_ARCHIVE_DEPTH.toULong(),
-            )
-            val candidates = buildCandidates(tempDir)
-            val duplicateIds = candidates
-                .mapNotNull { it.getOrNull()?.manifest?.id }
-                .groupingBy { it }
-                .eachCount()
-                .filterValues { it > 1 }
-                .keys
-            val failed = mutableListOf<PluginInstallFailure>()
-            val valid = candidates.mapNotNull { result ->
-                result.fold(
-                    onSuccess = { candidate ->
-                        if (candidate.manifest.id in duplicateIds) {
-                            failed += PluginInstallFailure(
-                                candidate.relativeRoot,
-                                "duplicate plugin id in archive: ${candidate.manifest.id}",
-                            )
-                            null
-                        } else {
-                            candidate
-                        }
-                    },
-                    onFailure = { error ->
-                        failed += PluginInstallFailure(".", error.message ?: error::class.simpleName.orEmpty())
-                        null
-                    },
+    suspend fun installAllFromZip(zipPath: Path): PluginInstallResult =
+        withContext(Dispatchers.Default) {
+            val tempDir = pluginsDir / ".tmp-import-${currentTimeMillis()}"
+            try {
+                fileSystem.createDirectories(tempDir)
+                extractPluginZip(
+                    zipPath.toString(),
+                    tempDir.toString(),
+                    MAX_ARCHIVE_FILES.toULong(),
+                    MAX_ARCHIVE_BYTES.toULong(),
+                    MAX_ARCHIVE_DEPTH.toULong(),
                 )
+                installCandidates(tempDir)
+            } catch (error: PluginInstallError) {
+                throw error
+            } catch (error: Throwable) {
+                throw PluginInstallError(
+                    "install failed: ${error.message ?: "unknown"}",
+                    error,
+                )
+            } finally {
+                if (fileSystem.exists(tempDir)) fileSystem.deleteRecursively(tempDir)
             }
-            val installed = mutableListOf<ParsedManifest>()
-            for (candidate in valid.sortedBy { it.relativeRoot }) {
-                try {
-                    checkConflicts(candidate.manifest)
-                    installCandidate(candidate, valid)
-                    installed += candidate.manifest
-                } catch (error: Throwable) {
-                    failed += PluginInstallFailure(
-                        candidate.relativeRoot,
-                        error.message ?: error::class.simpleName.orEmpty(),
-                    )
-                }
-            }
-            PluginInstallResult(installed = installed, failed = failed)
-        } catch (error: PluginInstallError) {
-            throw error
-        } catch (error: Throwable) {
-            throw PluginInstallError("install failed: ${error.message ?: "unknown"}", error)
-        } finally {
-            if (fileSystem.exists(tempDir)) fileSystem.deleteRecursively(tempDir)
         }
-    }
 
     suspend fun uninstall(pluginId: String) = withContext(Dispatchers.Default) {
         pluginDao.deleteConfigs(pluginId)
         pluginDao.deleteByPluginId(pluginId)
-        val dir = pluginsDir / pluginId
-        if (fileSystem.exists(dir)) fileSystem.deleteRecursively(dir)
+        val directory = pluginsDir / pluginId
+        if (fileSystem.exists(directory)) fileSystem.deleteRecursively(directory)
     }
 
-    internal fun readManifest(dir: Path): ParsedManifest {
-        val path = dir / "manifest.json"
-        require(fileSystem.metadataOrNull(path)?.isRegularFile == true) { "manifest.json not found" }
+    internal fun readManifest(directory: Path): ParsedManifest {
+        val path = directory / "manifest.json"
+        require(fileSystem.metadataOrNull(path)?.isRegularFile == true) {
+            "manifest.json not found"
+        }
         val raw = fileSystem.read(path) { readUtf8() }
         val root = json.parseToJsonElement(raw).jsonObject
-        val configs = (root["configFields"] as? JsonArray)
+        val configFields = (root["configFields"] as? JsonArray)
             ?.mapNotNull { it as? JsonObject }
             ?.map { field ->
                 ManifestConfigField(
-                    key = field["key"]?.jsonPrimitive?.content ?: "",
-                    title = field["title"]?.jsonPrimitive?.content ?: "",
+                    key = field["key"]?.jsonPrimitive?.content.orEmpty(),
+                    title = field["title"]?.jsonPrimitive?.content.orEmpty(),
                     summary = field["summary"]?.jsonPrimitive?.contentOrNull,
                     group = field["group"]?.jsonPrimitive?.contentOrNull,
                     type = field["type"]?.jsonPrimitive?.content ?: "text",
@@ -176,7 +163,9 @@ class PluginInstaller(
             description = root.string("description"),
             apiVersion = root.int("apiVersion"),
             minHostApiVersion = root.intOrNull("minHostApiVersion") ?: 1,
-            entryFile = root.stringOrNull("entry") ?: root.stringOrNull("entryFile") ?: "source.js",
+            entryFile = root.stringOrNull("entry")
+                ?: root.stringOrNull("entryFile")
+                ?: "source.js",
             includeDirs = (root["includeDirs"] as? JsonArray)
                 ?.mapNotNull { it.jsonPrimitive.contentOrNull }
                 .orEmpty(),
@@ -184,13 +173,13 @@ class PluginInstaller(
             capabilities = (root["capabilities"] as? JsonArray)
                 ?.mapNotNull { it.jsonPrimitive.contentOrNull }
                 .orEmpty(),
-            configFields = configs,
+            configFields = configFields,
             raw = raw,
         )
     }
 
     internal fun validateManifest(manifest: ParsedManifest) {
-        require(manifest.id.matches(Regex("^[a-zA-Z][a-zA-Z0-9._-]*\\.[a-zA-Z][a-zA-Z0-9._-]*$"))) {
+        require(PLUGIN_ID_PATTERN.matches(manifest.id)) {
             "plugin id must be reverse-domain format"
         }
         require(manifest.apiVersion == REQUIRED_API_VERSION) {
@@ -200,12 +189,91 @@ class PluginInstaller(
             "plugin requires host API ${manifest.minHostApiVersion}"
         }
         require(manifest.versionCode >= 1) { "versionCode must be >= 1" }
+        require(manifest.versionName.isNotBlank()) { "versionName is required" }
         require(manifest.name.isNotBlank()) { "plugin name is required" }
+        require(manifest.entryFile.endsWith(".js", ignoreCase = true)) {
+            "entry must be a JavaScript file"
+        }
+        require(manifest.includeDirs.none(String::isBlank)) { "includeDirs contains a blank path" }
+        require(manifest.includeDirs.distinct().size == manifest.includeDirs.size) {
+            "includeDirs contains duplicates"
+        }
+        require(manifest.capabilities.none(String::isBlank)) {
+            "capabilities contains a blank value"
+        }
+        require(manifest.capabilities.distinct().size == manifest.capabilities.size) {
+            "capabilities contains duplicates"
+        }
+        manifest.icon?.let { icon ->
+            require(icon.substringAfterLast('.', "").lowercase() in SUPPORTED_ICON_EXTENSIONS) {
+                "unsupported plugin icon type"
+            }
+        }
+        require(manifest.configFields.map(ManifestConfigField::key).distinct().size == manifest.configFields.size) {
+            "configFields contains duplicate keys"
+        }
+        manifest.configFields.forEach { field ->
+            require(field.key.isNotBlank()) { "config field key is required" }
+            require(field.title.isNotBlank()) { "config field title is required: ${field.key}" }
+            require(field.type in SUPPORTED_CONFIG_TYPES) {
+                "unsupported config field type '${field.type}' for ${field.key}"
+            }
+        }
+    }
+
+    private suspend fun installCandidates(tempDir: Path): PluginInstallResult {
+        val candidates = buildCandidates(tempDir)
+        val duplicateIds = candidates
+            .mapNotNull { it.getOrNull()?.manifest?.id }
+            .groupingBy { it }
+            .eachCount()
+            .filterValues { it > 1 }
+            .keys
+        val failed = mutableListOf<PluginInstallFailure>()
+        val valid = candidates.mapNotNull { result ->
+            result.fold(
+                onSuccess = { candidate ->
+                    if (candidate.manifest.id in duplicateIds) {
+                        failed += PluginInstallFailure(
+                            candidate.relativeRoot,
+                            "duplicate plugin id in archive: ${candidate.manifest.id}",
+                        )
+                        null
+                    } else {
+                        candidate
+                    }
+                },
+                onFailure = { error ->
+                    failed += PluginInstallFailure(
+                        root = ".",
+                        reason = error.message ?: error::class.simpleName.orEmpty(),
+                    )
+                    null
+                },
+            )
+        }
+
+        val installed = mutableListOf<ParsedManifest>()
+        for (candidate in valid.sortedBy(PluginCandidate::relativeRoot)) {
+            try {
+                checkConflicts(candidate.manifest)
+                installCandidate(candidate, valid)
+                installed += candidate.manifest
+            } catch (error: Throwable) {
+                failed += PluginInstallFailure(
+                    candidate.relativeRoot,
+                    error.message ?: error::class.simpleName.orEmpty(),
+                )
+            }
+        }
+        return PluginInstallResult(installed = installed, failed = failed)
     }
 
     private fun buildCandidates(tempDir: Path): List<Result<PluginCandidate>> {
         val manifests = fileSystem.listRecursively(tempDir)
-            .filter { path -> path.name == "manifest.json" && fileSystem.metadata(path).isRegularFile }
+            .filter { path ->
+                path.name == "manifest.json" && fileSystem.metadata(path).isRegularFile
+            }
             .take(MAX_PLUGIN_COUNT + 1)
             .toList()
         require(manifests.isNotEmpty()) { "manifest.json not found" }
@@ -227,40 +295,69 @@ class PluginInstaller(
 
     private fun validatePluginLayout(root: Path, manifest: ParsedManifest) {
         val entry = resolveUnder(root, manifest.entryFile, "entry")
-        require(fileSystem.metadataOrNull(entry)?.isRegularFile == true) { "entry file not found: ${manifest.entryFile}" }
+        require(fileSystem.metadataOrNull(entry)?.isRegularFile == true) {
+            "entry file not found: ${manifest.entryFile}"
+        }
+        require(entry.name.endsWith(".js", ignoreCase = true)) {
+            "entry must be a JavaScript file"
+        }
         manifest.includeDirs.forEach { includeDir ->
-            val dir = resolveUnder(root, includeDir, "includeDir")
-            require(fileSystem.metadataOrNull(dir)?.isDirectory == true) { "includeDir not found: $includeDir" }
+            val directory = resolveUnder(root, includeDir, "includeDir")
+            require(fileSystem.metadataOrNull(directory)?.isDirectory == true) {
+                "includeDir not found: $includeDir"
+            }
         }
         manifest.icon?.let { icon ->
             val iconPath = resolveUnder(root, icon, "icon")
-            require(fileSystem.metadataOrNull(iconPath)?.isRegularFile == true) { "icon not found: $icon" }
+            require(fileSystem.metadataOrNull(iconPath)?.isRegularFile == true) {
+                "icon not found: $icon"
+            }
         }
     }
 
     private suspend fun checkConflicts(manifest: ParsedManifest) {
         val existing = pluginDao.findByPluginId(manifest.id) ?: return
         if (existing.versionCode > manifest.versionCode) {
-            throw PluginInstallError("a newer version already installed")
+            throw PluginInstallError(
+                "plugin downgrade is not allowed: installed ${existing.versionCode}, requested ${manifest.versionCode}",
+            )
         }
     }
 
-    private suspend fun installCandidate(candidate: PluginCandidate, allCandidates: List<PluginCandidate>) {
+    private suspend fun installCandidate(
+        candidate: PluginCandidate,
+        allCandidates: List<PluginCandidate>,
+    ) {
         fileSystem.createDirectories(pluginsDir)
-        val stagingDir = pluginsDir / ".staging-${candidate.manifest.id}-${currentTimeMillis()}"
-        val destDir = pluginsDir / candidate.manifest.id
+        val timestamp = currentTimeMillis()
+        val stagingDir = pluginsDir / ".staging-${candidate.manifest.id}-$timestamp"
+        val backupDir = pluginsDir / ".backup-${candidate.manifest.id}-$timestamp"
+        val destinationDir = pluginsDir / candidate.manifest.id
+        val existing = pluginDao.findByPluginId(candidate.manifest.id)
+        var destinationReplaced = false
+        var databaseWritten = false
+
         try {
             if (fileSystem.exists(stagingDir)) fileSystem.deleteRecursively(stagingDir)
+            if (fileSystem.exists(backupDir)) fileSystem.deleteRecursively(backupDir)
             fileSystem.createDirectories(stagingDir)
             val excludedRoots = allCandidates
                 .map { it.root.normalized() }
-                .filter { it != candidate.root.normalized() && it.isUnderOrSame(candidate.root) }
+                .filter { root ->
+                    root != candidate.root.normalized() && root.isUnderOrSame(candidate.root)
+                }
             copyPluginRoot(candidate.root, stagingDir, excludedRoots)
-            if (fileSystem.exists(destDir)) fileSystem.deleteRecursively(destDir)
-            fileSystem.atomicMove(stagingDir, destDir)
+
+            if (fileSystem.exists(destinationDir)) {
+                fileSystem.atomicMove(destinationDir, backupDir)
+            }
+            fileSystem.atomicMove(stagingDir, destinationDir)
+            destinationReplaced = true
+
             val now = currentTimeMillis()
             pluginDao.upsert(
                 PluginEntity(
+                    id = existing?.id ?: 0,
                     pluginId = candidate.manifest.id,
                     name = candidate.manifest.name,
                     versionCode = candidate.manifest.versionCode,
@@ -271,20 +368,74 @@ class PluginInstaller(
                     minHostApiVersion = candidate.manifest.minHostApiVersion,
                     entryFile = candidate.manifest.entryFile,
                     includeDirsJson = json.encodeToString(candidate.manifest.includeDirs),
-                    iconPath = candidate.manifest.icon?.let { (destDir / it).toString() },
+                    iconPath = candidate.manifest.icon?.let { (destinationDir / it).toString() },
                     capabilitiesJson = json.encodeToString(candidate.manifest.capabilities),
                     manifestRawJson = candidate.manifest.raw,
-                    installedAt = now,
+                    installedAt = existing?.installedAt ?: now,
                     updatedAt = now,
-                    enabled = false,
+                    enabled = existing?.enabled ?: false,
+                    allowManualLookup = existing?.allowManualLookup ?: true,
+                    allowAutomaticLookup = existing?.allowAutomaticLookup ?: false,
+                    allowBatchLookup = existing?.allowBatchLookup ?: false,
+                    lastError = null,
+                    lastErrorAt = null,
                 ),
             )
+            databaseWritten = true
+            importDefaultConfig(candidate.manifest, now)
+
+            if (fileSystem.exists(backupDir)) {
+                runCatching { fileSystem.deleteRecursively(backupDir) }
+            }
+        } catch (error: Throwable) {
+            if (databaseWritten) {
+                if (existing == null) {
+                    pluginDao.deleteConfigs(candidate.manifest.id)
+                    pluginDao.deleteByPluginId(candidate.manifest.id)
+                } else {
+                    pluginDao.upsert(existing)
+                }
+            }
+            if (destinationReplaced && fileSystem.exists(destinationDir)) {
+                fileSystem.deleteRecursively(destinationDir)
+            }
+            if (fileSystem.exists(backupDir)) {
+                fileSystem.atomicMove(backupDir, destinationDir)
+            }
+            throw error
         } finally {
             if (fileSystem.exists(stagingDir)) fileSystem.deleteRecursively(stagingDir)
+            if (fileSystem.exists(backupDir) && fileSystem.exists(destinationDir)) {
+                runCatching { fileSystem.deleteRecursively(backupDir) }
+            }
         }
     }
 
-    private fun copyPluginRoot(sourceRoot: Path, targetRoot: Path, excludedRoots: List<Path>) {
+    private suspend fun importDefaultConfig(
+        manifest: ParsedManifest,
+        timestamp: Long,
+    ) {
+        manifest.configFields
+            .filter { it.defaultValue != null && it.defaultValue.isNotEmpty() }
+            .forEach { field ->
+                if (pluginDao.configValue(manifest.id, field.key) == null) {
+                    pluginDao.setConfig(
+                        PluginConfigEntity(
+                            pluginId = manifest.id,
+                            configKey = field.key,
+                            configValue = field.defaultValue.orEmpty(),
+                            updatedAt = timestamp,
+                        ),
+                    )
+                }
+            }
+    }
+
+    private fun copyPluginRoot(
+        sourceRoot: Path,
+        targetRoot: Path,
+        excludedRoots: List<Path>,
+    ) {
         fileSystem.listRecursively(sourceRoot).forEach { source ->
             val normalizedSource = source.normalized()
             if (excludedRoots.any { normalizedSource.isUnderOrSame(it) }) return@forEach
@@ -292,21 +443,24 @@ class PluginInstaller(
             if (relative.isBlank()) return@forEach
             val target = targetRoot / relative
             val metadata = fileSystem.metadata(source)
-            if (metadata.isDirectory) {
-                fileSystem.createDirectories(target)
-            } else if (metadata.isRegularFile) {
-                target.parent?.let { fileSystem.createDirectories(it) }
-                fileSystem.read(source) {
-                    val fileSource = this
-                    fileSystem.write(target) {
-                        writeAll(fileSource)
+            when {
+                metadata.isDirectory -> fileSystem.createDirectories(target)
+                metadata.isRegularFile -> {
+                    target.parent?.let(fileSystem::createDirectories)
+                    fileSystem.read(source) {
+                        val input = this
+                        fileSystem.write(target) { writeAll(input) }
                     }
                 }
             }
         }
     }
 
-    private fun resolveUnder(root: Path, relative: String, label: String): Path {
+    private fun resolveUnder(
+        root: Path,
+        relative: String,
+        label: String,
+    ): Path {
         require(relative.isNotBlank()) { "$label path is blank" }
         val relativePath = relative.toPath(normalize = true)
         require(!relativePath.isAbsolute) { "$label path must be relative: $relative" }
@@ -346,7 +500,11 @@ private fun Path.isUnderOrSame(root: Path): Boolean {
 private fun Path.relativePathTo(root: Path): String {
     val target = normalized().toString()
     val rootText = root.normalized().toString().trimEnd('/', '\\')
-    require(target.trimEnd('/', '\\') == rootText || target.startsWith("$rootText/") || target.startsWith("$rootText\\")) {
+    require(
+        target.trimEnd('/', '\\') == rootText ||
+            target.startsWith("$rootText/") ||
+            target.startsWith("$rootText\\"),
+    ) {
         "path is not under root"
     }
     return target.removePrefix(rootText).trimStart('/', '\\')
