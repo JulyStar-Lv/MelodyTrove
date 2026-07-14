@@ -1,6 +1,9 @@
-﻿package com.github.tidetunes.database
+package com.github.tidetunes.database
 
-import androidx.room.*
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -26,6 +29,9 @@ interface PluginDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun setConfig(entry: PluginConfigEntity)
 
+    @Query("DELETE FROM plugin_config WHERE pluginId = :pluginId AND configKey = :key")
+    suspend fun deleteConfig(pluginId: String, key: String)
+
     @Query("SELECT * FROM plugin_config WHERE pluginId = :pluginId")
     suspend fun configsFor(pluginId: String): List<PluginConfigEntity>
 
@@ -34,4 +40,37 @@ interface PluginDao {
 
     @Query("UPDATE plugin SET enabled = :enabled, updatedAt = :updatedAt WHERE pluginId = :pluginId")
     suspend fun setEnabled(pluginId: String, enabled: Boolean, updatedAt: Long)
+
+    @Query(
+        """
+        UPDATE plugin SET
+            allowManualLookup = :allowManual,
+            allowAutomaticLookup = :allowAutomatic,
+            allowBatchLookup = :allowBatch,
+            updatedAt = :updatedAt
+        WHERE pluginId = :pluginId
+        """,
+    )
+    suspend fun setLookupPermissions(
+        pluginId: String,
+        allowManual: Boolean,
+        allowAutomatic: Boolean,
+        allowBatch: Boolean,
+        updatedAt: Long,
+    )
+
+    @Query(
+        """
+        UPDATE plugin SET lastError = :message, lastErrorAt = :occurredAt
+        WHERE pluginId = :pluginId
+        """,
+    )
+    suspend fun setLastError(
+        pluginId: String,
+        message: String,
+        occurredAt: Long,
+    )
+
+    @Query("UPDATE plugin SET lastError = NULL, lastErrorAt = NULL WHERE pluginId = :pluginId")
+    suspend fun clearLastError(pluginId: String)
 }
