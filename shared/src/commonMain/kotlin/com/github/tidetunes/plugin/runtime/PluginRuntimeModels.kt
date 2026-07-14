@@ -31,8 +31,10 @@ data class PluginRuntimeSettings(
     val allowHttp: Boolean = false,
     val allowHttps: Boolean = true,
     val allowPrivateNetwork: Boolean = false,
+    val maxHttpRequestBytes: Long = 4L * 1024 * 1024,
     val maxHttpResponseBytes: Long = 16L * 1024 * 1024,
     val maxPluginCacheBytes: Long = 4L * 1024 * 1024,
+    val maxInflateBytes: Long = 16L * 1024 * 1024,
 )
 
 data class PluginRuntimeCacheKey(
