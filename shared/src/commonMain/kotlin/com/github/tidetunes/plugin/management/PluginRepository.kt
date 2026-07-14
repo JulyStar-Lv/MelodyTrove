@@ -19,7 +19,6 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import okio.Path
 
-
 data class PluginSummary(
     val id: String,
     val name: String,
@@ -94,7 +93,7 @@ class PluginRepository(
         pluginId: String,
         enabled: Boolean,
     ) {
-        pluginDao.setEnabled(pluginId, enabled, currentTimeMillis())
+        pluginDao.setEnabled(pluginId, enabled)
     }
 
     suspend fun setLookupPermissions(
@@ -108,7 +107,6 @@ class PluginRepository(
             allowManual = allowManual,
             allowAutomatic = allowAutomatic,
             allowBatch = allowBatch,
-            updatedAt = currentTimeMillis(),
         )
     }
 
