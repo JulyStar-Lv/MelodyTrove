@@ -10,7 +10,7 @@ val settingsFeatureDiModule = module {
     single<SettingsTextProvider> { ComposeSettingsTextProvider() }
     viewModel {
         SettingsVM(
-            get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()
+            get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get(), get()
         )
     }
 }

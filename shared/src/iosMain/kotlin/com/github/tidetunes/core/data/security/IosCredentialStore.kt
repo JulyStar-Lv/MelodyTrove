@@ -68,6 +68,24 @@ private class IosCredentialStore : CredentialStore {
         }
     }
 
+    override suspend fun clear() {
+        val query = CFDictionaryCreateMutable(null, 0, null, null)
+            ?: error("Unable to allocate Keychain query")
+        val serviceValue = CFStringCreateWithCString(null, service, kCFStringEncodingUTF8)
+            ?: error("Unable to allocate Keychain service")
+        try {
+            CFDictionarySetValue(query, kSecClass, kSecClassGenericPassword)
+            CFDictionarySetValue(query, kSecAttrService, serviceValue)
+            val status = SecItemDelete(query)
+            check(status == errSecSuccess || status == errSecItemNotFound) {
+                "Keychain clear failed: $status"
+            }
+        } finally {
+            CFRelease(serviceValue)
+            CFRelease(query)
+        }
+    }
+
     private inline fun <T> withQuery(
         storageId: Long,
         includeResult: Boolean,

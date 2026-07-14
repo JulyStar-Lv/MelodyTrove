@@ -52,6 +52,7 @@ abstract class TideTunesDatabase : RoomDatabase() {
     abstract fun downloadTaskDao(): DownloadTaskDao
     abstract fun trackFtsDao(): TrackFtsDao
     abstract fun pluginDao(): PluginDao
+    abstract fun appDataDao(): AppDataDao
 }
 
 const val TIDE_TUNES_DATABASE_VERSION = 13

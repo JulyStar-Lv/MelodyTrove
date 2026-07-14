@@ -1,8 +1,7 @@
 package com.github.tidetunes
 
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
@@ -14,11 +13,17 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import java.awt.Dimension
+import java.awt.GraphicsConfiguration
+import java.awt.GraphicsEnvironment
+import java.awt.Toolkit
+import kotlin.math.roundToInt
 
-private const val MinWindowWidth = 960
-private const val MinWindowHeight = 600
-private const val DefaultWindowWidth = 960
-private const val DefaultWindowHeight = 600
+private const val MinWindowWidth = 840
+private const val MinWindowHeight = 520
+private const val MaxWindowWidth = 1200
+private const val MaxWindowHeight = 800
+private const val WindowWidthRatio = 0.70
+private const val WindowHeightRatio = 0.72
 
 fun main() = application {
     val koinApp = initKoin()
@@ -27,10 +32,8 @@ fun main() = application {
     AppInitializer.initializeBridge(koin)
     AppInitializer.reloadRepositories(koin, CoroutineScope(SupervisorJob() + Dispatchers.Default))
 
-    val windowState = rememberWindowState(
-        width = DefaultWindowWidth.dp,
-        height = DefaultWindowHeight.dp,
-    )
+    val initialWindowSize = remember { calculateInitialWindowSize() }
+    val windowState = rememberWindowState(size = initialWindowSize)
 
     Window(
         onCloseRequest = {
@@ -40,22 +43,57 @@ fun main() = application {
         title = "TideTunes",
         state = windowState,
     ) {
-        val density = LocalDensity.current
-
-        DisposableEffect(window, density) {
-            val minimumSize = with(density) {
-                Dimension(MinWindowWidth.dp.roundToPx(), MinWindowHeight.dp.roundToPx())
-            }
-            window.minimumSize = minimumSize
-            onDispose {}
-        }
-
-        LaunchedEffect(Unit) {
-            windowState.size = DpSize(
-                maxOf(windowState.size.width, MinWindowWidth.dp),
-                maxOf(windowState.size.height, MinWindowHeight.dp),
+        DisposableEffect(window) {
+            val availableSize = calculateAvailableScreenSize(window.graphicsConfiguration)
+            window.minimumSize = Dimension(
+                minOf(MinWindowWidth, availableSize.width),
+                minOf(MinWindowHeight, availableSize.height),
             )
+            onDispose {}
         }
         Root()
     }
+}
+
+private fun calculateInitialWindowSize(): DpSize {
+    val configuration = GraphicsEnvironment
+        .getLocalGraphicsEnvironment()
+        .defaultScreenDevice
+        .defaultConfiguration
+    val availableSize = calculateAvailableScreenSize(configuration)
+
+    return DpSize(
+        calculateWindowDimension(
+            available = availableSize.width,
+            ratio = WindowWidthRatio,
+            minimum = MinWindowWidth,
+            maximum = MaxWindowWidth,
+        ).dp,
+        calculateWindowDimension(
+            available = availableSize.height,
+            ratio = WindowHeightRatio,
+            minimum = MinWindowHeight,
+            maximum = MaxWindowHeight,
+        ).dp,
+    )
+}
+
+private fun calculateAvailableScreenSize(configuration: GraphicsConfiguration): Dimension {
+    val bounds = configuration.bounds
+    val insets = Toolkit.getDefaultToolkit().getScreenInsets(configuration)
+    return Dimension(
+        (bounds.width - insets.left - insets.right).coerceAtLeast(1),
+        (bounds.height - insets.top - insets.bottom).coerceAtLeast(1),
+    )
+}
+
+private fun calculateWindowDimension(
+    available: Int,
+    ratio: Double,
+    minimum: Int,
+    maximum: Int,
+): Int {
+    return (available * ratio)
+        .roundToInt()
+        .coerceIn(minOf(minimum, available), minOf(maximum, available))
 }

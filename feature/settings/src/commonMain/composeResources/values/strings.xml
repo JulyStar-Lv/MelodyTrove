@@ -176,6 +176,8 @@
     <string name="settings_reset_defaults">Restore default settings</string>
     <string name="settings_reset_defaults_summary">Keep sources, playlists, favorites, and history</string>
     <string name="settings_danger_section">Danger zone</string>
+    <string name="settings_clear_all_data">Clear all app data</string>
+    <string name="settings_clear_all_data_summary">Delete the database, settings, accounts, credentials, downloads, plugins, and caches</string>
     <string name="settings_operation_running">Operation in progress…</string>
 
     <string name="settings_about_app">App</string>
@@ -203,6 +205,8 @@
     <string name="settings_confirm_reset_message">Preferences will be reset. Sources and user library data are kept.</string>
     <string name="settings_confirm_rebuild_title">Rebuild the library?</string>
     <string name="settings_confirm_rebuild_message">Regenerated scan data will be cleared and sources rescanned. Local and remote files, accounts, playlists, favorites, and history are kept.</string>
+    <string name="settings_confirm_clear_all_data_title">Clear all app data?</string>
+    <string name="settings_confirm_clear_all_data_message">This permanently deletes the database, settings, source accounts, secure credentials, downloads, plugins, and caches. Your original local and remote music files are not deleted. Restart the app after clearing.</string>
     <string name="settings_confirm_remove_directory_title">Remove music directory?</string>
     <string name="settings_confirm_remove_directory_message">The source directory and its scan results will be removed. Local files are not deleted.</string>
     <string name="settings_confirm_delete_webdav_title">Delete WebDAV account?</string>
@@ -280,6 +284,7 @@
     <string name="settings_feedback_audio_cleared">Audio cache cleared</string>
     <string name="settings_feedback_image_cleared">Image cache cleared</string>
     <string name="settings_feedback_all_cleared">All caches cleared</string>
+    <string name="settings_feedback_all_data_cleared">All app data cleared. Restart the app before continuing.</string>
     <string name="settings_feedback_defaults_restored">Default settings restored</string>
     <string name="settings_feedback_library_rebuilt">Library rebuild completed</string>
     <string name="settings_feedback_directory_removed">Directory removed; local files were not deleted</string>

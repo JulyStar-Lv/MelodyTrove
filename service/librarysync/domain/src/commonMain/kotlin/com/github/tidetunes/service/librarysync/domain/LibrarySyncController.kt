@@ -15,6 +15,7 @@ interface LibrarySyncController {
     suspend fun syncFolder(request: LibrarySyncRequest): LibrarySyncResult
     suspend fun pause(scanId: String): Boolean
     suspend fun cancel(scanId: String): Boolean
+    suspend fun cancelAll()
     suspend fun resume(scanId: String): LibrarySyncResult?
     suspend fun retry(scanId: String): LibrarySyncResult?
 }

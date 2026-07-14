@@ -58,5 +58,6 @@ private class RecordingDownloadController : DownloadController {
     override suspend fun pause(id: DownloadTaskId) = Unit
     override suspend fun resume(id: DownloadTaskId) = Unit
     override suspend fun cancel(id: DownloadTaskId) = Unit
+    override suspend fun cancelAll() = Unit
     override suspend fun retry(id: DownloadTaskId) = Unit
 }

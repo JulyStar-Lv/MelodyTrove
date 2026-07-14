@@ -39,6 +39,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.github.tidetunes.core.domain.model.LibraryTrackItem
+import com.github.tidetunes.core.domain.model.LibraryAlbumItem
+import com.github.tidetunes.core.domain.model.LibraryArtistItem
 import com.github.tidetunes.core.presentation.components.TideEmptyState
 import com.github.tidetunes.core.presentation.components.TidePageHeader
 import com.github.tidetunes.core.presentation.components.QualityBadge
@@ -132,8 +134,8 @@ fun LibraryScreen(
                         }
                     }
                 }
-                LibraryCategory.Albums -> item { LibraryAlbumGrid(tracks) }
-                LibraryCategory.Artists -> item { LibraryArtistGrid(tracks) }
+                LibraryCategory.Albums -> item { LibraryAlbumGrid(state.albums) }
+                LibraryCategory.Artists -> item { LibraryArtistGrid(state.artists) }
                 LibraryCategory.Genres -> item { LibraryGenreGrid() }
                 LibraryCategory.Folders -> item {
                     LibraryFoldersState(onImportFolder = onNavigateToLibraryFolderImport)
@@ -330,8 +332,8 @@ private fun LibraryTrackRow(
 
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
-private fun LibraryAlbumGrid(tracks: List<LibraryTrackItem>) {
-    if (tracks.isEmpty()) {
+private fun LibraryAlbumGrid(albums: List<LibraryAlbumItem>) {
+    if (albums.isEmpty()) {
         LibraryCategoryEmpty(LibraryCategory.Albums)
         return
     }
@@ -345,11 +347,11 @@ private fun LibraryAlbumGrid(tracks: List<LibraryTrackItem>) {
             verticalArrangement = Arrangement.spacedBy(20.dp),
             maxItemsInEachRow = columns,
         ) {
-            tracks.take(8).forEachIndexed { index, track ->
+            albums.forEachIndexed { index, album ->
                 Box(
                     modifier = Modifier.width(columnWidth),
                 ) {
-                    LibraryAlbumCard(track, index, cardWidth)
+                    LibraryAlbumCard(album, index, cardWidth)
                 }
             }
         }
@@ -357,7 +359,7 @@ private fun LibraryAlbumGrid(tracks: List<LibraryTrackItem>) {
 }
 
 @Composable
-private fun LibraryAlbumCard(track: LibraryTrackItem, index: Int, width: Dp) {
+private fun LibraryAlbumCard(album: LibraryAlbumItem, index: Int, width: Dp) {
     val first = libraryGradientColors[index % libraryGradientColors.size]
     val second = libraryGradientColors[(index + 1) % libraryGradientColors.size]
     Column(
@@ -381,7 +383,7 @@ private fun LibraryAlbumCard(track: LibraryTrackItem, index: Int, width: Dp) {
         }
         Spacer(modifier = Modifier.height(12.dp))
         Text(
-            text = track.title,
+            text = album.name,
             color = MiuixTheme.colorScheme.onBackground,
             style = MiuixTheme.textStyles.body1,
             fontWeight = FontWeight.SemiBold,
@@ -390,7 +392,7 @@ private fun LibraryAlbumCard(track: LibraryTrackItem, index: Int, width: Dp) {
         )
         Spacer(modifier = Modifier.height(2.dp))
         Text(
-            text = track.artist ?: "Unknown Artist",
+            text = album.year?.toString() ?: "Unknown Year",
             color = MiuixTheme.colorScheme.onBackgroundVariant,
             style = MiuixTheme.textStyles.footnote1,
             maxLines = 1,
@@ -401,8 +403,7 @@ private fun LibraryAlbumCard(track: LibraryTrackItem, index: Int, width: Dp) {
 
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
-private fun LibraryArtistGrid(tracks: List<LibraryTrackItem>) {
-    val artists = tracks.mapNotNull { it.artist }.filter { it.isNotBlank() }.distinct().take(9)
+private fun LibraryArtistGrid(artists: List<LibraryArtistItem>) {
     if (artists.isEmpty()) {
         LibraryCategoryEmpty(LibraryCategory.Artists)
         return
@@ -442,7 +443,7 @@ private fun LibraryArtistGrid(tracks: List<LibraryTrackItem>) {
                             contentAlignment = Alignment.Center,
                         ) {
                             Text(
-                                text = artist.initials(),
+                                text = artist.name.initials(),
                                 color = Color.White.copy(alpha = 0.90f),
                                 style = MiuixTheme.textStyles.title2,
                                 fontWeight = FontWeight.Bold,
@@ -450,7 +451,7 @@ private fun LibraryArtistGrid(tracks: List<LibraryTrackItem>) {
                         }
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = artist,
+                            text = artist.name,
                             color = MiuixTheme.colorScheme.onBackground,
                             style = MiuixTheme.textStyles.body1,
                             fontWeight = FontWeight.SemiBold,

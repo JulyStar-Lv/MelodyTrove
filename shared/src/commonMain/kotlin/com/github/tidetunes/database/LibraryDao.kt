@@ -468,6 +468,44 @@ interface PlaylistDao {
 
 @Dao
 interface MetadataDao {
+    @Query(
+        """
+        SELECT DISTINCT a.*
+        FROM album a
+        JOIN track t ON t.albumId = a.id
+        WHERE EXISTS (
+            SELECT 1 FROM track_source_ref ref
+            WHERE ref.trackId = t.id
+              AND ref.isAvailable = 1
+        )
+        ORDER BY a.name COLLATE NOCASE
+        """
+    )
+    fun observeAlbumsWithTracks(): Flow<List<AlbumEntity>>
+
+    @Query(
+        """
+        SELECT DISTINCT ar.*
+        FROM artist ar
+        WHERE EXISTS (
+            SELECT 1
+            FROM track_artist ta
+            JOIN track_source_ref ref ON ref.trackId = ta.trackId
+            WHERE ta.artistId = ar.id
+              AND ref.isAvailable = 1
+        ) OR EXISTS (
+            SELECT 1
+            FROM album_artist aa
+            JOIN track t ON t.albumId = aa.albumId
+            JOIN track_source_ref ref ON ref.trackId = t.id
+            WHERE aa.artistId = ar.id
+              AND ref.isAvailable = 1
+        )
+        ORDER BY ar.name COLLATE NOCASE
+        """
+    )
+    fun observeArtistsWithTracks(): Flow<List<ArtistEntity>>
+
     @Upsert
     suspend fun upsertAlbums(albums: List<AlbumEntity>): List<Long>
 

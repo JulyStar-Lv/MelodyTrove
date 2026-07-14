@@ -444,4 +444,8 @@ private class InMemoryCredentialStore : CredentialStore {
     override suspend fun delete(storageId: Long) {
         credentials.remove(storageId)
     }
+
+    override suspend fun clear() {
+        credentials.clear()
+    }
 }

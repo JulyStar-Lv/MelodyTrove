@@ -12,6 +12,7 @@ import com.github.tidetunes.service.librarysync.domain.LibrarySyncTask
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncTaskRepository
 import com.github.tidetunes.source.storage.toLegacyStorageIdOrNull
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import uniffi.tidetunes_backend.Storage
@@ -106,6 +107,12 @@ internal class LegacyLibrarySyncController(
             false
         }
         return activeCancelled || persistedCancelled
+    }
+
+    override suspend fun cancelAll() {
+        taskRepository.observeActiveTasks().first().forEach { task ->
+            cancel(task.id)
+        }
     }
 
     override suspend fun resume(scanId: String): LibrarySyncResult? {

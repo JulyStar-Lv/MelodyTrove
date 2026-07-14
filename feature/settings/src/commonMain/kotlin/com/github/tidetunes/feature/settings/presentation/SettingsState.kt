@@ -66,6 +66,7 @@ sealed interface SettingsConfirmation {
     data object ClearAudio : SettingsConfirmation
     data object ClearImage : SettingsConfirmation
     data object ClearAllCaches : SettingsConfirmation
+    data object ClearAllData : SettingsConfirmation
     data object ResetDefaults : SettingsConfirmation
     data object RebuildLibrary : SettingsConfirmation
     data class RemoveLocalDirectory(val id: String, val title: String) : SettingsConfirmation
@@ -133,6 +134,7 @@ sealed interface SettingsAction {
     data object RequestClearAudio : SettingsAction
     data object RequestClearImage : SettingsAction
     data object RequestClearAllCaches : SettingsAction
+    data object RequestClearAllData : SettingsAction
     data object RequestResetDefaults : SettingsAction
     data object RequestRebuildLibrary : SettingsAction
     data object ExportDiagnostics : SettingsAction

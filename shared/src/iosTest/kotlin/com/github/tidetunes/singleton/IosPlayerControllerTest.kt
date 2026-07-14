@@ -527,6 +527,10 @@ private class InMemoryCredentialStore : CredentialStore {
     override suspend fun delete(storageId: Long) {
         values.remove(storageId)
     }
+
+    override suspend fun clear() {
+        values.clear()
+    }
 }
 
 private const val STORAGE_ID = 2L

@@ -10,7 +10,7 @@ import kotlinx.collections.immutable.toPersistentList
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -22,10 +22,15 @@ class LibraryVM(
     private val _events = Channel<LibraryEvent>(Channel.BUFFERED)
 
     val events = _events.receiveAsFlow()
-    val state = libraryRepository.tracks
-        .map { tracks ->
+    val state = combine(
+        libraryRepository.tracks,
+        libraryRepository.albums,
+        libraryRepository.artists,
+    ) { tracks, albums, artists ->
             LibraryState(
                 tracks = tracks.toPersistentList(),
+                albums = albums.toPersistentList(),
+                artists = artists.toPersistentList(),
             )
         }
         .stateIn(

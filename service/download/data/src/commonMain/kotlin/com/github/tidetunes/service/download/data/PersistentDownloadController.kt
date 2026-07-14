@@ -9,6 +9,7 @@ import com.github.tidetunes.service.download.domain.DownloadTaskRepository
 import com.github.tidetunes.service.download.domain.DownloadTaskScheduler
 import com.github.tidetunes.service.download.domain.canTransitionTo
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlin.time.Clock
 
 class PersistentDownloadController(
@@ -43,6 +44,12 @@ class PersistentDownloadController(
     override suspend fun cancel(id: DownloadTaskId) {
         updateStatus(id, DownloadStatus.Cancelled)?.let {
             scheduler.cancel(id)
+        }
+    }
+
+    override suspend fun cancelAll() {
+        repository.observeActiveTasks().first().forEach { task ->
+            cancel(task.id)
         }
     }
 

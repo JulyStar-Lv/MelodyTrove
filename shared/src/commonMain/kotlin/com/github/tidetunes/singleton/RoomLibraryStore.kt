@@ -28,6 +28,8 @@ import com.github.tidetunes.platform.currentTimeMillis
 import com.github.tidetunes.source.api.SourceNodeSelection
 import com.github.tidetunes.source.api.SourceNodeType
 import kotlinx.coroutines.flow.first
+import okio.FileSystem
+import okio.Path.Companion.toPath
 import uniffi.tidetunes_backend.ArgCreatePlaylist
 import uniffi.tidetunes_backend.ArgUpdatePlaylist
 import uniffi.tidetunes_backend.DataSourceKey
@@ -58,6 +60,7 @@ class RoomLibraryStore(
     private val trackSourceRefDao: TrackSourceRefDao,
     private val playlistDao: PlaylistDao,
     private val metadataDao: MetadataDao,
+    private val fileSystem: FileSystem = FileSystem.SYSTEM,
 ) {
     suspend fun getMusic(id: MusicId): Music? {
         val track = trackDao.get(id.value) ?: return null
@@ -73,6 +76,16 @@ class RoomLibraryStore(
 
     suspend fun getTrackPrimaryArtist(trackId: Long): String? {
         return metadataDao.artistNamesForTrack(trackId).firstOrNull()
+    }
+
+    suspend fun hasCachedArtwork(trackId: Long): Boolean {
+        val track = trackDao.get(trackId) ?: return false
+        val artwork = metadataDao.getArtworkForTrack(trackId)
+            ?: track.albumId?.let { albumId -> metadataDao.getArtworkForAlbum(albumId) }
+            ?: return false
+        return listOfNotNull(artwork.localPath, artwork.thumbnailPath).any { path ->
+            fileSystem.metadataOrNull(path.toPath())?.isRegularFile == true
+        }
     }
 
     suspend fun getPlaylist(id: PlaylistId): Playlist? {

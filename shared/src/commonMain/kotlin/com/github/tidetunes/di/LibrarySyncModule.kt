@@ -1,6 +1,7 @@
 package com.github.tidetunes.di
 
 import com.github.tidetunes.domain.importing.RemoteMetadataRefreshController
+import com.github.tidetunes.domain.importing.TrackMetadataPrefetcher
 import com.github.tidetunes.service.librarysync.data.LegacyLibrarySyncController
 import com.github.tidetunes.service.librarysync.data.LegacyLibrarySyncImporter
 import com.github.tidetunes.service.librarysync.data.LegacyLibrarySyncStorageProvider
@@ -25,4 +26,5 @@ val librarySyncModule = module {
     }
     single<LibrarySyncController> { LegacyLibrarySyncController(get(), get(), get()) }
     single<MetadataRefreshController> { RemoteMetadataRefreshController(get(), get()) }
+    single { TrackMetadataPrefetcher(get(), get(), get()) }
 }

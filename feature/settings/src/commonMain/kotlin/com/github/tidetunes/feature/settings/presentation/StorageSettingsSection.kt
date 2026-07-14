@@ -91,6 +91,12 @@ fun StorageSettingsSection(
 
         SettingsSection(title = stringResource(Res.string.settings_danger_section)) {
             SettingsDangerRow(
+                title = stringResource(Res.string.settings_clear_all_data),
+                summary = stringResource(Res.string.settings_clear_all_data_summary),
+                enabled = !busy,
+                onClick = { onAction(SettingsAction.RequestClearAllData) },
+            )
+            SettingsDangerRow(
                 title = stringResource(Res.string.settings_rebuild_library),
                 summary = stringResource(Res.string.settings_rebuild_library_summary),
                 enabled = !busy,
@@ -134,6 +140,14 @@ fun StorageSettingsSection(
         title = stringResource(Res.string.settings_confirm_reset_title),
         message = stringResource(Res.string.settings_confirm_reset_message),
         confirmText = stringResource(Res.string.settings_confirm),
+        onConfirm = { onAction(SettingsAction.ConfirmPendingAction) },
+        onDismiss = { onAction(SettingsAction.DismissConfirmation) },
+    )
+    SettingsConfirmDialog(
+        show = state.pendingConfirmation == SettingsConfirmation.ClearAllData,
+        title = stringResource(Res.string.settings_confirm_clear_all_data_title),
+        message = stringResource(Res.string.settings_confirm_clear_all_data_message),
+        confirmText = stringResource(Res.string.settings_delete),
         onConfirm = { onAction(SettingsAction.ConfirmPendingAction) },
         onDismiss = { onAction(SettingsAction.DismissConfirmation) },
     )

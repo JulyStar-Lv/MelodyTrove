@@ -1,5 +1,6 @@
 package com.github.tidetunes.core.data.settings
 
+import com.github.tidetunes.core.data.datastore.APP_DATA_STORE_FILE_NAME
 import com.github.tidetunes.core.domain.model.StorageUsage
 import com.github.tidetunes.core.domain.repository.StorageUsageRepository
 import com.github.tidetunes.platform.getAppCacheDir
@@ -52,6 +53,28 @@ class FileStorageUsageRepository(
     override suspend fun clearAllCaches() {
         clearAudioCache()
         clearImageCache()
+    }
+
+    override suspend fun clearAllStoredFiles() {
+        val cacheDir = getAppCacheDir().toPath()
+        val documentDir = getAppDocumentDir().toPath()
+        val preservedDocumentPaths = buildSet {
+            add(documentDir / APP_DATA_STORE_FILE_NAME)
+            getAppDatabasePath()?.toPath()?.let { databasePath ->
+                if (databasePath.parent == documentDir) {
+                    addAll(databaseRelatedPaths(databasePath))
+                }
+            }
+        }
+
+        deleteChildren(listOf(cacheDir))
+        fileSystem.metadataOrNull(documentDir)
+            ?.takeIf { it.isDirectory }
+            ?.let {
+                fileSystem.list(documentDir)
+                    .filterNot(preservedDocumentPaths::contains)
+                    .forEach { path -> fileSystem.deleteRecursively(path, mustExist = false) }
+            }
     }
 
     override suspend fun enforceCacheLimits(audioLimitBytes: Long, imageLimitBytes: Long) {

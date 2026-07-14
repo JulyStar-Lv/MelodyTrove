@@ -24,6 +24,7 @@ import com.github.tidetunes.core.domain.model.StorageUsage
 import com.github.tidetunes.core.domain.model.StoredCredential
 import com.github.tidetunes.core.domain.model.storageSourceAccountId
 import com.github.tidetunes.core.domain.repository.DiagnosticsService
+import com.github.tidetunes.core.domain.repository.AppDataClearService
 import com.github.tidetunes.core.domain.repository.LibraryMaintenanceService
 import com.github.tidetunes.core.domain.repository.SettingsRepository
 import com.github.tidetunes.core.domain.repository.SourceSettingsRepository
@@ -132,6 +133,24 @@ class SettingsVMTest {
             viewModel.onAction(SettingsAction.ConfirmPendingAction)
             advanceUntilIdle()
             assertEquals(1, environment.maintenance.rebuildCalls)
+        }
+    }
+
+    @Test
+    fun `clearing all app data requires confirmation and invokes the wipe service`() = runTest {
+        val environment = TestEnvironment()
+        withStartedViewModel(environment) { viewModel ->
+            viewModel.onAction(SettingsAction.RequestClearAllData)
+            advanceUntilIdle()
+
+            assertIs<SettingsConfirmation.ClearAllData>(viewModel.state.value.pendingConfirmation)
+            assertEquals(0, environment.appDataClear.clearCalls)
+
+            viewModel.onAction(SettingsAction.ConfirmPendingAction)
+            advanceUntilIdle()
+
+            assertNull(viewModel.state.value.pendingConfirmation)
+            assertEquals(1, environment.appDataClear.clearCalls)
         }
     }
 
@@ -324,6 +343,7 @@ private class TestEnvironment(
     val sourceSettings = FakeSourceSettingsRepository()
     val storageUsage = FakeStorageUsageRepository()
     val maintenance = FakeLibraryMaintenanceService()
+    val appDataClear = FakeAppDataClearService()
     val toast = FakeToastRepository()
 
     fun createViewModel() = SettingsVM(
@@ -333,6 +353,7 @@ private class TestEnvironment(
         storageUsageRepository = storageUsage,
         diagnosticsService = FakeDiagnosticsService(),
         libraryMaintenanceService = maintenance,
+        appDataClearService = appDataClear,
         toastRepository = toast,
         importRepository = FakeImportRepository(),
         librarySyncController = librarySyncController,
@@ -429,6 +450,7 @@ private class FakeStorageUsageRepository : StorageUsageRepository {
     override suspend fun clearAudioCache() = Unit
     override suspend fun clearImageCache() = Unit
     override suspend fun clearAllCaches() { clearAllCalls += 1 }
+    override suspend fun clearAllStoredFiles() = Unit
     override suspend fun enforceCacheLimits(audioLimitBytes: Long, imageLimitBytes: Long) {
         lastEnforcedAudioLimit = audioLimitBytes
         lastEnforcedImageLimit = imageLimitBytes
@@ -439,6 +461,11 @@ private class FakeLibraryMaintenanceService : LibraryMaintenanceService {
     override val rebuildState = MutableStateFlow(LibraryRebuildState())
     var rebuildCalls = 0
     override suspend fun rebuildLibrary() { rebuildCalls += 1 }
+}
+
+private class FakeAppDataClearService : AppDataClearService {
+    var clearCalls = 0
+    override suspend fun clearAllData() { clearCalls += 1 }
 }
 
 private class FakeToastRepository : ToastRepository {
@@ -485,6 +512,7 @@ private class FakeLibrarySyncController : LibrarySyncController {
     }
     override suspend fun pause(scanId: String) = false
     override suspend fun cancel(scanId: String) = false
+    override suspend fun cancelAll() = Unit
     override suspend fun resume(scanId: String): LibrarySyncResult? = null
     override suspend fun retry(scanId: String): LibrarySyncResult? = null
 }

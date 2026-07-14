@@ -99,6 +99,27 @@ class PersistentDownloadControllerTest {
         assertEquals(DownloadStatus.Completed, stored.status)
         assertTrue(scheduler.cancelled.isEmpty())
     }
+
+    @Test
+    fun cancelAllCancelsEveryActiveTask() = runBlocking {
+        val repository = InMemoryDownloadTaskRepository(
+            task(id = "queued", status = DownloadStatus.Queued),
+            task(id = "downloading", status = DownloadStatus.Downloading),
+            task(id = "completed", status = DownloadStatus.Completed),
+        )
+        val scheduler = RecordingDownloadTaskScheduler()
+        val controller = PersistentDownloadController(repository, scheduler)
+
+        controller.cancelAll()
+
+        assertEquals(DownloadStatus.Cancelled, repository.requireTask(DownloadTaskId("queued")).status)
+        assertEquals(DownloadStatus.Cancelled, repository.requireTask(DownloadTaskId("downloading")).status)
+        assertEquals(DownloadStatus.Completed, repository.requireTask(DownloadTaskId("completed")).status)
+        assertEquals(
+            setOf(DownloadTaskId("queued"), DownloadTaskId("downloading")),
+            scheduler.cancelled.toSet(),
+        )
+    }
 }
 
 private class InMemoryDownloadTaskRepository(
@@ -165,11 +186,12 @@ private class RecordingDownloadTaskScheduler : DownloadTaskScheduler {
 }
 
 private fun task(
+    id: String = "task-1",
     status: DownloadStatus,
     errorMessage: String? = null,
 ): DownloadTask {
     return DownloadTask(
-        id = DownloadTaskId("task-1"),
+        id = DownloadTaskId(id),
         mediaId = MediaId(
             sourceId = SourceId("webdav"),
             mediaType = MediaType.Track,

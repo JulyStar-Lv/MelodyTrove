@@ -6,6 +6,7 @@ interface CredentialStore {
     suspend fun load(storageId: Long): StoredCredential?
     suspend fun save(storageId: Long, credential: StoredCredential)
     suspend fun delete(storageId: Long)
+    suspend fun clear()
 }
 
 expect fun createCredentialStore(): CredentialStore

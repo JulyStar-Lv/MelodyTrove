@@ -62,3 +62,7 @@ interface LibraryMaintenanceService {
     val rebuildState: StateFlow<LibraryRebuildState>
     suspend fun rebuildLibrary()
 }
+
+interface AppDataClearService {
+    suspend fun clearAllData()
+}

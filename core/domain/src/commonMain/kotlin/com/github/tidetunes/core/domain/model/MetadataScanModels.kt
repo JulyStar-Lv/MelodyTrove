@@ -33,6 +33,7 @@ fun MetadataScanMode.toOptions(): MetadataScanOptions = when (this) {
 enum class MetadataRefreshTarget {
     Artwork,
     Lyrics,
+    ArtworkAndLyrics,
     RawMetadata,
     All,
 }
@@ -45,6 +46,11 @@ fun MetadataRefreshTarget.toOptions(): MetadataScanOptions = when (this) {
     )
     MetadataRefreshTarget.Lyrics -> MetadataScanOptions(
         readArtwork = false,
+        readLyrics = true,
+        readRawMetadata = false,
+    )
+    MetadataRefreshTarget.ArtworkAndLyrics -> MetadataScanOptions(
+        readArtwork = true,
         readLyrics = true,
         readRawMetadata = false,
     )

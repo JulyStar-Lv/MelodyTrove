@@ -8,10 +8,13 @@ import com.github.tidetunes.core.domain.model.LyricsLoadState
 import com.github.tidetunes.core.domain.model.CurrentTrackInfo
 import kotlinx.collections.immutable.toPersistentList
 import com.github.tidetunes.core.toArtwork
+import com.github.tidetunes.domain.importing.TrackMetadataPrefetcher
 import com.github.tidetunes.source.storage.LegacyStorageLookup
 import com.github.tidetunes.source.storage.legacyStorageTrackMediaIdOrNull
 import com.github.tidetunes.singleton.RoomLibraryStore
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -37,6 +40,7 @@ class PlayerRepository(
     private val appPreferencesRepository: AppPreferencesRepository,
     private val _scope: CoroutineScope,
     private val storageLookup: LegacyStorageLookup,
+    private val metadataPrefetcher: TrackMetadataPrefetcher? = null,
 ) {
     private val _music = MutableStateFlow(null as Music?)
     private val _playlist = MutableStateFlow(null as Playlist?)
@@ -62,6 +66,7 @@ class PlayerRepository(
     val pauseRequest = _pauseRequest.asSharedFlow()
     private val _currentTrackInfo = MutableStateFlow<CurrentTrackInfo?>(null)
     val currentTrackInfo = _currentTrackInfo.asStateFlow()
+    private var metadataJob: Job? = null
 
     val previousMusic = combine(playMode, _musicIndex, _playlist) {
         playMode, musicIndex, playlist ->
@@ -134,15 +139,30 @@ class PlayerRepository(
     }
 
     fun setCurrent(music: Music, playlist: Playlist) {
+        metadataJob?.cancel()
         _music.value = music
         _playlist.value = playlist
-        _scope.launch {
-            val artist = roomLibraryStore.getTrackPrimaryArtist(music.meta.id.value)
-            _currentTrackInfo.value = music.toCurrentTrackInfo(storageLookup, artist)
+        metadataJob = _scope.launch {
+            publishCurrentTrackInfo(music)
+            val refreshed = try {
+                metadataPrefetcher?.prefetch(music.meta.id.value) ?: false
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                false
+            }
+            if (!refreshed || _music.value?.meta?.id != music.meta.id) return@launch
+
+            val refreshedMusic = roomLibraryStore.getMusic(music.meta.id) ?: return@launch
+            if (_music.value?.meta?.id != music.meta.id) return@launch
+            _music.value = refreshedMusic
+            publishCurrentTrackInfo(refreshedMusic)
         }
     }
 
     fun resetCurrent() {
+        metadataJob?.cancel()
+        metadataJob = null
         _music.value = null
         _playlist.value = null
         _currentTrackInfo.value = null
@@ -229,6 +249,19 @@ class PlayerRepository(
             }
         }
     }
+
+    private suspend fun publishCurrentTrackInfo(music: Music) {
+        if (_music.value?.meta?.id != music.meta.id) return
+        val trackId = music.meta.id.value
+        val artist = roomLibraryStore.getTrackPrimaryArtist(trackId)
+        val artwork = music.cover?.toArtwork()
+            ?: Artwork.LibraryTrack(trackId).takeIf {
+                roomLibraryStore.hasCachedArtwork(trackId)
+            }
+        if (_music.value?.meta?.id == music.meta.id) {
+            _currentTrackInfo.value = music.toCurrentTrackInfo(storageLookup, artist, artwork)
+        }
+    }
 }
 
 internal fun MusicLyric?.toLyrics(): Lyrics {
@@ -256,8 +289,11 @@ private fun LegacyLyricLoadState?.toLyricsLoadState(): LyricsLoadState {
 
 
 
-private suspend fun Music.toCurrentTrackInfo(storageLookup: LegacyStorageLookup, artist: String?): CurrentTrackInfo {
-    val artwork = toPlaybackArtwork()
+private suspend fun Music.toCurrentTrackInfo(
+    storageLookup: LegacyStorageLookup,
+    artist: String?,
+    artwork: Artwork?,
+): CurrentTrackInfo {
     return CurrentTrackInfo(
         id = meta.id.value,
         title = meta.title,

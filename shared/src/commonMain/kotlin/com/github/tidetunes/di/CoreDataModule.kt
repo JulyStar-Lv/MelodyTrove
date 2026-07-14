@@ -8,10 +8,12 @@ import com.github.tidetunes.core.data.settings.DataStoreSettingsRepository
 import com.github.tidetunes.core.data.settings.FileDiagnosticsService
 import com.github.tidetunes.core.data.settings.FileStorageUsageRepository
 import com.github.tidetunes.core.data.settings.RoomLibraryMaintenanceService
+import com.github.tidetunes.core.data.settings.RoomAppDataClearService
 import com.github.tidetunes.core.data.settings.RoomSettingsMigration
 import com.github.tidetunes.core.data.settings.RoomSourceSettingsRepository
 import com.github.tidetunes.core.domain.model.SettingsCapabilities
 import com.github.tidetunes.core.domain.repository.DiagnosticsService
+import com.github.tidetunes.core.domain.repository.AppDataClearService
 import com.github.tidetunes.core.domain.repository.LibraryMaintenanceService
 import com.github.tidetunes.core.domain.repository.SettingsMigration
 import com.github.tidetunes.core.domain.repository.SettingsRepository
@@ -69,6 +71,9 @@ val coreDataModule = module {
     single<DiagnosticsService> { FileDiagnosticsService(get(), get(), get(), get(), get(), get()) }
     single<LibraryMaintenanceService> {
         RoomLibraryMaintenanceService(get(), get(), get(), get(), get())
+    }
+    single<AppDataClearService> {
+        RoomAppDataClearService(get(), get(), get(), get(), get(), get(), get(), get(), get())
     }
     single { AutoScanCoordinator(get(), get(), get(), get(), get()) }
     single<SettingsCapabilities> { platformSettingsCapabilities() }

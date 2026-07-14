@@ -1,8 +1,11 @@
 package com.github.tidetunes.core.data
 
 import com.github.tidetunes.core.domain.model.MediaId
+import com.github.tidetunes.core.domain.model.LibraryAlbumItem
+import com.github.tidetunes.core.domain.model.LibraryArtistItem
 import com.github.tidetunes.core.domain.model.LibraryTrackItem
 import com.github.tidetunes.core.domain.repository.LibraryRepository
+import com.github.tidetunes.database.MetadataDao
 import com.github.tidetunes.database.TrackDao
 import com.github.tidetunes.database.TrackEntity
 import com.github.tidetunes.source.storage.LegacyStorageLookup
@@ -15,11 +18,16 @@ import kotlinx.coroutines.launch
 class LibraryRepositoryImpl(
     private val scope: CoroutineScope,
     private val trackDao: TrackDao,
+    private val metadataDao: MetadataDao,
     private val storageLookup: LegacyStorageLookup,
 ) : LibraryRepository {
     private val _tracks = MutableStateFlow<List<LibraryTrackItem>>(emptyList())
+    private val _albums = MutableStateFlow<List<LibraryAlbumItem>>(emptyList())
+    private val _artists = MutableStateFlow<List<LibraryArtistItem>>(emptyList())
 
     override val tracks = _tracks.asStateFlow()
+    override val albums = _albums.asStateFlow()
+    override val artists = _artists.asStateFlow()
 
     init {
         scope.launch {
@@ -29,6 +37,16 @@ class LibraryRepositoryImpl(
                         mediaId = track.toLegacyStorageTrackMediaIdOrNull(storageLookup),
                     )
                 }
+            }
+        }
+        scope.launch {
+            metadataDao.observeAlbumsWithTracks().collect { entities ->
+                _albums.value = entities.map { LibraryAlbumItem(it.id, it.name, it.year) }
+            }
+        }
+        scope.launch {
+            metadataDao.observeArtistsWithTracks().collect { entities ->
+                _artists.value = entities.map { LibraryArtistItem(it.id, it.name) }
             }
         }
     }

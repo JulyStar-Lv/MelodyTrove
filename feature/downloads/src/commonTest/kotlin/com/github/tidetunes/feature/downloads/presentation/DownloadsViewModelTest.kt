@@ -175,6 +175,8 @@ private class FakeDownloadController(
         cancelled += id
     }
 
+    override suspend fun cancelAll() = Unit
+
     override suspend fun retry(id: DownloadTaskId) {
         retried += id
     }

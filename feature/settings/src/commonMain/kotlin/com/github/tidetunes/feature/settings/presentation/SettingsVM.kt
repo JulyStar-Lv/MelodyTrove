@@ -22,6 +22,7 @@ import com.github.tidetunes.core.domain.model.normalizeImageCacheLimitBytes
 import com.github.tidetunes.core.domain.model.storageSourceAccountId
 import com.github.tidetunes.core.domain.model.toStorageRouteIdOrNull
 import com.github.tidetunes.core.domain.repository.DiagnosticsService
+import com.github.tidetunes.core.domain.repository.AppDataClearService
 import com.github.tidetunes.core.domain.repository.LibraryMaintenanceService
 import com.github.tidetunes.core.domain.repository.SettingsRepository
 import com.github.tidetunes.core.domain.repository.SourceSettingsRepository
@@ -63,6 +64,7 @@ class SettingsVM(
     private val storageUsageRepository: StorageUsageRepository,
     private val diagnosticsService: DiagnosticsService,
     private val libraryMaintenanceService: LibraryMaintenanceService,
+    private val appDataClearService: AppDataClearService,
     private val toastRepository: ToastRepository,
     private val importRepository: ImportRepository,
     private val librarySyncController: LibrarySyncController,
@@ -298,6 +300,9 @@ class SettingsVM(
             SettingsAction.RequestClearImage -> pendingConfirmation.value = SettingsConfirmation.ClearImage
             SettingsAction.RequestClearAllCaches -> {
                 pendingConfirmation.value = SettingsConfirmation.ClearAllCaches
+            }
+            SettingsAction.RequestClearAllData -> {
+                pendingConfirmation.value = SettingsConfirmation.ClearAllData
             }
             SettingsAction.RequestResetDefaults -> {
                 pendingConfirmation.value = SettingsConfirmation.ResetDefaults
@@ -662,6 +667,7 @@ class SettingsVM(
                     SettingsConfirmation.ClearAudio -> storageUsageRepository.clearAudioCache()
                     SettingsConfirmation.ClearImage -> storageUsageRepository.clearImageCache()
                     SettingsConfirmation.ClearAllCaches -> storageUsageRepository.clearAllCaches()
+                    SettingsConfirmation.ClearAllData -> appDataClearService.clearAllData()
                     SettingsConfirmation.ResetDefaults -> {
                         settingsRepository.resetToDefaults()
                         storageUsageRepository.enforceCacheLimits(
@@ -774,6 +780,7 @@ private fun SettingsConfirmation.successMessageResource(): StringResource = when
     SettingsConfirmation.ClearAudio -> Res.string.settings_feedback_audio_cleared
     SettingsConfirmation.ClearImage -> Res.string.settings_feedback_image_cleared
     SettingsConfirmation.ClearAllCaches -> Res.string.settings_feedback_all_cleared
+    SettingsConfirmation.ClearAllData -> Res.string.settings_feedback_all_data_cleared
     SettingsConfirmation.ResetDefaults -> Res.string.settings_feedback_defaults_restored
     SettingsConfirmation.RebuildLibrary -> Res.string.settings_feedback_library_rebuilt
     is SettingsConfirmation.RemoveLocalDirectory -> Res.string.settings_feedback_directory_removed

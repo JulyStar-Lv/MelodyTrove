@@ -7,5 +7,6 @@ interface StorageUsageRepository {
     suspend fun clearAudioCache()
     suspend fun clearImageCache()
     suspend fun clearAllCaches()
+    suspend fun clearAllStoredFiles()
     suspend fun enforceCacheLimits(audioLimitBytes: Long, imageLimitBytes: Long)
 }

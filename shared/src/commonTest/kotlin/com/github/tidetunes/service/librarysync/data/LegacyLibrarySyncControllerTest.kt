@@ -162,6 +162,28 @@ class LegacyLibrarySyncControllerTest {
     }
 
     @Test
+    fun cancelAllCancelsEveryActiveTask() = runBlocking {
+        val importer = FakeLegacyLibrarySyncImporter()
+        val taskRepository = FakeLibrarySyncTaskRepository(
+            tasksById = mapOf(
+                "running" to task(id = "running", status = LibrarySyncStatus.Running),
+                "paused" to task(id = "paused", status = LibrarySyncStatus.Paused),
+                "completed" to task(id = "completed", status = LibrarySyncStatus.Completed),
+            ),
+        )
+        val controller = controller(
+            importer = importer,
+            storage = storage(id = 42, typ = StorageType.WEBDAV),
+            taskRepository = taskRepository,
+        )
+
+        controller.cancelAll()
+
+        assertEquals(setOf("running", "paused"), importer.cancelCalls.toSet())
+        assertEquals(setOf("running", "paused"), taskRepository.markCancelledCalls.toSet())
+    }
+
+    @Test
     fun pauseDelegatesToImporterAndMarksTaskPaused() = runBlocking {
         val importer = FakeLegacyLibrarySyncImporter()
         val taskRepository = FakeLibrarySyncTaskRepository()
@@ -377,7 +399,7 @@ private class FakeLibrarySyncTaskRepository(
     val activeChecks = mutableListOf<ActiveCheck>()
     val markPausedCalls = mutableListOf<String>()
     val markCancelledCalls = mutableListOf<String>()
-    private val tasks = MutableStateFlow(emptyList<LibrarySyncTask>())
+    private val tasks = MutableStateFlow(tasksById.values.filter(LibrarySyncTask::isActive))
 
     override fun observeRecentTasks(limit: Int): Flow<List<LibrarySyncTask>> {
         return tasks

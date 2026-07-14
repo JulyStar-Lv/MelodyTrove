@@ -52,6 +52,21 @@ private class DesktopCredentialStore : CredentialStore {
         }
     }
 
+    override suspend fun clear() {
+        when {
+            isMac() -> {
+                while (
+                    run(listOf("/usr/bin/security", "delete-generic-password", "-s", service))
+                        .exitCode == 0
+                ) {
+                    // Remove every TideTunes item for this service.
+                }
+            }
+            isLinux() -> run(listOf("secret-tool", "clear", "service", service))
+            isWindows() -> credentialDirectory().deleteRecursively()
+        }
+    }
+
     private fun account(storageId: Long) = "storage-$storageId"
     private fun isMac() = System.getProperty("os.name").startsWith("Mac", ignoreCase = true)
     private fun isLinux() = System.getProperty("os.name").startsWith("Linux", ignoreCase = true)

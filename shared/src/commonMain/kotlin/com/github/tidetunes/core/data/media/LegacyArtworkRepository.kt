@@ -49,6 +49,8 @@ class LegacyArtworkRepository(
             return bytes
         }
 
+        if (artwork is Artwork.LibraryTrack || artwork is Artwork.LibraryCover) return null
+
         val loc = artwork.resolveLegacyStorageEntryLoc { trackId ->
             roomLibraryStore.resolveTrackLoc(MusicId(trackId))
         } ?: return null

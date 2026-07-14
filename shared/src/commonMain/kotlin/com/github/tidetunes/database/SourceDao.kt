@@ -380,6 +380,14 @@ interface TrackSourceRefDao {
               OR (:target = 'Lyrics' AND NOT EXISTS (
                   SELECT 1 FROM lyrics WHERE lyrics.trackId = track.id
               ))
+              OR (:target = 'ArtworkAndLyrics' AND (
+                  NOT EXISTS (
+                      SELECT 1 FROM artwork
+                      WHERE artwork.trackId = track.id
+                         OR (track.albumId IS NOT NULL AND artwork.albumId = track.albumId)
+                  )
+                  OR NOT EXISTS (SELECT 1 FROM lyrics WHERE lyrics.trackId = track.id)
+              ))
               OR (:target = 'RawMetadata' AND NOT EXISTS (
                   SELECT 1 FROM raw_metadata WHERE raw_metadata.trackId = track.id
               ))
