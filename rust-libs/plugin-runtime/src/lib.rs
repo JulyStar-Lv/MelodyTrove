@@ -1,6 +1,7 @@
 mod control;
 mod engine;
 mod error;
+#[allow(clippy::manual_is_multiple_of, clippy::unnecessary_map_or)]
 mod host;
 mod worker;
 pub use control::OperationControl;

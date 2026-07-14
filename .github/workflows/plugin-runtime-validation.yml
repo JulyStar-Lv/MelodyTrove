@@ -1,0 +1,91 @@
+name: Plugin runtime validation
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - codex/lyrico-v3-completion
+
+permissions:
+  contents: read
+
+jobs:
+  rust-runtime:
+    name: Rust format, clippy and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Install Linux native dependencies
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config
+      - name: Validate Rust workspace
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p validation-logs
+          run_gate() {
+            local name="$1"
+            shift
+            if "$@" >"validation-logs/${name}.log" 2>&1; then
+              echo "${name}: passed"
+            else
+              echo "${name}: failed"
+              tail -n 200 "validation-logs/${name}.log"
+              return 1
+            fi
+          }
+          run_gate cargo-fmt cargo fmt --manifest-path rust-libs/Cargo.toml --all -- --check
+          run_gate cargo-clippy cargo clippy --manifest-path rust-libs/Cargo.toml --workspace --all-targets -- -D warnings
+          run_gate cargo-test cargo test --manifest-path rust-libs/Cargo.toml --workspace
+      - name: Upload Rust validation logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-runtime-rust-logs
+          path: validation-logs
+
+  lyrico-contract:
+    name: Lyrico v3 Kotlin contract tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Linux native dependencies
+        run: sudo apt-get update && sudo apt-get install -y libasound2-dev pkg-config
+      - name: Compile and run plugin tests
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p validation-logs
+          if ./gradlew \
+            :shared:compileKotlinDesktop \
+            :shared:desktopTest \
+            --tests 'com.github.tidetunes.plugin.*' \
+            --no-daemon \
+            --no-configuration-cache \
+            --console=plain \
+            >validation-logs/lyrico-contract.log 2>&1; then
+            echo 'Lyrico v3 contract tests: passed'
+          else
+            echo 'Lyrico v3 contract tests: failed'
+            tail -n 250 validation-logs/lyrico-contract.log
+            exit 1
+          fi
+      - name: Upload Kotlin validation logs and generated Room schemas
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-runtime-kotlin-logs
+          path: |
+            validation-logs
+            shared/schemas

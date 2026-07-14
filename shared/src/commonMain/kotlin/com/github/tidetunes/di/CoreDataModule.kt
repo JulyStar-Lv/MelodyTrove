@@ -21,6 +21,7 @@ import com.github.tidetunes.database.TideTunesDatabase
 import com.github.tidetunes.database.buildDatabase
 import com.github.tidetunes.platform.getAppCacheDir
 import com.github.tidetunes.platform.getAppDocumentDir
+import com.github.tidetunes.platform.getAppVersion
 import com.github.tidetunes.platform.platformSettingsCapabilities
 import com.github.tidetunes.plugin.install.PluginInstaller
 import com.github.tidetunes.plugin.management.MetadataLookupUseCase
@@ -75,7 +76,7 @@ val coreDataModule = module {
 
     single {
         PluginRuntimeSettings(
-            appVersionName = "unknown",
+            appVersionName = getAppVersion(),
             cacheDirectory = getAppCacheDir(),
         )
     }

@@ -10,6 +10,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Observes installed plugins and keeps [MetaSourceRegistry] synchronized without creating
@@ -23,6 +25,7 @@ class PluginMetaSourceRegistry(
     val registry: MetaSourceRegistry,
     private val builtInSources: List<MetaSource> = emptyList(),
 ) {
+    private val synchronizeMutex = Mutex()
     private var previousPlugins: Map<String, PluginSummary> = emptyMap()
 
     private val observerJob: Job = scope.launch {
@@ -37,15 +40,17 @@ class PluginMetaSourceRegistry(
 
     suspend fun shutdown() {
         observerJob.cancelAndJoin()
-        previousPlugins.keys.forEach { pluginId ->
-            resultParser.clearPlugin(pluginId)
+        synchronizeMutex.withLock {
+            previousPlugins.keys.forEach { pluginId ->
+                resultParser.clearPlugin(pluginId)
+            }
+            runtimeManager.closeAll()
+            registry.replace(builtInSources)
+            previousPlugins = emptyMap()
         }
-        runtimeManager.closeAll()
-        registry.replace(builtInSources)
-        previousPlugins = emptyMap()
     }
 
-    private suspend fun synchronize(plugins: List<PluginSummary>) {
+    private suspend fun synchronize(plugins: List<PluginSummary>) = synchronizeMutex.withLock {
         val current = plugins.associateBy(PluginSummary::id)
         val invalidatedPluginIds = previousPlugins.mapNotNull { (pluginId, previous) ->
             val updated = current[pluginId]

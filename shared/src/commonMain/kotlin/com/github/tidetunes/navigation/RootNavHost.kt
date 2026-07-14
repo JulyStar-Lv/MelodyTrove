@@ -1,5 +1,16 @@
 package com.github.tidetunes.navigation
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideIn
+import androidx.compose.animation.slideOut
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.IntOffset
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
 import com.github.tidetunes.core.presentation.navigation.MusicGraph
 import com.github.tidetunes.feature.album.presentation.navigation.albumGraph
 import com.github.tidetunes.feature.artist.presentation.navigation.artistGraph
@@ -14,18 +25,8 @@ import com.github.tidetunes.feature.recentlyadded.presentation.navigation.recent
 import com.github.tidetunes.feature.recentlyplayed.presentation.navigation.recentlyPlayedGraph
 import com.github.tidetunes.feature.search.presentation.navigation.searchGraph
 import com.github.tidetunes.feature.sources.presentation.navigation.sourcesGraph
+import com.github.tidetunes.plugin.management.PluginSettingsRoot
 import com.github.tidetunes.service.playback.presentation.navigation.playerGraph
-
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.slideIn
-import androidx.compose.animation.slideOut
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.IntOffset
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
 
 @Composable
 internal fun RootNavHost(
@@ -97,6 +98,9 @@ internal fun RootNavHost(
         importGraph(
             onNavigateBack = { navController.popBackStack() },
         )
+        composable<MusicGraph.PluginSettings> {
+            PluginSettingsRoot(onBack = { navController.popBackStack() })
+        }
         searchGraph()
         downloadsGraph()
         playerGraph(

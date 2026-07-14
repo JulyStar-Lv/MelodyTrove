@@ -6,8 +6,7 @@ use std::{
     sync::Arc,
 };
 use tidetunes_plugin_runtime::{
-    HostApi, HostApiOptions, PluginRuntime, PluginRuntimeError,
-    PluginRuntimeOptions as RustOptions,
+    HostApi, HostApiOptions, PluginRuntime, PluginRuntimeError, PluginRuntimeOptions as RustOptions,
 };
 
 #[derive(Clone, uniffi::Record)]
@@ -247,9 +246,7 @@ fn extract_plugin_zip_impl(
         }
         let mut out = fs::File::create(&output).map_err(|error| error.to_string())?;
         loop {
-            let read = entry
-                .read(&mut buffer)
-                .map_err(|error| error.to_string())?;
+            let read = entry.read(&mut buffer).map_err(|error| error.to_string())?;
             if read == 0 {
                 break;
             }

@@ -9,6 +9,7 @@ import tidetunes.core.presentation.generated.resources.icon_cloud
 import tidetunes.core.presentation.generated.resources.icon_image
 import tidetunes.core.presentation.generated.resources.icon_music_note
 import tidetunes.core.presentation.generated.resources.icon_play
+import tidetunes.core.presentation.generated.resources.icon_setting
 import tidetunes.core.presentation.generated.resources.icon_wifitethering
 import tidetunes.feature.settings.generated.resources.*
 
@@ -19,6 +20,7 @@ fun SettingsScreen(
     onNavigateToAppearance: () -> Unit,
     onNavigateToPlayback: () -> Unit,
     onNavigateToSource: () -> Unit,
+    onNavigateToPlugins: () -> Unit,
     onNavigateToNetworkCache: () -> Unit,
     onNavigateToStorage: () -> Unit,
     onNavigateToAbout: () -> Unit,
@@ -54,6 +56,12 @@ fun SettingsScreen(
                 },
                 icon = CoreRes.drawable.icon_cloud,
                 onClick = onNavigateToSource,
+            )
+            SettingsEntryCard(
+                title = "Metadata plugins",
+                summary = "Import and configure Lyrico Plugin API v3 providers",
+                icon = CoreRes.drawable.icon_setting,
+                onClick = onNavigateToPlugins,
             )
             SettingsEntryCard(
                 title = stringResource(Res.string.settings_network_cache_title),

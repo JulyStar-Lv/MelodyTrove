@@ -23,6 +23,7 @@ fun SettingsTabGraph(
     appBuildInfo: String,
     gitCommitSha: String,
     onNavigateToLibraryFolderImport: () -> Unit,
+    onNavigateToPlugins: () -> Unit,
 ) {
     fun navigate(route: String) {
         navController.navigate(route)
@@ -38,6 +39,7 @@ fun SettingsTabGraph(
             onNavigateToAppearance = { navigate(ROUTE_APPEARANCE) },
             onNavigateToPlayback = { navigate(ROUTE_PLAYBACK) },
             onNavigateToSource = { navigate(ROUTE_SOURCE) },
+            onNavigateToPlugins = onNavigateToPlugins,
             onNavigateToNetworkCache = { navigate(ROUTE_NETWORK_CACHE) },
             onNavigateToStorage = { navigate(ROUTE_STORAGE) },
             onNavigateToAbout = { navigate(ROUTE_ABOUT) },

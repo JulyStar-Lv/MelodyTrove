@@ -47,8 +47,7 @@ impl OperationControl {
         let active_id = self.active_operation_id.load(Ordering::Acquire);
         self.closed.load(Ordering::Acquire)
             || self.poisoned.load(Ordering::Acquire)
-            || (active_id != 0
-                && self.cancelled_operation_id.load(Ordering::Acquire) == active_id)
+            || (active_id != 0 && self.cancelled_operation_id.load(Ordering::Acquire) == active_id)
             || {
                 let deadline = self.deadline_millis.load(Ordering::Acquire);
                 deadline != 0 && now() >= deadline
@@ -60,9 +59,7 @@ impl OperationControl {
             crate::PluginRuntimeError::Closed
         } else {
             let active_id = self.active_operation_id.load(Ordering::Acquire);
-            if active_id != 0
-                && self.cancelled_operation_id.load(Ordering::Acquire) == active_id
-            {
+            if active_id != 0 && self.cancelled_operation_id.load(Ordering::Acquire) == active_id {
                 crate::PluginRuntimeError::Cancelled
             } else if self.poisoned.load(Ordering::Acquire) {
                 crate::PluginRuntimeError::Poisoned

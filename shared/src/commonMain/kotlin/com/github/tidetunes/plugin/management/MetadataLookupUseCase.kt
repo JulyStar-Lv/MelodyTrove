@@ -146,7 +146,9 @@ class MetadataLookupUseCase(
     }
 
     private fun selectedSources(sourceIds: Set<String>?): List<MetaSource> =
-        registry.sources.filter { sourceIds == null || source.id in sourceIds }
+        registry.sources.filter { candidate ->
+            sourceIds == null || candidate.id in sourceIds
+        }
 
     private suspend fun recordPluginError(
         source: MetaSource,
