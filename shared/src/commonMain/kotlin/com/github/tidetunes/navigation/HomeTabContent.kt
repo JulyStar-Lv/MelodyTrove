@@ -9,8 +9,8 @@ import com.github.tidetunes.feature.library.presentation.navigation.LibraryTabGr
 import com.github.tidetunes.feature.search.presentation.navigation.SearchTabGraph
 import com.github.tidetunes.feature.settings.presentation.navigation.SettingsTabGraph
 import com.github.tidetunes.platform.getAppBuildInfo
-import com.github.tidetunes.platform.getAppVersion
 import com.github.tidetunes.platform.getAppGitCommitSha
+import com.github.tidetunes.platform.getAppVersion
 import com.github.tidetunes.service.playback.domain.SleepModeLeftTime
 import com.github.tidetunes.service.playback.presentation.shell.rememberOpenSleepTimer
 
@@ -25,6 +25,7 @@ internal fun HomeTabContent(
     onNavigateToLibrary: () -> Unit,
     onNavigateToSearch: () -> Unit,
     onNavigateToLibraryFolderImport: () -> Unit,
+    onNavigateToPlugins: () -> Unit,
     onOpenNowPlaying: () -> Unit,
 ) {
     val openSleepTimer = rememberOpenSleepTimer()
@@ -51,6 +52,7 @@ internal fun HomeTabContent(
                 appBuildInfo = getAppBuildInfo(),
                 gitCommitSha = getAppGitCommitSha(),
                 onNavigateToLibraryFolderImport = onNavigateToLibraryFolderImport,
+                onNavigateToPlugins = onNavigateToPlugins,
             )
         }
     }
