@@ -23,7 +23,7 @@ data class PluginRuntimeSettings(
     val appVersionName: String,
     val appVersionCode: Long = 0,
     val cacheDirectory: String,
-    val memoryLimitBytes: Long = 32L * 1024 * 1024,
+    val memoryLimitBytes: Long = 64L * 1024 * 1024,
     val stackLimitBytes: Long = 2L * 1024 * 1024,
     val defaultTimeoutMs: Long = 15_000,
     val loadTimeoutMs: Long = 10_000,

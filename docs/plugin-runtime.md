@@ -96,7 +96,7 @@ and batch selection therefore never opts a newly installed plugin in implicitly.
   exit, Android's emulated/test-process termination callback, and iOS application termination
   invoke that close path. A normal Android process kill relies on OS process resource reclamation.
 
-Default `PluginRuntimeSettings` values are 32 MiB heap, 2 MiB stack, 10 second load timeout,
+Default `PluginRuntimeSettings` values are 64 MiB heap, 2 MiB stack, 10 second load timeout,
 15 second call timeout, 30 second manual-operation timeout, 16 MiB HTTP response limit, and
 4 MiB per-plugin cache limit.
 
