@@ -1,5 +1,9 @@
 package com.github.tidetunes.source.api
 
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
 data class MetaSongQuery(
     val title: String,
     val artist: String? = null,
@@ -23,6 +27,7 @@ data class MetaSongCandidate(
     val pictureUrl: String? = null,
     val fields: Map<String, String> = emptyMap(),
     val contextToken: String? = null,
+    val sourceId: String? = null,
 )
 
 data class MetaCoverCandidate(
@@ -73,11 +78,29 @@ interface MetaSource {
     suspend fun searchCovers(query: MetaSongQuery): List<MetaCoverCandidate>
 }
 
-class MetaSourceRegistry(sources: Collection<MetaSource> = emptyList()) {
-    private val byId = sources.associateBy { it.id }
-        .also { require(it.size == sources.size) { "MetaSource IDs must be unique" } }
+class MetaSourceRegistry(
+    sources: Collection<MetaSource> = emptyList(),
+) {
+    private val mutableSources = MutableStateFlow(validate(sources))
 
-    val sources: Collection<MetaSource> get() = byId.values
+    val sourcesFlow: StateFlow<List<MetaSource>> = mutableSources.asStateFlow()
+    val sources: List<MetaSource>
+        get() = mutableSources.value
 
-    fun sourceOrNull(id: String) = byId[id]
+    fun replace(sources: Collection<MetaSource>) {
+        mutableSources.value = validate(sources)
+    }
+
+    fun sourceOrNull(id: String): MetaSource? =
+        mutableSources.value.firstOrNull { it.id == id }
+
+    private companion object {
+        fun validate(sources: Collection<MetaSource>): List<MetaSource> {
+            val list = sources.toList()
+            require(list.map(MetaSource::id).distinct().size == list.size) {
+                "MetaSource IDs must be unique"
+            }
+            return list
+        }
+    }
 }
