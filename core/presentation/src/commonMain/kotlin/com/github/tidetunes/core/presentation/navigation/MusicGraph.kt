@@ -50,6 +50,9 @@ sealed interface MusicGraph {
     data class Import(val type: String) : MusicGraph
 
     @Serializable
+    data object PluginSettings : MusicGraph
+
+    @Serializable
     data object NowPlaying : MusicGraph
 }
 
