@@ -4,6 +4,8 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
+import com.github.tidetunes.core.LocalNavController
+import com.github.tidetunes.core.presentation.navigation.MusicGraph
 import com.github.tidetunes.feature.home.presentation.HomeRoot
 import com.github.tidetunes.feature.library.presentation.navigation.LibraryTabGraph
 import com.github.tidetunes.feature.search.presentation.navigation.SearchTabGraph
@@ -25,10 +27,10 @@ internal fun HomeTabContent(
     onNavigateToLibrary: () -> Unit,
     onNavigateToSearch: () -> Unit,
     onNavigateToLibraryFolderImport: () -> Unit,
-    onNavigateToPlugins: () -> Unit,
     onOpenNowPlaying: () -> Unit,
 ) {
     val openSleepTimer = rememberOpenSleepTimer()
+    val rootNavController = LocalNavController.current
 
     Crossfade(targetState = currentTab) { tab ->
         when (tab) {
@@ -52,7 +54,9 @@ internal fun HomeTabContent(
                 appBuildInfo = getAppBuildInfo(),
                 gitCommitSha = getAppGitCommitSha(),
                 onNavigateToLibraryFolderImport = onNavigateToLibraryFolderImport,
-                onNavigateToPlugins = onNavigateToPlugins,
+                onNavigateToPlugins = {
+                    rootNavController.navigate(MusicGraph.PluginSettings)
+                },
             )
         }
     }
