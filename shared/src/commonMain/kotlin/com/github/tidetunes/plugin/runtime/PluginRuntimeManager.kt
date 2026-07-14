@@ -7,6 +7,7 @@ class PluginRuntimeManager(
     private val factory: PluginRuntimeFactory,
     private val bundleBuilder: PluginScriptBundleBuilder,
     private val loadTimeoutMs: Long = factory.settings.loadTimeoutMs,
+    private val defaultCallTimeoutMs: Long = factory.settings.defaultTimeoutMs,
 ) {
     private data class Entry(
         val key: PluginRuntimeCacheKey,
@@ -67,11 +68,15 @@ class PluginRuntimeManager(
         plugin: PluginRuntimeDescriptor,
         functionName: String,
         requestJson: String,
-        timeoutMs: Long,
+        timeoutMs: Long = defaultCallTimeoutMs,
     ): String {
         val runtime = runtime(plugin)
         return try {
-            runtime.call(functionName, requestJson, timeoutMs)
+            runtime.call(
+                functionName = functionName,
+                requestJson = requestJson,
+                timeoutMs = timeoutMs.coerceAtLeast(1),
+            )
         } catch (error: PluginRuntimeError) {
             if (error.requiresRuntimeRebuild()) {
                 invalidateIfSame(plugin.pluginId, runtime)
@@ -102,7 +107,8 @@ class PluginRuntimeManager(
         runtimes.forEach(PluginRuntime::close)
     }
 
-    internal suspend fun cachedPluginIds(): Set<String> = stateMutex.withLock { entries.keys.toSet() }
+    internal suspend fun cachedPluginIds(): Set<String> =
+        stateMutex.withLock { entries.keys.toSet() }
 
     private suspend fun cachedRuntime(
         pluginId: String,
