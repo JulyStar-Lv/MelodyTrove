@@ -38,16 +38,15 @@ interface PluginDao {
     @Query("SELECT configValue FROM plugin_config WHERE pluginId = :pluginId AND configKey = :key")
     suspend fun configValue(pluginId: String, key: String): String?
 
-    @Query("UPDATE plugin SET enabled = :enabled, updatedAt = :updatedAt WHERE pluginId = :pluginId")
-    suspend fun setEnabled(pluginId: String, enabled: Boolean, updatedAt: Long)
+    @Query("UPDATE plugin SET enabled = :enabled WHERE pluginId = :pluginId")
+    suspend fun setEnabled(pluginId: String, enabled: Boolean)
 
     @Query(
         """
         UPDATE plugin SET
             allowManualLookup = :allowManual,
             allowAutomaticLookup = :allowAutomatic,
-            allowBatchLookup = :allowBatch,
-            updatedAt = :updatedAt
+            allowBatchLookup = :allowBatch
         WHERE pluginId = :pluginId
         """,
     )
@@ -56,7 +55,6 @@ interface PluginDao {
         allowManual: Boolean,
         allowAutomatic: Boolean,
         allowBatch: Boolean,
-        updatedAt: Long,
     )
 
     @Query(
