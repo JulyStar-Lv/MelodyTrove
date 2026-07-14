@@ -5,7 +5,8 @@ use std::{
     sync::Arc,
 };
 use tidetunes_plugin_runtime::{
-    HostApi, HostApiOptions, PluginRuntime, PluginRuntimeError, PluginRuntimeOptions as RustOptions,
+    HostApi, HostApiOptions, PluginRuntime, PluginRuntimeError,
+    PluginRuntimeOptions as RustOptions,
 };
 
 #[derive(Clone, uniffi::Record)]
@@ -20,11 +21,21 @@ pub struct PluginRuntimeOptions {
     pub memory_limit_bytes: u64,
     pub stack_limit_bytes: u64,
     pub default_timeout_ms: u64,
+    pub load_timeout_ms: u64,
     pub allow_http: bool,
     pub allow_https: bool,
     pub allow_private_network: bool,
     pub max_http_response_bytes: u64,
 }
+
+#[derive(Clone, uniffi::Record)]
+pub struct PluginLoadRequest {
+    pub operation_id: u64,
+    pub script: String,
+    pub filename: String,
+    pub timeout_ms: u64,
+}
+
 #[derive(Clone, uniffi::Record)]
 pub struct PluginCallRequest {
     pub operation_id: u64,
@@ -58,21 +69,22 @@ pub enum PluginRuntimeException {
     #[error("internal: {0}")]
     Internal(String),
 }
+
 impl From<PluginRuntimeError> for PluginRuntimeException {
-    fn from(e: PluginRuntimeError) -> Self {
-        let m = e.to_string();
-        match e {
-            PluginRuntimeError::Closed => Self::Closed(m),
-            PluginRuntimeError::Initialization(_) => Self::Initialization(m),
-            PluginRuntimeError::Script(_) => Self::Script(m),
-            PluginRuntimeError::FunctionNotFound(_) => Self::FunctionNotFound(m),
-            PluginRuntimeError::InvalidRequest(_) => Self::InvalidRequest(m),
-            PluginRuntimeError::Timeout => Self::Timeout(m),
-            PluginRuntimeError::Cancelled => Self::Cancelled(m),
-            PluginRuntimeError::OutOfMemory => Self::OutOfMemory(m),
-            PluginRuntimeError::HostApi(_) => Self::HostApi(m),
-            PluginRuntimeError::Poisoned => Self::Poisoned(m),
-            PluginRuntimeError::Internal(_) => Self::Internal(m),
+    fn from(error: PluginRuntimeError) -> Self {
+        let message = error.to_string();
+        match error {
+            PluginRuntimeError::Closed => Self::Closed(message),
+            PluginRuntimeError::Initialization(_) => Self::Initialization(message),
+            PluginRuntimeError::Script(_) => Self::Script(message),
+            PluginRuntimeError::FunctionNotFound(_) => Self::FunctionNotFound(message),
+            PluginRuntimeError::InvalidRequest(_) => Self::InvalidRequest(message),
+            PluginRuntimeError::Timeout => Self::Timeout(message),
+            PluginRuntimeError::Cancelled => Self::Cancelled(message),
+            PluginRuntimeError::OutOfMemory => Self::OutOfMemory(message),
+            PluginRuntimeError::HostApi(_) => Self::HostApi(message),
+            PluginRuntimeError::Poisoned => Self::Poisoned(message),
+            PluginRuntimeError::Internal(_) => Self::Internal(message),
         }
     }
 }
@@ -81,11 +93,20 @@ impl From<PluginRuntimeError> for PluginRuntimeException {
 pub struct PluginRuntimeHandle {
     runtime: PluginRuntime,
 }
+
 #[uniffi::export]
 impl PluginRuntimeHandle {
-    pub fn load(&self, script: String, filename: String) -> Result<(), PluginRuntimeException> {
-        self.runtime.load(script, filename).map_err(Into::into)
+    pub fn load(&self, request: PluginLoadRequest) -> Result<(), PluginRuntimeException> {
+        self.runtime
+            .load(
+                request.operation_id,
+                request.script,
+                request.filename,
+                request.timeout_ms,
+            )
+            .map_err(Into::into)
     }
+
     pub fn call_json(&self, request: PluginCallRequest) -> Result<String, PluginRuntimeException> {
         self.runtime
             .call_json(
@@ -96,13 +117,16 @@ impl PluginRuntimeHandle {
             )
             .map_err(Into::into)
     }
+
     pub fn cancel_operation(&self, operation_id: u64) {
-        self.runtime.cancel_operation(operation_id)
+        self.runtime.cancel_operation(operation_id);
     }
+
     pub fn shutdown(&self) {
-        self.runtime.close()
+        self.runtime.close();
     }
 }
+
 #[uniffi::export]
 pub fn create_plugin_runtime(
     options: PluginRuntimeOptions,
@@ -126,6 +150,7 @@ pub fn create_plugin_runtime(
             memory_limit_bytes: options.memory_limit_bytes,
             stack_limit_bytes: options.stack_limit_bytes,
             default_timeout_ms: options.default_timeout_ms,
+            load_timeout_ms: options.load_timeout_ms,
         },
         Box::new(host),
     )
@@ -160,18 +185,20 @@ fn extract_plugin_zip_impl(
     max_total_uncompressed_bytes: u64,
     max_depth: usize,
 ) -> Result<(), String> {
-    fs::create_dir_all(destination_dir).map_err(|e| e.to_string())?;
-    let destination_dir = destination_dir.canonicalize().map_err(|e| e.to_string())?;
-    let file = fs::File::open(zip_path).map_err(|e| e.to_string())?;
-    let mut archive = zip::ZipArchive::new(file).map_err(|e| e.to_string())?;
+    fs::create_dir_all(destination_dir).map_err(|error| error.to_string())?;
+    let destination_dir = destination_dir
+        .canonicalize()
+        .map_err(|error| error.to_string())?;
+    let file = fs::File::open(zip_path).map_err(|error| error.to_string())?;
+    let mut archive = zip::ZipArchive::new(file).map_err(|error| error.to_string())?;
     if archive.len() > max_files {
         return Err("archive contains too many files".into());
     }
 
-    let mut total = 0u64;
-    let mut buffer = [0u8; 8192];
+    let mut total = 0_u64;
+    let mut buffer = [0_u8; 8192];
     for index in 0..archive.len() {
-        let mut entry = archive.by_index(index).map_err(|e| e.to_string())?;
+        let mut entry = archive.by_index(index).map_err(|error| error.to_string())?;
         if is_zip_symlink(&entry) {
             return Err(format!("zip entry is a symlink: {}", entry.name()));
         }
@@ -191,15 +218,17 @@ fn extract_plugin_zip_impl(
             return Err(format!("unsafe zip entry: {}", entry.name()));
         }
         if entry.is_dir() {
-            fs::create_dir_all(&output).map_err(|e| e.to_string())?;
+            fs::create_dir_all(&output).map_err(|error| error.to_string())?;
             continue;
         }
         if let Some(parent) = output.parent() {
-            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            fs::create_dir_all(parent).map_err(|error| error.to_string())?;
         }
-        let mut out = fs::File::create(&output).map_err(|e| e.to_string())?;
+        let mut out = fs::File::create(&output).map_err(|error| error.to_string())?;
         loop {
-            let read = entry.read(&mut buffer).map_err(|e| e.to_string())?;
+            let read = entry
+                .read(&mut buffer)
+                .map_err(|error| error.to_string())?;
             if read == 0 {
                 break;
             }
@@ -207,7 +236,8 @@ fn extract_plugin_zip_impl(
             if total > max_total_uncompressed_bytes {
                 return Err("archive is too large after extraction".into());
             }
-            out.write_all(&buffer[..read]).map_err(|e| e.to_string())?;
+            out.write_all(&buffer[..read])
+                .map_err(|error| error.to_string())?;
         }
     }
     Ok(())
