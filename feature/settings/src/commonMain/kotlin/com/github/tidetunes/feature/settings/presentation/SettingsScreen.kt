@@ -58,8 +58,8 @@ fun SettingsScreen(
                 onClick = onNavigateToSource,
             )
             SettingsEntryCard(
-                title = stringResource(Res.string.settings_plugins_title),
-                summary = stringResource(Res.string.settings_plugins_summary),
+                title = "Metadata plugins",
+                summary = "Import and configure Lyrico Plugin API v3 providers",
                 icon = CoreRes.drawable.icon_setting,
                 onClick = onNavigateToPlugins,
             )
