@@ -9,6 +9,7 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.github.tidetunes.di.AppInitializer
 import com.github.tidetunes.di.initKoin
+import io.github.vinceglb.filekit.FileKit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -25,33 +26,36 @@ private const val MaxWindowHeight = 800
 private const val WindowWidthRatio = 0.70
 private const val WindowHeightRatio = 0.72
 
-fun main() = application {
-    val koinApp = initKoin()
+fun main() {
+    FileKit.init(appId = "TideTunes")
+    application {
+        val koinApp = initKoin()
 
-    val koin = koinApp.koin
-    AppInitializer.initializeBridge(koin)
-    AppInitializer.reloadRepositories(koin, CoroutineScope(SupervisorJob() + Dispatchers.Default))
+        val koin = koinApp.koin
+        AppInitializer.initializeBridge(koin)
+        AppInitializer.reloadRepositories(koin, CoroutineScope(SupervisorJob() + Dispatchers.Default))
 
-    val initialWindowSize = remember { calculateInitialWindowSize() }
-    val windowState = rememberWindowState(size = initialWindowSize)
+        val initialWindowSize = remember { calculateInitialWindowSize() }
+        val windowState = rememberWindowState(size = initialWindowSize)
 
-    Window(
-        onCloseRequest = {
-            koinApp.close()
-            exitApplication()
-        },
-        title = "TideTunes",
-        state = windowState,
-    ) {
-        DisposableEffect(window) {
-            val availableSize = calculateAvailableScreenSize(window.graphicsConfiguration)
-            window.minimumSize = Dimension(
-                minOf(MinWindowWidth, availableSize.width),
-                minOf(MinWindowHeight, availableSize.height),
-            )
-            onDispose {}
+        Window(
+            onCloseRequest = {
+                koinApp.close()
+                exitApplication()
+            },
+            title = "TideTunes",
+            state = windowState,
+        ) {
+            DisposableEffect(window) {
+                val availableSize = calculateAvailableScreenSize(window.graphicsConfiguration)
+                window.minimumSize = Dimension(
+                    minOf(MinWindowWidth, availableSize.width),
+                    minOf(MinWindowHeight, availableSize.height),
+                )
+                onDispose {}
+            }
+            Root()
         }
-        Root()
     }
 }
 

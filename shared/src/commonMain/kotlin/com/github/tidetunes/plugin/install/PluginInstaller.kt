@@ -79,7 +79,8 @@ class PluginInstaller(
     private val json: Json = Json { ignoreUnknownKeys = true },
 ) {
     companion object {
-        const val REQUIRED_API_VERSION = 3
+        const val MIN_SUPPORTED_API_VERSION = 1
+        const val MAX_SUPPORTED_API_VERSION = 3
         const val HOST_API_VERSION = 3
 
         private const val MAX_ARCHIVE_FILES = 512L
@@ -202,8 +203,9 @@ class PluginInstaller(
         require(PLUGIN_ID_PATTERN.matches(manifest.id)) {
             "plugin id must be reverse-domain format"
         }
-        require(manifest.apiVersion == REQUIRED_API_VERSION) {
-            "unsupported apiVersion: ${manifest.apiVersion}, expected $REQUIRED_API_VERSION"
+        require(manifest.apiVersion in MIN_SUPPORTED_API_VERSION..MAX_SUPPORTED_API_VERSION) {
+            "unsupported apiVersion: ${manifest.apiVersion}, supported range is " +
+                "$MIN_SUPPORTED_API_VERSION..$MAX_SUPPORTED_API_VERSION"
         }
         require(manifest.minHostApiVersion <= HOST_API_VERSION) {
             "plugin requires host API ${manifest.minHostApiVersion}"

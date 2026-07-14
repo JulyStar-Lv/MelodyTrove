@@ -6,6 +6,10 @@ import androidx.compose.animation.slideOut
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.IntOffset
 import androidx.navigation.NavHostController
@@ -26,6 +30,8 @@ import com.github.tidetunes.feature.recentlyplayed.presentation.navigation.recen
 import com.github.tidetunes.feature.search.presentation.navigation.searchGraph
 import com.github.tidetunes.feature.sources.presentation.navigation.sourcesGraph
 import com.github.tidetunes.plugin.management.PluginSettingsRoot
+import com.github.tidetunes.plugin.management.ManualMetadataSearchDialog
+import com.github.tidetunes.service.playback.presentation.nowplaying.NowPlayingTrackItem
 import com.github.tidetunes.service.playback.presentation.navigation.playerGraph
 
 @Composable
@@ -33,6 +39,7 @@ internal fun RootNavHost(
     navController: NavHostController,
     scaffoldPadding: PaddingValues,
 ) {
+    var metadataTrack by remember { mutableStateOf<NowPlayingTrackItem?>(null) }
     NavHost(
         modifier = Modifier.fillMaxSize(),
         navController = navController,
@@ -108,6 +115,11 @@ internal fun RootNavHost(
             onNavigateToLyricImport = {
                 navController.navigate(MusicGraph.Import(RouteImportType.Lyric))
             },
+            onSearchMetadata = { track -> metadataTrack = track },
         )
     }
+    ManualMetadataSearchDialog(
+        track = metadataTrack,
+        onDismiss = { metadataTrack = null },
+    )
 }

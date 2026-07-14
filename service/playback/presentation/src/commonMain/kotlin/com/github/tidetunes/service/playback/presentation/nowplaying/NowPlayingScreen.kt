@@ -82,6 +82,7 @@ import tidetunes.service.playback.presentation.generated.resources.music_lyric_n
 import tidetunes.service.playback.presentation.generated.resources.music_lyric_remove
 import tidetunes.service.playback.presentation.generated.resources.music_lyric_try_add_desc
 import tidetunes.service.playback.presentation.generated.resources.music_player_context_menu_remove
+import tidetunes.service.playback.presentation.generated.resources.music_player_search_metadata
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -130,6 +131,13 @@ private fun MusicPlayerHeader(
                     expanded = moreMenuExpanded,
                     onDismissRequest = { moreMenuExpanded = false },
                     items = listOfNotNull(
+                        TideContextMenuItem(
+                            label = Res.string.music_player_search_metadata,
+                            onClick = {
+                                moreMenuExpanded = false
+                                onAction(NowPlayingAction.SearchMetadata)
+                            },
+                        ),
                         if (hasLyric) {
                             TideContextMenuItem(
                                 label = Res.string.music_lyric_remove,

@@ -39,6 +39,15 @@ import com.github.tidetunes.core.presentation.components.TideTextButtonSize
 import com.github.tidetunes.core.presentation.components.TideTextButtonVariant
 import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import com.github.tidetunes.plugin.install.ManifestConfigField
+import io.github.vinceglb.filekit.FileKit
+import io.github.vinceglb.filekit.cacheDir
+import io.github.vinceglb.filekit.dialogs.FileKitType
+import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
+import io.github.vinceglb.filekit.delete
+import io.github.vinceglb.filekit.div
+import io.github.vinceglb.filekit.name
+import io.github.vinceglb.filekit.path
+import io.github.vinceglb.filekit.write
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -56,7 +65,6 @@ fun PluginSettingsRoot(
     val plugins by manager.plugins().collectAsState(initial = emptyList())
     val scope = rememberCoroutineScope()
     val configValues = remember { mutableStateMapOf<String, Map<String, String>>() }
-    var zipPath by remember { mutableStateOf("") }
     var status by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     var pendingUninstall by remember { mutableStateOf<PluginSummary?>(null) }
@@ -77,6 +85,30 @@ fun PluginSettingsRoot(
             status = runCatching { block() }
                 .getOrElse { error -> error.message ?: "Plugin operation failed" }
             busy = false
+        }
+    }
+
+    val zipPicker = rememberFilePickerLauncher(
+        type = FileKitType.File(extensions = listOf("zip")),
+    ) { file ->
+        file ?: return@rememberFilePickerLauncher
+        runOperation {
+            val localZip = FileKit.cacheDir / "plugin-import.zip"
+            try {
+                localZip.write(file)
+                val result = manager.installFromZip(localZip.path)
+                val installed = result.installed.joinToString { it.name }
+                if (result.installed.isEmpty()) {
+                    val reason = result.failed.firstOrNull()?.reason ?: "No installable plugin found in ZIP"
+                    error(reason)
+                } else if (result.failed.isEmpty()) {
+                    "Installed $installed from ${file.name}"
+                } else {
+                    "Installed $installed; ${result.failed.size} plugin entries failed validation"
+                }
+            } finally {
+                localZip.delete()
+            }
         }
     }
 
@@ -139,38 +171,20 @@ fun PluginSettingsRoot(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Text(
-                        text = "Enter a local Lyrico v3 plugin ZIP path. Import runs off the UI thread and validates the archive before replacing an installed version.",
+                        text = "Choose a local Lyrico v3 plugin ZIP. Import runs off the UI thread and validates the archive before replacing an installed version.",
                         style = MiuixTheme.textStyles.body2,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    )
-                    AppTextField(
-                        value = zipPath,
-                        onValueChange = { zipPath = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = "Plugin ZIP path",
-                        enabled = !busy,
-                        singleLine = true,
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End,
                     ) {
                         TideTextButton(
-                            text = "Import ZIP",
+                            text = "Choose ZIP",
                             variant = TideTextButtonVariant.PrimaryFilled,
                             size = TideTextButtonSize.Medium,
-                            enabled = zipPath.isNotBlank() && !busy,
-                            onClick = {
-                                runOperation {
-                                    val result = manager.installFromZip(zipPath.trim())
-                                    val installed = result.installed.joinToString { it.name }
-                                    if (result.failed.isEmpty()) {
-                                        "Installed $installed"
-                                    } else {
-                                        "Installed $installed; ${result.failed.size} plugin entries failed validation"
-                                    }
-                                }
-                            },
+                            enabled = !busy,
+                            onClick = zipPicker::launch,
                         )
                     }
                 }

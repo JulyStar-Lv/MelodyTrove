@@ -61,6 +61,7 @@ data class NowPlayingProgressState(
 sealed interface NowPlayingAction {
     data object NavigateBack : NowPlayingAction
     data object AddLyric : NowPlayingAction
+    data object SearchMetadata : NowPlayingAction
     data object RemoveLyric : NowPlayingAction
     data object RemoveCurrentTrack : NowPlayingAction
     data object DownloadCurrentTrack : NowPlayingAction

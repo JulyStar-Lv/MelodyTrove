@@ -46,7 +46,7 @@ class PluginImportRuntimeDesktopTest {
                       "versionName": "1.0.0",
                       "author": "TideTunes Test",
                       "description": "Lyrico v3 import and runtime contract test",
-                      "apiVersion": 3,
+                      "apiVersion": 1,
                       "minHostApiVersion": 3,
                       "entry": "source.js",
                       "includeDirs": ["lib"],

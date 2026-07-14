@@ -110,6 +110,7 @@ class PlayerVM constructor(
         when (action) {
             NowPlayingAction.NavigateBack -> Unit
             NowPlayingAction.AddLyric -> Unit
+            NowPlayingAction.SearchMetadata -> Unit
             NowPlayingAction.RemoveLyric -> removeLyric()
             NowPlayingAction.RemoveCurrentTrack -> remove()
             NowPlayingAction.DownloadCurrentTrack -> downloadCurrentTrack()

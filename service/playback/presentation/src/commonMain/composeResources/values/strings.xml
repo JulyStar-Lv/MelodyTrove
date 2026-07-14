@@ -1,6 +1,7 @@
 <resources>
     <string name="downloads_title">Downloads</string>
     <string name="music_player_context_menu_remove">Remove</string>
+    <string name="music_player_search_metadata">Search metadata</string>
     <string name="music_lyric_add">Add Lyric</string>
     <string name="music_lyric_remove">Remove Lyric</string>
     <string name="music_lyric_no_desc">No Lyric.</string>

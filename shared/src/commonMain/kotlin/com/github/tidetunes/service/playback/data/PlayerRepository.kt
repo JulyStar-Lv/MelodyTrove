@@ -215,6 +215,17 @@ class PlayerRepository(
         }
     }
 
+    fun refreshCurrentMetadata() {
+        val currentId = _music.value?.meta?.id ?: return
+        metadataJob?.cancel()
+        metadataJob = _scope.launch {
+            val refreshed = roomLibraryStore.getMusic(currentId) ?: return@launch
+            if (_music.value?.meta?.id != currentId) return@launch
+            _music.value = refreshed
+            publishCurrentTrackInfo(refreshed)
+        }
+    }
+
     private fun savePlayMode(playMode: PlayMode) {
         _playMode.value = playMode
         _scope.launch {

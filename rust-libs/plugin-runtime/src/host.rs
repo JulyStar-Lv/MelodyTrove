@@ -19,7 +19,7 @@ use std::{
     path::{Path, PathBuf},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-use url::Url;
+use url::{Host, Url};
 
 pub const SUPPORTED_HOST_APIS: &[&str] = &[
     "app.info",
@@ -320,18 +320,19 @@ impl HostApi {
 
         for redirect_count in 0..=self.options.max_redirects {
             check_control(control)?;
-            let resolved_addresses = self.validate_url(&url)?;
+            let pinned_addresses = self.validate_url(&url)?;
             let host = url
                 .host_str()
                 .ok_or_else(|| PluginRuntimeError::HostApi("URL has no host".into()))?;
-            let client = Client::builder()
+            let mut client_builder = Client::builder()
                 .redirect(reqwest::redirect::Policy::none())
                 .no_proxy()
                 .connect_timeout(Duration::from_millis(connect_timeout))
-                .timeout(Duration::from_millis(read_timeout))
-                .resolve_to_addrs(host, &resolved_addresses)
-                .build()
-                .map_err(host_error)?;
+                .timeout(Duration::from_millis(read_timeout));
+            if let Some(addresses) = pinned_addresses.as_deref() {
+                client_builder = client_builder.resolve_to_addrs(host, addresses);
+            }
+            let client = client_builder.build().map_err(host_error)?;
             let mut builder = client.request(method.clone(), url.clone());
             for (name, value) in &headers {
                 builder = builder.header(name, value);
@@ -428,7 +429,7 @@ impl HostApi {
         Ok(headers)
     }
 
-    fn validate_url(&self, url: &Url) -> Result<Vec<SocketAddr>, PluginRuntimeError> {
+    fn validate_url(&self, url: &Url) -> Result<Option<Vec<SocketAddr>>, PluginRuntimeError> {
         match url.scheme() {
             "http" if !self.options.allow_http => {
                 return Err(PluginRuntimeError::HostApi("HTTP is disabled".into()))
@@ -442,6 +443,27 @@ impl HostApi {
         let host = url
             .host_str()
             .ok_or_else(|| PluginRuntimeError::HostApi("URL has no host".into()))?;
+        let literal_ip = match url.host() {
+            Some(Host::Ipv4(ip)) => Some(IpAddr::V4(ip)),
+            Some(Host::Ipv6(ip)) => Some(IpAddr::V6(ip)),
+            Some(Host::Domain(_)) => None,
+            None => return Err(PluginRuntimeError::HostApi("URL has no host".into())),
+        };
+        if let Some(ip) = literal_ip {
+            if !self.options.allow_private_network && blocked_ip(ip) {
+                return Err(PluginRuntimeError::HostApi(
+                    "private network access is disabled".into(),
+                ));
+            }
+            return Ok(None);
+        }
+
+        // HTTPS authenticates the hostname with TLS. Let the platform resolver and network
+        // stack handle synthetic DNS addresses used by TUN/VPN implementations.
+        if url.scheme() == "https" {
+            return Ok(None);
+        }
+
         let port = url
             .port_or_known_default()
             .ok_or_else(|| PluginRuntimeError::HostApi("URL has no port".into()))?;
@@ -461,7 +483,7 @@ impl HostApi {
                 "private network access is disabled".into(),
             ));
         }
-        Ok(addresses)
+        Ok(Some(addresses))
     }
 
     fn inflate(&self, bytes: &[u8]) -> Result<serde_json::Value, PluginRuntimeError> {
@@ -876,7 +898,7 @@ mod tests {
     }
 
     #[test]
-    fn blocks_private_http_by_default_and_allows_pinned_private_when_enabled() {
+    fn blocks_literal_private_ip_by_default_and_allows_it_when_enabled() {
         let mut host = host();
         host.options.allow_http = true;
         assert!(host
@@ -891,7 +913,23 @@ mod tests {
         let addresses = host
             .validate_url(&Url::parse("http://127.0.0.1:80").unwrap())
             .unwrap();
-        assert!(addresses.iter().all(|address| address.ip().is_loopback()));
+        assert!(addresses.is_none());
+    }
+
+    #[test]
+    fn https_hostnames_use_platform_resolution_but_private_ip_literals_remain_blocked() {
+        let host = host();
+
+        assert!(host
+            .validate_url(&Url::parse("https://music.apple.com").unwrap())
+            .unwrap()
+            .is_none());
+        assert!(host
+            .validate_url(&Url::parse("https://192.168.1.10").unwrap())
+            .is_err());
+        assert!(host
+            .validate_url(&Url::parse("https://[::1]").unwrap())
+            .is_err());
     }
 
     #[test]

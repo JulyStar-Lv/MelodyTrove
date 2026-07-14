@@ -1,6 +1,6 @@
 # TideTunes Plugin Runtime
 
-TideTunes implements JavaScript metadata plugins as Lyrico Plugin API v3 compatible
+TideTunes implements JavaScript metadata plugins as Lyrico Plugin API v1–v3 compatible
 `MetaSource` instances. Plugins are imported from local ZIP files and are never treated as
 general playback `MusicSource` implementations.
 
@@ -28,7 +28,7 @@ manifest dependencies are preserved, while markdown fields are display-only.
 - Single-plugin and aggregate ZIPs are extracted by the bounded Rust extractor.
 - Extraction rejects path traversal, absolute paths, links, excessive file count/depth, and
   excessive uncompressed size.
-- Installation validates reverse-domain plugin IDs, API v3, `minHostApiVersion`, version,
+- Installation validates reverse-domain plugin IDs, API versions 1–3, `minHostApiVersion`, version,
   capabilities, `.js` entry, include directories, supported icon type, and config fields.
 - `author` and `description` are optional. Empty capabilities default to `searchSongs`, matching
   the upstream v3 host behavior; an explicit non-empty list must include `searchSongs`.
@@ -107,10 +107,13 @@ The bootstrap exposes `Platform.app`, `Platform.runtime`, `Platform.cache`, `Pla
 `Platform.log`, including the Lyrico global app/runtime shortcuts. Cache paths are isolated by a
 hash of the plugin ID.
 
-HTTP adds a TideTunes User-Agent, supports text/binary bodies and responses, applies request and
-response limits, and revalidates and pins resolved addresses on every redirect. HTTPS is enabled
-by default; plaintext HTTP and private-network access require explicit host settings. Sensitive
-header names and response bodies are not emitted to plugin logs.
+HTTP adds a TideTunes User-Agent, supports text/binary bodies and responses, and applies request
+and response limits. HTTPS hostnames use the platform resolver and network stack so TUN/VPN
+synthetic DNS works without assuming a particular address range; TLS authenticates the requested
+hostname. Plaintext HTTP hostnames are resolved, private-address checked, and pinned. Literal
+private IPv4/IPv6 targets remain blocked unless explicitly enabled, and every redirect is
+revalidated under the same rules. Sensitive header names and response bodies are not emitted to
+plugin logs.
 
 ## Validation
 
