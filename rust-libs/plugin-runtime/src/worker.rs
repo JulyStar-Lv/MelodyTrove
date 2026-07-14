@@ -172,8 +172,8 @@ fn run(
                     effective_timeout(timeout_ms, options.load_timeout_ms),
                 );
                 let result = engine.eval(&script, &filename);
-                let should_destroy = should_destroy_after_load(&result)
-                    || control.poisoned.load(Ordering::Acquire);
+                let should_destroy =
+                    should_destroy_after_load(&result) || control.poisoned.load(Ordering::Acquire);
                 if should_destroy {
                     control.poisoned.store(true, Ordering::Release);
                 }
@@ -195,8 +195,8 @@ fn run(
                     effective_timeout(timeout_ms, options.default_timeout_ms),
                 );
                 let result = engine.call(&function_name, &request_json);
-                let should_destroy = should_destroy_after_call(&result)
-                    || control.poisoned.load(Ordering::Acquire);
+                let should_destroy =
+                    should_destroy_after_call(&result) || control.poisoned.load(Ordering::Acquire);
                 if should_destroy {
                     control.poisoned.store(true, Ordering::Release);
                 }
@@ -222,28 +222,24 @@ fn effective_timeout(requested: u64, fallback: u64) -> u64 {
 fn should_destroy_after_load<T>(result: &Result<T, PluginRuntimeError>) -> bool {
     matches!(
         result,
-        Err(
-            PluginRuntimeError::Timeout
-                | PluginRuntimeError::Cancelled
-                | PluginRuntimeError::Closed
-                | PluginRuntimeError::OutOfMemory
-                | PluginRuntimeError::Poisoned
-                | PluginRuntimeError::Internal(_)
-        )
+        Err(PluginRuntimeError::Timeout
+            | PluginRuntimeError::Cancelled
+            | PluginRuntimeError::Closed
+            | PluginRuntimeError::OutOfMemory
+            | PluginRuntimeError::Poisoned
+            | PluginRuntimeError::Internal(_))
     )
 }
 
 fn should_destroy_after_call<T>(result: &Result<T, PluginRuntimeError>) -> bool {
     matches!(
         result,
-        Err(
-            PluginRuntimeError::Timeout
-                | PluginRuntimeError::Cancelled
-                | PluginRuntimeError::Closed
-                | PluginRuntimeError::OutOfMemory
-                | PluginRuntimeError::Poisoned
-                | PluginRuntimeError::Internal(_)
-        )
+        Err(PluginRuntimeError::Timeout
+            | PluginRuntimeError::Cancelled
+            | PluginRuntimeError::Closed
+            | PluginRuntimeError::OutOfMemory
+            | PluginRuntimeError::Poisoned
+            | PluginRuntimeError::Internal(_))
     )
 }
 
@@ -385,12 +381,14 @@ mod tests {
         let runtime = Arc::new(runtime());
         load(&runtime, "function loop(){while(true){}}");
         let worker_runtime = runtime.clone();
-        let call = thread::spawn(move || {
-            worker_runtime.call_json(99, "loop".into(), "{}".into(), 5_000)
-        });
+        let call =
+            thread::spawn(move || worker_runtime.call_json(99, "loop".into(), "{}".into(), 5_000));
         runtime.cancel_operation(99);
 
-        assert!(matches!(call.join().unwrap(), Err(PluginRuntimeError::Cancelled)));
+        assert!(matches!(
+            call.join().unwrap(),
+            Err(PluginRuntimeError::Cancelled)
+        ));
     }
 
     #[test]
