@@ -18,7 +18,7 @@ for (const buildTarget of TARGETS) {
       env: {
         ...process.env,
         RUST_BACKTRACE: "1",
-        CARGO_NDK_ANDROID_PLATFORM: "34",
+        CARGO_NDK_PLATFORM: "34",
       },
     },
   );

@@ -50,10 +50,10 @@ jobs:
           df -h /
 
           sudo rm -rf \
-            "${ANDROID_SDK_ROOT:?}/ndk" \
             "${ANDROID_SDK_ROOT:?}/system-images" \
             /usr/share/dotnet \
             /opt/ghc \
+            /opt/hostedtoolcache/CodeQL \
             /usr/local/share/boost
           sudo apt-get clean
 
