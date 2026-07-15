@@ -10,7 +10,7 @@ TideTunes is a self-hosted and local-first music player built with Kotlin Multip
 ## Highlights
 
 - **Android, iOS, and Desktop** from a shared Kotlin and Compose codebase.
-- **Local, WebDAV, and OneDrive music sources** with browsing, indexed search, streaming, and downloads.
+- **Local and WebDAV music sources** with browsing, indexed search, streaming, and downloads.
 - **Source-agnostic Room KMP library** for tracks, albums, artists, genres, artwork, lyrics, playlists, downloads, and sync state.
 - **Adaptive UI** with compact bottom navigation, medium navigation rail, and large-screen desktop sidebar layouts.
 - **Cross-platform playback abstraction** backed by Android Media3, iOS AVPlayer, and a Rust/rodio Desktop engine.
@@ -37,7 +37,6 @@ TideTunes is a self-hosted and local-first music player built with Kotlin Multip
 | --- | :---: | :---: | :---: | :---: | :---: |
 | Local | Yes | Yes | Yes | Yes | No |
 | WebDAV | Yes | Yes | Yes | Yes | No |
-| OneDrive | Yes | Yes | Yes | Yes | Yes |
 
 Source adapters authenticate, browse, search, and resolve playback resources. They do not write directly to the canonical music tables.
 
@@ -120,7 +119,7 @@ flowchart TD
    Android, iOS, and Desktop use the same Room KMP schema with bundled SQLite.
 
 2. **Canonical library data is provider-independent**  
-   Tracks, albums, artists, genres, lyrics, artwork, playlists, and downloads do not belong to WebDAV, OneDrive, or any other provider.
+   Tracks, albums, artists, genres, lyrics, artwork, playlists, and downloads do not belong to WebDAV or any other provider.
 
 3. **Source identity is stored separately**  
    Source accounts, library roots, source items, sync cursors, provider properties, and track-to-source references preserve remote identity without polluting canonical music entities.
@@ -132,7 +131,7 @@ flowchart TD
    Common code consumes playback, download, sync, source, and repository interfaces. Media3, AVPlayer, rodio, Room, and UniFFI stay at platform or data boundaries.
 
 6. **Metadata plugins are not playback providers**  
-   JavaScript plugins implement metadata lookup through `MetaSource`; Local, WebDAV, and OneDrive implement playback and browsing through `MusicSource`.
+   JavaScript plugins implement metadata lookup through `MetaSource`; Local and WebDAV implement playback and browsing through `MusicSource`.
 
 More detailed documents:
 
@@ -157,8 +156,7 @@ TideTunes/
 ├── source/
 │   ├── api/                     MusicSource contracts and registry
 │   ├── local/                   Local source adapter
-│   ├── webdav/                  WebDAV source adapter
-│   └── onedrive/                OneDrive source adapter
+│   └── webdav/                  WebDAV source adapter
 ├── service/
 │   ├── playback/domain/         Playback engine/controller/queue contracts
 │   ├── playback/presentation/   Now Playing and playback UI state
