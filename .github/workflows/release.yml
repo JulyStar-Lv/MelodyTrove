@@ -45,6 +45,12 @@ jobs:
           distribution: "zulu"
           java-version: "21"
           cache: "gradle"
+      - name: Install Linux native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            libasound2-dev \
+            pkg-config
       - name: Install scripts runtime
         run: pnpm install
       - name: Install cargo-ndk

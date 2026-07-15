@@ -2133,6 +2133,25 @@ internal fun planRemoteLibraryImport(
             entry.remoteId == null ||
             previous.providerItemId == entry.remoteId
         val sameCanonicalPath = previous?.canonicalPath == canonicalPath
+        if (
+            previous != null &&
+            previous.isDeleted &&
+            sameRemoteIdentity &&
+            sameCanonicalPath &&
+            previous.hasSameSourceContent(entry)
+        ) {
+            buildSourceItemEntity(
+                entry = entry,
+                libraryRootId = libraryRootId,
+                scanId = scanId,
+                now = now,
+                existing = previous,
+            )?.let(changedItems::add)
+            changedCount += 1
+            modifiedCount += 1
+            metadataSkippedCount += 1
+            return@forEach
+        }
         if (previous != null && sameRemoteIdentity && sameCanonicalPath && previous.hasSameSourceContent(entry)) {
             unchangedFileIds.add(previous.id)
             unchangedCount += 1

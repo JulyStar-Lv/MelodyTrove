@@ -41,6 +41,25 @@ jobs:
           cmdline-tools-version: 14742923
           packages: ""
 
+      - name: Reclaim unused runner disk space
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          echo "Disk usage before cleanup:"
+          df -h /
+
+          sudo rm -rf \
+            "${ANDROID_SDK_ROOT:?}/ndk" \
+            "${ANDROID_SDK_ROOT:?}/system-images" \
+            /usr/share/dotnet \
+            /opt/ghc \
+            /usr/local/share/boost
+          sudo apt-get clean
+
+          echo "Disk usage after cleanup:"
+          df -h /
+
       - name: Install Android 17 SDK
         shell: bash
         run: |

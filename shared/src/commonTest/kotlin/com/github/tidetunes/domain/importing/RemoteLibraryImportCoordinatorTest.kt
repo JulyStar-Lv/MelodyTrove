@@ -344,6 +344,43 @@ class RemoteLibraryImportCoordinatorTest {
     }
 
     @Test
+    fun planRestoresDeletedUnchangedFileWithoutReadingMetadata() {
+        val deleted = sourceItem(
+            id = 11,
+            canonicalPath = "/Music/restored.flac",
+            etag = "\"same\"",
+            remoteId = "remote-track-1",
+        ).copy(isDeleted = true)
+        val plan = planRemoteLibraryImport(
+            storageId = 1,
+            libraryRootId = 7,
+            scanId = "scan-restore",
+            now = 100,
+            entries = listOf(
+                entry(
+                    path = "/Music/restored.flac",
+                    name = "restored.flac",
+                    etag = "\"same\"",
+                    remoteId = "remote-track-1",
+                )
+            ),
+            existing = mapOf(deleted.canonicalPath to deleted),
+        )
+
+        assertTrue(plan.changedEntries.isEmpty())
+        assertTrue(plan.metadataEntries.isEmpty())
+        assertTrue(plan.unchangedFileIds.isEmpty())
+        assertEquals(1, plan.changedCount)
+        assertEquals(0, plan.unchangedCount)
+        assertEquals(1, plan.modifiedCount)
+        assertEquals(1, plan.metadataSkippedCount)
+        val restored = plan.changedItems.single()
+        assertEquals(11, restored.id)
+        assertFalse(restored.isDeleted)
+        assertEquals("scan-restore", restored.lastSeenScanId)
+    }
+
+    @Test
     fun failureDetailsKeepMetadataReadErrorsForFailedFiles() {
         val broken = entry(path = "/Music/Broken.flac", name = "Broken.flac")
         val missing = entry(path = "/Music/Missing.flac", name = "Missing.flac")
