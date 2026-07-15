@@ -588,10 +588,15 @@ class SettingsVM(
             .onSuccess { value ->
                 emitFeedback(
                     Res.string.settings_feedback_scan_complete,
+                    value.syncMode,
                     value.scannedCount.toString(),
-                    value.importedCount.toString(),
-                    value.failedCount.toString(),
+                    value.addedCount.toString(),
+                    (value.modifiedCount + value.renamedCount).toString(),
+                    value.deletedCount.toString(),
+                    value.skippedCount.toString(),
+                    value.metadataRequestCount.toString(),
                     formatBytes(value.metadataFetchedBytes),
+                    value.totalElapsedMs.toString(),
                 )
                 storageRepository.reload()
             }

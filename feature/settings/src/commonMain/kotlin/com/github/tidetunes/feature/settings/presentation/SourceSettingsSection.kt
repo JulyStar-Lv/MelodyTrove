@@ -668,9 +668,14 @@ private fun LibrarySyncTask.statusSummary(): String {
     return stringResource(
         Res.string.settings_scan_status_summary,
         statusText,
+        syncMode,
         scannedCount.toString(),
-        importedCount.toString(),
-        failedCount.toString(),
+        addedCount.toString(),
+        (modifiedCount + renamedCount).toString(),
+        deletedCount.toString(),
+        skippedCount.toString(),
+        metadataRequestCount.toString(),
+        totalElapsedMs.toString(),
     )
 }
 

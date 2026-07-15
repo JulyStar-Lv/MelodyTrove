@@ -36,6 +36,42 @@ import kotlin.test.assertTrue
 
 class RoomLibraryIntegrationTest {
     @Test
+    fun migrationThirteenToFourteenAddsWebDavScanPerformanceMetrics() {
+        val connection = BundledSQLiteDriver().open(":memory:")
+        try {
+            connection.execute(
+                """
+                CREATE TABLE import_job (
+                    id TEXT NOT NULL PRIMARY KEY,
+                    libraryRootId INTEGER NOT NULL,
+                    status TEXT NOT NULL
+                )
+                """.trimIndent()
+            )
+            connection.execute("INSERT INTO import_job VALUES ('job', 1, 'PAUSED')")
+
+            MIGRATION_13_14.migrate(connection)
+
+            val columns = columns(connection, "import_job")
+            assertTrue("syncMode" in columns)
+            assertTrue("directoryRequestCount" in columns)
+            assertTrue("addedCount" in columns)
+            assertTrue("databaseWriteElapsedMs" in columns)
+            assertTrue("totalElapsedMs" in columns)
+            connection.prepare(
+                "SELECT syncMode, directoryConcurrency, totalElapsedMs FROM import_job"
+            ).use { statement ->
+                assertTrue(statement.step())
+                assertEquals("LEGACY_FULL_SCAN_FALLBACK", statement.getText(0))
+                assertEquals(4, statement.getLong(1))
+                assertEquals(0, statement.getLong(2))
+            }
+        } finally {
+            connection.close()
+        }
+    }
+
+    @Test
     fun migrationElevenToTwelveAddsMetadataScanSnapshotAndStatistics() {
         val connection = BundledSQLiteDriver().open(":memory:")
         try {
@@ -387,6 +423,50 @@ class RoomLibraryIntegrationTest {
     }
 
     @Test
+    fun zeroChangeBatchDoesNotTouchSourceItemTimestamps() = withDatabase { database ->
+        val folderId = seedStorageAndFolder(database)
+        val original = seedSourceItem(
+            database = database,
+            rootId = folderId,
+            id = 301,
+            path = "/Music/unchanged.flac",
+        )
+
+        database.sourceItemDao().applyScanBatch(changedItems = emptyList())
+
+        val unchanged = assertNotNull(database.sourceItemDao().get(original.id))
+        assertEquals(original.lastSyncedAt, unchanged.lastSyncedAt)
+        assertEquals(original.lastSeenScanId, unchanged.lastSeenScanId)
+        assertEquals(original.etag, unchanged.etag)
+    }
+
+    @Test
+    fun directoryTombstoneLookupIsRootScopedAndEscapesLikeWildcards() =
+        withDatabase { database ->
+            val folderId = seedStorageAndFolder(database)
+            seedSourceItem(
+                database,
+                folderId,
+                id = 401,
+                path = "/Music/100%_Hits/Disc-1/song.flac",
+            )
+            seedSourceItem(
+                database,
+                folderId,
+                id = 402,
+                path = "/Music/100AAHits/other.flac",
+            )
+
+            val descendants = database.sourceItemDao().findLiveAtOrBelowPath(
+                libraryRootId = folderId,
+                canonicalPath = "/Music/100%_Hits",
+                descendantPattern = "/Music/100\\%\\_Hits/%",
+            )
+
+            assertEquals(listOf(401L), descendants.map { it.id })
+        }
+
+    @Test
     fun deltaDeletionUsesStableRemoteIdAndCursorAdvancesTransactionally() =
         withDatabase { database ->
             val folderId = seedStorageAndFolder(database)
@@ -434,6 +514,45 @@ class RoomLibraryIntegrationTest {
                 "https://graph.microsoft.com/delta/final",
                 syncDao.getCursor(folderId)?.cursorValue,
             )
+        }
+
+    @Test
+    fun webDavSyncTokenDoesNotAdvanceWhenCompletionTransactionFails() =
+        withDatabase { database ->
+            val folderId = seedStorageAndFolder(database)
+            val syncDao = database.syncDao()
+            syncDao.upsertCursor(
+                SourceSyncCursorEntity(
+                    sourceAccountId = 1,
+                    libraryRootId = folderId,
+                    cursorType = "webdav_sync_token",
+                    cursorValue = "token-before",
+                    lastScanId = "scan-before",
+                    lastSyncAt = 1,
+                ),
+            )
+
+            val failure = runCatching {
+                database.useWriterConnection { connection ->
+                    connection.immediateTransaction {
+                        syncDao.upsertCursor(
+                            assertNotNull(
+                                syncDao.getCursor(folderId, "webdav_sync_token"),
+                            ).copy(
+                                cursorValue = "token-after",
+                                lastScanId = "scan-after",
+                                lastSyncAt = 2,
+                            ),
+                        )
+                        error("simulate final Room write failure")
+                    }
+                }
+            }.exceptionOrNull()
+
+            assertIs<IllegalStateException>(failure)
+            val cursor = assertNotNull(syncDao.getCursor(folderId, "webdav_sync_token"))
+            assertEquals("token-before", cursor.cursorValue)
+            assertEquals("scan-before", cursor.lastScanId)
         }
 
     @Test

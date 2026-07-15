@@ -4,7 +4,7 @@ mod impls;
 
 pub use backend::{
     ByteRange, DeltaItem, DeltaPage, Entry, RangeResponse, StorageBackend, StorageBackendError,
-    StorageBackendResult, StreamFile,
+    StorageBackendResult, StreamFile, WebDavSyncItem, WebDavSyncPage,
 };
 pub use bytes;
 pub use impls::{

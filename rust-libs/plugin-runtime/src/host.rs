@@ -300,7 +300,27 @@ impl HostApi {
         payload: serde_json::Value,
         control: &OperationControl,
     ) -> Result<serde_json::Value, PluginRuntimeError> {
-        let mut url = Url::parse(required_string(&payload, "url")?).map_err(host_error)?;
+        let retry_transport_failure = method == Method::GET;
+        self.http_attempt(
+            method,
+            bytes_response,
+            structured,
+            &payload,
+            control,
+            retry_transport_failure,
+        )
+    }
+
+    fn http_attempt(
+        &self,
+        method: Method,
+        bytes_response: bool,
+        structured: bool,
+        payload: &serde_json::Value,
+        control: &OperationControl,
+        retry_transport_failure: bool,
+    ) -> Result<serde_json::Value, PluginRuntimeError> {
+        let mut url = Url::parse(required_string(payload, "url")?).map_err(host_error)?;
         let connect_timeout = payload
             .get("connectTimeoutMs")
             .and_then(|v| v.as_u64())
@@ -316,7 +336,7 @@ impl HostApi {
             .and_then(|v| v.as_bool())
             .unwrap_or(true);
         let headers = self.parse_headers(payload.get("headers"))?;
-        let body = request_body(&payload, self.options.max_http_request_bytes)?;
+        let body = request_body(payload, self.options.max_http_request_bytes)?;
 
         for redirect_count in 0..=self.options.max_redirects {
             check_control(control)?;
@@ -343,7 +363,20 @@ impl HostApi {
             if method != Method::GET {
                 builder = builder.body(body.clone());
             }
-            let mut response = builder.send().map_err(host_error)?;
+            let mut response = match builder.send() {
+                Ok(response) => response,
+                Err(_) if retry_transport_failure => {
+                    return self.http_attempt(
+                        method,
+                        bytes_response,
+                        structured,
+                        payload,
+                        control,
+                        false,
+                    )
+                }
+                Err(error) => return Err(host_error(error)),
+            };
             check_control(control)?;
 
             if response.status().is_redirection() && follow_redirects {
@@ -374,7 +407,20 @@ impl HostApi {
             loop {
                 check_control(control)?;
                 let mut chunk = [0_u8; 8192];
-                let read = limited.read(&mut chunk).map_err(host_error)?;
+                let read = match limited.read(&mut chunk) {
+                    Ok(read) => read,
+                    Err(_) if retry_transport_failure => {
+                        return self.http_attempt(
+                            method,
+                            bytes_response,
+                            structured,
+                            payload,
+                            control,
+                            false,
+                        )
+                    }
+                    Err(error) => return Err(host_error(error)),
+                };
                 if read == 0 {
                     break;
                 }
@@ -961,6 +1007,39 @@ mod tests {
             )
             .unwrap_err();
         assert!(matches!(error, PluginRuntimeError::HostApi(_)));
+        handle.join().unwrap();
+    }
+
+    #[test]
+    fn get_retries_once_after_truncated_response_body() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let handle = thread::spawn(move || {
+            for body in [b"cut".as_slice(), b"complete".as_slice()] {
+                let (mut stream, _) = listener.accept().unwrap();
+                let mut request = [0_u8; 1024];
+                let _ = stream.read(&mut request);
+                write!(
+                    stream,
+                    "HTTP/1.1 200 OK\r\nContent-Length: 8\r\nConnection: close\r\n\r\n",
+                )
+                .unwrap();
+                stream.write_all(body).unwrap();
+            }
+        });
+
+        let mut host = host();
+        host.options.allow_http = true;
+        host.options.allow_private_network = true;
+        host.options.connect_timeout_ms = 1_000;
+        host.options.read_timeout_ms = 1_000;
+        let result = call(
+            &mut host,
+            "http.getText",
+            serde_json::json!({"url":format!("http://{address}/retry")}),
+        );
+
+        assert_eq!(result, "complete");
         handle.join().unwrap();
     }
 

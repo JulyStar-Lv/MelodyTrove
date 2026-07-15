@@ -254,7 +254,7 @@
     <string name="settings_scan_status_failed">失败</string>
     <string name="settings_scan_status_cancelled">已取消</string>
     <string name="settings_scan_status_unknown">未知</string>
-    <string name="settings_scan_status_summary">%1$s · 总数 %2$s · 导入 %3$s · 失败 %4$s</string>
+    <string name="settings_scan_status_summary">%1$s · %2$s · 已扫描 %3$s · 新增 %4$s · 修改 %5$s · 删除 %6$s · 跳过 %7$s · 元数据请求 %8$s · %9$s 毫秒</string>
 
     <string name="settings_feedback_unknown_error">未知错误</string>
     <string name="settings_feedback_language_restart">语言已应用，如部分页面未刷新请重启应用</string>
@@ -275,7 +275,7 @@
     <string name="settings_feedback_scan_not_cancelled">当前扫描无法取消</string>
     <string name="settings_feedback_url_required">请输入服务器 URL</string>
     <string name="settings_feedback_password_required">请输入密码，或清空用户名以匿名访问</string>
-    <string name="settings_feedback_scan_complete">扫描完成：总数 %1$s，导入 %2$s，失败 %3$s，读取 %4$s</string>
+    <string name="settings_feedback_scan_complete">扫描完成：%1$s，已扫描 %2$s，新增 %3$s，修改 %4$s，删除 %5$s，跳过 %6$s，元数据请求 %7$s，读取 %8$s，耗时 %9$s 毫秒</string>
     <string name="settings_feedback_scan_failed">扫描失败：%1$s</string>
     <string name="settings_feedback_cache_limit_failed">更新缓存上限失败：%1$s</string>
     <string name="settings_feedback_diagnostics_exported">诊断日志已导出到 %1$s</string>

@@ -45,6 +45,12 @@ jobs:
           distribution: "zulu"
           java-version: "21"
           cache: "gradle"
+      - name: Install Linux native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            libasound2-dev \
+            pkg-config
       - name: Install scripts runtime
         run: pnpm install
       - name: Install cargo-ndk
@@ -60,7 +66,7 @@ jobs:
       - name: Run plugin release audit
         run: pnpm run audit:release
       - name: Build APK
-        if: ${{ startsWith(github.ref, 'refs/tags/v') }} || ${{ startsWith(github.ref, 'refs/tags/pre-v') }}
+        if: ${{ startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/pre-v') }}
         run: |
           mkdir -p ~/.gradle
           echo "ANDROID_NDK=$ANDROID_NDK_HOME" >> ~/.gradle/gradle.properties

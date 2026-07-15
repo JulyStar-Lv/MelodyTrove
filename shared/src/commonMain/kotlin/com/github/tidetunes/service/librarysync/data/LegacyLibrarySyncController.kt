@@ -58,8 +58,8 @@ internal class LegacyLibrarySyncController(
                 "A library sync is already active for ${request.accountId.value}"
             }
 
-            if (storage.typ == StorageType.ONE_DRIVE) {
-                importer.syncOneDriveFolder(
+            when (storage.typ) {
+                StorageType.ONE_DRIVE -> importer.syncOneDriveFolder(
                     storageId = storageId.value,
                     selectedFolderRemoteId = requireNotNull(request.selectedFolderRemoteId) {
                         "OneDrive folder has no DriveItem ID"
@@ -72,8 +72,18 @@ internal class LegacyLibrarySyncController(
                     metadataConcurrency = request.metadataConcurrency,
                     importBatchSize = request.importBatchSize,
                 )
-            } else {
-                importer.scanAndImportFolder(
+                StorageType.WEBDAV -> importer.syncWebDavFolder(
+                    storageId = storageId.value,
+                    selectedFolderRemoteId = request.selectedFolderRemoteId,
+                    selectedFolderCanonicalPath = request.selectedFolderCanonicalPath,
+                    selectedFolderDisplayPath = request.selectedFolderDisplayPath,
+                    scanId = request.scanId,
+                    scanRules = request.scanRules,
+                    metadataScanMode = request.metadataScanMode,
+                    metadataConcurrency = request.metadataConcurrency,
+                    importBatchSize = request.importBatchSize,
+                )
+                StorageType.LOCAL -> importer.scanAndImportFolder(
                     storageId = storageId.value,
                     selectedFolderRemoteId = request.selectedFolderRemoteId,
                     selectedFolderCanonicalPath = request.selectedFolderCanonicalPath,
@@ -150,6 +160,18 @@ internal interface LegacyLibrarySyncImporter {
         importBatchSize: Int,
     ): RemoteLibraryImportResult
 
+    suspend fun syncWebDavFolder(
+        storageId: Long,
+        selectedFolderRemoteId: String?,
+        selectedFolderCanonicalPath: String,
+        selectedFolderDisplayPath: String?,
+        scanId: String?,
+        scanRules: LibrarySyncScanRules,
+        metadataScanMode: MetadataScanMode,
+        metadataConcurrency: UInt,
+        importBatchSize: Int,
+    ): RemoteLibraryImportResult
+
     suspend fun scanAndImportFolder(
         storageId: Long,
         selectedFolderRemoteId: String?,
@@ -202,6 +224,30 @@ internal class RemoteLibraryImportGateway(
         )
     }
 
+    override suspend fun syncWebDavFolder(
+        storageId: Long,
+        selectedFolderRemoteId: String?,
+        selectedFolderCanonicalPath: String,
+        selectedFolderDisplayPath: String?,
+        scanId: String?,
+        scanRules: LibrarySyncScanRules,
+        metadataScanMode: MetadataScanMode,
+        metadataConcurrency: UInt,
+        importBatchSize: Int,
+    ): RemoteLibraryImportResult {
+        return coordinator.syncWebDavFolder(
+            storageId = storageId,
+            selectedFolderRemoteId = selectedFolderRemoteId,
+            selectedFolderCanonicalPath = selectedFolderCanonicalPath,
+            selectedFolderDisplayPath = selectedFolderDisplayPath,
+            scanId = scanId,
+            scanRules = scanRules,
+            metadataScanMode = metadataScanMode,
+            metadataConcurrency = metadataConcurrency,
+            importBatchSize = importBatchSize,
+        )
+    }
+
     override suspend fun scanAndImportFolder(
         storageId: Long,
         selectedFolderRemoteId: String?,
@@ -240,6 +286,22 @@ private fun RemoteLibraryImportResult.toLibrarySyncResult(): LibrarySyncResult {
         metadataFetchedBytes = metadataFetchedBytes,
         metadataElapsedMs = metadataElapsedMs,
         artworkCachedBytes = artworkCachedBytes,
+        syncMode = syncMode,
+        directoryConcurrency = directoryConcurrency,
+        capabilityDetectionElapsedMs = capabilityDetectionElapsedMs,
+        directoryScanElapsedMs = directoryScanElapsedMs,
+        directoryRequestCount = directoryRequestCount,
+        listedDirectoryCount = listedDirectoryCount,
+        visitedEntryCount = visitedEntryCount,
+        discoveredMusicCount = discoveredMusicCount,
+        unchangedCount = unchangedCount,
+        addedCount = addedCount,
+        modifiedCount = modifiedCount,
+        renamedCount = renamedCount,
+        deletedCount = deletedCount,
+        databaseReadElapsedMs = databaseReadElapsedMs,
+        databaseWriteElapsedMs = databaseWriteElapsedMs,
+        totalElapsedMs = totalElapsedMs,
     )
 }
 

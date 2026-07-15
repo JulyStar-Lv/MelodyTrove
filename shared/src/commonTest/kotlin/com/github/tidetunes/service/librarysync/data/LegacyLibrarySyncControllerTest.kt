@@ -24,7 +24,7 @@ import uniffi.tidetunes_backend.StorageType
 
 class LegacyLibrarySyncControllerTest {
     @Test
-    fun webDavStorageUsesLegacyFolderScan() = runBlocking {
+    fun webDavStorageUsesDedicatedIncrementalSync() = runBlocking {
         val importer = FakeLegacyLibrarySyncImporter()
         val controller = controller(
             importer = importer,
@@ -41,15 +41,16 @@ class LegacyLibrarySyncControllerTest {
             )
         )
 
-        assertEquals(1, importer.scanCalls.size)
+        assertEquals(1, importer.webDavCalls.size)
+        assertEquals(emptyList(), importer.scanCalls)
         assertEquals(emptyList(), importer.oneDriveCalls)
-        assertEquals(42L, importer.scanCalls.single().storageId)
-        assertEquals(null, importer.scanCalls.single().selectedFolderRemoteId)
-        assertEquals("/Music", importer.scanCalls.single().selectedFolderCanonicalPath)
-        assertEquals("scan-42", importer.scanCalls.single().scanId)
-        assertEquals(MetadataScanMode.Fast, importer.scanCalls.single().metadataScanMode)
-        assertEquals(2u, importer.scanCalls.single().metadataConcurrency)
-        assertEquals(25, importer.scanCalls.single().importBatchSize)
+        assertEquals(42L, importer.webDavCalls.single().storageId)
+        assertEquals(null, importer.webDavCalls.single().selectedFolderRemoteId)
+        assertEquals("/Music", importer.webDavCalls.single().selectedFolderCanonicalPath)
+        assertEquals("scan-42", importer.webDavCalls.single().scanId)
+        assertEquals(MetadataScanMode.Fast, importer.webDavCalls.single().metadataScanMode)
+        assertEquals(2u, importer.webDavCalls.single().metadataConcurrency)
+        assertEquals(25, importer.webDavCalls.single().importBatchSize)
         assertEquals(7L, result.importedCount)
     }
 
@@ -255,11 +256,11 @@ class LegacyLibrarySyncControllerTest {
         val result = controller.resume("scan-42")
 
         assertEquals("scan-42", result?.scanId)
-        assertEquals(1, importer.scanCalls.size)
-        assertEquals("scan-42", importer.scanCalls.single().scanId)
-        assertEquals("folder-42", importer.scanCalls.single().selectedFolderRemoteId)
-        assertEquals("/Music", importer.scanCalls.single().selectedFolderCanonicalPath)
-        assertEquals(MetadataScanMode.Fast, importer.scanCalls.single().metadataScanMode)
+        assertEquals(1, importer.webDavCalls.size)
+        assertEquals("scan-42", importer.webDavCalls.single().scanId)
+        assertEquals("folder-42", importer.webDavCalls.single().selectedFolderRemoteId)
+        assertEquals("/Music", importer.webDavCalls.single().selectedFolderCanonicalPath)
+        assertEquals(MetadataScanMode.Fast, importer.webDavCalls.single().metadataScanMode)
         assertEquals(
             listOf(ActiveCheck(SourceAccountId("storage:42"), "scan-42")),
             taskRepository.activeChecks,
@@ -287,10 +288,10 @@ class LegacyLibrarySyncControllerTest {
         val result = controller.retry("scan-42")
 
         assertEquals("scan-42", result?.scanId)
-        assertEquals(1, importer.scanCalls.size)
-        assertEquals("scan-42", importer.scanCalls.single().scanId)
-        assertEquals(null, importer.scanCalls.single().selectedFolderRemoteId)
-        assertEquals(MetadataScanMode.Fast, importer.scanCalls.single().metadataScanMode)
+        assertEquals(1, importer.webDavCalls.size)
+        assertEquals("scan-42", importer.webDavCalls.single().scanId)
+        assertEquals(null, importer.webDavCalls.single().selectedFolderRemoteId)
+        assertEquals(MetadataScanMode.Fast, importer.webDavCalls.single().metadataScanMode)
     }
 
     @Test
@@ -448,6 +449,7 @@ private class FakeLegacyLibrarySyncImporter(
     val cancelCalls = mutableListOf<String>()
     val pauseCalls = mutableListOf<String>()
     val scanCalls = mutableListOf<ScanCall>()
+    val webDavCalls = mutableListOf<ScanCall>()
     val oneDriveCalls = mutableListOf<OneDriveCall>()
 
     override suspend fun cancelImport(scanId: String): Boolean {
@@ -472,6 +474,31 @@ private class FakeLegacyLibrarySyncImporter(
         importBatchSize: Int,
     ): RemoteLibraryImportResult {
         oneDriveCalls += OneDriveCall(
+            storageId = storageId,
+            selectedFolderRemoteId = selectedFolderRemoteId,
+            selectedFolderCanonicalPath = selectedFolderCanonicalPath,
+            selectedFolderDisplayPath = selectedFolderDisplayPath,
+            scanId = scanId,
+            scanRules = scanRules,
+            metadataScanMode = metadataScanMode,
+            metadataConcurrency = metadataConcurrency,
+            importBatchSize = importBatchSize,
+        )
+        return result(scanId)
+    }
+
+    override suspend fun syncWebDavFolder(
+        storageId: Long,
+        selectedFolderRemoteId: String?,
+        selectedFolderCanonicalPath: String,
+        selectedFolderDisplayPath: String?,
+        scanId: String?,
+        scanRules: LibrarySyncScanRules,
+        metadataScanMode: MetadataScanMode,
+        metadataConcurrency: UInt,
+        importBatchSize: Int,
+    ): RemoteLibraryImportResult {
+        webDavCalls += ScanCall(
             storageId = storageId,
             selectedFolderRemoteId = selectedFolderRemoteId,
             selectedFolderCanonicalPath = selectedFolderCanonicalPath,

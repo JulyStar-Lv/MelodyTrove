@@ -443,10 +443,11 @@ or `sync_cursor`. Those tables are read only by historical migration code.
 
 1. Ensure a `source_account` and `library_root`.
 2. Create or update the `import_job`.
-3. Enumerate the selected folder first so `scannedCount` can represent the
-   discovered total before import batches start.
-4. Compare incoming `StorageEntry` values with `source_item` rows by canonical
-   path and stable provider item ID.
+3. Stream each Rust directory batch directly into planning and persistence;
+   the coordinator does not retain the complete discovered tree.
+4. Load the lightweight live-source signature projection once and compare
+   incoming `StorageEntry` values by stable provider item ID, then canonical
+   path.
 5. Skip unchanged source items using size plus ETag, falling back to modified
    time when the source has no ETag.
 6. Read metadata only for changed items through Rust metadata APIs.
@@ -456,10 +457,12 @@ or `sync_cursor`. Those tables are read only by historical migration code.
    families are neither deleted nor overwritten.
 8. Persist item-level failures to `source_error` with the current
    `importJobId`.
-9. Mark missing source items and their refs unavailable only after a complete
-   snapshot finishes.
-10. Advance `source_sync_cursor` and final `import_job` state in the same
-   bounded persistence path.
+9. Remove matched IDs from an in-memory missing-candidate set without updating
+   unchanged rows. Apply the remaining IDs only after a complete snapshot;
+   cancellation and failure never run this step.
+10. Advance a typed `source_sync_cursor` and final `import_job` state in the
+    same transaction. WebDAV uses `webdav_sync_token` and
+    `webdav_sync_capability`, so it cannot overwrite OneDrive's `delta` cursor.
 
 Canonical track matching prefers MusicBrainz recording ID, then ISRC plus
 duration, then strict title/artist/album/duration metadata. A track can have
@@ -480,17 +483,21 @@ hundreds of files with complete task-level status through `LibrarySyncTask`:
   a task snapshot and reused by pause/resume/retry.
 - `metadataRequestCount`, `metadataFetchedBytes`, `metadataElapsedMs`, and
   `artworkCachedBytes` expose the Rust metadata-read cost.
+- `syncMode` distinguishes `WEBDAV_SYNC_TOKEN`, `PARALLEL_FULL_SCAN`, and
+  `LEGACY_FULL_SCAN_FALLBACK`.
+- `directoryConcurrency`, capability/directory/Room timings, request and entry
+  counts, and unchanged/added/modified/renamed/deleted counters expose WebDAV
+  scan cost without storing credentials, tokens, or full paths in logs.
 - `errorMessage`, `createdAt`, and `updatedAt` support error and time display.
 - `LibrarySyncTask` also derives `processedCount`, `pendingCount`,
   `successfulCount`, and `hasProgress` from those persisted counters so UI code
   does not need to duplicate counter math.
 - `source_error.importJobId` provides the per-task failure detail list.
 
-For the performance target of importing about 500 files within 3 minutes, the
-default library sync path now uses a larger batch size and higher metadata
-concurrency. This keeps the current schema unchanged while reducing transaction
-and metadata-read overhead. Progress updates are task-level and batch-level; the
-UI can show complete task status, counters, and per-task failure details.
+Schema version 14 adds the WebDAV scan metrics to `import_job` with defaults,
+so old jobs deserialize as `LEGACY_FULL_SCAN_FALLBACK`, directory concurrency
+4, and zero counters. Progress updates remain task-level and batch-level; the UI
+can show complete task status, counters, and per-task failure details.
 
 `import_job` is not sufficient by itself for a future background enrichment
 workflow where metadata, artwork, lyrics, and raw tags continue after the

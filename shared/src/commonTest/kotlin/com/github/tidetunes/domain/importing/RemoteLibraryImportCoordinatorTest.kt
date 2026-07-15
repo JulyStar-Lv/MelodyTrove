@@ -1,7 +1,9 @@
 package com.github.tidetunes.domain.importing
 
 import com.github.tidetunes.database.SourceItemEntity
+import com.github.tidetunes.database.SourceItemSignature
 import com.github.tidetunes.database.SourceItemTypes
+import com.github.tidetunes.core.domain.model.MetadataScanMode
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncScanRules
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
@@ -166,6 +168,152 @@ class RemoteLibraryImportCoordinatorTest {
     }
 
     @Test
+    fun completeSnapshotSkipsUnchangedWithoutSchedulingDatabaseItemUpdate() {
+        val signature = signature(
+            id = 11,
+            path = "/Music/unchanged.flac",
+            etag = "W/\"same\"",
+        )
+
+        val plan = planCompleteSnapshotBatch(
+            entries = listOf(
+                entry(
+                    path = "/Music/unchanged.flac",
+                    name = "unchanged.flac",
+                    etag = "W/\"same\"",
+                )
+            ),
+            existingByPath = mapOf(requireNotNull(signature.canonicalPath) to signature),
+        )
+
+        assertEquals(emptyList(), plan.entriesToImport)
+        assertEquals(setOf(11L), plan.matchedExistingIds)
+        assertEquals(1, plan.unchangedCount)
+    }
+
+    @Test
+    fun completeSnapshotTreatsChangedOrInsufficientSignaturesAsChanges() {
+        val base = signature(id = 11, path = "/Music/song.flac", etag = "\"old\"")
+        val changedEtag = planCompleteSnapshotBatch(
+            entries = listOf(entry("/Music/song.flac", "song.flac", etag = "\"new\"")),
+            existingByPath = mapOf("/Music/song.flac" to base),
+        )
+        val changedSize = planCompleteSnapshotBatch(
+            entries = listOf(
+                entry("/Music/song.flac", "song.flac", etag = "\"old\"", size = 101uL)
+            ),
+            existingByPath = mapOf("/Music/song.flac" to base),
+        )
+        val missingRevision = planCompleteSnapshotBatch(
+            entries = listOf(
+                entry("/Music/song.flac", "song.flac", etag = null, modifiedAt = null)
+            ),
+            existingByPath = mapOf(
+                "/Music/song.flac" to base.copy(etag = null, modifiedAtRemote = null)
+            ),
+        )
+
+        assertEquals(1, changedEtag.entriesToImport.size)
+        assertEquals(1, changedSize.entriesToImport.size)
+        assertEquals(1, missingRevision.entriesToImport.size)
+    }
+
+    @Test
+    fun completeSnapshotUsesStableRemoteIdBeforePathAndDetectsIdentityReplacement() {
+        val moved = signature(
+            id = 11,
+            path = "/Music/Old/song.flac",
+            etag = "\"same\"",
+            remoteId = "stable-id",
+        )
+        val pathOccupant = signature(
+            id = 12,
+            path = "/Music/New/song.flac",
+            etag = "\"same\"",
+            remoteId = "other-id",
+        )
+        val plan = planCompleteSnapshotBatch(
+            entries = listOf(
+                entry(
+                    path = "/Music/New/song.flac",
+                    name = "song.flac",
+                    etag = "\"same\"",
+                    remoteId = "stable-id",
+                )
+            ),
+            existingByPath = mapOf("/Music/New/song.flac" to pathOccupant),
+            existingByRemoteId = mapOf("stable-id" to moved),
+        )
+        val replacement = planCompleteSnapshotBatch(
+            entries = listOf(
+                entry(
+                    path = "/Music/New/song.flac",
+                    name = "song.flac",
+                    etag = "\"same\"",
+                    remoteId = "replacement-id",
+                )
+            ),
+            existingByPath = mapOf("/Music/New/song.flac" to pathOccupant),
+            existingByRemoteId = emptyMap(),
+        )
+
+        assertEquals(setOf(11L), plan.matchedExistingIds)
+        assertEquals(1, plan.entriesToImport.size)
+        assertEquals(setOf(12L), replacement.matchedExistingIds)
+        assertEquals(1, replacement.entriesToImport.size)
+    }
+
+    @Test
+    fun webDavMoveMatchingRequiresUniqueStableEtagAndFreeDestination() {
+        val previous = sourceItem(
+            id = 11,
+            canonicalPath = "/Music/Old/song.flac",
+            etag = "W/\"same\"",
+        )
+        val movedEntry = entry(
+            path = "/Music/New/song.flac",
+            name = "song.flac",
+            etag = "W/\"same\"",
+        )
+
+        assertEquals(
+            mapOf("/Music/New/song.flac" to previous),
+            matchWebDavMoves(listOf(movedEntry), listOf(previous)),
+        )
+        assertEquals(
+            emptyMap(),
+            matchWebDavMoves(
+                listOf(movedEntry),
+                listOf(previous),
+                occupiedLivePaths = setOf("/Music/New/song.flac"),
+            ),
+        )
+        assertEquals(
+            emptyMap(),
+            matchWebDavMoves(
+                listOf(movedEntry),
+                listOf(previous, previous.copy(id = 12, canonicalPath = "/Music/Other/song.flac")),
+            ),
+        )
+    }
+
+    @Test
+    fun webDavDailyRescanUsesFastUnlessFullWasExplicitlyRequested() {
+        assertEquals(
+            MetadataScanMode.Standard,
+            webDavMetadataModeFor(false, MetadataScanMode.Standard),
+        )
+        assertEquals(
+            MetadataScanMode.Fast,
+            webDavMetadataModeFor(true, MetadataScanMode.Standard),
+        )
+        assertEquals(
+            MetadataScanMode.Full,
+            webDavMetadataModeFor(true, MetadataScanMode.Full),
+        )
+    }
+
+    @Test
     fun planSkipsUnchangedFilesAndKeepsChangedMusicOnly() {
         val unchanged = sourceItem(
             id = 11,
@@ -193,6 +341,43 @@ class RemoteLibraryImportCoordinatorTest {
         assertEquals(1, plan.changedCount)
         assertEquals(1, plan.metadataSkippedCount)
         assertEquals(0, plan.unreadableChangedCount)
+    }
+
+    @Test
+    fun planRestoresDeletedUnchangedFileWithoutReadingMetadata() {
+        val deleted = sourceItem(
+            id = 11,
+            canonicalPath = "/Music/restored.flac",
+            etag = "\"same\"",
+            remoteId = "remote-track-1",
+        ).copy(isDeleted = true)
+        val plan = planRemoteLibraryImport(
+            storageId = 1,
+            libraryRootId = 7,
+            scanId = "scan-restore",
+            now = 100,
+            entries = listOf(
+                entry(
+                    path = "/Music/restored.flac",
+                    name = "restored.flac",
+                    etag = "\"same\"",
+                    remoteId = "remote-track-1",
+                )
+            ),
+            existing = mapOf(deleted.canonicalPath to deleted),
+        )
+
+        assertTrue(plan.changedEntries.isEmpty())
+        assertTrue(plan.metadataEntries.isEmpty())
+        assertTrue(plan.unchangedFileIds.isEmpty())
+        assertEquals(1, plan.changedCount)
+        assertEquals(0, plan.unchangedCount)
+        assertEquals(1, plan.modifiedCount)
+        assertEquals(1, plan.metadataSkippedCount)
+        val restored = plan.changedItems.single()
+        assertEquals(11, restored.id)
+        assertFalse(restored.isDeleted)
+        assertEquals("scan-restore", restored.lastSeenScanId)
     }
 
     @Test
@@ -423,17 +608,35 @@ class RemoteLibraryImportCoordinatorTest {
         lastSeenScanId = "previous",
     )
 
+    private fun signature(
+        id: Long,
+        path: String,
+        etag: String?,
+        remoteId: String? = null,
+    ) = SourceItemSignature(
+        id = id,
+        providerItemId = remoteId,
+        canonicalPath = path,
+        sizeBytes = 100,
+        etag = etag,
+        revision = null,
+        modifiedAtRemote = 20,
+        isDeleted = false,
+    )
+
     private fun entry(
         path: String,
         name: String,
         etag: String? = "\"same\"",
         isDir: Boolean = false,
         remoteId: String? = null,
+        size: ULong? = if (isDir) null else 100uL,
+        modifiedAt: Long? = 20,
     ) = StorageEntry(
         storageId = StorageId(1),
         name = name,
         path = path,
-        size = if (isDir) null else 100uL,
+        size = size,
         isDir = isDir,
         remoteId = remoteId,
         parentRemoteId = null,
@@ -441,7 +644,7 @@ class RemoteLibraryImportCoordinatorTest {
         etag = etag,
         ctag = null,
         createdAt = 10,
-        modifiedAt = 20,
+        modifiedAt = modifiedAt,
     )
 
     private fun metadata(

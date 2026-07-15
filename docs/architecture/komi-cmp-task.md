@@ -94,6 +94,10 @@ Full goal document: `docs/architecture/komi-cmp-goal.md`
 - [x] `LegacyLibrarySyncController` (wraps Rust importer)
 - [x] `RoomLibrarySyncTaskRepository`
 - [x] Active task detection, pause/cancel/resume/retry
+- [x] WebDAV RFC 6578 token sync with cached capability and safe full-scan fallback
+- [x] Bounded 4-way `Depth: 1` traversal with exact PROPFIND properties, retry, and cancellation
+- [x] Streaming signature diff; zero-change batches skip metadata and `source_item` writes
+- [x] Fast daily / Standard first / explicit Full metadata policy and persisted performance metrics
 
 ### Search
 - [x] `SearchRepository` interface (feature:search:domain)

@@ -6,10 +6,13 @@ import uniffi.tidetunes_backend.OneDriveDeltaRequest
 import uniffi.tidetunes_backend.RemoteMusicScanSession
 import uniffi.tidetunes_backend.StorageEntryLoc
 import uniffi.tidetunes_backend.StorageId
+import uniffi.tidetunes_backend.WebDavSyncPageResult
+import uniffi.tidetunes_backend.WebDavSyncRequest
 import uniffi.tidetunes_backend.ctListStorageEntryChildren
 import uniffi.tidetunes_backend.ctGetOnedriveDeltaPage
 import uniffi.tidetunes_backend.ctScanStorageMusicFolder
 import uniffi.tidetunes_backend.ctStartStorageMusicScan
+import uniffi.tidetunes_backend.ctGetWebdavSyncPage
 import com.github.tidetunes.singleton.Bridge
 import com.github.tidetunes.core.data.StorageRepositoryImpl
 
@@ -88,6 +91,26 @@ class RemoteScannerRepository(
                     rootRemoteId = rootRemoteId,
                     cursor = cursor,
                     latestOnly = latestOnly,
+                ),
+            )
+        }
+    }
+
+    suspend fun getWebDavSyncPage(
+        storageId: StorageId,
+        rootPath: String,
+        syncToken: String?,
+    ): WebDavSyncPageResult {
+        val storage = storageRepository.storageForRust(storageId)
+            ?: return WebDavSyncPageResult.ResyncRequired
+        return bridge.runRaw {
+            ctGetWebdavSyncPage(
+                it,
+                storage,
+                WebDavSyncRequest(
+                    storageId = storageId,
+                    rootPath = rootPath,
+                    syncToken = syncToken,
                 ),
             )
         }

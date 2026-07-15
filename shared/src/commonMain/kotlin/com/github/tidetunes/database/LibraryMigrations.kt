@@ -632,3 +632,28 @@ val MIGRATION_11_12 = object : Migration(11, 12) {
         }
     }
 }
+
+val MIGRATION_13_14 = object : Migration(13, 14) {
+    override fun migrate(connection: SQLiteConnection) {
+        listOf(
+            "ALTER TABLE import_job ADD COLUMN syncMode TEXT NOT NULL DEFAULT 'LEGACY_FULL_SCAN_FALLBACK'",
+            "ALTER TABLE import_job ADD COLUMN directoryConcurrency INTEGER NOT NULL DEFAULT 4",
+            "ALTER TABLE import_job ADD COLUMN capabilityDetectionElapsedMs INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE import_job ADD COLUMN directoryScanElapsedMs INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE import_job ADD COLUMN directoryRequestCount INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE import_job ADD COLUMN listedDirectoryCount INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE import_job ADD COLUMN visitedEntryCount INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE import_job ADD COLUMN discoveredMusicCount INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE import_job ADD COLUMN unchangedCount INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE import_job ADD COLUMN addedCount INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE import_job ADD COLUMN modifiedCount INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE import_job ADD COLUMN renamedCount INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE import_job ADD COLUMN deletedCount INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE import_job ADD COLUMN databaseReadElapsedMs INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE import_job ADD COLUMN databaseWriteElapsedMs INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE import_job ADD COLUMN totalElapsedMs INTEGER NOT NULL DEFAULT 0",
+        ).forEach { sql ->
+            connection.prepare(sql).use { statement -> statement.step() }
+        }
+    }
+}

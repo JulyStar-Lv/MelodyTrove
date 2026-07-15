@@ -120,6 +120,38 @@ data class ImportJobEntity(
     val metadataElapsedMs: Long = 0,
     @androidx.room.ColumnInfo(defaultValue = "0")
     val artworkCachedBytes: Long = 0,
+    @androidx.room.ColumnInfo(defaultValue = "'LEGACY_FULL_SCAN_FALLBACK'")
+    val syncMode: String = "LEGACY_FULL_SCAN_FALLBACK",
+    @androidx.room.ColumnInfo(defaultValue = "4")
+    val directoryConcurrency: Int = 4,
+    @androidx.room.ColumnInfo(defaultValue = "0")
+    val capabilityDetectionElapsedMs: Long = 0,
+    @androidx.room.ColumnInfo(defaultValue = "0")
+    val directoryScanElapsedMs: Long = 0,
+    @androidx.room.ColumnInfo(defaultValue = "0")
+    val directoryRequestCount: Long = 0,
+    @androidx.room.ColumnInfo(defaultValue = "0")
+    val listedDirectoryCount: Long = 0,
+    @androidx.room.ColumnInfo(defaultValue = "0")
+    val visitedEntryCount: Long = 0,
+    @androidx.room.ColumnInfo(defaultValue = "0")
+    val discoveredMusicCount: Long = 0,
+    @androidx.room.ColumnInfo(defaultValue = "0")
+    val unchangedCount: Long = 0,
+    @androidx.room.ColumnInfo(defaultValue = "0")
+    val addedCount: Long = 0,
+    @androidx.room.ColumnInfo(defaultValue = "0")
+    val modifiedCount: Long = 0,
+    @androidx.room.ColumnInfo(defaultValue = "0")
+    val renamedCount: Long = 0,
+    @androidx.room.ColumnInfo(defaultValue = "0")
+    val deletedCount: Long = 0,
+    @androidx.room.ColumnInfo(defaultValue = "0")
+    val databaseReadElapsedMs: Long = 0,
+    @androidx.room.ColumnInfo(defaultValue = "0")
+    val databaseWriteElapsedMs: Long = 0,
+    @androidx.room.ColumnInfo(defaultValue = "0")
+    val totalElapsedMs: Long = 0,
 )
 
 data class ImportJobWithFolder(

@@ -9,6 +9,7 @@ use crate::{
         create_onedrive_oauth_session, ListStorageEntryChildrenResp, OneDriveDeltaItem,
         OneDriveDeltaPage, OneDriveDeltaPageResult, OneDriveDeltaRequest, OneDriveDrive,
         OneDriveDriveList, OneDriveOAuthSession, Storage, StorageConnectionTestResult,
+        WebDavSyncItem, WebDavSyncPage, WebDavSyncPageResult, WebDavSyncRequest,
     },
     services::{
         build_storage_backend, build_storage_backend_by_arg, storage_entry, RemoteMusicScanSession,
@@ -96,6 +97,46 @@ pub async fn ct_get_onedrive_delta_page(
         next_link: page.next_link,
         delta_link: page.delta_link,
         refresh_token: backend.current_refresh_token().await?,
+    }))
+}
+
+#[uniffi::export]
+pub async fn ct_get_webdav_sync_page(
+    cx: Arc<Backend>,
+    storage: Storage,
+    request: WebDavSyncRequest,
+) -> BResult<WebDavSyncPageResult> {
+    let backend = build_storage_backend(cx.get_context(), storage)?;
+    let page = backend
+        .webdav_sync(request.root_path, request.sync_token)
+        .await;
+    let page = match page {
+        Ok(page) => page,
+        Err(tidetunes_storage_backend::StorageBackendError::DeltaNotSupported) => {
+            return Ok(WebDavSyncPageResult::Unsupported);
+        }
+        Err(error) if error.is_delta_resync_required() => {
+            return Ok(WebDavSyncPageResult::ResyncRequired);
+        }
+        Err(error) => return Err(error.into()),
+    };
+    Ok(WebDavSyncPageResult::Page(WebDavSyncPage {
+        items: page
+            .items
+            .into_iter()
+            .map(|item| WebDavSyncItem {
+                path: item.path,
+                name: item.name,
+                size: item.size.map(|size| size as u64),
+                is_dir: item.is_dir,
+                deleted: item.deleted,
+                mime_type: item.mime_type,
+                etag: item.etag,
+                created_at: item.created_at,
+                modified_at: item.modified_at,
+            })
+            .collect(),
+        sync_token: page.sync_token,
     }))
 }
 

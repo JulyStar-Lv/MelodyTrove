@@ -31,8 +31,10 @@ pub struct RemoteMusicScanBatch {
     pub entries: Vec<StorageEntry>,
     pub done: bool,
     pub cancelled: bool,
+    pub directory_request_count: u64,
     pub listed_directory_count: u64,
     pub visited_entry_count: u64,
+    pub directory_concurrency: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default, uniffi::Record)]
@@ -109,6 +111,39 @@ pub struct OneDriveDeltaPage {
 #[derive(Debug, Clone, uniffi::Enum)]
 pub enum OneDriveDeltaPageResult {
     Page(OneDriveDeltaPage),
+    ResyncRequired,
+}
+
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct WebDavSyncRequest {
+    pub storage_id: StorageId,
+    pub root_path: String,
+    pub sync_token: Option<String>,
+}
+
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct WebDavSyncItem {
+    pub path: String,
+    pub name: Option<String>,
+    pub size: Option<u64>,
+    pub is_dir: bool,
+    pub deleted: bool,
+    pub mime_type: Option<String>,
+    pub etag: Option<String>,
+    pub created_at: Option<i64>,
+    pub modified_at: Option<i64>,
+}
+
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct WebDavSyncPage {
+    pub items: Vec<WebDavSyncItem>,
+    pub sync_token: String,
+}
+
+#[derive(Debug, Clone, uniffi::Enum)]
+pub enum WebDavSyncPageResult {
+    Page(WebDavSyncPage),
+    Unsupported,
     ResyncRequired,
 }
 

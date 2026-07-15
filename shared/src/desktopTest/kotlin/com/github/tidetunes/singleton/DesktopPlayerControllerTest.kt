@@ -13,8 +13,9 @@ import com.github.tidetunes.core.data.security.CredentialStore
 import com.github.tidetunes.core.domain.model.StoredCredential
 import com.github.tidetunes.core.domain.model.MediaId
 import com.github.tidetunes.core.domain.model.SourceAccountId
-import com.github.tidetunes.database.PlaylistEntity
+import com.github.tidetunes.database.LyricsEntity
 import com.github.tidetunes.database.MetadataRefreshCandidate
+import com.github.tidetunes.database.PlaylistEntity
 import com.github.tidetunes.database.PlaylistTrackCrossRef
 import com.github.tidetunes.database.ProviderTypes
 import com.github.tidetunes.database.SourceAccountEntity
@@ -139,6 +140,39 @@ class DesktopPlayerControllerTest {
         assertNull(harness.playerRepository.music.value)
     }
 
+    @Test
+    fun refreshCurrentMetadataPublishesUpdatedTitleAndLyricsBeforeReturning() = withHarness(
+        sourceResult = SourcePlaybackResult.Success(TEST_RESOURCE),
+        engine = RecordingDesktopPlaybackEngine(PlaybackEngineLoadResult.Ready),
+    ) { harness ->
+        harness.controller.play(MusicId(TRACK_ID), PlaylistId(PLAYLIST_ID))
+        awaitUntil { harness.playerRepository.currentTrackInfo.value?.id == TRACK_ID }
+
+        val track = requireNotNull(harness.database.trackDao().get(TRACK_ID))
+        harness.database.trackDao().upsertAll(
+            listOf(track.copy(title = "Updated title", updatedAt = 2)),
+        )
+        harness.database.metadataDao().upsertLyrics(
+            listOf(
+                LyricsEntity(
+                    trackId = TRACK_ID,
+                    format = "LRC",
+                    language = null,
+                    synchronized = true,
+                    content = "[00:01.00]Updated lyric",
+                    sourcePath = null,
+                    updatedAt = 2,
+                ),
+            ),
+        )
+
+        harness.playerRepository.refreshCurrentMetadata()
+
+        val refreshed = requireNotNull(harness.playerRepository.currentTrackInfo.value)
+        assertEquals("Updated title", refreshed.title)
+        assertEquals("Updated lyric", refreshed.lyrics.lines.single().text)
+    }
+
     private fun withHarness(
         sourceResult: SourcePlaybackResult,
         engine: RecordingDesktopPlaybackEngine,
@@ -218,6 +252,7 @@ class DesktopPlayerControllerTest {
                 DesktopPlaybackHarness(
                     controller = controller,
                     playerRepository = playerRepository,
+                    database = database,
                     source = source,
                     engine = engine,
                     playbackResolver = playbackResolver,
@@ -377,6 +412,7 @@ class DesktopPlayerControllerTest {
 private data class DesktopPlaybackHarness(
     val controller: DesktopPlayerController,
     val playerRepository: PlayerRepository,
+    val database: TideTunesDatabase,
     val source: RecordingMusicSource,
     val engine: RecordingDesktopPlaybackEngine,
     val playbackResolver: RecordingLegacyPlaybackResolver,
