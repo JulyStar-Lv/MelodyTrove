@@ -10,7 +10,7 @@ TideTunes 是一款使用 Kotlin Multiplatform、Compose Multiplatform、Rust �
 ## 项目亮点
 
 - 使用同一套 Kotlin 与 Compose 代码支持 **Android、iOS 和 Desktop**。
-- 支持 **本地、WebDAV 和 OneDrive 音源**，具备目录浏览、索引搜索、在线播放和下载能力。
+- 支持 **本地和 WebDAV 音源**，具备目录浏览、索引搜索、在线播放和下载能力。
 - 使用 **Room KMP 统一曲库** 管理曲目、专辑、艺术家、流派、封面、歌词、播放列表、下载和同步状态。
 - 提供 **自适应界面**：手机使用底部导航，中等窗口使用导航栏，大屏和桌面使用侧边栏布局。
 - 使用统一播放抽象，并分别接入 Android Media3、iOS AVPlayer 和 Desktop Rust/rodio 播放引擎。
@@ -37,7 +37,6 @@ TideTunes 是一款使用 Kotlin Multiplatform、Compose Multiplatform、Rust �
 | --- | :---: | :---: | :---: | :---: | :---: |
 | 本地 | 支持 | 支持 | 支持 | 支持 | 暂不支持 |
 | WebDAV | 支持 | 支持 | 支持 | 支持 | 暂不支持 |
-| OneDrive | 支持 | 支持 | 支持 | 支持 | 支持 |
 
 音源适配器负责鉴权、浏览、搜索和解析播放资源，不会直接写入规范化音乐表。
 
@@ -120,7 +119,7 @@ flowchart TD
    Android、iOS 和 Desktop 使用同一套 Room KMP Schema，并统一使用 bundled SQLite。
 
 2. **规范化曲库与 Provider 无关**  
-   曲目、专辑、艺术家、流派、歌词、封面、播放列表和下载记录不归属于 WebDAV、OneDrive 或其他特定 Provider。
+   曲目、专辑、艺术家、流派、歌词、封面、播放列表和下载记录不归属于 WebDAV 或其他特定 Provider。
 
 3. **音源身份单独保存**  
    音源账号、曲库根目录、来源对象、同步游标、Provider 扩展属性和曲目来源引用单独建模，避免污染规范化音乐实体。
@@ -132,7 +131,7 @@ flowchart TD
    commonMain 仅使用播放、下载、同步、音源和 Repository 接口。Media3、AVPlayer、rodio、Room 和 UniFFI 均保留在平台层或数据边界。
 
 6. **元数据插件不是播放音源**  
-   JavaScript 插件通过 `MetaSource` 提供元数据查询；本地、WebDAV 和 OneDrive 通过 `MusicSource` 提供浏览和播放。
+   JavaScript 插件通过 `MetaSource` 提供元数据查询；本地和 WebDAV 通过 `MusicSource` 提供浏览和播放。
 
 详细文档：
 
@@ -157,8 +156,7 @@ TideTunes/
 ├── source/
 │   ├── api/                     MusicSource 契约和注册表
 │   ├── local/                   本地音源适配器
-│   ├── webdav/                  WebDAV 音源适配器
-│   └── onedrive/                OneDrive 音源适配器
+│   └── webdav/                  WebDAV 音源适配器
 ├── service/
 │   ├── playback/domain/         播放引擎、控制器和队列契约
 │   ├── playback/presentation/   正在播放和播放 UI 状态
