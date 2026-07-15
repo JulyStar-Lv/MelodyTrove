@@ -66,7 +66,7 @@ jobs:
       - name: Run plugin release audit
         run: pnpm run audit:release
       - name: Build APK
-        if: ${{ startsWith(github.ref, 'refs/tags/v') }} || ${{ startsWith(github.ref, 'refs/tags/pre-v') }}
+        if: ${{ startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/pre-v') }}
         run: |
           mkdir -p ~/.gradle
           echo "ANDROID_NDK=$ANDROID_NDK_HOME" >> ~/.gradle/gradle.properties
