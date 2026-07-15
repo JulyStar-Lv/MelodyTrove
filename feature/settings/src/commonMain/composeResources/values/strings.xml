@@ -254,7 +254,7 @@
     <string name="settings_scan_status_failed">Failed</string>
     <string name="settings_scan_status_cancelled">Cancelled</string>
     <string name="settings_scan_status_unknown">Unknown</string>
-    <string name="settings_scan_status_summary">%1$s · total %2$s · imported %3$s · failed %4$s</string>
+    <string name="settings_scan_status_summary">%1$s · %2$s · scanned %3$s · added %4$s · modified %5$s · deleted %6$s · skipped %7$s · metadata %8$s · %9$s ms</string>
 
     <string name="settings_feedback_unknown_error">Unknown error</string>
     <string name="settings_feedback_language_restart">Language applied; restart if any screen has not refreshed</string>
@@ -275,7 +275,7 @@
     <string name="settings_feedback_scan_not_cancelled">This scan cannot be cancelled</string>
     <string name="settings_feedback_url_required">Enter the server URL</string>
     <string name="settings_feedback_password_required">Enter a password, or clear the username for anonymous access</string>
-    <string name="settings_feedback_scan_complete">Scan complete: %1$s total, %2$s imported, %3$s failed, %4$s read</string>
+    <string name="settings_feedback_scan_complete">Scan complete: %1$s, scanned %2$s, added %3$s, modified %4$s, deleted %5$s, skipped %6$s, metadata requests %7$s, %8$s read, %9$s ms</string>
     <string name="settings_feedback_scan_failed">Scan failed: %1$s</string>
     <string name="settings_feedback_cache_limit_failed">Could not update cache limit: %1$s</string>
     <string name="settings_feedback_diagnostics_exported">Diagnostic log exported to %1$s</string>

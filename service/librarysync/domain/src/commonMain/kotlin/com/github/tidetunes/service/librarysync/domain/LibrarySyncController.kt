@@ -85,6 +85,22 @@ data class LibrarySyncResult(
     val metadataFetchedBytes: Long = 0,
     val metadataElapsedMs: Long = 0,
     val artworkCachedBytes: Long = 0,
+    val syncMode: String = "LEGACY_FULL_SCAN_FALLBACK",
+    val directoryConcurrency: Int = 4,
+    val capabilityDetectionElapsedMs: Long = 0,
+    val directoryScanElapsedMs: Long = 0,
+    val directoryRequestCount: Long = 0,
+    val listedDirectoryCount: Long = 0,
+    val visitedEntryCount: Long = 0,
+    val discoveredMusicCount: Long = 0,
+    val unchangedCount: Long = 0,
+    val addedCount: Long = 0,
+    val modifiedCount: Long = 0,
+    val renamedCount: Long = 0,
+    val deletedCount: Long = 0,
+    val databaseReadElapsedMs: Long = 0,
+    val databaseWriteElapsedMs: Long = 0,
+    val totalElapsedMs: Long = 0,
 )
 
 data class LibrarySyncFailure(

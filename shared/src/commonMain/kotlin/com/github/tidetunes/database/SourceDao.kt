@@ -162,6 +162,24 @@ interface SourceItemDao {
 
     @Query(
         """
+        SELECT id,
+               providerItemId,
+               canonicalPath,
+               sizeBytes,
+               etag,
+               revision,
+               modifiedAtRemote,
+               isDeleted
+        FROM source_item
+        WHERE libraryRootId = :libraryRootId
+          AND itemType = 'track'
+          AND isDeleted = 0
+        """
+    )
+    suspend fun signaturesForLibraryRoot(libraryRootId: Long): List<SourceItemSignature>
+
+    @Query(
+        """
         SELECT * FROM source_item
         WHERE sourceAccountId = :sourceAccountId
           AND canonicalPath = :canonicalPath
@@ -180,6 +198,23 @@ interface SourceItemDao {
     suspend fun findByPaths(
         sourceAccountId: Long,
         canonicalPaths: List<String>,
+    ): List<SourceItemEntity>
+
+    @Query(
+        """
+        SELECT * FROM source_item
+        WHERE libraryRootId = :libraryRootId
+          AND isDeleted = 0
+          AND (
+              canonicalPath = :canonicalPath
+              OR canonicalPath LIKE :descendantPattern ESCAPE '\'
+          )
+        """
+    )
+    suspend fun findLiveAtOrBelowPath(
+        libraryRootId: Long,
+        canonicalPath: String,
+        descendantPattern: String,
     ): List<SourceItemEntity>
 
     @Query(
@@ -263,21 +298,40 @@ interface SourceItemDao {
         now: Long,
     ): Int
 
+    @Query(
+        """
+        UPDATE source_item
+        SET isDeleted = 1,
+            lastSyncedAt = :now
+        WHERE id IN (:ids)
+          AND isDeleted = 0
+        """
+    )
+    suspend fun markDeletedByIds(ids: List<Long>, now: Long): Int
+
+    @Query("DELETE FROM source_item WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<Long>): Int
+
     @Transaction
     suspend fun applyScanBatch(
         changedItems: List<SourceItemEntity>,
-        unchangedIds: List<Long>,
-        scanId: String,
-        now: Long,
     ) {
         if (changedItems.isNotEmpty()) {
             upsertAll(changedItems)
         }
-        if (unchangedIds.isNotEmpty()) {
-            markSeen(unchangedIds, scanId, now)
-        }
     }
 }
+
+data class SourceItemSignature(
+    val id: Long,
+    val providerItemId: String?,
+    val canonicalPath: String?,
+    val sizeBytes: Long?,
+    val etag: String?,
+    val revision: String?,
+    val modifiedAtRemote: Long?,
+    val isDeleted: Boolean,
+)
 
 @Dao
 interface TrackSourceRefDao {

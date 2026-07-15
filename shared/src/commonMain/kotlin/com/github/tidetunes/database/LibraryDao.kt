@@ -793,6 +793,15 @@ interface SyncDao {
         libraryRootId: Long,
         cursorType: String = "delta",
     ): SourceSyncCursorEntity?
+
+    @Query(
+        """
+        DELETE FROM source_sync_cursor
+        WHERE libraryRootId = :libraryRootId
+          AND cursorType = :cursorType
+        """
+    )
+    suspend fun deleteCursor(libraryRootId: Long, cursorType: String)
 }
 
 @Dao

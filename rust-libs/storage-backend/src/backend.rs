@@ -43,6 +43,25 @@ pub struct DeltaPage {
     pub delta_link: Option<String>,
 }
 
+#[derive(Debug, Clone)]
+pub struct WebDavSyncItem {
+    pub path: String,
+    pub name: Option<String>,
+    pub size: Option<usize>,
+    pub is_dir: bool,
+    pub deleted: bool,
+    pub mime_type: Option<String>,
+    pub etag: Option<String>,
+    pub created_at: Option<i64>,
+    pub modified_at: Option<i64>,
+}
+
+#[derive(Debug, Clone)]
+pub struct WebDavSyncPage {
+    pub items: Vec<WebDavSyncItem>,
+    pub sync_token: String,
+}
+
 pub(crate) fn parse_remote_timestamp(value: &str) -> Option<i64> {
     chrono::DateTime::parse_from_rfc3339(value)
         .or_else(|_| chrono::DateTime::parse_from_rfc2822(value))
@@ -127,6 +146,8 @@ pub enum StorageBackendError {
     DeltaNotSupported,
     #[error("remote delta cursor requires a full resynchronization")]
     DeltaResyncRequired,
+    #[error("remote request retries exhausted: {0}")]
+    RetryExhausted(String),
     #[error("OAuth token response did not contain a refresh token")]
     MissingOAuthRefreshToken,
 }
@@ -167,6 +188,33 @@ impl StorageBackendError {
     pub fn is_delta_resync_required(&self) -> bool {
         matches!(self, StorageBackendError::DeltaResyncRequired)
     }
+
+    pub fn is_retryable(&self) -> bool {
+        match self {
+            StorageBackendError::RequestFail(error) => {
+                error.is_timeout()
+                    || error.is_connect()
+                    || error.status().is_some_and(|status| {
+                        matches!(
+                            status,
+                            StatusCode::TOO_MANY_REQUESTS
+                                | StatusCode::INTERNAL_SERVER_ERROR
+                                | StatusCode::BAD_GATEWAY
+                                | StatusCode::SERVICE_UNAVAILABLE
+                                | StatusCode::GATEWAY_TIMEOUT
+                        )
+                    })
+            }
+            StorageBackendError::TokioIO(error) => matches!(
+                error.kind(),
+                ErrorKind::TimedOut
+                    | ErrorKind::ConnectionAborted
+                    | ErrorKind::ConnectionRefused
+                    | ErrorKind::ConnectionReset
+            ),
+            _ => false,
+        }
+    }
 }
 
 pub trait StorageBackend: Send + Sync {
@@ -186,6 +234,13 @@ pub trait StorageBackend: Send + Sync {
         _cursor: Option<String>,
         _latest_only: bool,
     ) -> BoxFuture<'_, StorageBackendResult<DeltaPage>> {
+        Box::pin(async { Err(StorageBackendError::DeltaNotSupported) })
+    }
+    fn webdav_sync(
+        &self,
+        _root_path: String,
+        _sync_token: Option<String>,
+    ) -> BoxFuture<'_, StorageBackendResult<WebDavSyncPage>> {
         Box::pin(async { Err(StorageBackendError::DeltaNotSupported) })
     }
     fn current_refresh_token(&self) -> BoxFuture<'_, StorageBackendResult<Option<String>>> {

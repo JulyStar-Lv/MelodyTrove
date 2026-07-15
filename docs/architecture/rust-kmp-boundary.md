@@ -1,13 +1,13 @@
 # Rust and KMP boundary
 
-Last updated: 2026-07-14
+Last updated: 2026-07-15
 
 ## Responsibilities
 
 Rust owns:
 
 - WebDAV and OneDrive networking and authentication protocol handling;
-- controlled `Depth: 1` traversal and Graph pagination;
+- controlled `Depth: 1` traversal, RFC 6578 `sync-collection`, and Graph pagination;
 - bounded HTTP ranges and response validation;
 - range-block caching and metadata read budgets;
 - Lofty metadata parsing;
@@ -84,25 +84,26 @@ EditStorageVM.prepareImportLibraryFolder
   -> RemoteScannerRepository.listDirectory
   -> ctListStorageEntryChildren
   -> user confirms the current directory
-  -> RemoteLibraryImportCoordinator.scanAndImportFolder
-  -> ctStartStorageMusicScan
-  -> RemoteMusicScanSession.nextBatch(default 100 files)
-  -> StorageBackend.list with controlled Depth: 1 recursion
+  -> LegacyLibrarySyncController
+  -> RemoteLibraryImportCoordinator.syncWebDavFolder
+  -> cached RFC 6578 capability + typed WebDAV sync-token lookup
+  -> REPORT sync-collection when supported
+     or ctStartStorageMusicScan with controlled Depth: 1 recursion
+  -> RemoteMusicScanSession.nextBatch(default 200 files)
   -> for each bounded batch:
-       - match by canonical path, then stable remoteId when available
+       - match lightweight Room signatures by stable remoteId, then canonical path
        - compare size + ETag or Last-Modified fingerprints
        - MetadataRepository.readBatch(options, bounded concurrency)
        - Room transaction
             - upsert changed source_item rows
-            - mark unchanged source items as seen
             - upsert album, artist, genre, and relationship rows
             - upsert normalized track metadata
             - upsert track_source_ref rows
             - update artwork, lyrics, and raw tags only when requested
             - persist import_job counters and checkpoint
   -> after the Rust session reports done:
-       - mark source items not seen by this scan as deleted/unavailable
-       - persist source_sync_cursor and final import_job status
+       - apply only the remaining complete-snapshot IDs as missing
+       - persist the typed sync token/capability and final import_job status atomically
   -> SyncDao.observeRecentJobs
   -> ImportStatusRepository / ImportStatusVM
   -> Dashboard import status and cancellation action
@@ -112,12 +113,37 @@ EditStorageVM.prepareImportLibraryFolder
   -> LibrarySubpage
 ```
 
-The scanner uses repeated single-level remote listings rather than unbounded
-Depth: infinity WebDAV requests. Rust retains only its directory queue, the
-current directory response, and one bounded file batch. KMP defaults to
-200-file batches and metadata concurrency 8, keeping SQLite `IN` arguments, the
-metadata FFI request, metadata results, and each Room transaction bounded for
-1,000- to 100,000-file libraries.
+The full scanner uses repeated single-level remote listings rather than
+unbounded `Depth: infinity` WebDAV requests. Each PROPFIND asks only for
+`displayname`, `resourcetype`, `getcontentlength`, `getcontenttype`, `getetag`,
+`creationdate`, and `getlastmodified`; it does not use `allprop`. Rust schedules
+directory requests through a bounded coordinator (default 4, allowed 1...8),
+never holds the scan-state lock across network I/O, deduplicates normalized
+directory paths, and streams files through a 400-entry channel. KMP consumes
+and persists each batch immediately instead of collecting the complete tree.
+The 100,000-entry safety limit fails explicitly rather than silently truncating.
+
+Transient connection failures and HTTP 429/500/502/503/504 responses have
+finite exponential backoff. `Retry-After` is honored and 429/503 establishes a
+shared cooldown; authentication is retried once after a 401 challenge. 403,
+404, malformed XML, and other semantic failures are not retried. Cancellation
+races and aborts active HTTP request tasks.
+
+WebDAV capability probing is a controlled empty-token RFC 6578 REPORT. A
+successful response stores `webdav_sync_capability=sync_collection` and a
+`webdav_sync_token`; 405/501 stores `unsupported` and uses the parallel full
+scan on later runs. Invalid or expired tokens trigger a complete snapshot and
+are replaced only in the same transaction that completes Room writes. Delta
+deletion tombstones are applied explicitly, including descendants of a deleted
+collection. A delete+add pair reuses a source identity only when raw ETag and
+size form a unique match and the destination is unoccupied.
+
+Daily WebDAV rescans use Fast metadata reads for an existing root, first import
+defaults to Standard, and an explicit Full request remains Full. Unchanged
+files cause no metadata request and no `source_item` update. KMP defaults to
+200-file batches and metadata concurrency 8, keeping SQLite queries, FFI
+requests, results, and transactions bounded for 1,000- to 100,000-file
+libraries.
 
 `import_job` is created before remote enumeration begins and is updated after
 every committed batch. Cancelling the Rust scan session preserves already
@@ -137,7 +163,17 @@ Every import job stores the effective metadata mode, scan rules, concurrency,
 batch size, missing-file policy, and duplicate policy. Resume and retry rebuild
 their request from this snapshot rather than from current Settings. The job also
 accumulates metadata Range request count, fetched bytes, elapsed milliseconds,
-and newly cached artwork bytes.
+and newly cached artwork bytes. WebDAV jobs additionally persist the sync mode,
+directory concurrency/request counts, listed directories, visited/discovered
+entries, unchanged/added/modified/renamed/deleted counts, capability/scan/Room
+timings, and total elapsed time; Settings renders these counters without paths,
+credentials, or tokens.
+
+A local HTTP WebDAV fixture with 100 albums and 10 tracks per album measured
+1,310 ms with one directory request versus 333 ms with four concurrent requests
+(1,000 files, 101 actual PROPFIND listings). The parallel result is about 74.6%
+faster and clears the required 40% improvement gate. The RFC 6578 five-change
+fixture completes in one REPORT and avoids recursive PROPFIND.
 
 ## Metadata backfill
 

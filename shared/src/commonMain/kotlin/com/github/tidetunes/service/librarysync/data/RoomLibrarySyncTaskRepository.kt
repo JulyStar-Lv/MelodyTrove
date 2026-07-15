@@ -124,6 +124,22 @@ internal fun ImportJobWithFolder.toLibrarySyncTask(): LibrarySyncTask {
         metadataFetchedBytes = job.metadataFetchedBytes,
         metadataElapsedMs = job.metadataElapsedMs,
         artworkCachedBytes = job.artworkCachedBytes,
+        syncMode = job.syncMode,
+        directoryConcurrency = job.directoryConcurrency,
+        capabilityDetectionElapsedMs = job.capabilityDetectionElapsedMs,
+        directoryScanElapsedMs = job.directoryScanElapsedMs,
+        directoryRequestCount = job.directoryRequestCount,
+        listedDirectoryCount = job.listedDirectoryCount,
+        visitedEntryCount = job.visitedEntryCount,
+        discoveredMusicCount = job.discoveredMusicCount,
+        unchangedCount = job.unchangedCount,
+        addedCount = job.addedCount,
+        modifiedCount = job.modifiedCount,
+        renamedCount = job.renamedCount,
+        deletedCount = job.deletedCount,
+        databaseReadElapsedMs = job.databaseReadElapsedMs,
+        databaseWriteElapsedMs = job.databaseWriteElapsedMs,
+        totalElapsedMs = job.totalElapsedMs,
     )
 }
 
