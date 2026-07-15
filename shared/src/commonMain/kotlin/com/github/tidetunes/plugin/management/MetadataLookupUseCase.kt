@@ -56,7 +56,7 @@ class MetadataLookupUseCase(
                     is LyricoJsMetaSource -> source.searchSongs(query, mode)
                     else -> source.searchSongs(query)
                 }
-                candidates += sourceCandidates.map { candidate ->
+                candidates += sourceCandidates.take(query.pageSize.coerceAtLeast(1)).map { candidate ->
                     candidate.copy(sourceId = source.id)
                 }
                 clearPluginError(source)

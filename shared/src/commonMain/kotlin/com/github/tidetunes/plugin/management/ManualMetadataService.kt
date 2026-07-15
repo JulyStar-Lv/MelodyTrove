@@ -33,6 +33,7 @@ class ManualMetadataService(
             artist = track.artist,
             durationMs = track.durationMs,
             keyword = keyword.trim().takeIf(String::isNotEmpty),
+            pageSize = MANUAL_METADATA_RESULTS_PER_SOURCE,
         ),
         mode = PluginLookupMode.MANUAL,
     )
@@ -118,6 +119,8 @@ class ManualMetadataService(
         )
     }
 }
+
+private const val MANUAL_METADATA_RESULTS_PER_SOURCE = 3
 
 internal fun MetaLyrics.toEntity(trackId: Long, updatedAt: Long): LyricsEntity? {
     val raw = listOfNotNull(

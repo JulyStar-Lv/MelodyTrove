@@ -36,4 +36,24 @@ class ManualMetadataServiceTest {
         assertEquals("[00:01.23]First\n[01:01.09]Second", entity.content)
         assertEquals(true, entity.synchronized)
     }
+
+    @Test
+    fun applyMessageDoesNotExposePluginFailureDetails() {
+        val message = metadataApplyMessage(
+            title = "兰亭序",
+            lyricFailures = listOf(
+                MetadataLookupFailure(
+                    sourceId = "com.applemusic.source",
+                    operation = MetadataLookupOperation.GET_LYRICS,
+                    message = "HTTP status 500\n    at __lyricoHostCall (native)",
+                    errorType = "HostApi",
+                ),
+            ),
+        )
+
+        assertEquals(
+            "Applied metadata for 兰亭序. Lyrics were unavailable from the selected source.",
+            message,
+        )
+    }
 }

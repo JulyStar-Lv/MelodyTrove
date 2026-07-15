@@ -98,6 +98,33 @@ class PluginProductionAssemblyTest {
     }
 
     @Test
+    fun songSearchLimitsResultsPerSource() = runTest {
+        val first = FakeMetaSource(
+            id = "first",
+            songs = (1..4).map { MetaSongCandidate(id = "first-$it", title = "First $it") },
+        )
+        val second = FakeMetaSource(
+            id = "second",
+            songs = (1..4).map { MetaSongCandidate(id = "second-$it", title = "Second $it") },
+        )
+        val useCase = MetadataLookupUseCase(
+            registry = MetaSourceRegistry(listOf(first, second)),
+            pluginRepository = PluginRepository(FakePluginDao(), "/plugins".toPath()),
+        )
+
+        val result = useCase.searchSongs(
+            query = MetaSongQuery(title = "Song", pageSize = 3),
+            mode = PluginLookupMode.BATCH,
+        )
+
+        assertEquals(6, result.items.size)
+        assertEquals(
+            listOf("first", "first", "first", "second", "second", "second"),
+            result.items.map { it.sourceId },
+        )
+    }
+
+    @Test
     fun lyricsAreRequestedOnlyFromCandidateSource() = runTest {
         val first = FakeMetaSource(id = "first", lyrics = MetaLyrics(rawPlainLrc = "first"))
         val second = FakeMetaSource(id = "second", lyrics = MetaLyrics(rawPlainLrc = "second"))

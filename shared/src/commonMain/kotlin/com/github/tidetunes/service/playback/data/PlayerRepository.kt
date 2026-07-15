@@ -15,6 +15,7 @@ import com.github.tidetunes.singleton.RoomLibraryStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -215,15 +216,17 @@ class PlayerRepository(
         }
     }
 
-    fun refreshCurrentMetadata() {
+    suspend fun refreshCurrentMetadata() {
         val currentId = _music.value?.meta?.id ?: return
-        metadataJob?.cancel()
-        metadataJob = _scope.launch {
-            val refreshed = roomLibraryStore.getMusic(currentId) ?: return@launch
-            if (_music.value?.meta?.id != currentId) return@launch
-            _music.value = refreshed
-            publishCurrentTrackInfo(refreshed)
+        val previousJob = metadataJob
+        previousJob?.cancelAndJoin()
+        if (metadataJob === previousJob) {
+            metadataJob = null
         }
+        val refreshed = roomLibraryStore.getMusic(currentId) ?: return
+        if (_music.value?.meta?.id != currentId) return
+        _music.value = refreshed
+        publishCurrentTrackInfo(refreshed)
     }
 
     private fun savePlayMode(playMode: PlayMode) {

@@ -89,11 +89,7 @@ fun ManualMetadataSearchDialog(
             message = null
             try {
                 val lyricFailures = service.apply(track.id, candidate)
-                message = if (lyricFailures.isEmpty()) {
-                    "Applied metadata for ${candidate.title}."
-                } else {
-                    "Applied song metadata. Lyrics were unavailable: ${lyricFailures.first().message}"
-                }
+                message = metadataApplyMessage(candidate.title, lyricFailures)
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (error: Throwable) {
@@ -189,6 +185,15 @@ fun ManualMetadataSearchDialog(
             }
         }
     }
+}
+
+internal fun metadataApplyMessage(
+    title: String,
+    lyricFailures: List<MetadataLookupFailure>,
+): String = if (lyricFailures.isEmpty()) {
+    "Applied metadata for $title."
+} else {
+    "Applied metadata for $title. Lyrics were unavailable from the selected source."
 }
 
 @Composable
