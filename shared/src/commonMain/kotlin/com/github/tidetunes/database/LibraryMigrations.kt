@@ -657,3 +657,17 @@ val MIGRATION_13_14 = object : Migration(13, 14) {
         }
     }
 }
+
+val MIGRATION_14_15 = object : Migration(14, 15) {
+    override fun migrate(connection: SQLiteConnection) {
+        listOf(
+            "ALTER TABLE track ADD COLUMN metadataSource TEXT NOT NULL DEFAULT 'FILE'",
+            "ALTER TABLE track ADD COLUMN metadataLocked INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE track ADD COLUMN metadataSourceId TEXT",
+            "ALTER TABLE track ADD COLUMN metadataExternalId TEXT",
+            "ALTER TABLE track ADD COLUMN metadataAppliedAt INTEGER",
+        ).forEach { sql ->
+            connection.prepare(sql).use { statement -> statement.step() }
+        }
+    }
+}

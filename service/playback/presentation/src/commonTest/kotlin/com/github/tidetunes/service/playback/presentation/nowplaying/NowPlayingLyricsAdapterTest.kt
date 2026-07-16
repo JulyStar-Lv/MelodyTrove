@@ -48,4 +48,22 @@ class NowPlayingLyricsAdapterTest {
         assertEquals(2_500, line.syllables[1].start)
         assertEquals(3_000, line.syllables[1].end)
     }
+
+    @Test
+    fun doesNotDuplicateSpacesAlreadyContainedInTimedWords() {
+        val lyrics = listOf(
+            LyricLine(
+                duration = 2.seconds,
+                text = "Hello world",
+                words = persistentListOf(
+                    LyricWord("Hello", 0.milliseconds, 400.milliseconds),
+                    LyricWord(" world", 500.milliseconds, 500.milliseconds),
+                ),
+            ),
+        ).toSyncedLyrics(trackTitle = "Song", trackDurationMs = 4_000)
+
+        val line = assertIs<KaraokeLine.MainKaraokeLine>(lyrics.lines.single())
+        assertEquals("Hello", line.syllables[0].content)
+        assertEquals(" world", line.syllables[1].content)
+    }
 }

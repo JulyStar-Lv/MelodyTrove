@@ -98,7 +98,7 @@ private data class RefreshedMetadata(
     val metadata: RemoteMetadata,
 )
 
-private fun MetadataRefreshCandidate.toStorageEntry(): StorageEntry {
+internal fun MetadataRefreshCandidate.toStorageEntry(): StorageEntry {
     return StorageEntry(
         storageId = StorageId(storageId),
         name = name,

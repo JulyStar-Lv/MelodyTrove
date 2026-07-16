@@ -343,7 +343,8 @@ interface TrackSourceRefDao {
 
     @Query(
         """
-        SELECT ref.trackId AS trackId,
+        SELECT item.id AS sourceItemId,
+               ref.trackId AS trackId,
                track.albumId AS albumId,
                item.sourceAccountId AS storageId,
                item.displayName AS name,
@@ -373,7 +374,42 @@ interface TrackSourceRefDao {
 
     @Query(
         """
-        SELECT ref.trackId AS trackId,
+        SELECT item.id AS sourceItemId,
+               ref.trackId AS trackId,
+               track.albumId AS albumId,
+               item.sourceAccountId AS storageId,
+               item.displayName AS name,
+               item.canonicalPath AS path,
+               item.sizeBytes AS sizeBytes,
+               item.providerItemId AS remoteId,
+               item.parentProviderItemId AS parentRemoteId,
+               item.mimeType AS mimeType,
+               item.etag AS etag,
+               item.createdAtRemote AS createdAt,
+               item.modifiedAtRemote AS modifiedAt
+        FROM track_source_ref ref
+        JOIN track ON track.id = ref.trackId
+        JOIN source_item item ON item.id = ref.sourceItemId
+        JOIN source_account account ON account.id = item.sourceAccountId
+        WHERE ref.trackId = :trackId
+          AND account.enabled = 1
+          AND ref.isAvailable = 1
+          AND item.isDeleted = 0
+          AND item.canonicalPath IS NOT NULL
+          AND item.sizeBytes > 0
+        ORDER BY ref.isPreferred DESC,
+                 CASE WHEN account.providerType = 'local' THEN 1 ELSE 0 END DESC,
+                 account.priority DESC,
+                 ref.updatedAt DESC
+        LIMIT 1
+        """
+    )
+    suspend fun metadataResetCandidateForTrack(trackId: Long): MetadataRefreshCandidate?
+
+    @Query(
+        """
+        SELECT item.id AS sourceItemId,
+               ref.trackId AS trackId,
                track.albumId AS albumId,
                item.sourceAccountId AS storageId,
                item.displayName AS name,
@@ -403,7 +439,8 @@ interface TrackSourceRefDao {
 
     @Query(
         """
-        SELECT ref.trackId AS trackId,
+        SELECT item.id AS sourceItemId,
+               ref.trackId AS trackId,
                track.albumId AS albumId,
                item.sourceAccountId AS storageId,
                item.displayName AS name,
@@ -430,6 +467,9 @@ interface TrackSourceRefDao {
                   SELECT 1 FROM artwork
                   WHERE artwork.trackId = track.id
                      OR (track.albumId IS NOT NULL AND artwork.albumId = track.albumId)
+                     OR artwork.id = (
+                         SELECT album.artworkId FROM album WHERE album.id = track.albumId
+                     )
               ))
               OR (:target = 'Lyrics' AND NOT EXISTS (
                   SELECT 1 FROM lyrics WHERE lyrics.trackId = track.id
@@ -439,6 +479,9 @@ interface TrackSourceRefDao {
                       SELECT 1 FROM artwork
                       WHERE artwork.trackId = track.id
                          OR (track.albumId IS NOT NULL AND artwork.albumId = track.albumId)
+                         OR artwork.id = (
+                             SELECT album.artworkId FROM album WHERE album.id = track.albumId
+                         )
                   )
                   OR NOT EXISTS (SELECT 1 FROM lyrics WHERE lyrics.trackId = track.id)
               ))
@@ -450,6 +493,9 @@ interface TrackSourceRefDao {
                       SELECT 1 FROM artwork
                       WHERE artwork.trackId = track.id
                          OR (track.albumId IS NOT NULL AND artwork.albumId = track.albumId)
+                         OR artwork.id = (
+                             SELECT album.artworkId FROM album WHERE album.id = track.albumId
+                         )
                   )
                   OR NOT EXISTS (SELECT 1 FROM lyrics WHERE lyrics.trackId = track.id)
                   OR NOT EXISTS (SELECT 1 FROM raw_metadata WHERE raw_metadata.trackId = track.id)
@@ -591,6 +637,7 @@ interface TrackSourceRefDao {
 }
 
 data class MetadataRefreshCandidate(
+    val sourceItemId: Long,
     val trackId: Long,
     val albumId: Long?,
     val storageId: Long,

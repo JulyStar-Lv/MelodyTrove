@@ -25,6 +25,7 @@ import com.github.tidetunes.database.TrackDao
 import com.github.tidetunes.database.TrackArtistCrossRef
 import com.github.tidetunes.database.TrackEntity
 import com.github.tidetunes.database.TrackGenreCrossRef
+import com.github.tidetunes.database.TrackMetadataSources
 import com.github.tidetunes.database.TrackSourceRefEntity
 import com.github.tidetunes.platform.currentTimeMillis
 import com.github.tidetunes.core.domain.model.DuplicateTrackPolicy
@@ -1131,12 +1132,13 @@ class RemoteLibraryImportCoordinator(
                 if (sourceRefs.isNotEmpty()) {
                     database.trackSourceRefDao().upsertAll(sourceRefs)
                 }
-                val trackIds = tracks.map { it.id }
-                if (trackIds.isNotEmpty()) {
-                    metadataDao.deleteTrackArtistsForTracks(trackIds)
-                    metadataDao.deleteTrackGenresForTracks(trackIds)
+                val unlockedTrackContexts = trackContexts.filterNot { it.track.metadataLocked }
+                val unlockedTrackIds = unlockedTrackContexts.map { it.track.id }
+                if (unlockedTrackIds.isNotEmpty()) {
+                    metadataDao.deleteTrackArtistsForTracks(unlockedTrackIds)
+                    metadataDao.deleteTrackGenresForTracks(unlockedTrackIds)
                 }
-                val trackArtists = trackContexts.flatMap { context ->
+                val trackArtists = unlockedTrackContexts.flatMap { context ->
                     context.metadata.trackArtists().mapIndexedNotNull { position, name ->
                         artistsByName[normalizeMetadataName(name)]?.let { artist ->
                             TrackArtistCrossRef(
@@ -1150,7 +1152,7 @@ class RemoteLibraryImportCoordinator(
                 if (trackArtists.isNotEmpty()) {
                     metadataDao.upsertTrackArtists(trackArtists)
                 }
-                val trackGenres = trackContexts.mapNotNull { context ->
+                val trackGenres = unlockedTrackContexts.mapNotNull { context ->
                     val genreName = context.metadata.genre ?: return@mapNotNull null
                     genresByName[normalizeMetadataName(genreName)]?.let { genre ->
                         TrackGenreCrossRef(
@@ -1162,11 +1164,11 @@ class RemoteLibraryImportCoordinator(
                 if (trackGenres.isNotEmpty()) {
                     metadataDao.upsertTrackGenres(trackGenres)
                 }
-                val albumIds = trackContexts.mapNotNull { it.track.albumId }.distinct()
+                val albumIds = unlockedTrackContexts.mapNotNull { it.track.albumId }.distinct()
                 if (albumIds.isNotEmpty()) {
                     metadataDao.deleteAlbumArtistsForAlbums(albumIds)
                 }
-                val albumArtists = trackContexts.mapNotNull { context ->
+                val albumArtists = unlockedTrackContexts.mapNotNull { context ->
                     val albumId = context.track.albumId ?: return@mapNotNull null
                     val albumArtist = context.metadata.albumArtist ?: return@mapNotNull null
                     artistsByName[normalizeMetadataName(albumArtist)]?.let { artist ->
@@ -2284,8 +2286,9 @@ internal fun buildTrackEntity(
     now: Long,
     existingTrack: TrackEntity? = null,
     albumId: Long? = null,
+    respectMetadataLock: Boolean = true,
 ): TrackEntity {
-    return TrackEntity(
+    val scannedTrack = TrackEntity(
         id = existingTrack?.id
             ?: stableTrackId(entry.storageId.value, normalizeRemotePath(entry.path)),
         title = metadata.title?.takeIf { it.isNotBlank() }
@@ -2313,6 +2316,7 @@ internal fun buildTrackEntity(
         lossless = metadata.lossless,
         createdAt = existingTrack?.createdAt ?: now,
         updatedAt = now,
+        lastPlayedAt = existingTrack?.lastPlayedAt,
         artist = metadata.artist,
         lyricist = metadata.lyricist,
         conductor = metadata.conductor,
@@ -2333,6 +2337,46 @@ internal fun buildTrackEntity(
         replayGainTrackPeak = metadata.replayGainTrackPeak,
         replayGainAlbumGain = metadata.replayGainAlbumGain,
         replayGainAlbumPeak = metadata.replayGainAlbumPeak,
+        metadataSource = TrackMetadataSources.File,
+        metadataLocked = false,
+    )
+    if (!respectMetadataLock || existingTrack?.metadataLocked != true) return scannedTrack
+
+    return scannedTrack.copy(
+        title = existingTrack.title,
+        sortTitle = existingTrack.sortTitle,
+        albumId = existingTrack.albumId,
+        albumArtist = existingTrack.albumArtist,
+        composer = existingTrack.composer,
+        comment = existingTrack.comment,
+        grouping = existingTrack.grouping,
+        discNumber = existingTrack.discNumber,
+        discTotal = existingTrack.discTotal,
+        trackNumber = existingTrack.trackNumber,
+        trackTotal = existingTrack.trackTotal,
+        year = existingTrack.year,
+        date = existingTrack.date,
+        artist = existingTrack.artist,
+        lyricist = existingTrack.lyricist,
+        conductor = existingTrack.conductor,
+        copyright = existingTrack.copyright,
+        publisher = existingTrack.publisher,
+        originalReleaseDate = existingTrack.originalReleaseDate,
+        bpm = existingTrack.bpm,
+        musicalKey = existingTrack.musicalKey,
+        isrc = existingTrack.isrc,
+        musicBrainzRecordingId = existingTrack.musicBrainzRecordingId,
+        musicBrainzTrackId = existingTrack.musicBrainzTrackId,
+        musicBrainzReleaseId = existingTrack.musicBrainzReleaseId,
+        musicBrainzReleaseGroupId = existingTrack.musicBrainzReleaseGroupId,
+        musicBrainzArtistId = existingTrack.musicBrainzArtistId,
+        musicBrainzReleaseArtistId = existingTrack.musicBrainzReleaseArtistId,
+        musicBrainzWorkId = existingTrack.musicBrainzWorkId,
+        metadataSource = existingTrack.metadataSource,
+        metadataLocked = true,
+        metadataSourceId = existingTrack.metadataSourceId,
+        metadataExternalId = existingTrack.metadataExternalId,
+        metadataAppliedAt = existingTrack.metadataAppliedAt,
     )
 }
 

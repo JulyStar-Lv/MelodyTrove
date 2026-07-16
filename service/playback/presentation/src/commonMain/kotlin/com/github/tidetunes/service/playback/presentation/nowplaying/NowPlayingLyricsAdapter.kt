@@ -47,7 +47,6 @@ private fun LyricLine.toSyncedLine(startMs: Int, endMs: Int): ISyncedLine {
         )
     }
 
-    val separator = if (text.any(Char::isWhitespace)) " " else ""
     val syllables = words.mapIndexed { index, word ->
         val wordStart = (startMs.toLong() + word.startOffset.inWholeMilliseconds)
             .toSafeInt()
@@ -56,7 +55,7 @@ private fun LyricLine.toSyncedLine(startMs: Int, endMs: Int): ISyncedLine {
             .toSafeInt()
             .coerceIn(wordStart, endMs)
         KaraokeSyllable(
-            content = word.text + if (index < words.lastIndex) separator else "",
+            content = word.text + wordSeparatorAfter(index),
             start = wordStart,
             end = wordEnd,
         )
@@ -69,6 +68,13 @@ private fun LyricLine.toSyncedLine(startMs: Int, endMs: Int): ISyncedLine {
         start = startMs,
         end = endMs,
     )
+}
+
+private fun LyricLine.wordSeparatorAfter(index: Int): String {
+    if (index >= words.lastIndex || text.none(Char::isWhitespace)) return ""
+    val currentEndsWithSpace = words[index].text.lastOrNull()?.isWhitespace() == true
+    val nextStartsWithSpace = words[index + 1].text.firstOrNull()?.isWhitespace() == true
+    return if (currentEndsWithSpace || nextStartsWithSpace) "" else " "
 }
 
 private fun Long.toSafeInt(): Int = coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt()

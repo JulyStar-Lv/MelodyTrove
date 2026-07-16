@@ -47,6 +47,10 @@ class RemoteMetadataRefreshControllerTest {
         try {
             seedWebDavTrack(database)
             assertEquals(
+                1L,
+                database.trackSourceRefDao().metadataResetCandidateForTrack(1)?.sourceItemId,
+            )
+            assertEquals(
                 7L,
                 database.trackSourceRefDao()
                     .missingWebDavMetadataCandidates(MetadataRefreshTarget.Artwork.name)

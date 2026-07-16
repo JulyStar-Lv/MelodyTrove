@@ -2,11 +2,8 @@ package com.github.tidetunes.service.playback.data
 
 import com.github.tidetunes.core.data.datastore.AppPreferencesRepository
 import com.github.tidetunes.core.domain.model.Artwork
-import com.github.tidetunes.core.domain.model.LyricLine
 import com.github.tidetunes.core.domain.model.Lyrics
-import com.github.tidetunes.core.domain.model.LyricsLoadState
 import com.github.tidetunes.core.domain.model.CurrentTrackInfo
-import kotlinx.collections.immutable.toPersistentList
 import com.github.tidetunes.core.toArtwork
 import com.github.tidetunes.domain.importing.TrackMetadataPrefetcher
 import com.github.tidetunes.source.storage.LegacyStorageLookup
@@ -25,10 +22,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import uniffi.tidetunes_backend.LyricLoadState as LegacyLyricLoadState
 import uniffi.tidetunes_backend.Music
 import uniffi.tidetunes_backend.MusicAbstract
-import uniffi.tidetunes_backend.MusicLyric
 import uniffi.tidetunes_backend.Playlist
 import uniffi.tidetunes_backend.PlayMode
 import uniffi.tidetunes_backend.MusicId
@@ -268,52 +263,29 @@ class PlayerRepository(
         if (_music.value?.meta?.id != music.meta.id) return
         val trackId = music.meta.id.value
         val artist = roomLibraryStore.getTrackPrimaryArtist(trackId)
+        val lyrics = roomLibraryStore.getPlaybackLyrics(trackId)
         val artwork = music.cover?.toArtwork()
             ?: Artwork.LibraryTrack(trackId).takeIf {
                 roomLibraryStore.hasCachedArtwork(trackId)
             }
         if (_music.value?.meta?.id == music.meta.id) {
-            _currentTrackInfo.value = music.toCurrentTrackInfo(storageLookup, artist, artwork)
+            _currentTrackInfo.value = music.toCurrentTrackInfo(storageLookup, artist, artwork, lyrics)
         }
     }
 }
-
-internal fun MusicLyric?.toLyrics(): Lyrics {
-    return Lyrics(
-        lines = this?.data?.lines.orEmpty().map { line ->
-            LyricLine(
-                duration = line.duration,
-                text = line.text,
-            )
-        }.toPersistentList(),
-        loadState = this?.loadedState.toLyricsLoadState(),
-    )
-}
-
-private fun LegacyLyricLoadState?.toLyricsLoadState(): LyricsLoadState {
-    return when (this) {
-        null,
-        LegacyLyricLoadState.LOADING -> LyricsLoadState.Loading
-        LegacyLyricLoadState.MISSING -> LyricsLoadState.Missing
-        LegacyLyricLoadState.FAILED -> LyricsLoadState.Failed
-        LegacyLyricLoadState.LOADED -> LyricsLoadState.Loaded
-    }
-}
-
-
-
 
 private suspend fun Music.toCurrentTrackInfo(
     storageLookup: LegacyStorageLookup,
     artist: String?,
     artwork: Artwork?,
+    lyrics: Lyrics,
 ): CurrentTrackInfo {
     return CurrentTrackInfo(
         id = meta.id.value,
         title = meta.title,
         durationMs = meta.duration?.inWholeMilliseconds,
         artwork = artwork,
-        lyrics = lyric.toLyrics(),
+        lyrics = lyrics,
         sourceStorageId = loc.storageId.value,
         sourcePath = loc.path,
         coverArtwork = artwork,

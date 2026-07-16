@@ -30,7 +30,7 @@ class LegacyPlaybackController(
     private val playerRepository: PlayerRepository,
     private val legacyController: LegacyPlayerController,
     private val scope: CoroutineScope,
-    private val positionPollMillis: Long = 1_000,
+    private val positionPollMillis: Long = 100,
 ) : PlaybackController {
     private val immediatePositionRefreshes = MutableSharedFlow<Unit>(
         extraBufferCapacity = 1,

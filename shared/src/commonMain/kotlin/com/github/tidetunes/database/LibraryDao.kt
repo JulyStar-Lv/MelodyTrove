@@ -663,13 +663,24 @@ interface MetadataDao {
     @Query("SELECT * FROM artwork WHERE trackId = :trackId ORDER BY id DESC LIMIT 1")
     suspend fun getArtworkForTrack(trackId: Long): ArtworkEntity?
 
-    @Query("SELECT * FROM artwork WHERE albumId = :albumId ORDER BY id DESC LIMIT 1")
+    @Query(
+        """
+        SELECT * FROM artwork
+        WHERE albumId = :albumId
+           OR id = (SELECT artworkId FROM album WHERE id = :albumId)
+        ORDER BY CASE
+            WHEN id = (SELECT artworkId FROM album WHERE id = :albumId) THEN 0
+            ELSE 1
+        END, id DESC
+        LIMIT 1
+        """
+    )
     suspend fun getArtworkForAlbum(albumId: Long): ArtworkEntity?
 
     @Query("SELECT * FROM artwork WHERE contentHash = :contentHash LIMIT 1")
     suspend fun getArtworkByContentHash(contentHash: String): ArtworkEntity?
 
-    @Upsert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertLyrics(values: List<LyricsEntity>)
 
     @Query("DELETE FROM lyrics WHERE trackId IN (:trackIds)")

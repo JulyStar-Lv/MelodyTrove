@@ -20,23 +20,30 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -44,7 +51,13 @@ import com.mocharealm.accompanist.lyrics.core.model.ISyncedLine
 import com.mocharealm.accompanist.lyrics.core.model.SyncedLyrics
 import com.mocharealm.accompanist.lyrics.core.model.karaoke.KaraokeLine
 import com.mocharealm.accompanist.lyrics.core.model.synced.SyncedLine
+import kotlinx.coroutines.isActive
 import kotlin.math.abs
+import kotlin.math.roundToLong
+
+private const val PlaybackResyncThresholdMs = 220.0
+private const val PlaybackJitterToleranceMs = 24.0
+private const val PlaybackCorrectionFraction = 0.25
 
 /**
  * A desktop-friendly lyrics surface adapted from accompanist-lyrics-ui.
@@ -56,6 +69,7 @@ import kotlin.math.abs
 fun TideLyricsView(
     lyrics: SyncedLyrics,
     currentPositionMs: Int,
+    isPlaying: Boolean,
     modifier: Modifier = Modifier,
     onLineClick: (ISyncedLine) -> Unit = {},
     activeColor: Color = Color.White,
@@ -75,6 +89,10 @@ fun TideLyricsView(
     useBlurEffect: Boolean = true,
 ) {
     val listState = rememberLazyListState()
+    val renderPositionProvider = rememberInterpolatedPlaybackPositionProvider(
+        currentPositionMs = currentPositionMs,
+        isPlaying = isPlaying,
+    )
     val currentIndex = remember(lyrics.lines, currentPositionMs) {
         lyrics.lines.indexOfLast { line -> currentPositionMs >= line.start }
             .coerceAtLeast(0)
@@ -108,7 +126,7 @@ fun TideLyricsView(
                 val isCurrent = index == currentIndex
                 LyricLineItem(
                     line = line,
-                    currentPositionMs = currentPositionMs,
+                    renderPositionProvider = renderPositionProvider.takeIf { isCurrent },
                     isCurrent = isCurrent,
                     distanceFromCurrent = distance,
                     activeColor = activeColor,
@@ -143,7 +161,7 @@ fun TideLyricsView(
 @Composable
 private fun LyricLineItem(
     line: ISyncedLine,
-    currentPositionMs: Int,
+    renderPositionProvider: (() -> Int)?,
     isCurrent: Boolean,
     distanceFromCurrent: Int,
     activeColor: Color,
@@ -172,15 +190,6 @@ private fun LyricLineItem(
     } else {
         0f
     }
-    val content = remember(line, currentPositionMs, activeColor, inactiveColor, isCurrent) {
-        line.toAnnotatedString(
-            currentPositionMs = currentPositionMs,
-            activeColor = activeColor,
-            inactiveColor = inactiveColor,
-            isCurrent = isCurrent,
-        )
-    }
-
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -197,11 +206,13 @@ private fun LyricLineItem(
             .clickable(onClick = onClick)
             .padding(horizontal = 20.dp, vertical = 6.dp),
     ) {
-        BasicText(
-            text = content,
-            style = if (isCurrent) activeTextStyle else inactiveTextStyle,
-            maxLines = 4,
-            overflow = TextOverflow.Ellipsis,
+        KaraokeText(
+            line = line,
+            renderPositionProvider = renderPositionProvider,
+            isCurrent = isCurrent,
+            activeColor = activeColor,
+            inactiveColor = inactiveColor,
+            textStyle = if (isCurrent) activeTextStyle else inactiveTextStyle,
         )
 
         if (line is SyncedLine && !line.translation.isNullOrBlank()) {
@@ -220,28 +231,183 @@ private fun LyricLineItem(
     }
 }
 
-private fun ISyncedLine.toAnnotatedString(
-    currentPositionMs: Int,
+@Composable
+private fun KaraokeText(
+    line: ISyncedLine,
+    renderPositionProvider: (() -> Int)?,
+    isCurrent: Boolean,
     activeColor: Color,
     inactiveColor: Color,
-    isCurrent: Boolean,
-): AnnotatedString {
-    if (this !is KaraokeLine) {
-        val text = (this as? SyncedLine)?.content.orEmpty()
-        return AnnotatedString(text, spanStyle = SpanStyle(color = if (isCurrent) activeColor else inactiveColor))
+    textStyle: TextStyle,
+) {
+    if (line !is KaraokeLine) {
+        BasicText(
+            text = (line as? SyncedLine)?.content.orEmpty(),
+            style = textStyle.copy(color = if (isCurrent) activeColor else inactiveColor),
+            maxLines = 4,
+            overflow = TextOverflow.Ellipsis,
+        )
+        return
     }
 
-    return buildAnnotatedString {
-        syllables.forEach { syllable ->
-            val color = when {
-                !isCurrent -> inactiveColor
-                currentPositionMs >= syllable.end -> activeColor
-                currentPositionMs <= syllable.start -> inactiveColor
-                else -> lerp(inactiveColor, activeColor, syllable.progress(currentPositionMs))
-            }
-            withStyle(SpanStyle(color = color)) {
-                append(syllable.content)
+    val text = remember(line) { line.syllables.joinToString(separator = "") { it.content } }
+    var revealSegments by remember(line, textStyle) {
+        mutableStateOf<List<KaraokeRevealSegment>>(emptyList())
+    }
+    val revealPath = remember(line, textStyle) { Path() }
+    Box {
+        BasicText(
+            text = text,
+            style = textStyle.copy(color = inactiveColor),
+            maxLines = 4,
+            overflow = TextOverflow.Ellipsis,
+        )
+        if (renderPositionProvider != null) {
+            BasicText(
+                text = text,
+                modifier = Modifier
+                    .clearAndSetSemantics { }
+                    .drawWithContent {
+                        revealPath.reset()
+                        revealPath.addRevealedSegments(
+                            segments = revealSegments,
+                            currentPositionMs = renderPositionProvider(),
+                        )
+                        clipPath(revealPath) {
+                            this@drawWithContent.drawContent()
+                        }
+                    },
+                style = textStyle.copy(color = activeColor),
+                maxLines = 4,
+                overflow = TextOverflow.Ellipsis,
+                onTextLayout = { layoutResult ->
+                    revealSegments = line.createRevealSegments(layoutResult)
+                },
+            )
+        }
+    }
+}
+
+private data class KaraokeRevealSegment(
+    val bounds: Rect,
+    val startMs: Float,
+    val endMs: Float,
+)
+
+private fun KaraokeLine.createRevealSegments(
+    layoutResult: TextLayoutResult,
+): List<KaraokeRevealSegment> = buildList {
+    var textOffset = 0
+    syllables.forEach { syllable ->
+        val characterDurationMs = syllable.duration.toFloat() /
+            syllable.content.length.coerceAtLeast(1)
+        syllable.content.indices.forEach { characterIndex ->
+            val offset = textOffset + characterIndex
+            if (offset < layoutResult.layoutInput.text.length) {
+                val characterStartMs = syllable.start + characterDurationMs * characterIndex
+                add(
+                    KaraokeRevealSegment(
+                        bounds = layoutResult.getBoundingBox(offset),
+                        startMs = characterStartMs,
+                        endMs = characterStartMs + characterDurationMs,
+                    ),
+                )
             }
         }
+        textOffset += syllable.content.length
+    }
+}
+
+private fun Path.addRevealedSegments(
+    segments: List<KaraokeRevealSegment>,
+    currentPositionMs: Int,
+) {
+    segments.forEach { segment ->
+        val progress = when {
+            currentPositionMs >= segment.endMs -> 1f
+            currentPositionMs <= segment.startMs -> 0f
+            segment.endMs <= segment.startMs -> 1f
+            else -> (currentPositionMs - segment.startMs) / (segment.endMs - segment.startMs)
+        }
+        if (progress <= 0f) return@forEach
+        val bounds = segment.bounds
+        addRect(
+            if (progress >= 1f) {
+                bounds
+            } else {
+                Rect(
+                    left = bounds.left,
+                    top = bounds.top,
+                    right = bounds.left + bounds.width * progress,
+                    bottom = bounds.bottom,
+                )
+            },
+        )
+    }
+}
+
+@Composable
+private fun rememberInterpolatedPlaybackPositionProvider(
+    currentPositionMs: Int,
+    isPlaying: Boolean,
+): () -> Int {
+    var renderedPositionMs by remember { mutableLongStateOf(currentPositionMs.toLong()) }
+    val externalPosition = rememberUpdatedState(currentPositionMs.toLong())
+
+    LaunchedEffect(isPlaying) {
+        if (!isPlaying) {
+            snapshotFlow { externalPosition.value }.collect { positionMs ->
+                renderedPositionMs = positionMs
+            }
+            return@LaunchedEffect
+        }
+
+        var preciseRenderedPositionMs = renderedPositionMs.toDouble()
+        var observedExternalPositionMs = externalPosition.value
+        var previousFrameNanos: Long? = null
+
+        while (isActive) {
+            val frameNanos = withFrameNanos { it }
+            previousFrameNanos?.let { previousNanos ->
+                preciseRenderedPositionMs +=
+                    (frameNanos - previousNanos).coerceAtLeast(0L) / 1_000_000.0
+            }
+
+            val latestExternalPositionMs = externalPosition.value
+            if (latestExternalPositionMs != observedExternalPositionMs) {
+                preciseRenderedPositionMs = correctInterpolatedPlaybackPosition(
+                    externalPositionMs = latestExternalPositionMs.toDouble(),
+                    renderedPositionMs = preciseRenderedPositionMs,
+                )
+                observedExternalPositionMs = latestExternalPositionMs
+            }
+
+            val nextRenderedPositionMs = preciseRenderedPositionMs
+                .roundToLong()
+                .coerceIn(0L, Int.MAX_VALUE.toLong())
+            if (nextRenderedPositionMs != renderedPositionMs) {
+                renderedPositionMs = nextRenderedPositionMs
+            }
+            previousFrameNanos = frameNanos
+        }
+    }
+
+    return remember {
+        { renderedPositionMs.toInt() }
+    }
+}
+
+internal fun correctInterpolatedPlaybackPosition(
+    externalPositionMs: Double,
+    renderedPositionMs: Double,
+    resyncThresholdMs: Double = PlaybackResyncThresholdMs,
+    jitterToleranceMs: Double = PlaybackJitterToleranceMs,
+    correctionFraction: Double = PlaybackCorrectionFraction,
+): Double {
+    val errorMs = externalPositionMs - renderedPositionMs
+    return when {
+        abs(errorMs) >= resyncThresholdMs -> externalPositionMs
+        abs(errorMs) <= jitterToleranceMs -> renderedPositionMs
+        else -> renderedPositionMs + errorMs * correctionFraction
     }
 }

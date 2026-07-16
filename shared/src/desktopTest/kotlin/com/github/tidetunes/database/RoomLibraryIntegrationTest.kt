@@ -11,6 +11,7 @@ import com.github.tidetunes.core.domain.model.MetadataScanMode
 import com.github.tidetunes.core.domain.model.toOptions
 import com.github.tidetunes.domain.importing.OptionalMetadataUpdate
 import com.github.tidetunes.domain.importing.updateOptionalMetadata
+import com.github.tidetunes.plugin.management.resolveManualMetadataAlbum
 import com.github.tidetunes.source.api.BuiltInSourceIds
 import com.github.tidetunes.source.api.SourceNode
 import com.github.tidetunes.source.api.SourceNodeSelection
@@ -35,6 +36,40 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class RoomLibraryIntegrationTest {
+    @Test
+    fun migrationFourteenToFifteenAddsMetadataResetState() {
+        val connection = BundledSQLiteDriver().open(":memory:")
+        try {
+            connection.execute(
+                """
+                CREATE TABLE track (
+                    id INTEGER NOT NULL PRIMARY KEY,
+                    title TEXT NOT NULL
+                )
+                """.trimIndent()
+            )
+            connection.execute("INSERT INTO track VALUES (1, 'Song')")
+
+            MIGRATION_14_15.migrate(connection)
+
+            val columns = columns(connection, "track")
+            assertTrue("metadataSource" in columns)
+            assertTrue("metadataLocked" in columns)
+            assertTrue("metadataSourceId" in columns)
+            assertTrue("metadataExternalId" in columns)
+            assertTrue("metadataAppliedAt" in columns)
+            connection.prepare(
+                "SELECT metadataSource, metadataLocked, metadataSourceId FROM track WHERE id = 1"
+            ).use { statement ->
+                assertTrue(statement.step())
+                assertEquals(TrackMetadataSources.File, statement.getText(0))
+                assertEquals(0, statement.getLong(1))
+            }
+        } finally {
+            connection.close()
+        }
+    }
+
     @Test
     fun migrationThirteenToFourteenAddsWebDavScanPerformanceMetrics() {
         val connection = BundledSQLiteDriver().open(":memory:")
@@ -646,6 +681,44 @@ class RoomLibraryIntegrationTest {
     }
 
     @Test
+    fun upsertLyricsOverwritesExistingLyricsWithTheSameTrackId() =
+        withDatabase { database ->
+            database.trackDao().upsertAll(listOf(track(id = 1)))
+            val metadataDao = database.metadataDao()
+            metadataDao.upsertLyrics(
+                listOf(
+                    LyricsEntity(
+                        trackId = 1,
+                        format = "LRC",
+                        language = null,
+                        synchronized = true,
+                        content = "[00:01.00]Old",
+                        sourcePath = null,
+                        updatedAt = 1,
+                    ),
+                ),
+            )
+
+            metadataDao.upsertLyrics(
+                listOf(
+                    LyricsEntity(
+                        trackId = 1,
+                        format = "LRC",
+                        language = null,
+                        synchronized = true,
+                        content = "[00:01.00]<00:01.000>New<00:02.000>",
+                        sourcePath = null,
+                        updatedAt = 2,
+                    ),
+                ),
+            )
+
+            val stored = assertNotNull(metadataDao.getLyrics(1))
+            assertEquals("[00:01.00]<00:01.000>New<00:02.000>", stored.content)
+            assertEquals(2, stored.updatedAt)
+        }
+
+    @Test
     fun fastStandardAndFullModesPreserveOrUpdateRequestedMetadata() =
         withDatabase { database ->
             database.trackDao().upsertAll(listOf(track(id = 1)))
@@ -773,6 +846,47 @@ class RoomLibraryIntegrationTest {
         assertEquals("/cache/artwork/album-hash.png", metadataDao.getArtworkForAlbum(20)?.localPath)
         assertEquals("image/jpeg", metadataDao.getArtworkByContentHash("track-hash")?.mimeType)
         assertNull(metadataDao.getArtworkForTrack(999))
+    }
+
+    @Test
+    fun manualAlbumMetadataChangePreservesExistingAlbumArtwork() = withDatabase { database ->
+        val metadataDao = database.metadataDao()
+        metadataDao.upsertAlbums(
+            listOf(
+                AlbumEntity(
+                    id = 20,
+                    name = "Original Album",
+                    normalizedName = "original album",
+                    sortName = null,
+                    year = 2025,
+                    artworkId = null,
+                ),
+            ),
+        )
+        metadataDao.upsertArtwork(
+            listOf(
+                ArtworkEntity(
+                    albumId = 20,
+                    trackId = null,
+                    contentHash = "preserved-art",
+                    localPath = "/cache/artwork/preserved.jpg",
+                    thumbnailPath = null,
+                    width = 800,
+                    height = 800,
+                    mimeType = "image/jpeg",
+                    pictureType = "CoverFront",
+                ),
+            ),
+        )
+
+        val newAlbumId = metadataDao.resolveManualMetadataAlbum(
+            name = "Matched Album",
+            date = "2026-07-16",
+            currentAlbumId = 20,
+        )
+
+        assertEquals("preserved-art", metadataDao.getArtworkForAlbum(newAlbumId)?.contentHash)
+        assertEquals("preserved-art", metadataDao.getArtworkForAlbum(20)?.contentHash)
     }
 
     @Test

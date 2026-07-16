@@ -159,7 +159,7 @@ class DesktopPlayerControllerTest {
                     format = "LRC",
                     language = null,
                     synchronized = true,
-                    content = "[00:01.00]Updated lyric",
+                    content = "[00:01.00]<00:01.000>Updated <00:01.500>lyric<00:02.000>",
                     sourcePath = null,
                     updatedAt = 2,
                 ),
@@ -171,6 +171,8 @@ class DesktopPlayerControllerTest {
         val refreshed = requireNotNull(harness.playerRepository.currentTrackInfo.value)
         assertEquals("Updated title", refreshed.title)
         assertEquals("Updated lyric", refreshed.lyrics.lines.single().text)
+        assertEquals(2, refreshed.lyrics.lines.single().words.size)
+        assertEquals(500, refreshed.lyrics.lines.single().words.first().duration.inWholeMilliseconds)
     }
 
     private fun withHarness(
@@ -523,6 +525,8 @@ private object EmptyTrackSourceRefDao : TrackSourceRefDao {
     }
 
     override suspend fun webDavMetadataCandidatesForTrack(trackId: Long) = emptyList<MetadataRefreshCandidate>()
+
+    override suspend fun metadataResetCandidateForTrack(trackId: Long): MetadataRefreshCandidate? = null
 
     override suspend fun webDavMetadataCandidatesForAlbum(albumId: Long) = emptyList<MetadataRefreshCandidate>()
 

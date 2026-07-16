@@ -65,6 +65,18 @@ Private `internal` data is stored in a bounded, TTL-based, thread-safe token sto
 random and scoped to the producing plugin. The value is not written to normal music tags or
 passed to another plugin.
 
+## Applying And Resetting Metadata
+
+The manual metadata dialog writes an accepted candidate into the canonical Room `track` fields
+and normalized album/artist relationships. It stores only stable provenance—the plugin ID,
+candidate ID, and apply time—and locks descriptive fields against later background file scans.
+The source audio file is never modified.
+
+“Reset from file” performs a new core-tag read from the preferred available Local, WebDAV, or
+OneDrive source, replaces the canonical descriptive fields and relationships, clears plugin
+provenance, and unlocks the track. Track identity, playlists, playback history, artwork, and
+lyrics are preserved. This is a reset to the file's current tags, not a historical snapshot.
+
 ## Permissions
 
 `enabled` is the master switch for every formal lookup. An enabled plugin must additionally

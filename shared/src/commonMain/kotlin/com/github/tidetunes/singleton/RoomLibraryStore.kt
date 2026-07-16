@@ -2,7 +2,6 @@ package com.github.tidetunes.singleton
 
 import androidx.room.immediateTransaction
 import androidx.room.useWriterConnection
-import com.github.tidetunes.database.LyricsEntity
 import com.github.tidetunes.database.MetadataDao
 import com.github.tidetunes.database.PlaylistDao
 import com.github.tidetunes.database.PlaylistEntity
@@ -21,6 +20,9 @@ import com.github.tidetunes.core.data.CreatePlaylistRequest
 import com.github.tidetunes.core.data.UpdatePlaylistRequest
 import com.github.tidetunes.core.data.toLegacyStorageEntry
 import com.github.tidetunes.core.data.toLegacyStorageEntryLoc
+import com.github.tidetunes.core.data.toPlaybackLyrics
+import com.github.tidetunes.core.domain.model.Lyrics as DomainLyrics
+import com.github.tidetunes.core.domain.model.LyricsLoadState
 import com.github.tidetunes.core.domain.model.LIBRARY_PLAYBACK_PLAYLIST_ID
 import com.github.tidetunes.domain.importing.normalizeRemotePath
 import com.github.tidetunes.domain.importing.stableTrackId
@@ -76,6 +78,11 @@ class RoomLibraryStore(
 
     suspend fun getTrackPrimaryArtist(trackId: Long): String? {
         return metadataDao.artistNamesForTrack(trackId).firstOrNull()
+    }
+
+    suspend fun getPlaybackLyrics(trackId: Long): DomainLyrics {
+        return metadataDao.getLyrics(trackId)?.toPlaybackLyrics()
+            ?: DomainLyrics(loadState = LyricsLoadState.Missing)
     }
 
     suspend fun hasCachedArtwork(trackId: Long): Boolean {
@@ -459,7 +466,12 @@ class RoomLibraryStore(
 
     private suspend fun buildLyric(trackId: Long, loc: StorageEntryLoc): MusicLyric {
         val entity = metadataDao.getLyrics(trackId)
-        val parsed = entity?.toLyrics()
+        val parsed = entity?.toPlaybackLyrics()?.let { lyrics ->
+            Lyrics(
+                metdata = LrcMetadata("", "", "", "", "", "", ""),
+                lines = lyrics.lines.map { line -> LyricLine(line.duration, line.text) },
+            )
+        }
         return MusicLyric(
             loc = loc,
             data = parsed ?: emptyLyrics(),
@@ -527,40 +539,6 @@ private fun List<MusicAbstract>.totalDuration(): Duration? {
         total += duration
     }
     return total
-}
-
-private fun LyricsEntity.toLyrics(): Lyrics? {
-    if (!synchronized) {
-        return Lyrics(
-            metdata = LrcMetadata("", "", "", "", "", "", ""),
-            lines = listOf(LyricLine(Duration.ZERO, content)),
-        )
-    }
-    val lines = content
-        .lineSequence()
-        .mapNotNull { line -> parseLrcLine(line.trim()) }
-        .toList()
-    return Lyrics(
-        metdata = LrcMetadata("", "", "", "", "", "", ""),
-        lines = lines,
-    )
-}
-
-private fun parseLrcLine(line: String): LyricLine? {
-    if (!line.startsWith("[")) return null
-    val close = line.indexOf(']')
-    if (close <= 1) return null
-    val tag = line.substring(1, close)
-    val text = line.substring(close + 1).trim()
-    if (text.isBlank()) return null
-    val parts = tag.split(':')
-    if (parts.size != 2) return null
-    val minutes = parts[0].toLongOrNull() ?: return null
-    val seconds = parts[1].toDoubleOrNull() ?: return null
-    return LyricLine(
-        duration = (minutes * 60_000L + (seconds * 1_000.0).toLong()).milliseconds,
-        text = text,
-    )
 }
 
 private fun emptyLyrics(): Lyrics {

@@ -67,6 +67,10 @@ Skipped optional metadata is preserved rather than deleted. Missing artwork or l
 
 TideTunes supports user-supplied ZIP plugins that implement Lyrico Plugin API v1-v3 `MetaSource` behavior. Plugins extend metadata, cover, and lyric lookup; they are intentionally separate from general playback `MusicSource` providers.
 
+Accepted manual matches update the library's canonical metadata without modifying the audio
+file. Those descriptive fields remain protected during background scans until **Reset from
+file** explicitly reloads the current tags from the preferred available source.
+
 The current plugin pipeline is:
 
 ```text

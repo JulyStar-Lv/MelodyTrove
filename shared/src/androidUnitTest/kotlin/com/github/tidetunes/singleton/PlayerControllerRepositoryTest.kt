@@ -456,6 +456,10 @@ private object EmptyTrackSourceRefDao : TrackSourceRefDao {
     override suspend fun webDavMetadataCandidatesForTrack(trackId: Long) =
         emptyList<com.github.tidetunes.database.MetadataRefreshCandidate>()
 
+    override suspend fun metadataResetCandidateForTrack(
+        trackId: Long,
+    ): com.github.tidetunes.database.MetadataRefreshCandidate? = null
+
     override suspend fun webDavMetadataCandidatesForAlbum(albumId: Long) =
         emptyList<com.github.tidetunes.database.MetadataRefreshCandidate>()
 

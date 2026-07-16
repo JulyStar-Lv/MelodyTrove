@@ -411,6 +411,7 @@ private fun DesktopNowPlayingLayout(
         LyricsSurface(
             track = track,
             currentPositionMs = currentPositionMs,
+            isPlaying = state.controls.isPlaying,
             onAction = onAction,
             modifier = Modifier
                 .weight(0.54f)
@@ -423,6 +424,7 @@ private fun DesktopNowPlayingLayout(
 private fun LyricsSurface(
     track: NowPlayingTrackItem?,
     currentPositionMs: Long,
+    isPlaying: Boolean,
     onAction: (NowPlayingAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -490,6 +492,7 @@ private fun LyricsSurface(
                 TideLyricsView(
                     lyrics = syncedLyrics,
                     currentPositionMs = currentPositionMs.coerceIn(0, Int.MAX_VALUE.toLong()).toInt(),
+                    isPlaying = isPlaying,
                     onLineClick = { line ->
                         onAction(NowPlayingAction.SeekTo(line.start.coerceAtLeast(0).toULong()))
                     },

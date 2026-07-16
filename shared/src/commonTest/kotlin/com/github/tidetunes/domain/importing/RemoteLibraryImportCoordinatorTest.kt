@@ -3,6 +3,7 @@ package com.github.tidetunes.domain.importing
 import com.github.tidetunes.database.SourceItemEntity
 import com.github.tidetunes.database.SourceItemSignature
 import com.github.tidetunes.database.SourceItemTypes
+import com.github.tidetunes.database.TrackMetadataSources
 import com.github.tidetunes.core.domain.model.MetadataScanMode
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncScanRules
 import kotlinx.coroutines.CancellationException
@@ -536,6 +537,66 @@ class RemoteLibraryImportCoordinatorTest {
         assertEquals(previousTrack.createdAt, refreshed.createdAt)
         assertEquals(200, refreshed.updatedAt)
         assertEquals("New", refreshed.title)
+    }
+
+    @Test
+    fun metadataRefreshProtectsPluginFieldsUntilExplicitFileReset() {
+        val entry = entry(path = "/Music/Song.flac", name = "Song.flac")
+        val sourceItem = sourceItem(id = 42, canonicalPath = entry.path)
+        val pluginTrack = buildTrackEntity(
+            entry = entry,
+            metadata = metadata(title = "File title", artist = "File artist", sampleRate = 44_100u),
+            sourceItem = sourceItem,
+            now = 100,
+            albumId = 7,
+        ).copy(
+            title = "Plugin title",
+            artist = "Plugin artist",
+            albumId = 9,
+            lastPlayedAt = 90,
+            metadataSource = TrackMetadataSources.Plugin,
+            metadataLocked = true,
+            metadataSourceId = "example.plugin",
+            metadataExternalId = "song-1",
+            metadataAppliedAt = 110,
+        )
+
+        val backgroundRefresh = buildTrackEntity(
+            entry = entry,
+            metadata = metadata(title = "Changed file title", artist = "Changed file artist", sampleRate = 48_000u),
+            sourceItem = sourceItem,
+            now = 200,
+            existingTrack = pluginTrack,
+            albumId = 8,
+        )
+
+        assertEquals("Plugin title", backgroundRefresh.title)
+        assertEquals("Plugin artist", backgroundRefresh.artist)
+        assertEquals(9, backgroundRefresh.albumId)
+        assertEquals(48_000, backgroundRefresh.sampleRate)
+        assertEquals(90, backgroundRefresh.lastPlayedAt)
+        assertTrue(backgroundRefresh.metadataLocked)
+        assertEquals("example.plugin", backgroundRefresh.metadataSourceId)
+
+        val reset = buildTrackEntity(
+            entry = entry,
+            metadata = metadata(title = "Changed file title", artist = "Changed file artist", sampleRate = 48_000u),
+            sourceItem = sourceItem,
+            now = 300,
+            existingTrack = backgroundRefresh,
+            albumId = 8,
+            respectMetadataLock = false,
+        )
+
+        assertEquals("Changed file title", reset.title)
+        assertEquals("Changed file artist", reset.artist)
+        assertEquals(8, reset.albumId)
+        assertEquals(90, reset.lastPlayedAt)
+        assertEquals(TrackMetadataSources.File, reset.metadataSource)
+        assertFalse(reset.metadataLocked)
+        assertEquals(null, reset.metadataSourceId)
+        assertEquals(null, reset.metadataExternalId)
+        assertEquals(null, reset.metadataAppliedAt)
     }
 
     @Test

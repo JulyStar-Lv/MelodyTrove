@@ -232,6 +232,11 @@ exported under
 | `replayGainTrackPeak` | ReplayGain 单曲峰值。 |
 | `replayGainAlbumGain` | ReplayGain 专辑增益。 |
 | `replayGainAlbumPeak` | ReplayGain 专辑峰值。 |
+| `metadataSource` | 当前规范描述性元数据的来源：`FILE` 或 `PLUGIN`。 |
+| `metadataLocked` | 插件结果提交后为真；后台文件扫描不得覆盖描述性元数据。 |
+| `metadataSourceId` | 产生当前插件元数据的插件 ID；文件元数据为空。 |
+| `metadataExternalId` | 插件返回的候选歌曲 ID；文件元数据为空。 |
+| `metadataAppliedAt` | 用户提交插件匹配结果的时间；重置为文件元数据后为空。 |
 
 ### `album`
 
@@ -452,8 +457,10 @@ or `sync_cursor`. Those tables are read only by historical migration code.
    time when the source has no ETag.
 6. Read metadata only for changed items through Rust metadata APIs.
 7. Upsert `source_item`, canonical `track`, normalized album/artist/genre
-   relationships, and `track_source_ref`; update lyrics, artwork metadata, and
-   raw tags only when the task's metadata options requested them. Skipped
+   relationships, and `track_source_ref`. When `track.metadataLocked` is true,
+   preserve its descriptive metadata and normalized relationships while still
+   refreshing duration and audio properties. Update lyrics, artwork metadata,
+   and raw tags only when the task's metadata options requested them. Skipped
    families are neither deleted nor overwritten.
 8. Persist item-level failures to `source_error` with the current
    `importJobId`.
@@ -468,6 +475,21 @@ Canonical track matching prefers MusicBrainz recording ID, then ISRC plus
 duration, then strict title/artist/album/duration metadata. A track can have
 multiple source refs across accounts/providers, while each source item points
 to one canonical track.
+
+## Plugin Metadata And File Reset
+
+An accepted metadata-plugin candidate updates the canonical `track` columns and
+the normalized album/artist relationships. It also records the plugin ID and
+external candidate ID, sets `metadataSource = 'PLUGIN'`, and enables
+`metadataLocked`. The audio file itself is not modified.
+
+“Reset from file” selects the preferred available `track_source_ref`, performs a
+fresh metadata read even when the file fingerprint is unchanged, and replaces
+the canonical descriptive metadata and normalized relationships with the file
+tags. It preserves `track.id`, source references, playlists, `createdAt`, and
+`lastPlayedAt`, then sets `metadataSource = 'FILE'`, clears plugin provenance,
+and disables `metadataLocked`. Artwork and lyrics are independent metadata
+families and are not removed by this reset.
 
 ## Import Job UI State
 
@@ -498,6 +520,9 @@ Schema version 14 adds the WebDAV scan metrics to `import_job` with defaults,
 so old jobs deserialize as `LEGACY_FULL_SCAN_FALLBACK`, directory concurrency
 4, and zero counters. Progress updates remain task-level and batch-level; the UI
 can show complete task status, counters, and per-task failure details.
+
+Schema version 15 adds canonical metadata provenance and the file-reset lock to
+`track`. Existing tracks migrate as unlocked `FILE` metadata.
 
 `import_job` is not sufficient by itself for a future background enrichment
 workflow where metadata, artwork, lyrics, and raw tags continue after the
@@ -555,3 +580,5 @@ user playlist data as part of source disappearance.
 - `MIGRATION_11_12` adds the scan configuration snapshot and metadata request,
   byte, elapsed-time, and artwork-cache counters to `import_job`. Defaults keep
   historical jobs compatible with Full scanning and the existing scan rules.
+- `MIGRATION_14_15` adds plugin provenance and file-reset locking columns to
+  `track`; existing rows default to unlocked `FILE` metadata.

@@ -234,6 +234,8 @@ class PlaybackResourceResolverTest {
 
         override suspend fun webDavMetadataCandidatesForTrack(trackId: Long) = emptyList<MetadataRefreshCandidate>()
 
+        override suspend fun metadataResetCandidateForTrack(trackId: Long): MetadataRefreshCandidate? = null
+
         override suspend fun webDavMetadataCandidatesForAlbum(albumId: Long) = emptyList<MetadataRefreshCandidate>()
 
         override suspend fun missingWebDavMetadataCandidates(target: String) = emptyList<MetadataRefreshCandidate>()

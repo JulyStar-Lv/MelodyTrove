@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -52,9 +53,10 @@ fun ManualMetadataSearchDialog(
     var message by remember(track.id) { mutableStateOf<String?>(null) }
     var searching by remember(track.id) { mutableStateOf(false) }
     var applying by remember(track.id) { mutableStateOf(false) }
+    var resetting by remember(track.id) { mutableStateOf(false) }
 
     fun search() {
-        if (searching || applying || keyword.isBlank()) return
+        if (searching || applying || resetting || keyword.isBlank()) return
         scope.launch {
             searching = true
             selected = null
@@ -83,13 +85,17 @@ fun ManualMetadataSearchDialog(
 
     fun applySelected() {
         val candidate = selected ?: return
-        if (searching || applying) return
+        if (searching || applying || resetting) return
         scope.launch {
             applying = true
             message = null
             try {
                 val lyricFailures = service.apply(track.id, candidate)
-                message = metadataApplyMessage(candidate.title, lyricFailures)
+                if (lyricFailures.isEmpty()) {
+                    onDismiss()
+                } else {
+                    message = metadataApplyMessage(candidate.title, lyricFailures)
+                }
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (error: Throwable) {
@@ -100,14 +106,35 @@ fun ManualMetadataSearchDialog(
         }
     }
 
+    fun resetFromFile() {
+        if (searching || applying || resetting) return
+        scope.launch {
+            resetting = true
+            message = null
+            try {
+                service.resetFromFile(track.id)
+                onDismiss()
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (error: Throwable) {
+                message = error.message ?: "Failed to reset metadata from the music file."
+            } finally {
+                resetting = false
+            }
+        }
+    }
+
     LaunchedEffect(track.id) { search() }
 
     TideDialog(
         show = true,
         onDismiss = onDismiss,
+        modifier = Modifier.fillMaxHeight(0.9f),
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
@@ -117,7 +144,8 @@ fun ManualMetadataSearchDialog(
                 color = MiuixTheme.colorScheme.onSurface,
             )
             Text(
-                text = "Choose a match to update this library track. The audio file itself is not modified.",
+                text = "Choose a match to update this library track, or reset from the current " +
+                    "file tags. The audio file itself is not modified.",
                 style = MiuixTheme.textStyles.body2,
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             )
@@ -127,7 +155,7 @@ fun ManualMetadataSearchDialog(
                 modifier = Modifier.fillMaxWidth(),
                 label = "Keyword",
                 singleLine = true,
-                enabled = !searching && !applying,
+                enabled = !searching && !applying && !resetting,
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -137,7 +165,7 @@ fun ManualMetadataSearchDialog(
                     text = if (searching) "Searching…" else "Search",
                     variant = TideTextButtonVariant.Primary,
                     size = TideTextButtonSize.Medium,
-                    enabled = keyword.isNotBlank() && !searching && !applying,
+                    enabled = keyword.isNotBlank() && !searching && !applying && !resetting,
                     onClick = ::search,
                 )
             }
@@ -145,6 +173,7 @@ fun ManualMetadataSearchDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 320.dp)
+                    .weight(1f, fill = false)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -152,7 +181,7 @@ fun ManualMetadataSearchDialog(
                     MetadataCandidateRow(
                         candidate = candidate,
                         selected = candidate == selected,
-                        enabled = !applying,
+                        enabled = !applying && !resetting,
                         onClick = { selected = candidate },
                     )
                 }
@@ -169,17 +198,17 @@ fun ManualMetadataSearchDialog(
                 horizontalArrangement = Arrangement.End,
             ) {
                 TideTextButton(
-                    text = "Close",
+                    text = if (resetting) "Resetting…" else "Reset from file",
                     variant = TideTextButtonVariant.Default,
                     size = TideTextButtonSize.Medium,
-                    enabled = !applying,
-                    onClick = onDismiss,
+                    enabled = !searching && !applying && !resetting,
+                    onClick = ::resetFromFile,
                 )
                 TideTextButton(
                     text = if (applying) "Applying…" else "Apply",
                     variant = TideTextButtonVariant.PrimaryFilled,
                     size = TideTextButtonSize.Medium,
-                    enabled = selected != null && !searching && !applying,
+                    enabled = selected != null && !searching && !applying && !resetting,
                     onClick = ::applySelected,
                 )
             }

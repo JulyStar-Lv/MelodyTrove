@@ -94,7 +94,17 @@ data class TrackEntity(
     val replayGainTrackPeak: Double? = null,
     val replayGainAlbumGain: Double? = null,
     val replayGainAlbumPeak: Double? = null,
+    val metadataSource: String = TrackMetadataSources.File,
+    val metadataLocked: Boolean = false,
+    val metadataSourceId: String? = null,
+    val metadataExternalId: String? = null,
+    val metadataAppliedAt: Long? = null,
 )
+
+object TrackMetadataSources {
+    const val File = "FILE"
+    const val Plugin = "PLUGIN"
+}
 
 @Entity(
     tableName = "track_artist",

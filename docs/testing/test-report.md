@@ -1,9 +1,23 @@
 # TideTunes test report
 
-Last updated: 2026-07-14
+Last updated: 2026-07-16
 
 This report tracks verified migration gates. Secrets used for live WebDAV
 checks were provided at runtime and are not stored in this repository.
+
+## Metadata plugin apply and file reset validation (2026-07-16)
+
+Room schema v15 records canonical metadata provenance and locking. Focused tests verify that an
+accepted plugin result survives later background scans, audio properties continue to refresh,
+and an explicit file reset restores current embedded tags while preserving track identity and
+playback history. The reset source query covers the preferred available Local, WebDAV, or
+OneDrive source; artwork and lyrics remain independent.
+
+| Command | Actual result |
+| --- | --- |
+| `JAVA_HOME=/Applications/Android\ Studio.app/Contents/jbr/Contents/Home ./gradlew :shared:desktopTest --tests com.github.tidetunes.domain.importing.RemoteLibraryImportCoordinatorTest --tests com.github.tidetunes.domain.importing.RemoteMetadataRefreshControllerTest --tests com.github.tidetunes.database.RoomLibraryIntegrationTest --no-daemon --no-configuration-cache --console plain` | Passed; metadata locking/reset, reset-source projection, and v14-to-v15 migration coverage |
+| `JAVA_HOME=/Applications/Android\ Studio.app/Contents/jbr/Contents/Home ./gradlew :shared:compileDebugKotlinAndroid :shared:compileKotlinIosSimulatorArm64 :shared:compileDebugUnitTestKotlinAndroid :shared:compileTestKotlinIosSimulatorArm64 --no-daemon --no-configuration-cache --console plain` | Passed; Android and iOS Simulator main/test compilation |
+| `JAVA_HOME=/Applications/Android\ Studio.app/Contents/jbr/Contents/Home ./gradlew :shared:desktopTest --no-daemon --no-configuration-cache --console plain` | Passed; complete shared Desktop test suite |
 
 ## Lyrico Plugin API v3 validation (2026-07-14)
 
