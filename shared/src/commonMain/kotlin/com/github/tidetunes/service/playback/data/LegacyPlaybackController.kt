@@ -7,18 +7,31 @@ import com.github.tidetunes.service.playback.domain.PlaybackQueue
 import com.github.tidetunes.service.playback.domain.PlaybackStatus
 import com.github.tidetunes.service.playback.domain.PlayerState
 import com.github.tidetunes.service.playback.domain.RepeatMode
+import com.github.tidetunes.core.domain.model.AppSettings
+import com.github.tidetunes.core.domain.model.PlayNextMode
+import com.github.tidetunes.core.domain.model.PlaybackAdvancedSettings
+import com.github.tidetunes.core.domain.model.ShuffleStrategy
+import com.github.tidetunes.core.domain.model.StartupPlaybackMode
+import com.github.tidetunes.core.domain.model.LIBRARY_PLAYBACK_PLAYLIST_ID
+import com.github.tidetunes.core.domain.repository.SettingsRepository
 import com.github.tidetunes.service.playback.data.PlayerController as LegacyPlayerController
 import com.github.tidetunes.service.playback.data.PlayerRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import uniffi.tidetunes_backend.Music
 import uniffi.tidetunes_backend.MusicAbstract
 import uniffi.tidetunes_backend.MusicId
@@ -31,12 +44,41 @@ class LegacyPlaybackController(
     private val legacyController: LegacyPlayerController,
     private val scope: CoroutineScope,
     private val positionPollMillis: Long = 100,
+    private val settingsRepository: SettingsRepository? = null,
 ) : PlaybackController {
     private val immediatePositionRefreshes = MutableSharedFlow<Unit>(
         extraBufferCapacity = 1,
     )
+    private val settings = settingsRepository?.settings?.stateIn(
+        scope,
+        SharingStarted.Eagerly,
+        AppSettings.Default,
+    )
+    private val shuffleEnabled = MutableStateFlow(false)
+    private val requestedNext = mutableListOf<MusicAbstract>()
 
-    override val state: StateFlow<PlayerState> = combine(
+    init {
+        scope.launch { restoreStartupPlayback() }
+        scope.launch {
+            playerRepository.music.collect { current ->
+                val currentId = current?.meta?.id ?: return@collect
+                requestedNext.removeAll { it.meta.id == currentId }
+            }
+        }
+        scope.launch {
+            while (isActive) {
+                delay(2_000)
+                if (settings?.value?.playbackAdvanced?.resumePlaybackPosition != false) {
+                    playerRepository.savePlaybackSession(
+                        positionMs = readPosition().positionMs,
+                        wasPlaying = state.value.status == PlaybackStatus.Playing,
+                    )
+                }
+            }
+        }
+    }
+
+    private val legacyState: StateFlow<PlayerState> = combine(
         playerRepository.music,
         playerRepository.playing,
         playerRepository.loading,
@@ -49,6 +91,13 @@ class LegacyPlaybackController(
             playMode = playMode,
             playlistId = playerRepository.playlist.value?.abstr?.meta?.id?.value,
         )
+    }.stateIn(scope, SharingStarted.Eagerly, PlayerState())
+
+    override val state: StateFlow<PlayerState> = combine(
+        legacyState,
+        shuffleEnabled,
+    ) { state, shuffled ->
+        state.copy(shuffleEnabled = shuffled)
     }.stateIn(scope, SharingStarted.Eagerly, PlayerState())
 
     override val position: StateFlow<PlaybackPosition> = merge(
@@ -87,7 +136,16 @@ class LegacyPlaybackController(
         val playlistId = item.libraryPlaylistId
             ?: playerRepository.playlist.value?.abstr?.meta?.id?.value
             ?: return
+        val saved = playerRepository.persistedPlaybackSession()
         legacyController.play(MusicId(musicId), PlaylistId(playlistId))
+        if (
+            settings?.value?.playbackAdvanced?.resumePlaybackPosition != false &&
+            saved?.trackId == musicId &&
+            saved.playlistId == playlistId &&
+            saved.positionMs > 0L
+        ) {
+            seekAfterTrackLoads(musicId, saved.positionMs)
+        }
     }
 
     override fun play() {
@@ -95,6 +153,7 @@ class LegacyPlaybackController(
     }
 
     override fun pause() {
+        scope.launch { playerRepository.savePlaybackSession(readPosition().positionMs, false) }
         legacyController.pause()
     }
 
@@ -112,14 +171,54 @@ class LegacyPlaybackController(
     }
 
     override fun skipNext() {
-        legacyController.playNext()
+        val advanced = settings?.value?.playbackAdvanced ?: PlaybackAdvancedSettings.Default
+        if (shuffleEnabled.value && advanced.shuffleStrategy == ShuffleStrategy.TrueRandom) {
+            val playlist = playerRepository.playlist.value ?: return
+            val currentId = playerRepository.music.value?.meta?.id
+            val next = playlist.musics.filterNot { it.meta.id == currentId }.randomOrNull() ?: return
+            legacyController.play(next.meta.id, playlist.abstr.meta.id)
+        } else {
+            legacyController.playNext()
+        }
     }
 
     override fun skipPrevious() {
         legacyController.playPrevious()
     }
 
-    override fun setShuffle(enabled: Boolean) = Unit
+    override fun enqueueNext(item: PlayableItem) {
+        val trackId = item.libraryTrackId ?: return
+        scope.launch {
+            val currentId = playerRepository.music.value?.meta?.id?.value ?: return@launch
+            if (trackId == currentId) return@launch
+            val music = playerRepository.musicAbstract(trackId) ?: return@launch
+            requestedNext.removeAll { it.meta.id.value == trackId }
+            when (settings?.value?.playbackAdvanced?.playNextMode ?: PlayNextMode.FirstRequestedFirst) {
+                PlayNextMode.FirstRequestedFirst -> requestedNext.add(music)
+                PlayNextMode.LastRequestedFirst -> requestedNext.add(0, music)
+            }
+            rebuildRequestedNextQueue()
+        }
+    }
+
+    override fun setShuffle(enabled: Boolean) {
+        if (shuffleEnabled.value == enabled) return
+        shuffleEnabled.value = enabled
+        requestedNext.clear()
+        scope.launch {
+            val strategy = settings?.value?.playbackAdvanced?.shuffleStrategy
+                ?: ShuffleStrategy.QueueOrder
+            if (!enabled || strategy == ShuffleStrategy.TrueRandom) {
+                if (!enabled) playerRepository.restorePlaybackQueueOrder()
+                return@launch
+            }
+            val playlist = playerRepository.playlist.value ?: return@launch
+            val currentId = playerRepository.music.value?.meta?.id
+            val current = playlist.musics.firstOrNull { it.meta.id == currentId }
+            val shuffled = playlist.musics.filterNot { it.meta.id == currentId }.shuffled()
+            playerRepository.replacePlaybackQueue(listOfNotNull(current) + shuffled)
+        }
+    }
 
     override fun setRepeatMode(mode: RepeatMode) {
         playerRepository.setPlayMode(
@@ -127,16 +226,30 @@ class LegacyPlaybackController(
         )
     }
 
-    override fun moveQueueItem(from: Int, to: Int) = Unit
+    override fun moveQueueItem(from: Int, to: Int) {
+        val musics = playerRepository.playlist.value?.musics?.toMutableList() ?: return
+        if (from !in musics.indices || to !in musics.indices || from == to) return
+        musics.add(to, musics.removeAt(from))
+        playerRepository.replacePlaybackQueue(musics)
+    }
 
     override fun removeQueueItem(index: Int) {
-        if (index == queue.value.currentIndex) {
-            legacyController.stop()
+        val playlist = playerRepository.playlist.value ?: return
+        if (index !in playlist.musics.indices) return
+        val removingCurrent = playlist.musics[index].meta.id == playerRepository.music.value?.meta?.id
+        val musics = playlist.musics.toMutableList().apply { removeAt(index) }
+        requestedNext.removeAll { queued -> musics.none { it.meta.id == queued.meta.id } }
+        playerRepository.replacePlaybackQueue(musics)
+        if (removingCurrent) {
+            val replacement = musics.getOrNull(index) ?: musics.lastOrNull()
+            if (replacement == null) legacyController.stop()
+            else legacyController.play(replacement.meta.id, playlist.abstr.meta.id)
             immediatePositionRefreshes.tryEmit(Unit)
         }
     }
 
     override fun clearQueue() {
+        scope.launch { playerRepository.savePlaybackSession(readPosition().positionMs, false) }
         legacyController.stop()
         immediatePositionRefreshes.tryEmit(Unit)
     }
@@ -147,6 +260,51 @@ class LegacyPlaybackController(
             bufferedMs = legacyController.getBufferedPosition().coerceAtLeast(0),
             durationMs = legacyController.getDuration().coerceAtLeast(0),
         )
+    }
+
+    private suspend fun restoreStartupPlayback() {
+        val repository = settingsRepository ?: return
+        val advanced = repository.settings.first().playbackAdvanced
+        val saved = playerRepository.persistedPlaybackSession()
+        val target = when (advanced.startupPlaybackMode) {
+            StartupPlaybackMode.Off -> null
+            StartupPlaybackMode.ResumeLastQueue -> saved?.trackId?.let { trackId ->
+                trackId to saved.playlistId
+            }
+            StartupPlaybackMode.ShuffleLibrary -> {
+                playerRepository.randomTrackInPlaylist(LIBRARY_PLAYBACK_PLAYLIST_ID)?.let { trackId ->
+                    trackId to LIBRARY_PLAYBACK_PLAYLIST_ID
+                }
+            }
+        } ?: return
+        legacyController.play(MusicId(target.first), PlaylistId(target.second))
+        if (
+            advanced.startupPlaybackMode == StartupPlaybackMode.ResumeLastQueue &&
+            advanced.resumePlaybackPosition &&
+            saved != null &&
+            saved.positionMs > 0L
+        ) {
+            seekAfterTrackLoads(target.first, saved.positionMs)
+        }
+    }
+
+    private suspend fun seekAfterTrackLoads(trackId: Long, positionMs: Long) {
+        withTimeoutOrNull(5_000) {
+            playerRepository.music.filter { music -> music?.meta?.id?.value == trackId }.first()
+        } ?: return
+        legacyController.seek(positionMs.coerceAtLeast(0L).toULong())
+        immediatePositionRefreshes.tryEmit(Unit)
+    }
+
+    private fun rebuildRequestedNextQueue() {
+        val playlist = playerRepository.playlist.value ?: return
+        val currentId = playerRepository.music.value?.meta?.id ?: return
+        val requestedIds = requestedNext.map { it.meta.id }.toSet()
+        val base = playlist.musics.filterNot { it.meta.id in requestedIds }.toMutableList()
+        val currentIndex = base.indexOfFirst { it.meta.id == currentId }
+        if (currentIndex < 0) return
+        base.addAll(currentIndex + 1, requestedNext)
+        playerRepository.replacePlaybackQueue(base)
     }
 }
 

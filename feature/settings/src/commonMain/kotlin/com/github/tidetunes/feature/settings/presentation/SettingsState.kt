@@ -4,14 +4,24 @@ import androidx.compose.runtime.Immutable
 import com.github.tidetunes.core.domain.model.AppLanguageMode
 import com.github.tidetunes.core.domain.model.AppSettings
 import com.github.tidetunes.core.domain.model.AppThemeMode
+import com.github.tidetunes.core.domain.model.AudioEffectSettings
 import com.github.tidetunes.core.domain.model.AudioFocusMode
 import com.github.tidetunes.core.domain.model.AutoScanMode
 import com.github.tidetunes.core.domain.model.DuplicateTrackPolicy
 import com.github.tidetunes.core.domain.model.LibraryRebuildState
 import com.github.tidetunes.core.domain.model.LocalMusicDirectory
+import com.github.tidetunes.core.domain.model.LyricFontSettings
+import com.github.tidetunes.core.domain.model.LyricOutputSettings
+import com.github.tidetunes.core.domain.model.LyricSourceKind
+import com.github.tidetunes.core.domain.model.LyricSourceMode
+import com.github.tidetunes.core.domain.model.LyricTextAlignment
+import com.github.tidetunes.core.domain.model.MetadataParsingSettings
 import com.github.tidetunes.core.domain.model.MissingFilePolicy
 import com.github.tidetunes.core.domain.model.MetadataScanMode
 import com.github.tidetunes.core.domain.model.SettingsCapabilities
+import com.github.tidetunes.core.domain.model.SettingsBackupSettings
+import com.github.tidetunes.core.domain.model.PlaybackAdvancedSettings
+import com.github.tidetunes.core.domain.model.PlayerInteractionSettings
 import com.github.tidetunes.core.domain.model.SourceAccountId
 import com.github.tidetunes.core.domain.model.SourceConnectionTestStatus
 import com.github.tidetunes.core.domain.model.StorageUsage
@@ -50,6 +60,7 @@ enum class SettingsPage {
     Home,
     Appearance,
     Playback,
+    Lyrics,
     Source,
     NetworkCache,
     Storage,
@@ -86,6 +97,30 @@ sealed interface SettingsAction {
     data class SetRetryPlaybackOnFailure(val enabled: Boolean) : SettingsAction
     data class SetResumePlaybackAfterNetworkRecovery(val enabled: Boolean) : SettingsAction
     data class SetKeepScreenOnInPlayer(val enabled: Boolean) : SettingsAction
+    data class SetLyricTextAlignment(val alignment: LyricTextAlignment) : SettingsAction
+    data class SetLyricPrimaryFontScalePercent(val value: Int) : SettingsAction
+    data class SetLyricPrimaryFontSizeSp(val value: Int) : SettingsAction
+    data class SetLyricSecondaryFontScalePercent(val value: Int) : SettingsAction
+    data class SetLyricSecondaryFontSizeSp(val value: Int) : SettingsAction
+    data class SetLyricTranslationVisible(val visible: Boolean) : SettingsAction
+    data class SetLyricWordLiftEnabled(val enabled: Boolean) : SettingsAction
+    data class SetLyricBlurEffectEnabled(val enabled: Boolean) : SettingsAction
+    data class SetLyricPerspectiveEffectEnabled(val enabled: Boolean) : SettingsAction
+    data class SetLyricPerspectiveAngleDegrees(val value: Int) : SettingsAction
+    data class SetLyricTapToSeekEnabled(val enabled: Boolean) : SettingsAction
+    data class SetLyricSourceMode(val mode: LyricSourceMode) : SettingsAction
+    data class SetLyricSourcePriority(val priority: List<LyricSourceKind>) : SettingsAction
+    data class SetIgnoreLyricHeaderTags(val enabled: Boolean) : SettingsAction
+    data class SetLyricLineBlacklist(val lines: List<String>) : SettingsAction
+    data class SetLyricFontSettings(val settings: LyricFontSettings) : SettingsAction
+    data class SetPlaybackAdvancedSettings(val settings: PlaybackAdvancedSettings) : SettingsAction
+    data class SetPlayerInteractionSettings(val settings: PlayerInteractionSettings) : SettingsAction
+    data class SetMetadataParsingSettings(val settings: MetadataParsingSettings) : SettingsAction
+    data class SetAudioEffectSettings(val settings: AudioEffectSettings) : SettingsAction
+    data class SetLyricOutputSettings(val settings: LyricOutputSettings) : SettingsAction
+    data class SetBackupSettings(val settings: SettingsBackupSettings) : SettingsAction
+    data object CreateSettingsBackup : SettingsAction
+    data object RestoreLatestSettingsBackup : SettingsAction
     data class SetAutoScanMode(val mode: AutoScanMode) : SettingsAction
     data class SetBackgroundScanEnabled(val enabled: Boolean) : SettingsAction
     data class SetScanOnlyOnUnmeteredNetwork(val enabled: Boolean) : SettingsAction
@@ -158,6 +193,8 @@ data class SourceAccountSettingsItem(
     val lastScanStatus: String?,
     val isLocal: Boolean,
     val isWebDav: Boolean,
+    val isRemoteServer: Boolean,
+    val sourceLabel: String,
 )
 
 @Immutable

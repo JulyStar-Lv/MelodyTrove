@@ -53,6 +53,7 @@ fun TideSlider(
     onValueChange: (Float) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    tapToSeekEnabled: Boolean = true,
     valueRange: ClosedFloatingPointRange<Float> = 0f..1f,
     steps: Int = 0,
     bufferedValue: Float? = null,
@@ -111,7 +112,7 @@ fun TideSlider(
             .height(height)
             .onSizeChanged { sliderWidthPx = it.width }
             .then(
-                if (canChange) {
+                if (canChange && tapToSeekEnabled) {
                     Modifier.pointerInput(safeRange, steps, sliderWidthPx) {
                         detectTapGestures { offset ->
                             isChanging = true

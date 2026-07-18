@@ -1,5 +1,7 @@
 package com.github.tidetunes.singleton
 
+import com.github.tidetunes.core.domain.model.AudioEffectSettings
+import com.github.tidetunes.core.domain.model.PlaybackAdvancedSettings
 import com.github.tidetunes.service.playback.domain.PlaybackEngine
 import com.github.tidetunes.service.playback.domain.PlaybackEngineFailureReason
 import com.github.tidetunes.service.playback.domain.PlaybackEngineLoadRequest
@@ -10,7 +12,13 @@ import uniffi.tidetunes_backend.DesktopRodioLoadResult
 import uniffi.tidetunes_backend.DesktopRodioPlayer
 import uniffi.tidetunes_backend.ctCreateDesktopRodioPlayer
 
-interface DesktopPlaybackEngine : PlaybackEngine
+interface DesktopPlaybackEngine : PlaybackEngine {
+    fun configureAudioProcessing(
+        effects: AudioEffectSettings,
+        playback: PlaybackAdvancedSettings,
+        replayGainDb: Float,
+    ) = Unit
+}
 
 class NoopDesktopPlaybackEngine : DesktopPlaybackEngine {
     override fun load(request: PlaybackEngineLoadRequest): PlaybackEngineLoadResult {
@@ -35,6 +43,28 @@ class NoopDesktopPlaybackEngine : DesktopPlaybackEngine {
 class RodioDesktopPlaybackEngine internal constructor(
     private val runtime: DesktopRodioRuntime = UniffiDesktopRodioRuntime(),
 ) : DesktopPlaybackEngine {
+    override fun configureAudioProcessing(
+        effects: AudioEffectSettings,
+        playback: PlaybackAdvancedSettings,
+        replayGainDb: Float,
+    ) {
+        runtime.configureAudioProcessing(
+            enabled = effects.enabled,
+            eqBandGainsDb = effects.eqBandGainsDb.map(Int::toFloat),
+            eqQ = effects.eqQHundredths / 100f,
+            bassDb = effects.bassDb.toFloat(),
+            trebleDb = effects.trebleDb.toFloat(),
+            compressorEnabled = effects.compressorEnabled,
+            compressorThresholdDb = effects.compressorThresholdDb.toFloat(),
+            compressorRatio = effects.compressorRatio.toFloat(),
+            compressorMakeupDb = effects.compressorMakeupDb.toFloat(),
+            stereoWidth = effects.stereoWidthPercent / 100f,
+            reverbPreset = effects.reverbPreset.ordinal.toUByte(),
+            replayGainDb = replayGainDb,
+            crossfadeDurationMs = playback.crossfadeDurationMs.toULong(),
+        )
+    }
+
     override fun load(request: PlaybackEngineLoadRequest): PlaybackEngineLoadResult {
         val resource = request.resource
         if (resource.isExpired(nowEpochMs = System.currentTimeMillis())) {
@@ -87,6 +117,21 @@ internal interface DesktopRodioRuntime {
     fun currentPositionMs(): Long
     fun bufferedPositionMs(): Long
     fun durationMs(): Long
+    fun configureAudioProcessing(
+        enabled: Boolean,
+        eqBandGainsDb: List<Float>,
+        eqQ: Float,
+        bassDb: Float,
+        trebleDb: Float,
+        compressorEnabled: Boolean,
+        compressorThresholdDb: Float,
+        compressorRatio: Float,
+        compressorMakeupDb: Float,
+        stereoWidth: Float,
+        reverbPreset: UByte,
+        replayGainDb: Float,
+        crossfadeDurationMs: ULong,
+    ) = Unit
 }
 
 private class UniffiDesktopRodioRuntime(
@@ -120,6 +165,38 @@ private class UniffiDesktopRodioRuntime(
     override fun bufferedPositionMs(): Long = player.bufferedPositionMs()
 
     override fun durationMs(): Long = player.durationMs()
+
+    override fun configureAudioProcessing(
+        enabled: Boolean,
+        eqBandGainsDb: List<Float>,
+        eqQ: Float,
+        bassDb: Float,
+        trebleDb: Float,
+        compressorEnabled: Boolean,
+        compressorThresholdDb: Float,
+        compressorRatio: Float,
+        compressorMakeupDb: Float,
+        stereoWidth: Float,
+        reverbPreset: UByte,
+        replayGainDb: Float,
+        crossfadeDurationMs: ULong,
+    ) {
+        player.configureAudioProcessing(
+            enabled = enabled,
+            eqBandGainsDb = eqBandGainsDb,
+            eqQ = eqQ,
+            bassDb = bassDb,
+            trebleDb = trebleDb,
+            compressorEnabled = compressorEnabled,
+            compressorThresholdDb = compressorThresholdDb,
+            compressorRatio = compressorRatio,
+            compressorMakeupDb = compressorMakeupDb,
+            stereoWidth = stereoWidth,
+            reverbPreset = reverbPreset,
+            replayGainDb = replayGainDb,
+            crossfadeDurationMs = crossfadeDurationMs,
+        )
+    }
 }
 
 private fun Map<String, String>.toHttpHeaderFields(): String {

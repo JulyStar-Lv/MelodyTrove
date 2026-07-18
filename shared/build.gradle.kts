@@ -88,6 +88,7 @@ kotlin {
             implementation(project(":source:local"))
             implementation(project(":source:webdav"))
             implementation(project(":source:onedrive"))
+            implementation(project(":source:server"))
             implementation(project(":service:playback:domain"))
             implementation(project(":service:playback:presentation"))
             implementation(project(":service:download:data"))
@@ -142,6 +143,9 @@ kotlin {
             implementation(libs.androidx.core.ktx)
             implementation(libs.koin.android)
             implementation(libs.androidx.work.runtime.ktx)
+            implementation(libs.lyricon.provider)
+            implementation(libs.lyric.getter.api)
+            implementation(libs.superlyric.api)
         }
         val desktopMain by getting {
             dependencies {

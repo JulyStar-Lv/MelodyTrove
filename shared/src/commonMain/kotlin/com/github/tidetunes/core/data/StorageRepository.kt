@@ -29,6 +29,10 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import uniffi.tidetunes_backend.ArgUpsertStorage
 import uniffi.tidetunes_backend.Storage
 import uniffi.tidetunes_backend.StorageConnectionTestResult
@@ -39,6 +43,9 @@ import uniffi.tidetunes_backend.ctStartOnedriveOauth
 import uniffi.tidetunes_backend.ctTestStorage
 import uniffi.tidetunes_backend.StorageId
 import uniffi.tidetunes_backend.StorageType
+import uniffi.tidetunes_backend.ctEmbyLogin
+import uniffi.tidetunes_backend.ctEmbyRequest
+import uniffi.tidetunes_backend.ctSubsonicRequest
 
 
 class StorageRepositoryImpl(
@@ -65,7 +72,9 @@ class StorageRepositoryImpl(
         }
         scope.launch {
             sourceAccountDao.observeSummaries().collect { summaries ->
-                _storages.value = summaries.map { summary ->
+                _storages.value = summaries.filter { summary ->
+                    summary.account.providerType in FILE_PROVIDER_TYPES
+                }.map { summary ->
                     val entity = summary.account
                     entity.toStorage(password = "")
                 }
@@ -157,7 +166,11 @@ class StorageRepositoryImpl(
     }
 
     override suspend fun upsertSource(draft: SourceEditorDraft): SourceAccountId {
-        return storageSourceAccountId(upsertStorage(draft.toArgUpsertStorage()).value)
+        return if (draft.storageType.isRemoteServer) {
+            storageSourceAccountId(upsertRemoteServer(draft))
+        } else {
+            storageSourceAccountId(upsertStorage(draft.toArgUpsertStorage()).value)
+        }
     }
 
     suspend fun remove(id: StorageId) {
@@ -237,6 +250,25 @@ class StorageRepositoryImpl(
     }
 
     override suspend fun loadEditorState(id: Long): SourceEditorStorageState? {
+        val entity = sourceAccountDao.get(id) ?: return null
+        if (entity.providerType !in FILE_PROVIDER_TYPES) {
+            val credential = loadCredential(StorageId(id))
+            return SourceEditorStorageState(
+                accountId = storageSourceAccountId(id),
+                draft = SourceEditorDraft(
+                    id = id,
+                    address = entity.endpoint.orEmpty(),
+                    alias = entity.displayName,
+                    username = credential?.username.orEmpty(),
+                    secret = "",
+                    storageType = entity.providerType.toRemoteSourceEditorType(),
+                    externalAccountId = entity.externalAccountId.orEmpty(),
+                ),
+                title = entity.displayName.ifBlank { entity.endpoint.orEmpty() },
+                musicCount = 0u,
+                isOneDrive = false,
+            )
+        }
         val storage = _storages.value.find { it.id.value == id } ?: return null
         val credential = loadCredential(StorageId(id))
         val accountId = storageSourceAccountId(id)
@@ -250,7 +282,99 @@ class StorageRepositoryImpl(
     }
 
     override suspend fun testSource(draft: SourceEditorDraft): SourceConnectionTestStatus {
+        if (draft.storageType.isRemoteServer) {
+            return testRemoteServer(draft)
+        }
         return test(draft.toArgUpsertStorage()).toSourceConnectionTestStatus()
+    }
+
+    private suspend fun testRemoteServer(draft: SourceEditorDraft): SourceConnectionTestStatus =
+        runCatching {
+            when (draft.storageType) {
+                SourceEditorType.Navidrome,
+                SourceEditorType.OpenSubsonic -> {
+                    val password = draft.secret.ifBlank {
+                        draft.id?.let { loadCredential(StorageId(it))?.secret }.orEmpty()
+                    }
+                    ctSubsonicRequest(
+                        baseUrl = draft.address,
+                        username = draft.username,
+                        password = password,
+                        endpoint = "ping",
+                        params = emptyMap(),
+                    )
+                }
+                SourceEditorType.Emby -> {
+                    if (draft.secret.isNotBlank()) {
+                        ctEmbyLogin(draft.address, draft.username, draft.secret)
+                    } else {
+                        val id = requireNotNull(draft.id)
+                        val token = loadCredential(StorageId(id))?.secret.orEmpty()
+                        ctEmbyRequest(
+                            draft.address,
+                            token,
+                            "Users/${draft.externalAccountId}",
+                            emptyMap(),
+                        )
+                    }
+                }
+                else -> error("Unsupported remote server type")
+            }
+        }.fold(
+            onSuccess = { SourceConnectionTestStatus.Success },
+            onFailure = { SourceConnectionTestStatus.Error },
+        )
+
+    private suspend fun upsertRemoteServer(draft: SourceEditorDraft): Long {
+        val id = draft.id ?: ((sourceAccountDao.maxId() ?: 0L) + 1L)
+        val previous = sourceAccountDao.get(id)
+        val previousCredential = loadCredential(StorageId(id))
+        var secret = draft.secret.ifBlank { previousCredential?.secret.orEmpty() }
+        var externalAccountId = draft.externalAccountId.ifBlank {
+            previous?.externalAccountId.orEmpty()
+        }
+        if (draft.storageType == SourceEditorType.Emby && draft.secret.isNotBlank()) {
+            val login = Json.parseToJsonElement(
+                ctEmbyLogin(draft.address, draft.username, draft.secret)
+            ).jsonObject
+            secret = login["AccessToken"]?.jsonPrimitive?.contentOrNull.orEmpty()
+            externalAccountId = login["User"]?.jsonObject
+                ?.get("Id")?.jsonPrimitive?.contentOrNull.orEmpty()
+            require(secret.isNotBlank() && externalAccountId.isNotBlank())
+        } else if (draft.storageType != SourceEditorType.Emby) {
+            ctSubsonicRequest(
+                draft.address,
+                draft.username,
+                secret,
+                "ping",
+                emptyMap(),
+            )
+        }
+        credentialStore.save(
+            id,
+            StoredCredential(
+                username = draft.username,
+                secret = secret,
+                isAnonymous = false,
+            )
+        )
+        val now = currentTimeMillis()
+        sourceAccountDao.upsert(
+            SourceAccountEntity(
+                id = id,
+                providerType = draft.storageType.providerType,
+                displayName = draft.alias.ifBlank { draft.address },
+                endpoint = draft.address,
+                externalAccountId = externalAccountId.ifBlank { null },
+                credentialRef = previous?.credentialRef ?: "storage-$id",
+                priority = previous?.priority ?: 0,
+                enabled = previous?.enabled ?: true,
+                createdAt = previous?.createdAt ?: now,
+                updatedAt = now,
+                rootPath = null,
+            )
+        )
+        return id
     }
 
     override suspend fun listOneDriveDriveInfos(refreshToken: String): OneDriveDriveListResult {
@@ -328,12 +452,40 @@ private fun String.toStorageType(): StorageType {
 
 private const val PENDING_ONEDRIVE_OAUTH_CREDENTIAL_ID = Long.MIN_VALUE
 private const val LOCAL_STORAGE_ID = 1L
+private val FILE_PROVIDER_TYPES = setOf(
+    ProviderTypes.Local,
+    ProviderTypes.WebDav,
+    ProviderTypes.OneDrive,
+)
+
+private val SourceEditorType.isRemoteServer: Boolean
+    get() = this == SourceEditorType.Navidrome ||
+        this == SourceEditorType.OpenSubsonic ||
+        this == SourceEditorType.Emby
+
+private val SourceEditorType.providerType: String
+    get() = when (this) {
+        SourceEditorType.Navidrome -> ProviderTypes.Navidrome
+        SourceEditorType.OpenSubsonic -> ProviderTypes.OpenSubsonic
+        SourceEditorType.Emby -> ProviderTypes.Emby
+        else -> error("$this is not a remote server provider")
+    }
+
+private fun String.toRemoteSourceEditorType(): SourceEditorType = when (this) {
+    ProviderTypes.Navidrome -> SourceEditorType.Navidrome
+    ProviderTypes.OpenSubsonic -> SourceEditorType.OpenSubsonic
+    ProviderTypes.Emby -> SourceEditorType.Emby
+    else -> error("$this is not a remote server provider")
+}
 
 private fun SourceAccountSummaryRow.toStorageAccountInfo(): StorageAccountInfo {
     val sourceId = when (account.providerType) {
         ProviderTypes.Local -> BuiltInSourceIds.Local
         ProviderTypes.WebDav -> BuiltInSourceIds.WebDav
         ProviderTypes.OneDrive -> BuiltInSourceIds.OneDrive
+        ProviderTypes.Navidrome -> BuiltInSourceIds.Navidrome
+        ProviderTypes.OpenSubsonic -> BuiltInSourceIds.OpenSubsonic
+        ProviderTypes.Emby -> BuiltInSourceIds.Emby
         else -> SourceId(account.providerType)
     }
     return StorageAccountInfo(

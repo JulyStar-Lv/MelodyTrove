@@ -10,6 +10,7 @@ import com.github.tidetunes.feature.settings.presentation.SettingsRoot
 private const val ROUTE_SETTINGS = "settings"
 private const val ROUTE_APPEARANCE = "settings/appearance"
 private const val ROUTE_PLAYBACK = "settings/playback"
+private const val ROUTE_LYRICS = "settings/lyrics"
 private const val ROUTE_SOURCE = "settings/source"
 private const val ROUTE_NETWORK_CACHE = "settings/network-cache"
 private const val ROUTE_STORAGE = "settings/storage"
@@ -38,6 +39,7 @@ fun SettingsTabGraph(
             gitCommitSha = gitCommitSha,
             onNavigateToAppearance = { navigate(ROUTE_APPEARANCE) },
             onNavigateToPlayback = { navigate(ROUTE_PLAYBACK) },
+            onNavigateToLyrics = { navigate(ROUTE_LYRICS) },
             onNavigateToSource = { navigate(ROUTE_SOURCE) },
             onNavigateToPlugins = onNavigateToPlugins,
             onNavigateToNetworkCache = { navigate(ROUTE_NETWORK_CACHE) },
@@ -56,6 +58,7 @@ fun SettingsTabGraph(
         composable(ROUTE_SETTINGS) { Route(SettingsPage.Home) }
         composable(ROUTE_APPEARANCE) { Route(SettingsPage.Appearance) }
         composable(ROUTE_PLAYBACK) { Route(SettingsPage.Playback) }
+        composable(ROUTE_LYRICS) { Route(SettingsPage.Lyrics) }
         composable(ROUTE_SOURCE) { Route(SettingsPage.Source) }
         composable(ROUTE_NETWORK_CACHE) { Route(SettingsPage.NetworkCache) }
         composable(ROUTE_STORAGE) { Route(SettingsPage.Storage) }

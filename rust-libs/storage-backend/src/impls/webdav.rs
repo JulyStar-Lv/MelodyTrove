@@ -394,6 +394,54 @@ impl Webdav {
             .await
     }
 
+    /// Creates the requested directory tree and uploads a UTF-8 settings backup.
+    ///
+    /// This deliberately lives beside the normal WebDAV transport so backup uploads
+    /// share its Basic/Digest authentication challenge handling and retry policy.
+    pub async fn put_text_file(
+        &self,
+        directory: &str,
+        file_name: &str,
+        content: String,
+    ) -> StorageBackendResult<()> {
+        let mut current = String::new();
+        for segment in directory.split('/').filter(|segment| !segment.is_empty()) {
+            current.push('/');
+            current.push_str(segment);
+            let url = self.get_url::<true>(&current)?;
+            let method = reqwest::Method::from_bytes(b"MKCOL")
+                .map_err(|error| StorageBackendError::RetryExhausted(error.to_string()))?;
+            let response = self
+                .request_xml_with_retry(method, url, "0", String::new())
+                .await?;
+            if !response.status().is_success()
+                && response.status() != StatusCode::METHOD_NOT_ALLOWED
+            {
+                return Err(StorageBackendError::WebDavWriteFailed {
+                    operation: "MKCOL".to_string(),
+                    status: response.status().as_u16(),
+                });
+            }
+        }
+
+        let target = format!(
+            "{}/{}",
+            directory.trim_end_matches('/'),
+            file_name.trim_start_matches('/')
+        );
+        let url = self.get_url::<false>(&target)?;
+        let response = self
+            .request_xml_with_retry(reqwest::Method::PUT, url, "0", content)
+            .await?;
+        if !response.status().is_success() {
+            return Err(StorageBackendError::WebDavWriteFailed {
+                operation: "PUT".to_string(),
+                status: response.status().as_u16(),
+            });
+        }
+        Ok(())
+    }
+
     fn parse_list_response(&self, dir: &str, text: &str) -> StorageBackendResult<Vec<Entry>> {
         let obj: webdav_list_types::Root = match quick_xml::de::from_str(text) {
             Ok(obj) => obj,

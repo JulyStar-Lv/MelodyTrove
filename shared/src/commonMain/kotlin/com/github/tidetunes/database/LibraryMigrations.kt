@@ -671,3 +671,43 @@ val MIGRATION_14_15 = object : Migration(14, 15) {
         }
     }
 }
+
+val MIGRATION_15_16 = object : Migration(15, 16) {
+    override fun migrate(connection: SQLiteConnection) {
+        listOf(
+            """
+            CREATE TABLE IF NOT EXISTS lyrics_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                trackId INTEGER NOT NULL,
+                format TEXT NOT NULL,
+                language TEXT,
+                synchronized INTEGER NOT NULL,
+                content TEXT NOT NULL,
+                sourcePath TEXT,
+                sourceKind TEXT NOT NULL,
+                updatedAt INTEGER NOT NULL,
+                FOREIGN KEY(trackId) REFERENCES track(id) ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent(),
+            """
+            INSERT INTO lyrics_new (
+                id, trackId, format, language, synchronized, content, sourcePath, sourceKind, updatedAt
+            )
+            SELECT id, trackId, format, language, synchronized, content, sourcePath,
+                   CASE
+                       WHEN sourcePath IS NOT NULL AND TRIM(sourcePath) != '' THEN
+                           CASE WHEN UPPER(format) = 'TTML' THEN 'ExternalTtml' ELSE 'ExternalPlain' END
+                       ELSE
+                           CASE WHEN UPPER(format) = 'TTML' THEN 'EmbeddedTtml' ELSE 'EmbeddedPlain' END
+                   END,
+                   updatedAt
+            FROM lyrics
+            """.trimIndent(),
+            "DROP TABLE lyrics",
+            "ALTER TABLE lyrics_new RENAME TO lyrics",
+            "CREATE UNIQUE INDEX IF NOT EXISTS index_lyrics_trackId_sourceKind ON lyrics(trackId, sourceKind)",
+        ).forEach { sql ->
+            connection.prepare(sql).use { statement -> statement.step() }
+        }
+    }
+}

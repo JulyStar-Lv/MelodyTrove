@@ -60,6 +60,7 @@ class PlaybackService : MediaSessionService() {
     private var _mediaSession: MediaSession? = null
     private var playbackResource: PlaybackResource? = null
     private var audioFocusController: PlaybackAudioFocusController? = null
+    private var lyricOutputController: AndroidLyricOutputController? = null
 
     @OptIn(UnstableApi::class)
     override fun onCreate() {
@@ -148,6 +149,14 @@ class PlaybackService : MediaSessionService() {
                 }
             })
             .build()
+        lyricOutputController = AndroidLyricOutputController(
+            context = this,
+            settingsRepository = settingsRepository,
+            playerRepository = playerRepository,
+            roomLibraryStore = roomLibraryStore,
+            scope = serviceScope,
+            playerProvider = { _mediaSession?.player },
+        )
 
         player.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -214,6 +223,8 @@ class PlaybackService : MediaSessionService() {
             releasePlaybackResource()
         }
         _mediaSession?.player?.release()
+        lyricOutputController?.destroy()
+        lyricOutputController = null
         audioFocusController?.release()
         audioFocusController = null
         _mediaSession?.release()

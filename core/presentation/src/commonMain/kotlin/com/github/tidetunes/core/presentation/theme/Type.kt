@@ -9,10 +9,20 @@ import org.jetbrains.compose.resources.Font
 import tidetunes.core.presentation.generated.resources.Res
 import tidetunes.core.presentation.generated.resources.jetbrains_mono_wght
 import tidetunes.core.presentation.generated.resources.noto_sans_sc_wght
+import tidetunes.core.presentation.generated.resources.plus_jakarta_sans_wght
 import top.yukonga.miuix.kmp.theme.TextStyles
 import top.yukonga.miuix.kmp.theme.defaultTextStyles
 
 object TideTunesFontFamilies {
+    val JakartaSans: FontFamily
+        @Composable
+        get() = FontFamily(
+            Font(Res.font.plus_jakarta_sans_wght, weight = FontWeight.Normal),
+            Font(Res.font.plus_jakarta_sans_wght, weight = FontWeight.Medium),
+            Font(Res.font.plus_jakarta_sans_wght, weight = FontWeight.SemiBold),
+            Font(Res.font.plus_jakarta_sans_wght, weight = FontWeight.Bold),
+        )
+
     val Sans: FontFamily
         @Composable
         get() = FontFamily(

@@ -273,6 +273,7 @@ object ProviderTypes {
     const val Emby = "emby"
     const val Jellyfin = "jellyfin"
     const val Navidrome = "navidrome"
+    const val OpenSubsonic = "open_subsonic"
     const val AudioStation = "audio_station"
 }
 

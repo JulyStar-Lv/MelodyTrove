@@ -1,5 +1,8 @@
 package com.github.tidetunes.core.domain.model
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 enum class MetadataScanMode {
     Fast,
     Standard,

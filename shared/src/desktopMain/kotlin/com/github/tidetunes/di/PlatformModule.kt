@@ -10,11 +10,14 @@ import com.github.tidetunes.service.playback.data.PlayerController
 import com.github.tidetunes.service.download.data.scheduler.DesktopCoroutineDownloadScheduler
 import com.github.tidetunes.service.download.domain.DownloadTaskScheduler
 import com.github.tidetunes.service.playback.data.DesktopAdvancedPlaybackController
+import com.github.tidetunes.service.playback.data.DesktopFloatingLyricsController
 import com.github.tidetunes.service.playback.domain.AdvancedPlaybackController
 import org.koin.core.module.Module
 import org.koin.dsl.module
 import com.github.tidetunes.core.data.settings.DesktopNetworkStatusProvider
 import com.github.tidetunes.core.domain.repository.NetworkStatusProvider
+import com.github.tidetunes.core.data.settings.UnsupportedExternalEditorLauncher
+import com.github.tidetunes.core.domain.repository.ExternalEditorLauncher
 
 actual val platformModule: Module = module {
     single<DesktopPlaybackEngine> { RodioDesktopPlaybackEngine() }
@@ -42,5 +45,9 @@ actual val platformModule: Module = module {
     }
     single<PermissionChecker> { DesktopPermissionChecker() }
     single<AdvancedPlaybackController> { DesktopAdvancedPlaybackController() }
+    single(createdAtStart = true) {
+        DesktopFloatingLyricsController(get(), get(), get(), get(), get())
+    }
     single<NetworkStatusProvider> { DesktopNetworkStatusProvider() }
+    single<ExternalEditorLauncher> { UnsupportedExternalEditorLauncher() }
 }

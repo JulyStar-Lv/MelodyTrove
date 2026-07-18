@@ -17,6 +17,7 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven("https://jitpack.io")
     }
 }
 
@@ -47,6 +48,7 @@ include(":source:api")
 include(":source:local")
 include(":source:webdav")
 include(":source:onedrive")
+include(":source:server")
 include(":service:playback:domain")
 include(":service:playback:presentation")
 include(":service:download:data")

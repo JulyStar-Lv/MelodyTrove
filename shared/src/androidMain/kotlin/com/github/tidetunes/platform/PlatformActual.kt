@@ -33,6 +33,17 @@ actual fun platformSettingsCapabilities() =
         deviceDisconnectSupported = true,
         networkStatusSupported = true,
         diagnosticsExportSupported = true,
+        floatingLyricsSupported = true,
+        notificationLyricsSupported = true,
+        bluetoothLyricsSupported = true,
+        lyriconSupported = true,
+        superLyricSupported = true,
+        lyricGetterSupported = true,
+        flymeStatusLyricsSupported = true,
+        colorOsLockScreenLyricsSupported = true,
+        settingsBackupSupported = true,
+        scheduledBackupSupported = true,
+        externalEditorSupported = true,
     )
 
 private val systemLocalesAtStartup: LocaleList by lazy {

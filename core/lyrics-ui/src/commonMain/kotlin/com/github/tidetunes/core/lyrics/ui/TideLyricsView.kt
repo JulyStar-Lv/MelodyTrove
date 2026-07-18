@@ -37,12 +37,15 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -85,8 +88,19 @@ fun TideLyricsView(
         lineHeight = 35.sp,
         fontWeight = FontWeight.SemiBold,
     ),
+    secondaryTextStyle: TextStyle = TextStyle(
+        fontSize = 19.sp,
+        lineHeight = 24.sp,
+        fontWeight = FontWeight.SemiBold,
+    ),
+    textAlign: TextAlign = TextAlign.Start,
     lineSpacing: Dp = 18.dp,
+    showTranslation: Boolean = true,
+    wordLiftEnabled: Boolean = true,
     useBlurEffect: Boolean = true,
+    perspectiveEffectEnabled: Boolean = false,
+    perspectiveAngleDegrees: Float = 25f,
+    tapToSeekEnabled: Boolean = true,
 ) {
     val listState = rememberLazyListState()
     val renderPositionProvider = rememberInterpolatedPlaybackPositionProvider(
@@ -98,6 +112,7 @@ fun TideLyricsView(
             .coerceAtLeast(0)
             .coerceAtMost((lyrics.lines.size - 1).coerceAtLeast(0))
     }
+    val perspectiveCameraDistance = with(LocalDensity.current) { 18.dp.toPx() }
 
     LaunchedEffect(currentIndex, lyrics.lines.size) {
         if (lyrics.lines.isNotEmpty()) {
@@ -111,10 +126,27 @@ fun TideLyricsView(
             .fillMaxSize(),
     ) {
         val verticalPadding = maxHeight * 0.34f
+        val perspectiveRotation = when (textAlign) {
+            TextAlign.Right, TextAlign.End -> perspectiveAngleDegrees
+            else -> -perspectiveAngleDegrees
+        }
+        val perspectiveOrigin = when (textAlign) {
+            TextAlign.Center -> 0.5f
+            TextAlign.Right, TextAlign.End -> 1f
+            else -> 0f
+        }
 
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    if (perspectiveEffectEnabled) {
+                        rotationY = perspectiveRotation
+                        transformOrigin = TransformOrigin(perspectiveOrigin, 0.5f)
+                        cameraDistance = perspectiveCameraDistance
+                    }
+                },
             contentPadding = PaddingValues(vertical = verticalPadding),
             verticalArrangement = Arrangement.spacedBy(lineSpacing),
         ) {
@@ -133,7 +165,12 @@ fun TideLyricsView(
                     inactiveColor = inactiveColor,
                     activeTextStyle = activeTextStyle,
                     inactiveTextStyle = inactiveTextStyle,
+                    secondaryTextStyle = secondaryTextStyle,
+                    textAlign = textAlign,
+                    showTranslation = showTranslation,
+                    wordLiftEnabled = wordLiftEnabled,
                     useBlurEffect = useBlurEffect,
+                    tapToSeekEnabled = tapToSeekEnabled,
                     onClick = { onLineClick(line) },
                 )
             }
@@ -168,11 +205,16 @@ private fun LyricLineItem(
     inactiveColor: Color,
     activeTextStyle: TextStyle,
     inactiveTextStyle: TextStyle,
+    secondaryTextStyle: TextStyle,
+    textAlign: TextAlign,
+    showTranslation: Boolean,
+    wordLiftEnabled: Boolean,
     useBlurEffect: Boolean,
+    tapToSeekEnabled: Boolean,
     onClick: () -> Unit,
 ) {
     val scale by animateFloatAsState(
-        targetValue = if (isCurrent) 1f else 0.94f,
+        targetValue = if (!wordLiftEnabled || isCurrent) 1f else 0.94f,
         animationSpec = spring(stiffness = 420f),
         label = "lyricLineScale",
     )
@@ -203,7 +245,7 @@ private fun LyricLineItem(
                     null
                 }
             }
-            .clickable(onClick = onClick)
+            .then(if (tapToSeekEnabled) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(horizontal = 20.dp, vertical = 6.dp),
     ) {
         KaraokeText(
@@ -213,16 +255,19 @@ private fun LyricLineItem(
             activeColor = activeColor,
             inactiveColor = inactiveColor,
             textStyle = if (isCurrent) activeTextStyle else inactiveTextStyle,
+            textAlign = textAlign,
         )
 
-        if (line is SyncedLine && !line.translation.isNullOrBlank()) {
+        val translation = line.translationOrNull()
+        if (showTranslation && !translation.isNullOrBlank()) {
             BasicText(
-                text = line.translation.orEmpty(),
-                modifier = Modifier.padding(top = 5.dp),
-                style = inactiveTextStyle.copy(
+                text = translation,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 5.dp),
+                style = secondaryTextStyle.copy(
                     color = activeColor.copy(alpha = if (isCurrent) 0.72f else 0.48f),
-                    fontSize = inactiveTextStyle.fontSize * 0.72f,
-                    lineHeight = inactiveTextStyle.lineHeight * 0.78f,
+                    textAlign = textAlign,
                 ),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -239,11 +284,16 @@ private fun KaraokeText(
     activeColor: Color,
     inactiveColor: Color,
     textStyle: TextStyle,
+    textAlign: TextAlign,
 ) {
     if (line !is KaraokeLine) {
         BasicText(
             text = (line as? SyncedLine)?.content.orEmpty(),
-            style = textStyle.copy(color = if (isCurrent) activeColor else inactiveColor),
+            modifier = Modifier.fillMaxWidth(),
+            style = textStyle.copy(
+                color = if (isCurrent) activeColor else inactiveColor,
+                textAlign = textAlign,
+            ),
             maxLines = 4,
             overflow = TextOverflow.Ellipsis,
         )
@@ -255,10 +305,11 @@ private fun KaraokeText(
         mutableStateOf<List<KaraokeRevealSegment>>(emptyList())
     }
     val revealPath = remember(line, textStyle) { Path() }
-    Box {
+    Box(modifier = Modifier.fillMaxWidth()) {
         BasicText(
             text = text,
-            style = textStyle.copy(color = inactiveColor),
+            modifier = Modifier.fillMaxWidth(),
+            style = textStyle.copy(color = inactiveColor, textAlign = textAlign),
             maxLines = 4,
             overflow = TextOverflow.Ellipsis,
         )
@@ -266,6 +317,7 @@ private fun KaraokeText(
             BasicText(
                 text = text,
                 modifier = Modifier
+                    .fillMaxWidth()
                     .clearAndSetSemantics { }
                     .drawWithContent {
                         revealPath.reset()
@@ -277,7 +329,7 @@ private fun KaraokeText(
                             this@drawWithContent.drawContent()
                         }
                     },
-                style = textStyle.copy(color = activeColor),
+                style = textStyle.copy(color = activeColor, textAlign = textAlign),
                 maxLines = 4,
                 overflow = TextOverflow.Ellipsis,
                 onTextLayout = { layoutResult ->
@@ -286,6 +338,12 @@ private fun KaraokeText(
             )
         }
     }
+}
+
+private fun ISyncedLine.translationOrNull(): String? = when (this) {
+    is KaraokeLine -> translation
+    is SyncedLine -> translation
+    else -> null
 }
 
 private data class KaraokeRevealSegment(

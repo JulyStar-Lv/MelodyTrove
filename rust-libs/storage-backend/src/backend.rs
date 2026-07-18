@@ -148,6 +148,8 @@ pub enum StorageBackendError {
     DeltaResyncRequired,
     #[error("remote request retries exhausted: {0}")]
     RetryExhausted(String),
+    #[error("WebDAV {operation} failed with HTTP {status}")]
+    WebDavWriteFailed { operation: String, status: u16 },
     #[error("OAuth token response did not contain a refresh token")]
     MissingOAuthRefreshToken,
 }

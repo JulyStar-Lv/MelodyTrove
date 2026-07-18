@@ -55,7 +55,7 @@ abstract class TideTunesDatabase : RoomDatabase() {
     abstract fun appDataDao(): AppDataDao
 }
 
-const val TIDE_TUNES_DATABASE_VERSION = 15
+const val TIDE_TUNES_DATABASE_VERSION = 16
 
 @Suppress("KotlinNoActualForExpect")
 expect object TideTunesDatabaseConstructor : RoomDatabaseConstructor<TideTunesDatabase> {
@@ -81,4 +81,5 @@ fun buildDatabase(): TideTunesDatabase = databaseBuilder()
     .addMigrations(MIGRATION_12_13)
     .addMigrations(MIGRATION_13_14)
     .addMigrations(MIGRATION_14_15)
+    .addMigrations(MIGRATION_15_16)
     .build()

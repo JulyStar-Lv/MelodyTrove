@@ -140,7 +140,10 @@ class EditStorageVM constructor(
                     updateDraft { current ->
                         current.copy(
                             username = credential.username,
-                            secret = credential.secret,
+                            secret = if (
+                                current.storageType == SourceEditorType.WebDav ||
+                                current.storageType == SourceEditorType.OneDrive
+                            ) credential.secret else "",
                             isAnonymous = credential.isAnonymous,
                         )
                     }
@@ -243,15 +246,19 @@ class EditStorageVM constructor(
             } else {
                 draft.alias.isBlank()
             },
-            usernameEmpty = if (draft.storageType == SourceEditorType.WebDav) {
-                !draft.isAnonymous && draft.username.isBlank()
-            } else {
-                false
+            usernameEmpty = when (draft.storageType) {
+                SourceEditorType.WebDav -> !draft.isAnonymous && draft.username.isBlank()
+                SourceEditorType.Navidrome,
+                SourceEditorType.OpenSubsonic,
+                SourceEditorType.Emby -> draft.username.isBlank()
+                SourceEditorType.OneDrive -> false
             },
-            passwordEmpty = if (draft.storageType == SourceEditorType.WebDav) {
-                !draft.isAnonymous && draft.secret.isBlank()
-            } else {
-                draft.secret.isBlank()
+            passwordEmpty = when (draft.storageType) {
+                SourceEditorType.WebDav -> !draft.isAnonymous && draft.secret.isBlank()
+                SourceEditorType.Navidrome,
+                SourceEditorType.OpenSubsonic,
+                SourceEditorType.Emby -> draft.id == null && draft.secret.isBlank()
+                SourceEditorType.OneDrive -> draft.secret.isBlank()
             },
         )
         return _validated.value.valid()

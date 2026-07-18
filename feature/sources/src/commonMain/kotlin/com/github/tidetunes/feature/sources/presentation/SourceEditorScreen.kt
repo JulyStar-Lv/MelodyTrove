@@ -250,6 +250,43 @@ private fun WebDavConfig(
 }
 
 @Composable
+private fun RemoteServerConfig(
+    state: WebDavSourceEditorState,
+    validation: SourceEditorValidation,
+    onAction: (SourceEditorAction) -> Unit,
+) {
+    var password by remember { mutableStateOf("") }
+    FormText(
+        label = stringResource(Res.string.storage_edit_alias),
+        value = state.alias,
+        onChange = { onAction(SourceEditorAction.WebDavAliasChanged(it)) },
+        error = if (validation.aliasEmpty) Res.string.storage_edit_onedrive_alias_not_empty else null,
+    )
+    FormText(
+        label = stringResource(Res.string.storage_edit_addr),
+        value = state.address,
+        onChange = { onAction(SourceEditorAction.WebDavAddressChanged(it)) },
+        error = if (validation.addressEmpty) Res.string.storage_edit_form_address else null,
+    )
+    FormText(
+        label = stringResource(Res.string.storage_edit_username),
+        value = state.username,
+        onChange = { onAction(SourceEditorAction.WebDavUsernameChanged(it)) },
+        error = if (validation.usernameEmpty) Res.string.storage_edit_form_username else null,
+    )
+    FormText(
+        label = stringResource(Res.string.storage_edit_password),
+        value = password,
+        isPassword = true,
+        onChange = {
+            password = it
+            onAction(SourceEditorAction.WebDavPasswordChanged(it))
+        },
+        error = if (validation.passwordEmpty) Res.string.storage_edit_form_password else null,
+    )
+}
+
+@Composable
 private fun OneDriveConfig(
     state: OneDriveSourceEditorState,
     validation: SourceEditorValidation,
@@ -467,6 +504,25 @@ fun SourceEditorScreen(
                             },
                         )
                     }
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        StorageBlock(
+                            title = "Navidrome",
+                            isActive = storageType == SourceEditorType.Navidrome,
+                            onSelect = { onAction(SourceEditorAction.ChangeType(SourceEditorType.Navidrome)) },
+                        )
+                        StorageBlock(
+                            title = "OpenSubsonic",
+                            isActive = storageType == SourceEditorType.OpenSubsonic,
+                            onSelect = { onAction(SourceEditorAction.ChangeType(SourceEditorType.OpenSubsonic)) },
+                        )
+                        StorageBlock(
+                            title = "Emby",
+                            isActive = storageType == SourceEditorType.Emby,
+                            onSelect = { onAction(SourceEditorAction.ChangeType(SourceEditorType.Emby)) },
+                        )
+                    }
                     TideCardSurface(
                         cornerRadius = shapes.xl,
                         contentPadding = PaddingValues(16.dp),
@@ -489,7 +545,21 @@ fun SourceEditorScreen(
                                     onAction = onAction,
                                 )
                             }
-                            if (!state.isCreated) {
+                            if (
+                                storageType == SourceEditorType.Navidrome ||
+                                storageType == SourceEditorType.OpenSubsonic ||
+                                storageType == SourceEditorType.Emby
+                            ) {
+                                RemoteServerConfig(
+                                    state = state.webDav,
+                                    validation = state.validation,
+                                    onAction = onAction,
+                                )
+                            }
+                            if (!state.isCreated && (
+                                storageType == SourceEditorType.WebDav ||
+                                storageType == SourceEditorType.OneDrive
+                            )) {
                                 FormWidget(
                                     label = stringResource(Res.string.storage_edit_import_library_label),
                                 ) {

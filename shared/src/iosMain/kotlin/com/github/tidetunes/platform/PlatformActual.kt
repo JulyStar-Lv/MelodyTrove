@@ -27,6 +27,8 @@ actual fun platformSettingsCapabilities() =
         dynamicColorSupported = false,
         customMusicDirectorySupported = true,
         secureCredentialStoreSupported = true,
+        settingsBackupSupported = true,
+        scheduledBackupSupported = true,
     )
 
 actual fun applyAppLanguageMode(mode: AppLanguageMode) {

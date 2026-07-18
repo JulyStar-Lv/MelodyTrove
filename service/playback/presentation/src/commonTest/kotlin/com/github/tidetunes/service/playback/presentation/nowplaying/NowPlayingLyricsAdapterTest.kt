@@ -1,6 +1,7 @@
 package com.github.tidetunes.service.playback.presentation.nowplaying
 
 import com.github.tidetunes.core.domain.model.LyricLine
+import com.github.tidetunes.core.domain.model.LyricDisplaySettings
 import com.github.tidetunes.core.domain.model.LyricWord
 import com.mocharealm.accompanist.lyrics.core.model.karaoke.KaraokeLine
 import com.mocharealm.accompanist.lyrics.core.model.synced.SyncedLine
@@ -12,6 +13,29 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 class NowPlayingLyricsAdapterTest {
+    @Test
+    fun filtersHeaderTagsAndConfiguredBlacklist() {
+        val lines = listOf(
+            LyricLine(0.milliseconds, "[ar:Artist]"),
+            LyricLine(1_000.milliseconds, "Instrumental"),
+            LyricLine(2_000.milliseconds, "Keep me"),
+        )
+
+        val visible = lines.filterVisibleLyrics(
+            LyricDisplaySettings.Default.copy(lineBlacklist = listOf("Instrumental")),
+        )
+
+        assertEquals(listOf("Keep me"), visible.map(LyricLine::text))
+    }
+
+    @Test
+    fun splitsUnsynchronisedBlocksBeforeFiltering() {
+        val lines = listOf(LyricLine(0.milliseconds, "[ti:Song]\nFirst\nSecond"))
+
+        val visible = lines.filterVisibleLyrics(LyricDisplaySettings.Default)
+
+        assertEquals(listOf("First", "Second"), visible.map(LyricLine::text))
+    }
     @Test
     fun convertsTimestampLinesIntoContinuousTimeline() {
         val lyrics = listOf(
@@ -26,6 +50,18 @@ class NowPlayingLyricsAdapterTest {
         assertEquals(3_000, lyrics.lines[1].start)
         assertEquals(5_000, lyrics.lines[1].end)
         assertIs<SyncedLine>(lyrics.lines[0])
+    }
+
+    @Test
+    fun preservesSecondaryTextAsTranslationForTimedLyrics() {
+        val lyrics = listOf(
+            LyricLine(duration = 1.seconds, text = "Hello\n你好"),
+            LyricLine(duration = 3.seconds, text = "World\n世界"),
+        ).toSyncedLyrics(trackTitle = "Song", trackDurationMs = 5_000)
+
+        val first = assertIs<SyncedLine>(lyrics.lines.first())
+        assertEquals("Hello", first.content)
+        assertEquals("你好", first.translation)
     }
 
     @Test

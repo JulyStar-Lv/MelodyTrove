@@ -1,11 +1,38 @@
 package com.github.tidetunes.core.data
 
 import com.github.tidetunes.core.domain.model.LyricsLoadState
+import com.github.tidetunes.core.domain.model.LyricDisplaySettings
+import com.github.tidetunes.core.domain.model.LyricSourceKind
+import com.github.tidetunes.core.domain.model.LyricSourceMode
 import com.github.tidetunes.database.LyricsEntity
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class PersistedLyricsTest {
+    @Test
+    fun selectsConfiguredSourcePriorityAndMode() {
+        val embedded = lyricEntity("EmbeddedPlain", 1)
+        val externalTtml = lyricEntity("ExternalTtml", 2)
+        val candidates = listOf(embedded, externalTtml)
+
+        val automatic = candidates.selectLyrics(
+            LyricDisplaySettings.Default.copy(
+                sourcePriority = listOf(
+                    LyricSourceKind.ExternalTtml,
+                    LyricSourceKind.EmbeddedPlain,
+                    LyricSourceKind.EmbeddedTtml,
+                    LyricSourceKind.ExternalPlain,
+                ),
+            ),
+        )
+        val embeddedOnly = candidates.selectLyrics(
+            LyricDisplaySettings.Default.copy(sourceMode = LyricSourceMode.Embedded),
+        )
+
+        assertEquals("ExternalTtml", automatic?.sourceKind)
+        assertEquals("EmbeddedPlain", embeddedOnly?.sourceKind)
+    }
+
     @Test
     fun restoresEnhancedLrcAsWordTimedLyrics() {
         val lyrics = LyricsEntity(
@@ -61,4 +88,15 @@ class PersistedLyricsTest {
         assertEquals("Legacy", lyrics.lines.single().text)
         assertEquals(62_000, lyrics.lines.single().duration.inWholeMilliseconds)
     }
+
+    private fun lyricEntity(sourceKind: String, updatedAt: Long) = LyricsEntity(
+        trackId = 1,
+        format = if (sourceKind.endsWith("Ttml")) "TTML" else "LRC",
+        language = null,
+        synchronized = true,
+        content = "[00:01.00]Line",
+        sourcePath = if (sourceKind.startsWith("External")) "external:test" else "embedded",
+        updatedAt = updatedAt,
+        sourceKind = sourceKind,
+    )
 }

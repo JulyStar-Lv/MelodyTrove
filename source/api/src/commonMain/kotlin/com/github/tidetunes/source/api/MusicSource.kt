@@ -70,6 +70,48 @@ data class LocalSourceConfiguration(
     override val alias: String = "Local",
 ) : SourceConfiguration
 
+enum class RemoteServerKind {
+    Navidrome,
+    OpenSubsonic,
+    Emby,
+}
+
+data class RemoteServerSourceConfiguration(
+    override val accountId: SourceAccountId? = null,
+    override val alias: String,
+    val kind: RemoteServerKind,
+    val address: String,
+    val username: String,
+    val password: String,
+) : SourceConfiguration
+
+data class RemoteServerTrack(
+    val accountId: SourceAccountId,
+    val remoteId: String,
+    val title: String,
+    val artist: String? = null,
+    val album: String? = null,
+    val durationMs: Long? = null,
+    val streamUrl: String,
+    val coverUrl: String? = null,
+    val mimeType: String? = null,
+)
+
+interface RemoteServerGateway {
+    suspend fun authenticate(configuration: RemoteServerSourceConfiguration): SourceAuthResult
+    suspend fun tracks(
+        kind: RemoteServerKind,
+        accountId: SourceAccountId,
+        query: String? = null,
+        limit: Int = DEFAULT_SOURCE_SEARCH_LIMIT,
+    ): Result<List<RemoteServerTrack>>
+
+    suspend fun playback(
+        kind: RemoteServerKind,
+        encodedRemoteId: String,
+    ): SourcePlaybackResult
+}
+
 sealed interface SourceAuthResult {
     data object Success : SourceAuthResult
     data class Failure(val reason: SourceAuthFailureReason) : SourceAuthResult
@@ -191,6 +233,9 @@ object BuiltInSourceIds {
     val Local = SourceId("local")
     val WebDav = SourceId("webdav")
     val OneDrive = SourceId("onedrive")
+    val Navidrome = SourceId("navidrome")
+    val OpenSubsonic = SourceId("open_subsonic")
+    val Emby = SourceId("emby")
 }
 
 const val DEFAULT_SOURCE_SEARCH_LIMIT = 50

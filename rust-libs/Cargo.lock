@@ -2952,6 +2952,7 @@ dependencies = [
  "futures-util",
  "getset",
  "lru",
+ "md-5",
  "nom",
  "num-derive 0.2.5",
  "num-traits",

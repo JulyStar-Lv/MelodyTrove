@@ -11,6 +11,7 @@ import com.github.tidetunes.core.domain.model.MetadataScanMode
 import com.github.tidetunes.core.domain.model.metadataScanModeFor
 import com.github.tidetunes.core.domain.model.MetadataRefreshTarget
 import com.github.tidetunes.core.domain.model.SettingsCapabilities
+import com.github.tidetunes.core.domain.model.SettingsBackupResult
 import com.github.tidetunes.core.domain.model.SourceAccountId
 import com.github.tidetunes.core.domain.model.SourceConnectionTestStatus
 import com.github.tidetunes.core.domain.model.SourceEditorDraft
@@ -25,6 +26,7 @@ import com.github.tidetunes.core.domain.repository.DiagnosticsService
 import com.github.tidetunes.core.domain.repository.AppDataClearService
 import com.github.tidetunes.core.domain.repository.LibraryMaintenanceService
 import com.github.tidetunes.core.domain.repository.SettingsRepository
+import com.github.tidetunes.core.domain.repository.SettingsBackupService
 import com.github.tidetunes.core.domain.repository.SourceSettingsRepository
 import com.github.tidetunes.core.domain.repository.StorageRepository
 import com.github.tidetunes.core.domain.repository.StorageUsageRepository
@@ -71,6 +73,7 @@ class SettingsVM(
     private val metadataRefreshController: MetadataRefreshController,
     private val capabilities: SettingsCapabilities,
     private val textProvider: SettingsTextProvider,
+    private val backupService: SettingsBackupService? = null,
 ) : ViewModel() {
     private val storageUsage = MutableStateFlow(StorageUsage.Unknown)
     private val storageRefreshing = MutableStateFlow(false)
@@ -199,6 +202,74 @@ class SettingsVM(
             is SettingsAction.SetKeepScreenOnInPlayer -> updateSetting {
                 settingsRepository.setKeepScreenOnInPlayer(action.enabled)
             }
+            is SettingsAction.SetLyricTextAlignment -> updateSetting {
+                settingsRepository.setLyricTextAlignment(action.alignment)
+            }
+            is SettingsAction.SetLyricPrimaryFontScalePercent -> updateSetting {
+                settingsRepository.setLyricPrimaryFontScalePercent(action.value)
+            }
+            is SettingsAction.SetLyricPrimaryFontSizeSp -> updateSetting {
+                settingsRepository.setLyricPrimaryFontSizeSp(action.value)
+            }
+            is SettingsAction.SetLyricSecondaryFontScalePercent -> updateSetting {
+                settingsRepository.setLyricSecondaryFontScalePercent(action.value)
+            }
+            is SettingsAction.SetLyricSecondaryFontSizeSp -> updateSetting {
+                settingsRepository.setLyricSecondaryFontSizeSp(action.value)
+            }
+            is SettingsAction.SetLyricTranslationVisible -> updateSetting {
+                settingsRepository.setLyricTranslationVisible(action.visible)
+            }
+            is SettingsAction.SetLyricWordLiftEnabled -> updateSetting {
+                settingsRepository.setLyricWordLiftEnabled(action.enabled)
+            }
+            is SettingsAction.SetLyricBlurEffectEnabled -> updateSetting {
+                settingsRepository.setLyricBlurEffectEnabled(action.enabled)
+            }
+            is SettingsAction.SetLyricPerspectiveEffectEnabled -> updateSetting {
+                settingsRepository.setLyricPerspectiveEffectEnabled(action.enabled)
+            }
+            is SettingsAction.SetLyricPerspectiveAngleDegrees -> updateSetting {
+                settingsRepository.setLyricPerspectiveAngleDegrees(action.value)
+            }
+            is SettingsAction.SetLyricTapToSeekEnabled -> updateSetting {
+                settingsRepository.setLyricTapToSeekEnabled(action.enabled)
+            }
+            is SettingsAction.SetLyricSourceMode -> updateSetting {
+                settingsRepository.setLyricSourceMode(action.mode)
+            }
+            is SettingsAction.SetLyricSourcePriority -> updateSetting {
+                settingsRepository.setLyricSourcePriority(action.priority)
+            }
+            is SettingsAction.SetIgnoreLyricHeaderTags -> updateSetting {
+                settingsRepository.setIgnoreLyricHeaderTags(action.enabled)
+            }
+            is SettingsAction.SetLyricLineBlacklist -> updateSetting {
+                settingsRepository.setLyricLineBlacklist(action.lines)
+            }
+            is SettingsAction.SetLyricFontSettings -> updateSetting {
+                settingsRepository.setLyricFontSettings(action.settings)
+            }
+            is SettingsAction.SetPlaybackAdvancedSettings -> updateSetting {
+                settingsRepository.setPlaybackAdvancedSettings(action.settings)
+            }
+            is SettingsAction.SetPlayerInteractionSettings -> updateSetting {
+                settingsRepository.setPlayerInteractionSettings(action.settings)
+            }
+            is SettingsAction.SetMetadataParsingSettings -> updateSetting {
+                settingsRepository.setMetadataParsingSettings(action.settings)
+            }
+            is SettingsAction.SetAudioEffectSettings -> updateSetting {
+                settingsRepository.setAudioEffectSettings(action.settings)
+            }
+            is SettingsAction.SetLyricOutputSettings -> updateSetting {
+                settingsRepository.setLyricOutputSettings(action.settings)
+            }
+            is SettingsAction.SetBackupSettings -> updateSetting {
+                settingsRepository.setBackupSettings(action.settings)
+            }
+            SettingsAction.CreateSettingsBackup -> runSettingsBackup(restore = false)
+            SettingsAction.RestoreLatestSettingsBackup -> runSettingsBackup(restore = true)
             is SettingsAction.SetAutoScanMode -> updateSetting {
                 settingsRepository.setAutoScanMode(action.mode)
             }
@@ -320,6 +391,27 @@ class SettingsVM(
         viewModelScope.launch {
             runCatching { block() }.onFailure { error ->
                 emitFeedback(Res.string.settings_feedback_save_failed, error.userMessage())
+            }
+        }
+    }
+
+    private fun runSettingsBackup(restore: Boolean) {
+        val service = backupService ?: return
+        viewModelScope.launch {
+            val result = if (restore) service.restoreLatestBackup() else service.createBackup()
+            when (result) {
+                is SettingsBackupResult.Success -> emitFeedback(
+                    if (restore) {
+                        Res.string.settings_feedback_backup_restored
+                    } else {
+                        Res.string.settings_feedback_backup_created
+                    },
+                    result.path,
+                )
+                is SettingsBackupResult.Failure -> emitFeedback(
+                    Res.string.settings_feedback_backup_failed,
+                    result.message,
+                )
             }
         }
     }
@@ -754,6 +846,18 @@ private fun StorageAccountInfo.toSettingsItem(): SourceAccountSettingsItem {
         lastScanStatus = lastScanStatus,
         isLocal = sourceId == BuiltInSourceIds.Local,
         isWebDav = sourceId == BuiltInSourceIds.WebDav,
+        isRemoteServer = sourceId == BuiltInSourceIds.Navidrome ||
+            sourceId == BuiltInSourceIds.OpenSubsonic ||
+            sourceId == BuiltInSourceIds.Emby,
+        sourceLabel = when (sourceId) {
+            BuiltInSourceIds.Local -> "Local"
+            BuiltInSourceIds.WebDav -> "WebDAV"
+            BuiltInSourceIds.OneDrive -> "OneDrive"
+            BuiltInSourceIds.Navidrome -> "Navidrome"
+            BuiltInSourceIds.OpenSubsonic -> "OpenSubsonic"
+            BuiltInSourceIds.Emby -> "Emby"
+            else -> sourceId.value
+        },
     )
 }
 

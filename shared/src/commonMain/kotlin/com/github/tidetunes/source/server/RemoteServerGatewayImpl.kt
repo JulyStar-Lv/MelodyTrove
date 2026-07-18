@@ -1,0 +1,268 @@
+package com.github.tidetunes.source.server
+
+import com.github.tidetunes.core.domain.model.SourceAccountId
+import com.github.tidetunes.core.domain.model.toStorageRouteIdOrNull
+import com.github.tidetunes.core.domain.repository.StorageRepository
+import com.github.tidetunes.database.ProviderTypes
+import com.github.tidetunes.database.SourceAccountDao
+import com.github.tidetunes.source.api.PlaybackResource
+import com.github.tidetunes.source.api.RemoteServerGateway
+import com.github.tidetunes.source.api.RemoteServerKind
+import com.github.tidetunes.source.api.RemoteServerSourceConfiguration
+import com.github.tidetunes.source.api.RemoteServerTrack
+import com.github.tidetunes.source.api.SourceAuthFailureReason
+import com.github.tidetunes.source.api.SourceAuthResult
+import com.github.tidetunes.source.api.SourcePlaybackFailureReason
+import com.github.tidetunes.source.api.SourcePlaybackResult
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
+import uniffi.tidetunes_backend.ctEmbyLogin
+import uniffi.tidetunes_backend.ctEmbyRequest
+import uniffi.tidetunes_backend.ctEmbyResourceUrl
+import uniffi.tidetunes_backend.ctSubsonicRequest
+import uniffi.tidetunes_backend.ctSubsonicResourceUrl
+
+class RemoteServerGatewayImpl(
+    private val sourceAccountDao: SourceAccountDao,
+    private val storageRepository: StorageRepository,
+) : RemoteServerGateway {
+    private val json = Json { ignoreUnknownKeys = true }
+
+    override suspend fun authenticate(
+        configuration: RemoteServerSourceConfiguration,
+    ): SourceAuthResult = runCatching {
+        when (configuration.kind) {
+            RemoteServerKind.Navidrome,
+            RemoteServerKind.OpenSubsonic -> ctSubsonicRequest(
+                baseUrl = configuration.address,
+                username = configuration.username,
+                password = configuration.password,
+                endpoint = "ping",
+                params = emptyMap(),
+            )
+            RemoteServerKind.Emby -> ctEmbyLogin(
+                baseUrl = configuration.address,
+                username = configuration.username,
+                password = configuration.password,
+            )
+        }
+    }.fold(
+        onSuccess = { SourceAuthResult.Success },
+        onFailure = { error ->
+            SourceAuthResult.Failure(
+                if (error.message.orEmpty().contains("401")) {
+                    SourceAuthFailureReason.Unauthorized
+                } else {
+                    SourceAuthFailureReason.Unavailable
+                }
+            )
+        },
+    )
+
+    override suspend fun tracks(
+        kind: RemoteServerKind,
+        accountId: SourceAccountId,
+        query: String?,
+        limit: Int,
+    ): Result<List<RemoteServerTrack>> = runCatching {
+        val account = loadAccount(accountId, kind)
+        val credential = storageRepository.loadCredentialByAccountId(accountId)
+            ?: error("Remote server credential is unavailable")
+        when (kind) {
+            RemoteServerKind.Navidrome,
+            RemoteServerKind.OpenSubsonic -> loadSubsonicTracks(
+                kind = kind,
+                accountId = accountId,
+                baseUrl = account.endpoint.orEmpty(),
+                username = credential.username,
+                password = credential.secret,
+                query = query,
+                limit = limit,
+            )
+            RemoteServerKind.Emby -> loadEmbyTracks(
+                accountId = accountId,
+                baseUrl = account.endpoint.orEmpty(),
+                token = credential.secret,
+                userId = account.externalAccountId.orEmpty(),
+                query = query,
+                limit = limit,
+            )
+        }
+    }
+
+    override suspend fun playback(
+        kind: RemoteServerKind,
+        encodedRemoteId: String,
+    ): SourcePlaybackResult = runCatching {
+        val accountValue = encodedRemoteId.substringBefore('|')
+        val remoteId = encodedRemoteId.substringAfter('|', missingDelimiterValue = "")
+        require(remoteId.isNotBlank())
+        val accountId = SourceAccountId(accountValue)
+        val account = loadAccount(accountId, kind)
+        val credential = storageRepository.loadCredentialByAccountId(accountId)
+            ?: error("Remote server credential is unavailable")
+        val uri = when (kind) {
+            RemoteServerKind.Navidrome,
+            RemoteServerKind.OpenSubsonic -> ctSubsonicResourceUrl(
+                baseUrl = account.endpoint.orEmpty(),
+                username = credential.username,
+                password = credential.secret,
+                endpoint = "stream",
+                params = mapOf("id" to remoteId),
+            )
+            RemoteServerKind.Emby -> ctEmbyResourceUrl(
+                baseUrl = account.endpoint.orEmpty(),
+                token = credential.secret,
+                path = "Audio/$remoteId/stream",
+                params = mapOf(
+                    "UserId" to account.externalAccountId.orEmpty(),
+                    "static" to "true",
+                ),
+            )
+        }
+        SourcePlaybackResult.Success(PlaybackResource(uri = uri))
+    }.getOrElse {
+        SourcePlaybackResult.Failure(SourcePlaybackFailureReason.Unavailable)
+    }
+
+    private suspend fun loadAccount(accountId: SourceAccountId, kind: RemoteServerKind) =
+        accountId.toStorageRouteIdOrNull()
+            ?.let { sourceAccountDao.get(it) }
+            ?.takeIf { account -> account.providerType == kind.providerType }
+            ?: error("Remote server account is unavailable")
+
+    private fun loadSubsonicTracks(
+        kind: RemoteServerKind,
+        accountId: SourceAccountId,
+        baseUrl: String,
+        username: String,
+        password: String,
+        query: String?,
+        limit: Int,
+    ): List<RemoteServerTrack> {
+        val result = mutableListOf<RemoteServerTrack>()
+        var offset = 0
+        val target = limit.coerceIn(1, 10_000)
+        while (result.size < target) {
+            val pageSize = minOf(500, target - result.size)
+            val raw = ctSubsonicRequest(
+                baseUrl = baseUrl,
+                username = username,
+                password = password,
+                endpoint = "search3",
+                params = mapOf(
+                    "query" to query.orEmpty(),
+                    "songCount" to pageSize.toString(),
+                    "songOffset" to offset.toString(),
+                    "albumCount" to "0",
+                    "artistCount" to "0",
+                ),
+            )
+            val songs = json.parseToJsonElement(raw).jsonObject
+                .objectAt("subsonic-response", "searchResult3")
+                ?.array("song")
+                .orEmpty()
+            result += songs.mapNotNull { element ->
+                val song = element as? JsonObject ?: return@mapNotNull null
+                val id = song.string("id") ?: return@mapNotNull null
+                val stream = ctSubsonicResourceUrl(
+                    baseUrl, username, password, "stream", mapOf("id" to id)
+                )
+                RemoteServerTrack(
+                    accountId = accountId,
+                    remoteId = id,
+                    title = song.string("title") ?: id,
+                    artist = song.string("artist"),
+                    album = song.string("album"),
+                    durationMs = song.long("duration")?.times(1_000L),
+                    streamUrl = stream,
+                    coverUrl = song.string("coverArt")?.let { coverId ->
+                        ctSubsonicResourceUrl(
+                            baseUrl, username, password, "getCoverArt",
+                            mapOf("id" to coverId, "size" to "512")
+                        )
+                    },
+                    mimeType = song.string("contentType"),
+                )
+            }
+            if (songs.size < pageSize) break
+            offset += songs.size
+        }
+        return result
+    }
+
+    private fun loadEmbyTracks(
+        accountId: SourceAccountId,
+        baseUrl: String,
+        token: String,
+        userId: String,
+        query: String?,
+        limit: Int,
+    ): List<RemoteServerTrack> {
+        val target = limit.coerceIn(1, 10_000)
+        val result = mutableListOf<RemoteServerTrack>()
+        var offset = 0
+        while (result.size < target) {
+            val pageSize = minOf(500, target - result.size)
+            val params = buildMap {
+                put("Recursive", "true")
+                put("IncludeItemTypes", "Audio")
+                put("Fields", "Genres,MediaSources,AlbumArtist")
+                put("SortBy", "SortName")
+                put("SortOrder", "Ascending")
+                put("StartIndex", offset.toString())
+                put("Limit", pageSize.toString())
+                query?.takeIf(String::isNotBlank)?.let { put("SearchTerm", it) }
+            }
+            val raw = ctEmbyRequest(baseUrl, token, "Users/$userId/Items", params)
+            val items = json.parseToJsonElement(raw).jsonObject.array("Items").orEmpty()
+            result += items.mapNotNull { element ->
+                val item = element as? JsonObject ?: return@mapNotNull null
+                val id = item.string("Id") ?: return@mapNotNull null
+                RemoteServerTrack(
+                    accountId = accountId,
+                    remoteId = id,
+                    title = item.string("Name") ?: id,
+                    artist = item.array("Artists")?.firstOrNull()?.jsonPrimitive?.contentOrNull
+                        ?: item.string("AlbumArtist"),
+                    album = item.string("Album"),
+                    durationMs = item.long("RunTimeTicks")?.div(10_000L),
+                    streamUrl = ctEmbyResourceUrl(
+                        baseUrl, token, "Audio/$id/stream",
+                        mapOf("UserId" to userId, "static" to "true")
+                    ),
+                    coverUrl = ctEmbyResourceUrl(
+                        baseUrl, token, "Items/$id/Images/Primary",
+                        mapOf("maxWidth" to "512", "quality" to "90")
+                    ),
+                    mimeType = "audio/*",
+                )
+            }
+            if (items.size < pageSize) break
+            offset += items.size
+        }
+        return result
+    }
+}
+
+private val RemoteServerKind.providerType: String
+    get() = when (this) {
+        RemoteServerKind.Navidrome -> ProviderTypes.Navidrome
+        RemoteServerKind.OpenSubsonic -> ProviderTypes.OpenSubsonic
+        RemoteServerKind.Emby -> ProviderTypes.Emby
+    }
+
+private fun JsonObject.objectAt(vararg names: String): JsonObject? =
+    names.fold(this as JsonObject?) { current, name -> current?.get(name) as? JsonObject }
+
+private fun JsonObject.array(name: String): JsonArray? = get(name) as? JsonArray
+private fun JsonObject.string(name: String): String? = get(name)?.jsonPrimitive?.contentOrNull
+private fun JsonObject.long(name: String): Long? = get(name)?.jsonPrimitive?.longOrNull

@@ -13,6 +13,7 @@ data class NowPlayingState(
     val currentTrack: NowPlayingTrackItem? = null,
     val queue: NowPlayingQueueState = NowPlayingQueueState(),
     val controls: NowPlayingControlsState = NowPlayingControlsState(),
+    val externalEditorSupported: Boolean = false,
 )
 
 @Immutable
@@ -24,6 +25,7 @@ data class NowPlayingTrackItem(
     val artwork: Artwork?,
     val lyrics: Lyrics = Lyrics(),
     val mediaId: MediaId?,
+    val annotation: String? = null,
 ) {
     val canDownload: Boolean
         get() = mediaId != null
@@ -62,6 +64,8 @@ sealed interface NowPlayingAction {
     data object NavigateBack : NowPlayingAction
     data object AddLyric : NowPlayingAction
     data object SearchMetadata : NowPlayingAction
+    data object OpenMetadataEditor : NowPlayingAction
+    data object OpenLyricTimingEditor : NowPlayingAction
     data object RemoveLyric : NowPlayingAction
     data object RemoveCurrentTrack : NowPlayingAction
     data object DownloadCurrentTrack : NowPlayingAction

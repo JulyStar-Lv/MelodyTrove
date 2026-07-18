@@ -1,6 +1,12 @@
 package com.github.tidetunes.feature.settings.presentation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.github.tidetunes.core.domain.model.BackupSchedule
+import com.github.tidetunes.core.domain.model.toStorageRouteIdOrNull
 import org.jetbrains.compose.resources.stringResource
 import tidetunes.feature.settings.generated.resources.*
 
@@ -12,6 +18,11 @@ fun StorageSettingsSection(
 ) {
     val usage = state.storageUsage
     val busy = state.maintenanceOperationInProgress
+    val backup = state.settings.backup
+    var editingRemoteDirectory by remember { mutableStateOf(false) }
+    var remoteDirectoryInput by remember(backup.remoteDirectory) {
+        mutableStateOf(backup.remoteDirectory)
+    }
 
     SettingsPageLayout(title = stringResource(Res.string.settings_storage_title), onBack = onBack) {
         SettingsSection(title = stringResource(Res.string.settings_usage_section)) {
@@ -89,6 +100,116 @@ fun StorageSettingsSection(
             )
         }
 
+        if (state.capabilities.settingsBackupSupported) {
+            SettingsSection(title = stringResource(Res.string.settings_backup_section)) {
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_backup_appearance),
+                    checked = backup.selection.appearance,
+                    onCheckedChange = {
+                        onAction(
+                            SettingsAction.SetBackupSettings(
+                                backup.copy(selection = backup.selection.copy(appearance = it))
+                            )
+                        )
+                    },
+                )
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_backup_playback),
+                    checked = backup.selection.playback,
+                    onCheckedChange = {
+                        onAction(
+                            SettingsAction.SetBackupSettings(
+                                backup.copy(selection = backup.selection.copy(playback = it))
+                            )
+                        )
+                    },
+                )
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_backup_lyrics),
+                    checked = backup.selection.lyrics,
+                    onCheckedChange = {
+                        onAction(
+                            SettingsAction.SetBackupSettings(
+                                backup.copy(selection = backup.selection.copy(lyrics = it))
+                            )
+                        )
+                    },
+                )
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_backup_library),
+                    checked = backup.selection.libraryAndMetadata,
+                    onCheckedChange = {
+                        onAction(
+                            SettingsAction.SetBackupSettings(
+                                backup.copy(
+                                    selection = backup.selection.copy(libraryAndMetadata = it)
+                                )
+                            )
+                        )
+                    },
+                )
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_backup_network),
+                    checked = backup.selection.networkAndCache,
+                    onCheckedChange = {
+                        onAction(
+                            SettingsAction.SetBackupSettings(
+                                backup.copy(
+                                    selection = backup.selection.copy(networkAndCache = it)
+                                )
+                            )
+                        )
+                    },
+                )
+                if (state.capabilities.scheduledBackupSupported) {
+                    BackupSchedule.entries.forEach { schedule ->
+                        SettingsChoiceRow(
+                            title = stringResource(schedule.titleResource()),
+                            summary = stringResource(Res.string.settings_backup_schedule),
+                            selected = backup.schedule == schedule,
+                            onClick = {
+                                onAction(SettingsAction.SetBackupSettings(backup.copy(schedule = schedule)))
+                            },
+                        )
+                    }
+                    state.sourceAccounts.filter(SourceAccountSettingsItem::isWebDav).forEach { account ->
+                        val storageAccountId = account.accountId.toStorageRouteIdOrNull()
+                        SettingsChoiceRow(
+                            title = account.title,
+                            summary = stringResource(Res.string.settings_backup_webdav_account),
+                            selected = backup.webDavAccountId == storageAccountId,
+                            onClick = {
+                                onAction(
+                                    SettingsAction.SetBackupSettings(
+                                        backup.copy(webDavAccountId = storageAccountId)
+                                    )
+                                )
+                            },
+                            enabled = storageAccountId != null,
+                        )
+                    }
+                    SettingsInfoRow(
+                        title = stringResource(Res.string.settings_backup_remote_directory),
+                        value = backup.remoteDirectory,
+                        onClick = {
+                            remoteDirectoryInput = backup.remoteDirectory
+                            editingRemoteDirectory = true
+                        },
+                    )
+                }
+                SettingsInfoRow(
+                    title = stringResource(Res.string.settings_backup_create),
+                    value = stringResource(Res.string.settings_backup_create_summary),
+                    onClick = { onAction(SettingsAction.CreateSettingsBackup) },
+                )
+                SettingsInfoRow(
+                    title = stringResource(Res.string.settings_backup_restore),
+                    value = stringResource(Res.string.settings_backup_restore_summary),
+                    onClick = { onAction(SettingsAction.RestoreLatestSettingsBackup) },
+                )
+            }
+        }
+
         SettingsSection(title = stringResource(Res.string.settings_danger_section)) {
             SettingsDangerRow(
                 title = stringResource(Res.string.settings_clear_all_data),
@@ -118,6 +239,23 @@ fun StorageSettingsSection(
         confirmText = stringResource(Res.string.settings_confirm),
         onConfirm = { onAction(SettingsAction.ConfirmPendingAction) },
         onDismiss = { onAction(SettingsAction.DismissConfirmation) },
+    )
+    SettingsInputDialog(
+        show = editingRemoteDirectory,
+        title = stringResource(Res.string.settings_backup_remote_directory),
+        message = stringResource(Res.string.settings_backup_remote_directory_summary),
+        value = remoteDirectoryInput,
+        label = stringResource(Res.string.settings_backup_remote_directory),
+        onValueChange = { remoteDirectoryInput = it },
+        onConfirm = {
+            onAction(
+                SettingsAction.SetBackupSettings(
+                    backup.copy(remoteDirectory = remoteDirectoryInput.trim().ifBlank { "/" })
+                )
+            )
+            editingRemoteDirectory = false
+        },
+        onDismiss = { editingRemoteDirectory = false },
     )
     SettingsConfirmDialog(
         show = state.pendingConfirmation == SettingsConfirmation.ClearImage,
@@ -159,4 +297,10 @@ fun StorageSettingsSection(
         onConfirm = { onAction(SettingsAction.ConfirmPendingAction) },
         onDismiss = { onAction(SettingsAction.DismissConfirmation) },
     )
+}
+
+private fun BackupSchedule.titleResource() = when (this) {
+    BackupSchedule.Off -> Res.string.settings_backup_schedule_off
+    BackupSchedule.Daily -> Res.string.settings_backup_schedule_daily
+    BackupSchedule.Weekly -> Res.string.settings_backup_schedule_weekly
 }

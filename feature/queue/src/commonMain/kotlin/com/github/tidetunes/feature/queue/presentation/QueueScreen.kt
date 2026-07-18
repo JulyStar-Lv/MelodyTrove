@@ -49,7 +49,15 @@ fun QueueScreen(
                 subtitle = "${state.items.size} tracks",
                 trailing = {
                     if (state.items.isNotEmpty()) {
-                        TideTextButton(text = "Clear", variant = TideTextButtonVariant.Default, size = TideTextButtonSize.Small, onClick = { onAction(QueueAction.ClearQueue) })
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TideTextButton(
+                                text = if (state.isShuffleEnabled) "Ordered" else "Shuffle",
+                                variant = TideTextButtonVariant.Default,
+                                size = TideTextButtonSize.Small,
+                                onClick = { onAction(QueueAction.ToggleShuffle) },
+                            )
+                            TideTextButton(text = "Clear", variant = TideTextButtonVariant.Default, size = TideTextButtonSize.Small, onClick = { onAction(QueueAction.ClearQueue) })
+                        }
                     }
                 },
             )
@@ -65,6 +73,7 @@ fun QueueScreen(
                         QueueTrackRow(
                             item = item,
                             onPlay = { onAction(QueueAction.PlayItem(item.index)) },
+                            onPlayNext = { onAction(QueueAction.PlayNext(item.index)) },
                             onRemove = { onAction(QueueAction.RemoveItem(item.index)) },
                         )
                     }
@@ -75,7 +84,12 @@ fun QueueScreen(
 }
 
 @Composable
-private fun QueueTrackRow(item: QueueItemUi, onPlay: () -> Unit, onRemove: () -> Unit) {
+private fun QueueTrackRow(
+    item: QueueItemUi,
+    onPlay: () -> Unit,
+    onPlayNext: () -> Unit,
+    onRemove: () -> Unit,
+) {
     val titleColor = if (item.isCurrent) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurface
     TideCardSurface(modifier = Modifier.heightIn(min = 58.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp), onClick = onPlay) {
         Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -86,6 +100,9 @@ private fun QueueTrackRow(item: QueueItemUi, onPlay: () -> Unit, onRemove: () ->
                 }
             }
             item.durationMs?.let { Text(text = durationLabel(it), style = MiuixTheme.textStyles.footnote1, color = MiuixTheme.colorScheme.onSurfaceVariantSummary) }
+            if (!item.isCurrent) {
+                TideTextButton(text = "Next", variant = TideTextButtonVariant.Default, size = TideTextButtonSize.Small, onClick = onPlayNext)
+            }
             TideTextButton(text = "Remove", variant = TideTextButtonVariant.Default, size = TideTextButtonSize.Small, onClick = onRemove)
         }
     }

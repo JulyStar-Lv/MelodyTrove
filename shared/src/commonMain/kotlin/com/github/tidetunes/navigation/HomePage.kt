@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,6 +31,7 @@ import com.github.tidetunes.core.presentation.navigation.MusicGraph
 import com.github.tidetunes.feature.importing.presentation.navigation.RouteImportType
 import com.github.tidetunes.service.playback.presentation.shell.PlaybackMiniPlayerHost
 import com.github.tidetunes.service.playback.presentation.shell.rememberHasPlaybackItem
+import com.github.tidetunes.service.playback.presentation.shell.rememberIsPlaybackPlaying
 import com.github.tidetunes.widgets.appbar.BottomBar
 import com.github.tidetunes.widgets.appbar.NavigationRailBar
 import com.github.tidetunes.widgets.appbar.SidebarBar
@@ -52,6 +54,7 @@ fun HomePage(
     val currentRootRoute = currentRootBackStackEntry?.destination?.route.orEmpty()
     val showHomeChrome = isRouteHome(currentRootRoute)
     val hasCurrentMusic = rememberHasPlaybackItem()
+    val isPlaybackPlaying = rememberIsPlaybackPlaying()
     val onOpenNowPlaying = {
         globalNavController.navigate(MusicGraph.NowPlaying)
     }
@@ -60,6 +63,18 @@ fun HomePage(
     }
     val onNavigateToLibraryFolderImport = {
         globalNavController.navigate(MusicGraph.Import(RouteImportType.LibraryFolder))
+    }
+    var wasPlaybackPlaying by remember { mutableStateOf(isPlaybackPlaying) }
+    LaunchedEffect(isPlaybackPlaying, settings.playerInteraction.openPlayerOnPlay) {
+        if (
+            settings.playerInteraction.openPlayerOnPlay &&
+            isPlaybackPlaying &&
+            !wasPlaybackPlaying &&
+            showHomeChrome
+        ) {
+            onOpenNowPlaying()
+        }
+        wasPlaybackPlaying = isPlaybackPlaying
     }
     val miniPlayerContent: @Composable () -> Unit = {
         PlaybackMiniPlayerHost(

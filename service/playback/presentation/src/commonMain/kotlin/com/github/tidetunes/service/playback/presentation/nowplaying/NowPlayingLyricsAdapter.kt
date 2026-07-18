@@ -1,6 +1,8 @@
 package com.github.tidetunes.service.playback.presentation.nowplaying
 
 import com.github.tidetunes.core.domain.model.LyricLine
+import com.github.tidetunes.core.domain.model.LyricDisplaySettings
+import com.github.tidetunes.core.domain.model.isLyricLineVisible
 import com.mocharealm.accompanist.lyrics.core.model.ISyncedLine
 import com.mocharealm.accompanist.lyrics.core.model.SyncedLyrics
 import com.mocharealm.accompanist.lyrics.core.model.karaoke.KaraokeAlignment
@@ -12,14 +14,16 @@ import com.mocharealm.accompanist.lyrics.core.model.synced.SyncedLine
 internal fun List<LyricLine>.toSyncedLyrics(
     trackTitle: String,
     trackDurationMs: Long?,
+    settings: LyricDisplaySettings = LyricDisplaySettings.Default,
 ): SyncedLyrics {
-    val timeline = mapIndexed { index, line ->
+    val visibleLines = filterVisibleLyrics(settings)
+    val timeline = visibleLines.mapIndexed { index, line ->
         val startMs = line.duration.inWholeMilliseconds.toSafeInt().coerceAtLeast(0)
-        val nextStartMs = getOrNull(index + 1)
+        val nextStartMs = visibleLines.getOrNull(index + 1)
             ?.duration
             ?.inWholeMilliseconds
             ?.toSafeInt()
-        val fallbackEndMs = if (index == lastIndex) {
+        val fallbackEndMs = if (index == visibleLines.lastIndex) {
             trackDurationMs?.toSafeInt()
         } else {
             nextStartMs
@@ -37,11 +41,27 @@ internal fun List<LyricLine>.toSyncedLyrics(
     )
 }
 
+internal fun List<LyricLine>.filterVisibleLyrics(settings: LyricDisplaySettings): List<LyricLine> {
+    val containsUnsynchronisedBlock = size == 1 &&
+        first().words.isEmpty() &&
+        first().duration.inWholeMilliseconds == 0L
+    return flatMap { line ->
+        // Unsynchronised lyrics are persisted as one block. Split that block here so
+        // header and blacklist rules behave exactly like they do for timed lyrics.
+        if (containsUnsynchronisedBlock && ('\n' in line.text || '\r' in line.text)) {
+            line.text.lineSequence().map { text -> line.copy(text = text) }.toList()
+        } else {
+            listOf(line)
+        }
+    }.filter { line -> settings.isLyricLineVisible(line.text.lyricTextParts().primary) }
+}
+
 private fun LyricLine.toSyncedLine(startMs: Int, endMs: Int): ISyncedLine {
+    val textParts = text.lyricTextParts()
     if (words.isEmpty()) {
         return SyncedLine(
-            content = text,
-            translation = null,
+            content = textParts.primary,
+            translation = textParts.secondary,
             start = startMs,
             end = endMs,
         )
@@ -63,10 +83,23 @@ private fun LyricLine.toSyncedLine(startMs: Int, endMs: Int): ISyncedLine {
 
     return KaraokeLine.MainKaraokeLine(
         syllables = syllables,
-        translation = null,
+        translation = textParts.secondary,
         alignment = KaraokeAlignment.Start,
         start = startMs,
         end = endMs,
+    )
+}
+
+private data class LyricTextParts(
+    val primary: String,
+    val secondary: String?,
+)
+
+private fun String.lyricTextParts(): LyricTextParts {
+    val parts = lineSequence().map(String::trim).filter(String::isNotBlank).toList()
+    return LyricTextParts(
+        primary = parts.firstOrNull().orEmpty(),
+        secondary = parts.drop(1).joinToString("\n").takeIf(String::isNotBlank),
     )
 }
 

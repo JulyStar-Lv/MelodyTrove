@@ -8,6 +8,7 @@ data class SourceEditorDraft(
     val secret: String = "",
     val isAnonymous: Boolean = false,
     val storageType: SourceEditorType = SourceEditorType.WebDav,
+    val externalAccountId: String = "",
 )
 
 fun defaultSourceEditorDraft(): SourceEditorDraft {
@@ -17,6 +18,9 @@ fun defaultSourceEditorDraft(): SourceEditorDraft {
 enum class SourceEditorType {
     WebDav,
     OneDrive,
+    Navidrome,
+    OpenSubsonic,
+    Emby,
 }
 
 enum class SourceConnectionTestStatus {

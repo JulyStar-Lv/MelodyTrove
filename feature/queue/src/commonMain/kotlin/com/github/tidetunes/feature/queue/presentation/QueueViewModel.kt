@@ -41,6 +41,7 @@ class QueueViewModel(
             }.toPersistentList(),
             currentIndex = queue.currentIndex,
             isPlaying = isPlaying,
+            isShuffleEnabled = playerState.shuffleEnabled,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -58,9 +59,13 @@ class QueueViewModel(
                     }
                 }
             }
+            is QueueAction.PlayNext -> cachedItems.getOrNull(action.index)?.let {
+                playbackController.enqueueNext(it)
+            }
             is QueueAction.RemoveItem -> playbackController.removeQueueItem(action.index)
             is QueueAction.MoveItem -> playbackController.moveQueueItem(action.from, action.to)
             QueueAction.ClearQueue -> playbackController.clearQueue()
+            QueueAction.ToggleShuffle -> playbackController.setShuffle(!state.value.isShuffleEnabled)
         }
     }
 }

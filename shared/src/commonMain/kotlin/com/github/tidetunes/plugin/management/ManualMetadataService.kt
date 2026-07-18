@@ -264,8 +264,9 @@ internal fun MetaLyrics.toEntity(trackId: Long, updatedAt: Long): LyricsEntity? 
         language = null,
         synchronized = synchronized,
         content = payload.content,
-        sourcePath = null,
+        sourcePath = "external:plugin",
         updatedAt = updatedAt,
+        sourceKind = if (payload.format == "TTML") "ExternalTtml" else "ExternalPlain",
     )
 }
 

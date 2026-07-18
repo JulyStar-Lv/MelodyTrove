@@ -7,6 +7,7 @@ import tidetunes.core.presentation.generated.resources.Res as CoreRes
 import tidetunes.core.presentation.generated.resources.icon_album
 import tidetunes.core.presentation.generated.resources.icon_cloud
 import tidetunes.core.presentation.generated.resources.icon_image
+import tidetunes.core.presentation.generated.resources.icon_lyrics
 import tidetunes.core.presentation.generated.resources.icon_music_note
 import tidetunes.core.presentation.generated.resources.icon_play
 import tidetunes.core.presentation.generated.resources.icon_setting
@@ -19,6 +20,7 @@ fun SettingsScreen(
     appVersion: String,
     onNavigateToAppearance: () -> Unit,
     onNavigateToPlayback: () -> Unit,
+    onNavigateToLyrics: () -> Unit,
     onNavigateToSource: () -> Unit,
     onNavigateToPlugins: () -> Unit,
     onNavigateToNetworkCache: () -> Unit,
@@ -42,6 +44,12 @@ fun SettingsScreen(
                 },
                 icon = CoreRes.drawable.icon_play,
                 onClick = onNavigateToPlayback,
+            )
+            SettingsEntryCard(
+                title = stringResource(Res.string.settings_lyrics_title),
+                summary = stringResource(Res.string.settings_lyrics_summary),
+                icon = CoreRes.drawable.icon_lyrics,
+                onClick = onNavigateToLyrics,
             )
             SettingsEntryCard(
                 title = stringResource(Res.string.settings_sources_title),

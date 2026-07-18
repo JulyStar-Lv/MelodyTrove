@@ -686,8 +686,14 @@ interface MetadataDao {
     @Query("DELETE FROM lyrics WHERE trackId IN (:trackIds)")
     suspend fun deleteLyricsForTracks(trackIds: List<Long>)
 
-    @Query("SELECT * FROM lyrics WHERE trackId = :trackId LIMIT 1")
+    @Query("DELETE FROM lyrics WHERE trackId IN (:trackIds) AND sourceKind LIKE :sourcePrefix || '%'")
+    suspend fun deleteLyricsForTracksBySource(trackIds: List<Long>, sourcePrefix: String)
+
+    @Query("SELECT * FROM lyrics WHERE trackId = :trackId ORDER BY updatedAt DESC LIMIT 1")
     suspend fun getLyrics(trackId: Long): LyricsEntity?
+
+    @Query("SELECT * FROM lyrics WHERE trackId = :trackId ORDER BY updatedAt DESC")
+    suspend fun getLyricsCandidates(trackId: Long): List<LyricsEntity>
 
     @Upsert
     suspend fun upsertRawMetadata(values: List<RawMetadataEntity>)

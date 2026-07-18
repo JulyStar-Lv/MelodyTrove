@@ -36,7 +36,7 @@ internal suspend fun MetadataDao.updateOptionalMetadata(
         if (newArtwork.isNotEmpty()) upsertArtwork(newArtwork)
     }
     if (options.readLyrics) {
-        deleteLyricsForTracks(trackIds)
+        deleteLyricsForTracksBySource(trackIds, "Embedded")
         val lyrics = updates.mapNotNull { update ->
             buildLyricsEntity(update.trackId, update.metadata, now)
         }

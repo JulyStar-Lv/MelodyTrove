@@ -2,6 +2,7 @@ package com.github.tidetunes.feature.settings.presentation
 
 import com.github.tidetunes.core.domain.model.AppLanguageMode
 import com.github.tidetunes.core.domain.model.AppThemeMode
+import com.github.tidetunes.core.domain.model.LyricTextAlignment
 import com.github.tidetunes.core.domain.model.MetadataScanMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -24,6 +25,15 @@ class SettingsActionTest {
     fun `metadata scan action carries selected mode`() {
         val action = SettingsAction.SetWebDavMetadataScanMode(MetadataScanMode.Fast)
         assertEquals(MetadataScanMode.Fast, action.mode)
+    }
+
+    @Test
+    fun `lyric actions carry selected alignment and scale`() {
+        val alignment = SettingsAction.SetLyricTextAlignment(LyricTextAlignment.Center)
+        val scale = SettingsAction.SetLyricPrimaryFontScalePercent(125)
+
+        assertEquals(LyricTextAlignment.Center, alignment.alignment)
+        assertEquals(125, scale.value)
     }
 
     @Test

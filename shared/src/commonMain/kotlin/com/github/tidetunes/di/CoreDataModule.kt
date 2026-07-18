@@ -11,12 +11,14 @@ import com.github.tidetunes.core.data.settings.RoomLibraryMaintenanceService
 import com.github.tidetunes.core.data.settings.RoomAppDataClearService
 import com.github.tidetunes.core.data.settings.RoomSettingsMigration
 import com.github.tidetunes.core.data.settings.RoomSourceSettingsRepository
+import com.github.tidetunes.core.data.settings.JsonSettingsBackupService
 import com.github.tidetunes.core.domain.model.SettingsCapabilities
 import com.github.tidetunes.core.domain.repository.DiagnosticsService
 import com.github.tidetunes.core.domain.repository.AppDataClearService
 import com.github.tidetunes.core.domain.repository.LibraryMaintenanceService
 import com.github.tidetunes.core.domain.repository.SettingsMigration
 import com.github.tidetunes.core.domain.repository.SettingsRepository
+import com.github.tidetunes.core.domain.repository.SettingsBackupService
 import com.github.tidetunes.core.domain.repository.SourceSettingsRepository
 import com.github.tidetunes.core.domain.repository.StorageUsageRepository
 import com.github.tidetunes.database.TideTunesDatabase
@@ -65,6 +67,9 @@ val coreDataModule = module {
     single { createAppDataStore() }
     single { AppPreferencesRepository(get()) }
     single<SettingsRepository> { DataStoreSettingsRepository(get()) }
+    single<SettingsBackupService>(createdAtStart = true) {
+        JsonSettingsBackupService(get(), getAppDocumentDir(), get(), get())
+    }
     single<SettingsMigration> { RoomSettingsMigration(get(), get()) }
     single<SourceSettingsRepository> { RoomSourceSettingsRepository(get(), get()) }
     single<StorageUsageRepository> { FileStorageUsageRepository() }
@@ -79,7 +84,7 @@ val coreDataModule = module {
     single<SettingsCapabilities> { platformSettingsCapabilities() }
     single { createCredentialStore() }
     single { Bridge(getAppDocumentDir(), getAppCacheDir(), get()) }
-    single { RoomLibraryStore(get(), get(), get(), get(), get(), get()) }
+    single { RoomLibraryStore(get(), get(), get(), get(), get(), get(), get()) }
 
     single {
         PluginRuntimeSettings(

@@ -36,7 +36,7 @@ data class ArtworkEntity(
             onDelete = ForeignKey.CASCADE,
         ),
     ],
-    indices = [Index(value = ["trackId"], unique = true)],
+    indices = [Index(value = ["trackId", "sourceKind"], unique = true)],
 )
 data class LyricsEntity(
     @androidx.room.PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -47,6 +47,7 @@ data class LyricsEntity(
     val content: String,
     val sourcePath: String?,
     val updatedAt: Long,
+    val sourceKind: String = "EmbeddedPlain",
 )
 
 @Entity(

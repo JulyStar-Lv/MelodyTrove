@@ -1,7 +1,7 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use crate::schema::StorageEntryLoc;
-use tidetunes_storage_backend::{BuildOneDriveArg, OneDriveBackend};
+use tidetunes_storage_backend::{BuildOneDriveArg, BuildWebdavArg, OneDriveBackend, Webdav};
 
 use crate::{
     error::{BError, BResult},
@@ -23,6 +23,29 @@ fn normalize_arg_upsert_storage(mut arg: ArgUpsertStorage) -> ArgUpsertStorage {
         arg.password = Default::default();
     }
     arg
+}
+
+#[uniffi::export]
+pub async fn ct_upload_webdav_backup(
+    address: String,
+    username: String,
+    password: String,
+    is_anonymous: bool,
+    directory: String,
+    file_name: String,
+    content: String,
+) -> BResult<()> {
+    let backend = Webdav::new(BuildWebdavArg {
+        addr: address,
+        username,
+        password,
+        is_anonymous,
+        connect_timeout: Duration::from_secs(30),
+    });
+    backend
+        .put_text_file(&directory, &file_name, content)
+        .await?;
+    Ok(())
 }
 
 #[uniffi::export]

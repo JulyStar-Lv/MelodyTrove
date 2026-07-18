@@ -15,6 +15,7 @@ fun SettingsRoot(
     gitCommitSha: String,
     onNavigateToAppearance: () -> Unit,
     onNavigateToPlayback: () -> Unit,
+    onNavigateToLyrics: () -> Unit,
     onNavigateToSource: () -> Unit,
     onNavigateToPlugins: () -> Unit,
     onNavigateToNetworkCache: () -> Unit,
@@ -42,6 +43,7 @@ fun SettingsRoot(
             appVersion = appVersion,
             onNavigateToAppearance = onNavigateToAppearance,
             onNavigateToPlayback = onNavigateToPlayback,
+            onNavigateToLyrics = onNavigateToLyrics,
             onNavigateToSource = onNavigateToSource,
             onNavigateToPlugins = onNavigateToPlugins,
             onNavigateToNetworkCache = onNavigateToNetworkCache,
@@ -54,6 +56,11 @@ fun SettingsRoot(
             onAction = settingsVM::onAction,
         )
         SettingsPage.Playback -> PlaybackSettingsSection(
+            state = state,
+            onBack = onBack,
+            onAction = settingsVM::onAction,
+        )
+        SettingsPage.Lyrics -> LyricsSettingsScreen(
             state = state,
             onBack = onBack,
             onAction = settingsVM::onAction,

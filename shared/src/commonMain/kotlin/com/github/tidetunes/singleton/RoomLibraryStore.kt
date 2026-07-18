@@ -3,6 +3,7 @@ package com.github.tidetunes.singleton
 import androidx.room.immediateTransaction
 import androidx.room.useWriterConnection
 import com.github.tidetunes.database.MetadataDao
+import com.github.tidetunes.database.LyricsEntity
 import com.github.tidetunes.database.PlaylistDao
 import com.github.tidetunes.database.PlaylistEntity
 import com.github.tidetunes.database.PlaylistSummaryRow
@@ -21,8 +22,11 @@ import com.github.tidetunes.core.data.UpdatePlaylistRequest
 import com.github.tidetunes.core.data.toLegacyStorageEntry
 import com.github.tidetunes.core.data.toLegacyStorageEntryLoc
 import com.github.tidetunes.core.data.toPlaybackLyrics
+import com.github.tidetunes.core.data.selectLyrics
+import com.github.tidetunes.core.domain.model.AppSettings
 import com.github.tidetunes.core.domain.model.Lyrics as DomainLyrics
 import com.github.tidetunes.core.domain.model.LyricsLoadState
+import com.github.tidetunes.core.domain.repository.SettingsRepository
 import com.github.tidetunes.core.domain.model.LIBRARY_PLAYBACK_PLAYLIST_ID
 import com.github.tidetunes.domain.importing.normalizeRemotePath
 import com.github.tidetunes.domain.importing.stableTrackId
@@ -62,6 +66,7 @@ class RoomLibraryStore(
     private val trackSourceRefDao: TrackSourceRefDao,
     private val playlistDao: PlaylistDao,
     private val metadataDao: MetadataDao,
+    private val settingsRepository: SettingsRepository? = null,
     private val fileSystem: FileSystem = FileSystem.SYSTEM,
 ) {
     suspend fun getMusic(id: MusicId): Music? {
@@ -80,8 +85,24 @@ class RoomLibraryStore(
         return metadataDao.artistNamesForTrack(trackId).firstOrNull()
     }
 
+    suspend fun getTrackAnnotation(trackId: Long): String? {
+        return trackDao.get(trackId)?.comment?.takeIf(String::isNotBlank)
+    }
+
+    suspend fun getTrackReplayGain(trackId: Long): TrackReplayGain? {
+        val track = trackDao.get(trackId) ?: return null
+        return TrackReplayGain(
+            trackGainDb = track.replayGainTrackGain,
+            trackPeak = track.replayGainTrackPeak,
+            albumGainDb = track.replayGainAlbumGain,
+            albumPeak = track.replayGainAlbumPeak,
+        )
+    }
+
     suspend fun getPlaybackLyrics(trackId: Long): DomainLyrics {
-        return metadataDao.getLyrics(trackId)?.toPlaybackLyrics()
+        val settings = settingsRepository?.settings?.first() ?: AppSettings.Default
+        val candidates = metadataDao.getLyricsCandidates(trackId) + externalSidecarLyrics(trackId)
+        return candidates.selectLyrics(settings.lyrics)?.toPlaybackLyrics()
             ?: DomainLyrics(loadState = LyricsLoadState.Missing)
     }
 
@@ -465,7 +486,9 @@ class RoomLibraryStore(
     }
 
     private suspend fun buildLyric(trackId: Long, loc: StorageEntryLoc): MusicLyric {
-        val entity = metadataDao.getLyrics(trackId)
+        val settings = settingsRepository?.settings?.first() ?: AppSettings.Default
+        val candidates = metadataDao.getLyricsCandidates(trackId) + externalSidecarLyrics(trackId)
+        val entity = candidates.selectLyrics(settings.lyrics)
         val parsed = entity?.toPlaybackLyrics()?.let { lyrics ->
             Lyrics(
                 metdata = LrcMetadata("", "", "", "", "", "", ""),
@@ -477,6 +500,32 @@ class RoomLibraryStore(
             data = parsed ?: emptyLyrics(),
             loadedState = if (parsed == null) LyricLoadState.MISSING else LyricLoadState.LOADED,
         )
+    }
+
+    private suspend fun externalSidecarLyrics(trackId: Long): List<LyricsEntity> {
+        val item = trackSourceRefDao.playbackCandidates(trackId).firstOrNull()?.item ?: return emptyList()
+        val audioPath = item.canonicalPath ?: return emptyList()
+        val fileNameStart = audioPath.lastIndexOf('/').coerceAtLeast(audioPath.lastIndexOf('\\')) + 1
+        val extensionStart = audioPath.lastIndexOf('.').takeIf { it >= fileNameStart } ?: audioPath.length
+        val basePath = audioPath.substring(0, extensionStart)
+        return listOf("ttml", "lrc", "txt").mapNotNull { extension ->
+            val sidecarPath = "$basePath.$extension".toPath()
+            val metadata = fileSystem.metadataOrNull(sidecarPath) ?: return@mapNotNull null
+            if (!metadata.isRegularFile) return@mapNotNull null
+            val content = runCatching { fileSystem.read(sidecarPath) { readUtf8() } }.getOrNull()
+                ?.takeIf(String::isNotBlank)
+                ?: return@mapNotNull null
+            LyricsEntity(
+                trackId = trackId,
+                format = extension.uppercase(),
+                language = null,
+                synchronized = extension != "txt",
+                content = content,
+                sourcePath = sidecarPath.toString(),
+                updatedAt = metadata.lastModifiedAtMillis ?: 0L,
+                sourceKind = if (extension == "ttml") "ExternalTtml" else "ExternalPlain",
+            )
+        }
     }
 
     private fun TrackEntity.toMusicMeta(): MusicMeta {
@@ -531,6 +580,13 @@ class RoomLibraryStore(
 
     fun mapPlaylistSummary(row: PlaylistSummaryRow): PlaylistAbstract = row.toPlaylistAbstract()
 }
+
+data class TrackReplayGain(
+    val trackGainDb: Double?,
+    val trackPeak: Double?,
+    val albumGainDb: Double?,
+    val albumPeak: Double?,
+)
 
 private fun List<MusicAbstract>.totalDuration(): Duration? {
     var total = Duration.ZERO

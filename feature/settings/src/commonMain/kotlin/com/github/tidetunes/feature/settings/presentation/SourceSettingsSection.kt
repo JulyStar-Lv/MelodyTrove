@@ -48,6 +48,8 @@ fun SourceSettingsSection(
     var metadataScanModeDialogOpen by remember { mutableStateOf(false) }
     var customDurationDialogOpen by remember { mutableStateOf(false) }
     var customDurationInputSeconds by remember { mutableStateOf("") }
+    var editingMetadataField by remember { mutableStateOf<MetadataField?>(null) }
+    var metadataFieldValue by remember { mutableStateOf("") }
 
     SettingsPageLayout(title = stringResource(Res.string.settings_sources_title), onBack = onBack) {
         SettingsSection(title = stringResource(Res.string.settings_sources_section)) {
@@ -61,11 +63,7 @@ fun SourceSettingsSection(
                     title = sourceTitle,
                     summary = stringResource(
                         Res.string.settings_source_summary,
-                        if (account.isLocal) {
-                            stringResource(Res.string.settings_source_local)
-                        } else {
-                            stringResource(Res.string.settings_source_webdav)
-                        },
+                        account.sourceLabel,
                         if (account.enabled) {
                             stringResource(Res.string.settings_source_enabled)
                         } else {
@@ -92,16 +90,18 @@ fun SourceSettingsSection(
                         },
                     )
                 }
-                SettingsInfoRow(
-                    title = stringResource(Res.string.settings_source_scan, sourceTitle),
-                    value = stringResource(Res.string.settings_source_scan_summary),
-                    enabled = account.enabled,
-                    onClick = { onAction(SettingsAction.ScanSourceAccount(account.accountId)) },
-                )
-                SettingsInfoRow(
-                    title = stringResource(Res.string.settings_source_last_scan),
-                    value = account.lastScanSummary(),
-                )
+                if (!account.isRemoteServer) {
+                    SettingsInfoRow(
+                        title = stringResource(Res.string.settings_source_scan, sourceTitle),
+                        value = stringResource(Res.string.settings_source_scan_summary),
+                        enabled = account.enabled,
+                        onClick = { onAction(SettingsAction.ScanSourceAccount(account.accountId)) },
+                    )
+                    SettingsInfoRow(
+                        title = stringResource(Res.string.settings_source_last_scan),
+                        value = account.lastScanSummary(),
+                    )
+                }
             }
             if (state.localDirectories.isEmpty()) {
                 SettingsInfoRow(
@@ -325,6 +325,61 @@ fun SourceSettingsSection(
                 value = DEFAULT_IGNORED_SOURCE_DIRECTORIES.joinToString(", "),
             )
         }
+
+        SettingsSection(title = stringResource(Res.string.settings_metadata_parsing_section)) {
+            SettingsInfoRow(
+                title = stringResource(Res.string.settings_artist_separators),
+                value = settings.metadataParsing.artistSeparators,
+                onClick = {
+                    editingMetadataField = MetadataField.ArtistSeparators
+                    metadataFieldValue = settings.metadataParsing.artistSeparators
+                },
+            )
+            SettingsInfoRow(
+                title = stringResource(Res.string.settings_artist_protected_names),
+                value = stringResource(
+                    Res.string.settings_protected_names_count,
+                    settings.metadataParsing.artistProtectedNames.lineSequence()
+                        .count(String::isNotBlank),
+                ),
+                onClick = {
+                    editingMetadataField = MetadataField.ArtistProtectedNames
+                    metadataFieldValue = settings.metadataParsing.artistProtectedNames
+                },
+            )
+            SettingsInfoRow(
+                title = stringResource(Res.string.settings_genre_separators),
+                value = settings.metadataParsing.genreSeparators,
+                onClick = {
+                    editingMetadataField = MetadataField.GenreSeparators
+                    metadataFieldValue = settings.metadataParsing.genreSeparators
+                },
+            )
+            SettingsInfoRow(
+                title = stringResource(Res.string.settings_genre_protected_names),
+                value = stringResource(
+                    Res.string.settings_protected_names_count,
+                    settings.metadataParsing.genreProtectedNames.lineSequence()
+                        .count(String::isNotBlank),
+                ),
+                onClick = {
+                    editingMetadataField = MetadataField.GenreProtectedNames
+                    metadataFieldValue = settings.metadataParsing.genreProtectedNames
+                },
+            )
+            SettingsSwitchRow(
+                title = stringResource(Res.string.settings_ignore_tag_case),
+                summary = stringResource(Res.string.settings_ignore_tag_case_summary),
+                checked = settings.metadataParsing.ignoreTagCase,
+                onCheckedChange = {
+                    onAction(
+                        SettingsAction.SetMetadataParsingSettings(
+                            settings.metadataParsing.copy(ignoreTagCase = it)
+                        )
+                    )
+                },
+            )
+        }
     }
 
     MetadataScanModeDialog(
@@ -354,6 +409,35 @@ fun SourceSettingsSection(
             }
         },
         onDismiss = { customDurationDialogOpen = false },
+    )
+    val selectedMetadataField = editingMetadataField
+    SettingsInputDialog(
+        show = selectedMetadataField != null,
+        title = stringResource(selectedMetadataField?.titleResource() ?: Res.string.settings_artist_separators),
+        message = stringResource(
+            if (selectedMetadataField?.multiline == true) {
+                Res.string.settings_protected_names_hint
+            } else {
+                Res.string.settings_separators_hint
+            },
+        ),
+        value = metadataFieldValue,
+        label = stringResource(selectedMetadataField?.titleResource() ?: Res.string.settings_artist_separators),
+        singleLine = selectedMetadataField?.multiline != true,
+        onValueChange = { metadataFieldValue = it },
+        onConfirm = {
+            val current = settings.metadataParsing
+            val updated = when (selectedMetadataField) {
+                MetadataField.ArtistSeparators -> current.copy(artistSeparators = metadataFieldValue)
+                MetadataField.ArtistProtectedNames -> current.copy(artistProtectedNames = metadataFieldValue)
+                MetadataField.GenreSeparators -> current.copy(genreSeparators = metadataFieldValue)
+                MetadataField.GenreProtectedNames -> current.copy(genreProtectedNames = metadataFieldValue)
+                null -> current
+            }
+            onAction(SettingsAction.SetMetadataParsingSettings(updated))
+            editingMetadataField = null
+        },
+        onDismiss = { editingMetadataField = null },
     )
     WebDavAccountDialog(state = state, dialog = state.webDavDialog, onAction = onAction)
     SettingsConfirmDialog(
@@ -704,3 +788,17 @@ private fun SourceAccountSettingsItem.lastScanSummary(): String {
 }
 
 private val MINIMUM_DURATION_PRESETS_MS = setOf(0L, 15_000L, 30_000L, 60_000L)
+
+private enum class MetadataField(val multiline: Boolean) {
+    ArtistSeparators(false),
+    ArtistProtectedNames(true),
+    GenreSeparators(false),
+    GenreProtectedNames(true),
+}
+
+private fun MetadataField.titleResource() = when (this) {
+    MetadataField.ArtistSeparators -> Res.string.settings_artist_separators
+    MetadataField.ArtistProtectedNames -> Res.string.settings_artist_protected_names
+    MetadataField.GenreSeparators -> Res.string.settings_genre_separators
+    MetadataField.GenreProtectedNames -> Res.string.settings_genre_protected_names
+}

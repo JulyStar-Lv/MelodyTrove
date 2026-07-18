@@ -5,6 +5,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import com.github.tidetunes.core.domain.model.AppSettings
+import com.github.tidetunes.core.domain.model.PlayerInteractionSettings
 import com.github.tidetunes.core.domain.repository.SettingsRepository
 import com.github.tidetunes.service.playback.presentation.PlayerVM
 import com.github.tidetunes.service.playback.presentation.sleep.SleepModeVM
@@ -61,6 +62,8 @@ fun NowPlayingRoot(
     ) {
         NowPlayingScreen(
             state = state,
+            lyricDisplaySettings = settings.lyrics,
+            playerInteractionSettings = settings.playerInteraction,
             palette = palette,
             currentPositionMs = currentDuration.inWholeMilliseconds,
             isSleepTimerEnabled = sleepModeState.enabled,
@@ -68,6 +71,7 @@ fun NowPlayingRoot(
                 NowPlayingProgressRoot(
                     trackDurationMs = trackDurationMs,
                     playerViewModel = playerViewModel,
+                    playerInteractionSettings = settings.playerInteraction,
                     onAction = ::onAction,
                 )
             },
@@ -80,6 +84,7 @@ fun NowPlayingRoot(
 private fun NowPlayingProgressRoot(
     trackDurationMs: Long?,
     playerViewModel: PlayerVM,
+    playerInteractionSettings: PlayerInteractionSettings,
     onAction: (NowPlayingAction) -> Unit,
 ) {
     val currentDuration by playerViewModel.currentDuration.collectAsState()
@@ -93,6 +98,7 @@ private fun NowPlayingProgressRoot(
             playerDuration = playerDuration,
         ),
         trackDurationMs = trackDurationMs,
+        playerInteractionSettings = playerInteractionSettings,
         onAction = onAction,
     )
 }

@@ -13,6 +13,8 @@ import com.github.tidetunes.service.playback.data.PlaybackPreparationResult
 import com.github.tidetunes.service.playback.data.preparePlayback
 import com.github.tidetunes.core.domain.repository.SettingsRepository
 import com.github.tidetunes.core.domain.repository.NetworkStatusProvider
+import com.github.tidetunes.core.domain.model.AppSettings
+import com.github.tidetunes.core.domain.model.ReplayGainMode
 import com.github.tidetunes.source.api.PlaybackResource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -30,6 +32,8 @@ import uniffi.tidetunes_backend.MusicId
 import uniffi.tidetunes_backend.Playlist
 import uniffi.tidetunes_backend.PlaylistId
 import kotlin.math.max
+import kotlin.math.log10
+import kotlin.math.min
 
 class DesktopPlayerController(
     private val playerRepository: PlayerRepository,
@@ -48,10 +52,17 @@ class DesktopPlayerController(
     private var playbackJob: Job? = null
     private var playbackResource: PlaybackResource? = null
     private var pendingNetworkRecovery: Pair<MusicId, PlaylistId>? = null
+    private var currentSettings: AppSettings = AppSettings.Default
+    private var autoAdvancedTrackId: Long? = null
 
     override val sleepState: StateFlow<SleepModeState> = sleep.asStateFlow()
 
     init {
+        settingsRepository?.let { repository ->
+            scope.launch {
+                repository.settings.collect { settings -> currentSettings = settings }
+            }
+        }
         scope.launch {
             playerRepository.pauseRequest.collect { pause() }
         }
@@ -91,6 +102,28 @@ class DesktopPlayerController(
                 }
             }
         }
+        scope.launch {
+            while (true) {
+                delay(100)
+                val currentId = playerRepository.music.value?.meta?.id?.value
+                if (currentId == null || !playerRepository.playing.value) {
+                    autoAdvancedTrackId = null
+                    continue
+                }
+                val position = playbackEngine.readPosition()
+                if (position.durationMs <= 0L) continue
+                val leadMs = currentSettings.playbackAdvanced.crossfadeDurationMs
+                    .toLong()
+                    .coerceAtLeast(50L)
+                if (
+                    position.positionMs >= (position.durationMs - leadMs).coerceAtLeast(0L) &&
+                    autoAdvancedTrackId != currentId
+                ) {
+                    autoAdvancedTrackId = currentId
+                    playNext()
+                }
+            }
+        }
     }
 
     override fun getCurrentPosition(): Long = playbackEngine.readPosition().positionMs
@@ -111,16 +144,23 @@ class DesktopPlayerController(
         playbackJob?.cancel()
         playbackJob = scope.launch(Dispatchers.Main) {
             playerRepository.setIsLoading(true)
+            val transitionDurationMs = currentSettings.playbackAdvanced.crossfadeDurationMs
+            val canTransition = transitionDurationMs > 0 && playerRepository.playing.value
+            val previousResource = playbackResource.takeIf { canTransition }
             try {
-                stopForPlayback()
+                stopForPlayback(canTransition)
 
                 val music = roomLibraryStore.getMusic(id)
-                val playlist = roomLibraryStore.getPlaylist(playlistId)
+                val playlist = playerRepository.playlist.value?.takeIf { queue ->
+                    queue.abstr.meta.id == playlistId && queue.musics.any { it.meta.id == id }
+                } ?: roomLibraryStore.getPlaylist(playlistId)
                 val belongsToPlaylist = playlist?.musics?.any { it.meta.id == id } == true
                 if (music == null || playlist == null || !belongsToPlaylist) {
-                    playerRepository.resetCurrent()
+                    if (!canTransition) playerRepository.resetCurrent()
                     return@launch
                 }
+
+                configureAudioProcessing(id.value)
 
                 val preparation = withContext(Dispatchers.IO) {
                     preparePlayback(
@@ -140,22 +180,32 @@ class DesktopPlayerController(
                         playbackEngine.play()
                         playerRepository.setIsPlaying(true)
                         playerRepository.notifyDurationChanged()
+                        previousResource?.let { resource ->
+                            scope.launch {
+                                delay(transitionDurationMs.toLong())
+                                playbackResourceResolver.release(resource)
+                            }
+                        }
                     }
                     PlaybackPreparationResult.NetworkBlocked,
                     PlaybackPreparationResult.Failed -> {
                         pendingNetworkRecovery = id to playlistId
                         toastRepository.emitToast("Unable to open audio stream")
-                        playerRepository.resetCurrent()
-                        playerRepository.setIsLoading(false)
+                        if (!canTransition) {
+                            playerRepository.resetCurrent()
+                            playerRepository.setIsLoading(false)
+                        }
                     }
                 }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                releasePlaybackResource()
+                if (!canTransition) releasePlaybackResource()
                 toastRepository.emitToast(error.message?.takeIf { it.isNotBlank() } ?: error.toString())
-                playerRepository.resetCurrent()
-                playerRepository.setIsPlaying(false)
+                if (!canTransition) {
+                    playerRepository.resetCurrent()
+                    playerRepository.setIsPlaying(false)
+                }
             } finally {
                 playerRepository.setIsLoading(false)
             }
@@ -223,11 +273,36 @@ class DesktopPlayerController(
         sleep.update { it.copy(enabled = false, expiredMs = 0L) }
     }
 
-    private suspend fun stopForPlayback() {
+    private suspend fun stopForPlayback(allowTransition: Boolean) {
+        if (allowTransition) return
         playbackEngine.stop()
         releasePlaybackResource()
         playerRepository.setIsPlaying(false)
         playerRepository.resetCurrent()
+    }
+
+    private suspend fun configureAudioProcessing(trackId: Long) {
+        val settings = currentSettings
+        val replayGain = roomLibraryStore.getTrackReplayGain(trackId)
+        val (metadataGain, peak) = when (settings.playbackAdvanced.replayGainMode) {
+            ReplayGainMode.Off -> null to null
+            ReplayGainMode.Track -> replayGain?.trackGainDb to replayGain?.trackPeak
+            ReplayGainMode.Album -> replayGain?.albumGainDb to replayGain?.albumPeak
+            ReplayGainMode.Auto -> {
+                (replayGain?.trackGainDb ?: replayGain?.albumGainDb) to
+                    (replayGain?.trackPeak ?: replayGain?.albumPeak)
+            }
+        }
+        var gainDb = (metadataGain ?: 0.0) +
+            settings.playbackAdvanced.replayGainPreampTenthsDb / 10.0
+        if (peak != null && peak > 0.0) {
+            gainDb = min(gainDb, -20.0 * log10(peak))
+        }
+        playbackEngine.configureAudioProcessing(
+            effects = settings.audioEffects,
+            playback = settings.playbackAdvanced,
+            replayGainDb = gainDb.toFloat(),
+        )
     }
 
     private suspend fun releasePlaybackResource() {

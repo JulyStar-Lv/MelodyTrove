@@ -30,14 +30,17 @@ import com.github.tidetunes.database.TrackSourceRefEntity
 import com.github.tidetunes.platform.currentTimeMillis
 import com.github.tidetunes.core.domain.model.DuplicateTrackPolicy
 import com.github.tidetunes.core.domain.model.MetadataScanMode
+import com.github.tidetunes.core.domain.model.MetadataParsingSettings
 import com.github.tidetunes.core.domain.model.toOptions
 import com.github.tidetunes.core.domain.model.MissingFilePolicy
+import com.github.tidetunes.core.domain.repository.SettingsRepository
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncScanRules
 import com.github.tidetunes.source.storage.RemoteMetadataReader
 import com.github.tidetunes.source.storage.RemoteScannerRepository
 import com.github.tidetunes.core.data.StorageRepositoryImpl
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -107,6 +110,7 @@ class RemoteLibraryImportCoordinator(
     private val metadataRepository: RemoteMetadataReader,
     private val remoteScannerRepository: RemoteScannerRepository,
     private val storageRepository: StorageRepositoryImpl,
+    private val settingsRepository: SettingsRepository? = null,
 ) {
     private val activeOperationsMutex = Mutex()
     private val activeOperations = mutableMapOf<String, ActiveImportOperation>()
@@ -1078,9 +1082,11 @@ class RemoteLibraryImportCoordinator(
                     val sourceItem = sourceRows[path] ?: return@mapNotNull null
                     SourceImportRow(entry, metadata, sourceItem)
                 }
+                val metadataParsing = settingsRepository?.settings?.first()?.metadataParsing
+                    ?: MetadataParsingSettings.Default
                 val albumsByName = ensureAlbums(trackMetadata.map { it.metadata })
-                val artistsByName = ensureArtists(trackMetadata.map { it.metadata })
-                val genresByName = ensureGenres(trackMetadata.map { it.metadata })
+                val artistsByName = ensureArtists(trackMetadata.map { it.metadata }, metadataParsing)
+                val genresByName = ensureGenres(trackMetadata.map { it.metadata }, metadataParsing)
                 val existingRefsBySourceItemId = if (trackMetadata.isEmpty()) {
                     emptyMap()
                 } else {
@@ -1139,7 +1145,7 @@ class RemoteLibraryImportCoordinator(
                     metadataDao.deleteTrackGenresForTracks(unlockedTrackIds)
                 }
                 val trackArtists = unlockedTrackContexts.flatMap { context ->
-                    context.metadata.trackArtists().mapIndexedNotNull { position, name ->
+                    context.metadata.trackArtists(metadataParsing).mapIndexedNotNull { position, name ->
                         artistsByName[normalizeMetadataName(name)]?.let { artist ->
                             TrackArtistCrossRef(
                                 trackId = context.track.id,
@@ -1152,13 +1158,14 @@ class RemoteLibraryImportCoordinator(
                 if (trackArtists.isNotEmpty()) {
                     metadataDao.upsertTrackArtists(trackArtists)
                 }
-                val trackGenres = unlockedTrackContexts.mapNotNull { context ->
-                    val genreName = context.metadata.genre ?: return@mapNotNull null
-                    genresByName[normalizeMetadataName(genreName)]?.let { genre ->
-                        TrackGenreCrossRef(
-                            trackId = context.track.id,
-                            genreId = genre.id,
-                        )
+                val trackGenres = unlockedTrackContexts.flatMap { context ->
+                    context.metadata.genres(metadataParsing).mapNotNull { genreName ->
+                        genresByName[normalizeMetadataName(genreName)]?.let { genre ->
+                            TrackGenreCrossRef(
+                                trackId = context.track.id,
+                                genreId = genre.id,
+                            )
+                        }
                     }
                 }
                 if (trackGenres.isNotEmpty()) {
@@ -1170,7 +1177,8 @@ class RemoteLibraryImportCoordinator(
                 }
                 val albumArtists = unlockedTrackContexts.mapNotNull { context ->
                     val albumId = context.track.albumId ?: return@mapNotNull null
-                    val albumArtist = context.metadata.albumArtist ?: return@mapNotNull null
+                    val albumArtist = context.metadata.albumArtists(metadataParsing).firstOrNull()
+                        ?: return@mapNotNull null
                     artistsByName[normalizeMetadataName(albumArtist)]?.let { artist ->
                         AlbumArtistCrossRef(
                             albumId = albumId,
@@ -1301,9 +1309,10 @@ class RemoteLibraryImportCoordinator(
 
     private suspend fun ensureArtists(
         metadata: List<RemoteMetadata>,
+        parsing: MetadataParsingSettings,
     ): Map<String, ArtistEntity> {
         val names = metadata
-            .flatMap { it.trackArtists() + listOfNotNull(it.albumArtist) }
+            .flatMap { it.trackArtists(parsing) + it.albumArtists(parsing) }
             .map(String::trim)
             .filter(String::isNotEmpty)
             .distinctBy(::normalizeMetadataName)
@@ -1323,9 +1332,10 @@ class RemoteLibraryImportCoordinator(
 
     private suspend fun ensureGenres(
         metadata: List<RemoteMetadata>,
+        parsing: MetadataParsingSettings,
     ): Map<String, GenreEntity> {
         val names = metadata
-            .mapNotNull { it.genre?.trim()?.takeIf(String::isNotEmpty) }
+            .flatMap { it.genres(parsing) }
             .distinctBy(::normalizeMetadataName)
         if (names.isEmpty()) return emptyMap()
         metadataDao.insertGenres(
@@ -2434,14 +2444,21 @@ internal fun buildLyricsEntity(
     now: Long,
 ): LyricsEntity? {
     val embedded = metadata.lyrics ?: return null
+    val isTtml = embedded.content.trimStart().startsWith("<?xml", ignoreCase = true) ||
+        embedded.content.contains("<tt", ignoreCase = true)
     return LyricsEntity(
         trackId = trackId,
-        format = if (embedded.synchronized) "LRC" else "TEXT",
+        format = when {
+            isTtml -> "TTML"
+            embedded.synchronized -> "LRC"
+            else -> "TEXT"
+        },
         language = embedded.language,
         synchronized = embedded.synchronized,
         content = embedded.content,
-        sourcePath = null,
+        sourcePath = "embedded",
         updatedAt = now,
+        sourceKind = if (isTtml) "EmbeddedTtml" else "EmbeddedPlain",
     )
 }
 
@@ -2566,12 +2583,71 @@ private fun String.yearPrefix(): Int? {
     return take(4).toIntOrNull()
 }
 
-private fun RemoteMetadata.trackArtists(): List<String> {
+private fun RemoteMetadata.trackArtists(parsing: MetadataParsingSettings): List<String> {
     return artists
         .ifEmpty { listOfNotNull(artist) }
-        .map(String::trim)
+        .flatMap { value ->
+            splitMetadataNames(
+                value = value,
+                separators = parsing.artistSeparators,
+                protectedNames = parsing.artistProtectedNames,
+                ignoreCase = parsing.ignoreTagCase,
+            )
+        }
         .filter(String::isNotEmpty)
         .distinctBy(::normalizeMetadataName)
+}
+
+private fun RemoteMetadata.albumArtists(parsing: MetadataParsingSettings): List<String> =
+    splitMetadataNames(
+        value = albumArtist.orEmpty(),
+        separators = parsing.artistSeparators,
+        protectedNames = parsing.artistProtectedNames,
+        ignoreCase = parsing.ignoreTagCase,
+    ).distinctBy(::normalizeMetadataName)
+
+private fun RemoteMetadata.genres(parsing: MetadataParsingSettings): List<String> =
+    splitMetadataNames(
+        value = genre.orEmpty(),
+        separators = parsing.genreSeparators,
+        protectedNames = parsing.genreProtectedNames,
+        ignoreCase = parsing.ignoreTagCase,
+    ).distinctBy(::normalizeMetadataName)
+
+internal fun splitMetadataNames(
+    value: String,
+    separators: String,
+    protectedNames: String,
+    ignoreCase: Boolean,
+): List<String> {
+    if (value.isBlank()) return emptyList()
+    val protectedRanges = protectedNames.lineSequence()
+        .map(String::trim)
+        .filter(String::isNotEmpty)
+        .flatMap { protected ->
+            sequence {
+                var start = 0
+                while (start < value.length) {
+                    val index = value.indexOf(protected, startIndex = start, ignoreCase = ignoreCase)
+                    if (index < 0) break
+                    yield(index until index + protected.length)
+                    start = index + protected.length.coerceAtLeast(1)
+                }
+            }
+        }
+        .toList()
+    val result = mutableListOf<String>()
+    val current = StringBuilder()
+    value.forEachIndexed { index, char ->
+        if (char in separators && protectedRanges.none { range -> index in range }) {
+            current.toString().trim().takeIf(String::isNotEmpty)?.let(result::add)
+            current.clear()
+        } else {
+            current.append(char)
+        }
+    }
+    current.toString().trim().takeIf(String::isNotEmpty)?.let(result::add)
+    return result
 }
 
 private fun RemoteMetadata.isShorterThan(minDurationMs: Long): Boolean {

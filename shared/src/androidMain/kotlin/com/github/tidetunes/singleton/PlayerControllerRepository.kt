@@ -227,7 +227,9 @@ class PlayerControllerRepository internal constructor(
                 stopForPlayback(engine)
 
                 val music = playbackLibrary.getMusic(id)
-                val playlist = playbackLibrary.getPlaylist(playlistId)
+                val playlist = _playlist.value?.takeIf { queue ->
+                    queue.abstr.meta.id == playlistId && queue.musics.any { it.meta.id == id }
+                } ?: playbackLibrary.getPlaylist(playlistId)
                 if (
                     music == null ||
                     playlist == null ||

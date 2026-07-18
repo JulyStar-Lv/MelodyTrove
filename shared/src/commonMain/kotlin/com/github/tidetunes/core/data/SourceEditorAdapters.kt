@@ -35,6 +35,9 @@ internal fun SourceEditorType.toStorageType(): StorageType {
     return when (this) {
         SourceEditorType.WebDav -> StorageType.WEBDAV
         SourceEditorType.OneDrive -> StorageType.ONE_DRIVE
+        SourceEditorType.Navidrome,
+        SourceEditorType.OpenSubsonic,
+        SourceEditorType.Emby -> StorageType.WEBDAV
     }
 }
 

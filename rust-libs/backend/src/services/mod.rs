@@ -1,7 +1,9 @@
 mod app;
+mod desktop_dsp;
 mod desktop_rodio;
 mod music;
 mod playback_gateway;
+mod remote_music;
 mod remote_scan;
 mod storage;
 

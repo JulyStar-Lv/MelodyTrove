@@ -10,6 +10,8 @@ import org.koin.core.module.Module
 import org.koin.dsl.module
 import com.github.tidetunes.core.data.settings.IosNetworkStatusProvider
 import com.github.tidetunes.core.domain.repository.NetworkStatusProvider
+import com.github.tidetunes.core.data.settings.UnsupportedExternalEditorLauncher
+import com.github.tidetunes.core.domain.repository.ExternalEditorLauncher
 
 actual val platformModule: Module = module {
     single<PlayerController> {
@@ -35,4 +37,5 @@ actual val platformModule: Module = module {
         )
     }
     single<NetworkStatusProvider> { IosNetworkStatusProvider() }
+    single<ExternalEditorLauncher> { UnsupportedExternalEditorLauncher() }
 }

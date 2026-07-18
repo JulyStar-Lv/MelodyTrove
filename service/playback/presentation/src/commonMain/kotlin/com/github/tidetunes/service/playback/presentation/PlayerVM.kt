@@ -2,6 +2,14 @@ package com.github.tidetunes.service.playback.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.tidetunes.core.domain.model.PlaybackAdvancedSettings
+import com.github.tidetunes.core.domain.model.CurrentTrackInfo
+import com.github.tidetunes.core.domain.model.PlayerInteractionSettings
+import com.github.tidetunes.core.domain.model.PreviousButtonBehavior
+import com.github.tidetunes.core.domain.repository.SettingsRepository
+import com.github.tidetunes.core.domain.repository.ExternalEditorKind
+import com.github.tidetunes.core.domain.repository.ExternalEditorLauncher
+import com.github.tidetunes.core.domain.repository.ExternalEditorRequest
 import com.github.tidetunes.service.download.domain.DownloadRequest
 import com.github.tidetunes.service.download.domain.EnqueueDownloadUseCase
 import com.github.tidetunes.service.playback.domain.NowPlayingRepository
@@ -32,10 +40,17 @@ class PlayerVM constructor(
     private val nowPlayingRepository: NowPlayingRepository,
     private val playbackController: PlaybackController,
     private val enqueueDownload: EnqueueDownloadUseCase,
+    private val settingsRepository: SettingsRepository,
+    private val externalEditorLauncher: ExternalEditorLauncher,
 ) : ViewModel() {
     private val whileSubscribed = SharingStarted.WhileSubscribed(5_000)
-    private val _nowPlayingState = MutableStateFlow(NowPlayingState())
+    private val _nowPlayingState = MutableStateFlow(
+        NowPlayingState(externalEditorSupported = externalEditorLauncher.isSupported)
+    )
     private val _nowPlayingEvents = Channel<NowPlayingEvent>(Channel.BUFFERED)
+    private val _playbackAdvancedSettings = MutableStateFlow(PlaybackAdvancedSettings.Default)
+    private var playerInteractionSettings = PlayerInteractionSettings.Default
+    private var currentTrackInfo: CurrentTrackInfo? = null
 
     val playbackState = playbackController.state
     val playbackPosition = playbackController.position
@@ -70,7 +85,14 @@ class PlayerVM constructor(
 
     init {
         viewModelScope.launch {
+            settingsRepository.settings.collect { settings ->
+                _playbackAdvancedSettings.value = settings.playbackAdvanced
+                playerInteractionSettings = settings.playerInteraction
+            }
+        }
+        viewModelScope.launch {
             nowPlayingRepository.currentTrackInfo.collect { info ->
+                currentTrackInfo = info
                 _nowPlayingState.value = _nowPlayingState.value.copy(
                     currentTrack = info?.toNowPlayingTrackItem(),
                 )
@@ -111,6 +133,8 @@ class PlayerVM constructor(
             NowPlayingAction.NavigateBack -> Unit
             NowPlayingAction.AddLyric -> Unit
             NowPlayingAction.SearchMetadata -> Unit
+            NowPlayingAction.OpenMetadataEditor -> openExternalEditor(ExternalEditorKind.Metadata)
+            NowPlayingAction.OpenLyricTimingEditor -> openExternalEditor(ExternalEditorKind.LyricTiming)
             NowPlayingAction.RemoveLyric -> removeLyric()
             NowPlayingAction.RemoveCurrentTrack -> remove()
             NowPlayingAction.DownloadCurrentTrack -> downloadCurrentTrack()
@@ -141,7 +165,10 @@ class PlayerVM constructor(
     }
 
     fun playPrevious() {
-        playbackController.skipPrevious()
+        when (_playbackAdvancedSettings.value.previousButtonBehavior) {
+            PreviousButtonBehavior.PreviousTrack -> playbackController.skipPrevious()
+            PreviousButtonBehavior.RestartCurrentTrack -> playbackController.seekTo(0L)
+        }
     }
 
     fun remove() {
@@ -184,6 +211,28 @@ class PlayerVM constructor(
             return
         }
         enqueueTrackDownload(track)
+    }
+
+    private fun openExternalEditor(kind: ExternalEditorKind) {
+        val track = currentTrackInfo ?: return
+        val launched = externalEditorLauncher.launch(
+            ExternalEditorRequest(
+                kind = kind,
+                trackId = track.id,
+                title = track.title,
+                artist = track.artist,
+                sourcePath = track.sourcePath,
+                metadataEditor = playerInteractionSettings.metadataEditor,
+                lyricTimingEditor = playerInteractionSettings.lyricTimingEditor,
+            )
+        )
+        if (!launched) {
+            viewModelScope.launch {
+                _nowPlayingEvents.send(
+                    NowPlayingEvent.ShowMessage("Unable to open an editor for this track")
+                )
+            }
+        }
     }
 
     private fun enqueueTrackDownload(track: NowPlayingTrackItem) {

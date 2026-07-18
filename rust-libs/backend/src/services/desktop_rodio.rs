@@ -19,6 +19,8 @@ use reqwest::{
 };
 use rodio::{Decoder, DeviceSinkBuilder, MixerDeviceSink, Player, Source};
 
+use super::desktop_dsp::{DesktopDspSettings, DesktopDspSource};
+
 const HTTP_BLOCK_SIZE: u64 = 256 * 1024;
 const HTTP_PREFETCH_BYTES: u64 = 8 * 1024 * 1024;
 const HTTP_CACHE_MAX_BLOCKS: usize = 48;
@@ -39,11 +41,12 @@ struct DesktopRodioState {
     output: Option<RodioOutput>,
     loaded: bool,
     duration_ms: i64,
+    dsp: DesktopDspSettings,
 }
 
 struct RodioOutput {
     _sink: MixerDeviceSink,
-    player: Player,
+    player: Arc<Player>,
 }
 
 #[uniffi::export]
@@ -54,6 +57,8 @@ impl DesktopRodioPlayer {
         }
 
         let mut state = self.state.lock().unwrap();
+        let dsp = state.dsp.clone();
+        let was_loaded = state.loaded;
         let output = match state.ensure_output() {
             Ok(output) => output,
             Err(message) => {
@@ -62,15 +67,33 @@ impl DesktopRodioPlayer {
             }
         };
 
-        output.player.stop();
-        let duration_ms = match output.load_resource(&uri, &http_header_fields) {
+        let old_player = output.replace_player();
+        let duration_ms = match output.load_resource(&uri, &http_header_fields, &dsp) {
             Ok(duration_ms) => duration_ms,
             Err(message) => {
+                output.player.stop();
+                output.player = old_player;
                 tracing::warn!(message, "desktop rodio failed to decode resource");
                 return DesktopRodioLoadResult::Unsupported;
             }
         };
-        output.player.pause();
+        let target_gain = db_to_linear(dsp.replay_gain_db);
+        let should_crossfade =
+            was_loaded && !old_player.is_paused() && dsp.crossfade_duration_ms > 0;
+        if should_crossfade {
+            output.player.set_volume(0.0);
+            output.player.play();
+            fade_between_players(
+                old_player,
+                output.player.clone(),
+                target_gain,
+                dsp.crossfade_duration_ms,
+            );
+        } else {
+            old_player.stop();
+            output.player.set_volume(target_gain);
+            output.player.pause();
+        }
         state.loaded = true;
         state.duration_ms = duration_ms;
         DesktopRodioLoadResult::Ready
@@ -123,6 +146,46 @@ impl DesktopRodioPlayer {
             0
         }
     }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn configure_audio_processing(
+        &self,
+        enabled: bool,
+        eq_band_gains_db: Vec<f32>,
+        eq_q: f32,
+        bass_db: f32,
+        treble_db: f32,
+        compressor_enabled: bool,
+        compressor_threshold_db: f32,
+        compressor_ratio: f32,
+        compressor_makeup_db: f32,
+        stereo_width: f32,
+        reverb_preset: u8,
+        replay_gain_db: f32,
+        crossfade_duration_ms: u64,
+    ) {
+        let mut state = self.state.lock().unwrap();
+        state.dsp = DesktopDspSettings {
+            enabled,
+            eq_band_gains_db,
+            eq_q: eq_q.clamp(0.1, 10.0),
+            bass_db: bass_db.clamp(-24.0, 24.0),
+            treble_db: treble_db.clamp(-24.0, 24.0),
+            compressor_enabled,
+            compressor_threshold_db: compressor_threshold_db.clamp(-60.0, 0.0),
+            compressor_ratio: compressor_ratio.clamp(1.0, 20.0),
+            compressor_makeup_db: compressor_makeup_db.clamp(-12.0, 24.0),
+            stereo_width: stereo_width.clamp(0.0, 2.0),
+            reverb_preset,
+            replay_gain_db: replay_gain_db.clamp(-60.0, 24.0),
+            crossfade_duration_ms: crossfade_duration_ms.min(30_000),
+        };
+        if let Some(output) = state.output.as_ref() {
+            output
+                .player
+                .set_volume(db_to_linear(state.dsp.replay_gain_db));
+        }
+    }
 }
 
 impl DesktopRodioPlayer {
@@ -144,11 +207,11 @@ impl DesktopRodioPlayer {
 }
 
 impl DesktopRodioState {
-    fn ensure_output(&mut self) -> Result<&RodioOutput, String> {
+    fn ensure_output(&mut self) -> Result<&mut RodioOutput, String> {
         if self.output.is_none() {
             self.output = Some(RodioOutput::new()?);
         }
-        Ok(self.output.as_ref().unwrap())
+        Ok(self.output.as_mut().unwrap())
     }
 }
 
@@ -157,22 +220,32 @@ impl RodioOutput {
         let mut sink = DeviceSinkBuilder::open_default_sink()
             .map_err(|error| format!("open default audio sink failed: {error}"))?;
         sink.log_on_drop(false);
-        let player = Player::connect_new(sink.mixer());
+        let player = Arc::new(Player::connect_new(sink.mixer()));
         Ok(Self {
             _sink: sink,
             player,
         })
     }
 
-    fn load_resource(&self, uri: &str, http_header_fields: &str) -> Result<i64, String> {
+    fn load_resource(
+        &self,
+        uri: &str,
+        http_header_fields: &str,
+        dsp: &DesktopDspSettings,
+    ) -> Result<i64, String> {
         if is_http_uri(uri) {
-            self.load_http_resource(uri, http_header_fields)
+            self.load_http_resource(uri, http_header_fields, dsp)
         } else {
-            self.load_file_resource(uri)
+            self.load_file_resource(uri, dsp)
         }
     }
 
-    fn load_file_resource(&self, uri: &str) -> Result<i64, String> {
+    fn replace_player(&mut self) -> Arc<Player> {
+        let next = Arc::new(Player::connect_new(self._sink.mixer()));
+        std::mem::replace(&mut self.player, next)
+    }
+
+    fn load_file_resource(&self, uri: &str, dsp: &DesktopDspSettings) -> Result<i64, String> {
         let path = uri_to_path(uri);
         let file = File::open(&path).map_err(|error| format!("open file failed: {error}"))?;
         let byte_len = file
@@ -192,11 +265,16 @@ impl RodioOutput {
             .total_duration()
             .map(duration_to_ms)
             .unwrap_or_default();
-        self.player.append(source);
+        self.append_source(source, dsp);
         Ok(duration_ms)
     }
 
-    fn load_http_resource(&self, uri: &str, http_header_fields: &str) -> Result<i64, String> {
+    fn load_http_resource(
+        &self,
+        uri: &str,
+        http_header_fields: &str,
+        dsp: &DesktopDspSettings,
+    ) -> Result<i64, String> {
         let reader = BufReader::new(HttpRangeReader::open(uri, http_header_fields)?);
         let byte_len = reader.get_ref().len();
         let mut builder = Decoder::builder()
@@ -211,14 +289,51 @@ impl RodioOutput {
             .total_duration()
             .map(duration_to_ms)
             .unwrap_or_default();
-        self.player.append(source);
+        self.append_source(source, dsp);
         Ok(duration_ms)
+    }
+
+    fn append_source<S>(&self, source: S, dsp: &DesktopDspSettings)
+    where
+        S: Source + Send + 'static,
+    {
+        if dsp.enabled {
+            self.player
+                .append(DesktopDspSource::new(source, dsp.clone()));
+        } else {
+            self.player.append(source);
+        }
     }
 }
 
 #[uniffi::export]
 pub fn ct_create_desktop_rodio_player() -> Arc<DesktopRodioPlayer> {
     Arc::new(DesktopRodioPlayer::new())
+}
+
+fn db_to_linear(db: f32) -> f32 {
+    10.0_f32.powf(db / 20.0)
+}
+
+fn fade_between_players(
+    previous: Arc<Player>,
+    next: Arc<Player>,
+    target_gain: f32,
+    duration_ms: u64,
+) {
+    thread::spawn(move || {
+        let previous_gain = previous.volume();
+        let steps = (duration_ms / 20).max(1);
+        let sleep = Duration::from_millis((duration_ms / steps).max(1));
+        for step in 1..=steps {
+            let progress = step as f32 / steps as f32;
+            previous.set_volume(previous_gain * (1.0 - progress));
+            next.set_volume(target_gain * progress);
+            thread::sleep(sleep);
+        }
+        previous.stop();
+        next.set_volume(target_gain);
+    });
 }
 
 struct HttpRangeReader {

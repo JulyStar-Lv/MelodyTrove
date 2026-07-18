@@ -15,6 +15,7 @@ public fun CurrentTrackInfo.toNowPlayingTrackItem(): NowPlayingTrackItem {
         artwork = artwork,
         lyrics = lyrics,
         mediaId = mediaId,
+        annotation = annotation?.takeIf(String::isNotBlank),
     )
 }
 

@@ -9,6 +9,7 @@ data class QueueState(
     val items: ImmutableList<QueueItemUi> = persistentListOf(),
     val currentIndex: Int = -1,
     val isPlaying: Boolean = false,
+    val isShuffleEnabled: Boolean = false,
 )
 
 @Immutable

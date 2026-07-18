@@ -142,7 +142,9 @@ class IosPlayerController internal constructor(
                 playerRepository.setIsPlaying(false)
                 playerRepository.resetCurrent()
                 val music = roomLibraryStore.getMusic(id)
-                val playlist = roomLibraryStore.getPlaylist(playlistId)
+                val playlist = playerRepository.playlist.value?.takeIf { queue ->
+                    queue.abstr.meta.id == playlistId && queue.musics.any { it.meta.id == id }
+                } ?: roomLibraryStore.getPlaylist(playlistId)
                 val belongsToPlaylist = playlist?.musics?.any { it.meta.id == id } == true
                 if (music == null || playlist == null || !belongsToPlaylist) {
                     return@launch

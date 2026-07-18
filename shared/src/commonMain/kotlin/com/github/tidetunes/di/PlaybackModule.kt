@@ -20,7 +20,14 @@ val playbackModule = module {
     single { PlaybackResourceResolver(get(), get(), get(), get()) }
     single { PlayerRepository(get(), get(), get(), get(), get()) }
     single { ManualMetadataService(get(), get(), get(), get(), get(), get()) }
-    single<PlaybackController> { LegacyPlaybackController(get(), get(), get()) }
+    single<PlaybackController> {
+        LegacyPlaybackController(
+            playerRepository = get(),
+            legacyController = get(),
+            scope = get(),
+            settingsRepository = get(),
+        )
+    }
     single<SleepController> { get<PlayerController>() }
     single<NowPlayingRepository> { LegacyNowPlayingRepository(get(), get()) }
     single<PlaylistPlaybackSync> { LegacyPlaylistPlaybackSync(get(), get()) }

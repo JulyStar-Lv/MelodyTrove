@@ -17,6 +17,8 @@ kotlin {
         val desktopMain by getting {
             dependencies {
                 implementation(project(":shared"))
+                implementation(project(":core:domain"))
+                implementation(project(":service:playback:domain"))
                 implementation(compose.desktop.currentOs)
                 implementation(libs.koin.core)
                 implementation(libs.filekit.dialogs.compose)

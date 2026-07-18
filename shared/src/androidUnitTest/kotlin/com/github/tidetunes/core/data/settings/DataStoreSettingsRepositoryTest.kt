@@ -10,6 +10,7 @@ import com.github.tidetunes.core.domain.model.AutoScanMode
 import com.github.tidetunes.core.domain.model.DuplicateTrackPolicy
 import com.github.tidetunes.core.domain.model.MAX_AUDIO_CACHE_LIMIT_BYTES
 import com.github.tidetunes.core.domain.model.MAX_IMAGE_CACHE_LIMIT_BYTES
+import com.github.tidetunes.core.domain.model.LyricTextAlignment
 import com.github.tidetunes.core.domain.model.MissingFilePolicy
 import com.github.tidetunes.core.domain.model.MetadataScanMode
 import kotlinx.coroutines.flow.first
@@ -36,6 +37,17 @@ class DataStoreSettingsRepositoryTest {
         repository.setRetryPlaybackOnFailure(false)
         repository.setResumePlaybackAfterNetworkRecovery(false)
         repository.setKeepScreenOnInPlayer(true)
+        repository.setLyricTextAlignment(LyricTextAlignment.Right)
+        repository.setLyricPrimaryFontScalePercent(125)
+        repository.setLyricPrimaryFontSizeSp(42)
+        repository.setLyricSecondaryFontScalePercent(135)
+        repository.setLyricSecondaryFontSizeSp(24)
+        repository.setLyricTranslationVisible(false)
+        repository.setLyricWordLiftEnabled(false)
+        repository.setLyricBlurEffectEnabled(false)
+        repository.setLyricPerspectiveEffectEnabled(true)
+        repository.setLyricPerspectiveAngleDegrees(35)
+        repository.setLyricTapToSeekEnabled(false)
         repository.setAutoScanMode(AutoScanMode.OnStartup)
         repository.setBackgroundScanEnabled(true)
         repository.setScanOnlyOnUnmeteredNetwork(false)
@@ -62,6 +74,17 @@ class DataStoreSettingsRepositoryTest {
         assertFalse(settings.retryPlaybackOnFailure)
         assertFalse(settings.resumePlaybackAfterNetworkRecovery)
         assertTrue(settings.keepScreenOnInPlayer)
+        assertEquals(LyricTextAlignment.Right, settings.lyrics.textAlignment)
+        assertEquals(125, settings.lyrics.primaryFontScalePercent)
+        assertEquals(42, settings.lyrics.primaryFontSizeSp)
+        assertEquals(135, settings.lyrics.secondaryFontScalePercent)
+        assertEquals(24, settings.lyrics.secondaryFontSizeSp)
+        assertFalse(settings.lyrics.showTranslation)
+        assertFalse(settings.lyrics.wordLiftEnabled)
+        assertFalse(settings.lyrics.blurEffectEnabled)
+        assertTrue(settings.lyrics.perspectiveEffectEnabled)
+        assertEquals(35, settings.lyrics.perspectiveAngleDegrees)
+        assertFalse(settings.lyrics.tapToSeekEnabled)
         assertEquals(AutoScanMode.OnStartup, settings.autoScanMode)
         assertTrue(settings.backgroundScanEnabled)
         assertFalse(settings.scanOnlyOnUnmeteredNetwork)
@@ -111,6 +134,12 @@ class DataStoreSettingsRepositoryTest {
             preferences[CONNECTION_TIMEOUT_SECONDS_KEY] = -1
             preferences[AUDIO_CACHE_LIMIT_BYTES_KEY] = Long.MAX_VALUE
             preferences[IMAGE_CACHE_LIMIT_BYTES_KEY] = Long.MAX_VALUE
+            preferences[LYRIC_TEXT_ALIGNMENT_KEY] = "invalid"
+            preferences[LYRIC_PRIMARY_FONT_SCALE_PERCENT_KEY] = Int.MAX_VALUE
+            preferences[LYRIC_PRIMARY_FONT_SIZE_SP_KEY] = Int.MAX_VALUE
+            preferences[LYRIC_SECONDARY_FONT_SCALE_PERCENT_KEY] = Int.MIN_VALUE
+            preferences[LYRIC_SECONDARY_FONT_SIZE_SP_KEY] = Int.MIN_VALUE
+            preferences[LYRIC_PERSPECTIVE_ANGLE_DEGREES_KEY] = Int.MAX_VALUE
         }
 
         val normalized = repository.settingsValue()
@@ -121,6 +150,12 @@ class DataStoreSettingsRepositoryTest {
         assertEquals(5, normalized.connectionTimeoutSeconds)
         assertEquals(MAX_AUDIO_CACHE_LIMIT_BYTES, normalized.audioCacheLimitBytes)
         assertEquals(MAX_IMAGE_CACHE_LIMIT_BYTES, normalized.imageCacheLimitBytes)
+        assertEquals(LyricTextAlignment.Left, normalized.lyrics.textAlignment)
+        assertEquals(175, normalized.lyrics.primaryFontScalePercent)
+        assertEquals(54, normalized.lyrics.primaryFontSizeSp)
+        assertEquals(75, normalized.lyrics.secondaryFontScalePercent)
+        assertEquals(12, normalized.lyrics.secondaryFontSizeSp)
+        assertEquals(45, normalized.lyrics.perspectiveAngleDegrees)
 
         repository.setThemeMode(AppThemeMode.Light)
         repository.resetToDefaults()

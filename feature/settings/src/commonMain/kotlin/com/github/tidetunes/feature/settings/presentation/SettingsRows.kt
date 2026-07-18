@@ -19,8 +19,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -35,6 +40,7 @@ import com.github.tidetunes.core.presentation.components.TideChevronDirection
 import com.github.tidetunes.core.presentation.components.TideDialog
 import com.github.tidetunes.core.presentation.components.TidePreferenceRow
 import com.github.tidetunes.core.presentation.components.TideSettingsGroup
+import com.github.tidetunes.core.presentation.components.TideSlider
 import com.github.tidetunes.core.presentation.components.TideTextButton
 import com.github.tidetunes.core.presentation.components.TideTextButtonSize
 import com.github.tidetunes.core.presentation.components.TideTextButtonVariant
@@ -63,6 +69,7 @@ import tidetunes.core.presentation.generated.resources.icon_wifitethering
 import tidetunes.feature.settings.generated.resources.Res as SettingsRes
 import tidetunes.feature.settings.generated.resources.settings_cancel
 import tidetunes.feature.settings.generated.resources.settings_save
+import kotlin.math.roundToInt
 
 @Composable
 internal fun SettingsPageLayout(
@@ -222,6 +229,74 @@ internal fun SettingsSwitchRow(
 }
 
 @Composable
+internal fun SettingsSliderRow(
+    title: String,
+    summary: String? = null,
+    value: Int,
+    valueRange: IntRange,
+    valueText: String,
+    enabled: Boolean = true,
+    showDivider: Boolean = true,
+    onValueChange: (Int) -> Unit,
+) {
+    var previewValue by remember(value) { mutableFloatStateOf(value.toFloat()) }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.45f),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = title,
+                    style = MiuixTheme.textStyles.main,
+                    color = MiuixTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text = valueText,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.primary,
+                )
+            }
+            if (summary != null) {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = summary,
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                )
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            TideSlider(
+                value = previewValue,
+                onValueChange = { previewValue = it },
+                onValueChangeFinished = { onValueChange(previewValue.roundToInt()) },
+                enabled = enabled,
+                valueRange = valueRange.first.toFloat()..valueRange.last.toFloat(),
+                steps = (valueRange.last - valueRange.first - 1).coerceAtLeast(0),
+            )
+        }
+        if (showDivider) {
+            Spacer(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.55f)),
+            )
+        }
+    }
+}
+
+@Composable
 internal fun SettingsInfoRow(
     title: String,
     value: String,
@@ -370,6 +445,7 @@ internal fun SettingsInputDialog(
     message: String,
     value: String,
     label: String,
+    singleLine: Boolean = true,
     onValueChange: (String) -> Unit,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
@@ -394,7 +470,7 @@ internal fun SettingsInputDialog(
             value = value,
             onValueChange = onValueChange,
             label = label,
-            singleLine = true,
+            singleLine = singleLine,
             modifier = Modifier.fillMaxWidth(),
         )
         Spacer(modifier = Modifier.height(TideTunesTokens.spacing.md))

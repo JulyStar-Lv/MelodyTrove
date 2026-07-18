@@ -1,6 +1,7 @@
 package com.github.tidetunes.service.playback.presentation.nowplaying
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -28,14 +29,20 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.github.tidetunes.core.domain.model.Artwork
+import com.github.tidetunes.core.domain.model.LyricDisplaySettings
+import com.github.tidetunes.core.domain.model.LyricFontChoice
+import com.github.tidetunes.core.domain.model.LyricTextAlignment
 import com.github.tidetunes.core.domain.model.LyricsLoadState
+import com.github.tidetunes.core.domain.model.PlayerInteractionSettings
 import com.github.tidetunes.core.lyrics.ui.TideLyricsView
 import com.github.tidetunes.core.presentation.components.TideContextMenu
 import com.github.tidetunes.core.presentation.components.TideContextMenuItem
@@ -59,6 +66,7 @@ import com.github.tidetunes.core.utils.formatDuration
 import com.github.tidetunes.core.utils.toMusicDurationMs
 import com.github.tidetunes.service.playback.domain.RepeatMode
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.math.abs
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -82,6 +90,8 @@ import tidetunes.service.playback.presentation.generated.resources.music_lyric_n
 import tidetunes.service.playback.presentation.generated.resources.music_lyric_remove
 import tidetunes.service.playback.presentation.generated.resources.music_lyric_try_add_desc
 import tidetunes.service.playback.presentation.generated.resources.music_player_context_menu_remove
+import tidetunes.service.playback.presentation.generated.resources.music_player_edit_lyric_timing
+import tidetunes.service.playback.presentation.generated.resources.music_player_edit_metadata
 import tidetunes.service.playback.presentation.generated.resources.music_player_search_metadata
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
@@ -138,6 +148,24 @@ private fun MusicPlayerHeader(
                                 onAction(NowPlayingAction.SearchMetadata)
                             },
                         ),
+                        if (nowPlayingState.externalEditorSupported) {
+                            TideContextMenuItem(
+                                label = Res.string.music_player_edit_metadata,
+                                onClick = {
+                                    moreMenuExpanded = false
+                                    onAction(NowPlayingAction.OpenMetadataEditor)
+                                },
+                            )
+                        } else null,
+                        if (nowPlayingState.externalEditorSupported) {
+                            TideContextMenuItem(
+                                label = Res.string.music_player_edit_lyric_timing,
+                                onClick = {
+                                    moreMenuExpanded = false
+                                    onAction(NowPlayingAction.OpenLyricTimingEditor)
+                                },
+                            )
+                        } else null,
                         if (hasLyric) {
                             TideContextMenuItem(
                                 label = Res.string.music_lyric_remove,
@@ -188,6 +216,8 @@ private fun MusicSlider(
     bufferDurationMs: ULong,
     totalDuration: String,
     totalDurationMs: ULong,
+    tapToSeekEnabled: Boolean,
+    showTotalDuration: Boolean,
     onChangeMusicPosition: (ms: ULong) -> Unit,
 ) {
     var isScrubbing by remember { mutableStateOf(false) }
@@ -206,6 +236,7 @@ private fun MusicSlider(
             modifier = Modifier.fillMaxWidth(),
             valueRange = sliderRange,
             bufferedValue = bufferDurationMs.toFloat(),
+            tapToSeekEnabled = tapToSeekEnabled,
             onValueChangeStarted = {
                 isScrubbing = true
                 scrubbingDurationMs = currentDurationMs.coerceAtMost(totalDurationMs)
@@ -226,7 +257,12 @@ private fun MusicSlider(
                 style = MiuixTheme.textStyles.footnote2,
             )
             Text(
-                text = totalDuration,
+                text = if (showTotalDuration) {
+                    totalDuration
+                } else {
+                    val remainingMs = totalDurationMs.toLong() - displayedDurationMs.toLong()
+                    "-${formatDuration(remainingMs.coerceAtLeast(0).milliseconds)}"
+                },
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 style = MiuixTheme.textStyles.footnote2,
             )
@@ -239,6 +275,9 @@ private fun CoverImage(
     artwork: Artwork?,
     modifier: Modifier = Modifier,
     maxArtworkSize: androidx.compose.ui.unit.Dp = 400.dp,
+    swipeEnabled: Boolean = false,
+    onSwipePrevious: () -> Unit = {},
+    onSwipeNext: () -> Unit = {},
 ) {
     BoxWithConstraints(
         contentAlignment = Alignment.Center,
@@ -248,6 +287,20 @@ private fun CoverImage(
         Box(
             modifier = Modifier
                 .size(artworkSize)
+                .pointerInput(swipeEnabled) {
+                    if (swipeEnabled) {
+                        var accumulatedDrag = 0f
+                        detectHorizontalDragGestures(
+                            onDragStart = { accumulatedDrag = 0f },
+                            onHorizontalDrag = { _, dragAmount -> accumulatedDrag += dragAmount },
+                            onDragEnd = {
+                                if (abs(accumulatedDrag) >= 72f) {
+                                    if (accumulatedDrag > 0f) onSwipePrevious() else onSwipeNext()
+                                }
+                            },
+                        )
+                    }
+                }
                 .dropShadow(
                     color = Color.Black.copy(alpha = 0.32f),
                     offsetX = 0.dp,
@@ -268,29 +321,62 @@ private fun CoverImage(
 @Composable
 private fun TrackInformation(
     track: NowPlayingTrackItem?,
+    lyricDisplaySettings: LyricDisplaySettings,
+    playerInteractionSettings: PlayerInteractionSettings,
     modifier: Modifier = Modifier,
 ) {
+    val customFontWeight = FontWeight(lyricDisplaySettings.font.weight.coerceIn(100, 900))
+    val titleFontFamily = lyricDisplaySettings.pageFontFamilyFor(track?.title.orEmpty())
+    val artistText = track?.artist?.takeIf { it.isNotBlank() } ?: "Unknown artist"
+    val artistFontFamily = lyricDisplaySettings.pageFontFamilyFor(artistText)
+    val annotation = track?.annotation
+        ?.takeIf { playerInteractionSettings.showSongAnnotation && it.isNotBlank() }
     Column(modifier = modifier.fillMaxWidth()) {
         Text(
             text = track?.title.orEmpty(),
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             color = MiuixTheme.colorScheme.onSurface,
-            style = nowPlayingTitleStyle(),
-            fontWeight = FontWeight.Bold,
+            style = nowPlayingTitleStyle().let { style ->
+                if (titleFontFamily == null) style else style.copy(fontFamily = titleFontFamily)
+            },
+            fontWeight = if (titleFontFamily == null) FontWeight.Bold else customFontWeight,
             textAlign = TextAlign.Start,
             modifier = Modifier.fillMaxWidth(),
         )
         Text(
-            text = track?.artist?.takeIf { it.isNotBlank() } ?: "Unknown artist",
+            text = artistText,
             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-            style = MiuixTheme.textStyles.body1,
+            style = MiuixTheme.textStyles.body1.let { style ->
+                if (artistFontFamily == null) style else style.copy(
+                    fontFamily = artistFontFamily,
+                    fontWeight = customFontWeight,
+                )
+            },
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 3.dp),
         )
+        annotation?.let { text ->
+            val annotationFontFamily = lyricDisplaySettings.pageFontFamilyFor(text)
+            Text(
+                text = text,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                style = MiuixTheme.textStyles.footnote1.let { style ->
+                    if (annotationFontFamily == null) style else style.copy(
+                        fontFamily = annotationFontFamily,
+                        fontWeight = customFontWeight,
+                    )
+                },
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 2.dp),
+            )
+        }
     }
 }
 
@@ -367,6 +453,8 @@ private fun MusicPanel(
 @Composable
 private fun DesktopNowPlayingLayout(
     state: NowPlayingState,
+    lyricDisplaySettings: LyricDisplaySettings,
+    playerInteractionSettings: PlayerInteractionSettings,
     currentPositionMs: Long,
     isSleepTimerEnabled: Boolean,
     progressContent: @Composable (Long?) -> Unit,
@@ -389,6 +477,13 @@ private fun DesktopNowPlayingLayout(
         ) {
             CoverImage(
                 artwork = track?.artwork,
+                swipeEnabled = playerInteractionSettings.coverSwipeEnabled,
+                onSwipePrevious = {
+                    if (state.queue.canPlayPrevious) onAction(NowPlayingAction.PlayPrevious)
+                },
+                onSwipeNext = {
+                    if (state.queue.canPlayNext) onAction(NowPlayingAction.PlayNext)
+                },
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
@@ -396,6 +491,8 @@ private fun DesktopNowPlayingLayout(
             )
             TrackInformation(
                 track = track,
+                lyricDisplaySettings = lyricDisplaySettings,
+                playerInteractionSettings = playerInteractionSettings,
                 modifier = Modifier.padding(top = 10.dp),
             )
             Spacer(modifier = Modifier.height(14.dp))
@@ -410,6 +507,7 @@ private fun DesktopNowPlayingLayout(
 
         LyricsSurface(
             track = track,
+            lyricDisplaySettings = lyricDisplaySettings,
             currentPositionMs = currentPositionMs,
             isPlaying = state.controls.isPlaying,
             onAction = onAction,
@@ -423,6 +521,7 @@ private fun DesktopNowPlayingLayout(
 @Composable
 private fun LyricsSurface(
     track: NowPlayingTrackItem?,
+    lyricDisplaySettings: LyricDisplaySettings,
     currentPositionMs: Long,
     isPlaying: Boolean,
     onAction: (NowPlayingAction) -> Unit,
@@ -430,12 +529,30 @@ private fun LyricsSurface(
 ) {
     val loadState = track?.lyrics?.loadState ?: LyricsLoadState.Loading
     val lyricLines = track?.lyrics?.lines.orEmpty()
-    val syncedLyrics = remember(lyricLines, track?.title, track?.durationMs) {
+    val syncedLyrics = remember(lyricLines, track?.title, track?.durationMs, lyricDisplaySettings) {
         lyricLines.toSyncedLyrics(
             trackTitle = track?.title.orEmpty(),
             trackDurationMs = track?.durationMs,
+            settings = lyricDisplaySettings,
         )
     }
+    val primaryScale = lyricDisplaySettings.primaryFontScalePercent / 100f
+    val primaryFontSize = lyricDisplaySettings.primaryFontSizeSp * primaryScale
+    val secondaryScale = lyricDisplaySettings.secondaryFontScalePercent / 100f
+    val secondaryFontSize = lyricDisplaySettings.secondaryFontSizeSp * secondaryScale
+    val lyricTextAlign = when (lyricDisplaySettings.textAlignment) {
+        LyricTextAlignment.Left -> TextAlign.Start
+        LyricTextAlignment.Center -> TextAlign.Center
+        LyricTextAlignment.Right -> TextAlign.End
+    }
+    val lyricFontFamily = if (lyricDisplaySettings.font.applyToLyricsPage) {
+        val containsCjk = lyricLines.any { line -> line.text.any(Char::isCjkCharacter) }
+        val choice = if (containsCjk) lyricDisplaySettings.font.cjkFont else lyricDisplaySettings.font.westernFont
+        choice.toFontFamily()
+    } else {
+        FontFamily.Default
+    }
+    val lyricFontWeight = FontWeight(lyricDisplaySettings.font.weight.coerceIn(100, 900))
 
     Box(
         modifier = modifier
@@ -498,6 +615,31 @@ private fun LyricsSurface(
                     },
                     activeColor = MiuixTheme.colorScheme.onSurface,
                     inactiveColor = MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.52f),
+                    activeTextStyle = TextStyle(
+                        fontFamily = lyricFontFamily,
+                        fontSize = primaryFontSize.sp,
+                        lineHeight = (primaryFontSize * 1.25f).sp,
+                        fontWeight = lyricFontWeight,
+                    ),
+                    inactiveTextStyle = TextStyle(
+                        fontFamily = lyricFontFamily,
+                        fontSize = (primaryFontSize * 0.84f).sp,
+                        lineHeight = (primaryFontSize * 1.08f).sp,
+                        fontWeight = lyricFontWeight,
+                    ),
+                    secondaryTextStyle = TextStyle(
+                        fontFamily = lyricFontFamily,
+                        fontSize = secondaryFontSize.sp,
+                        lineHeight = (secondaryFontSize * 1.28f).sp,
+                        fontWeight = lyricFontWeight,
+                    ),
+                    textAlign = lyricTextAlign,
+                    showTranslation = lyricDisplaySettings.showTranslation,
+                    wordLiftEnabled = lyricDisplaySettings.wordLiftEnabled,
+                    useBlurEffect = lyricDisplaySettings.blurEffectEnabled,
+                    perspectiveEffectEnabled = lyricDisplaySettings.perspectiveEffectEnabled,
+                    perspectiveAngleDegrees = lyricDisplaySettings.perspectiveAngleDegrees.toFloat(),
+                    tapToSeekEnabled = lyricDisplaySettings.tapToSeekEnabled,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -506,8 +648,29 @@ private fun LyricsSurface(
 }
 
 @Composable
+private fun LyricFontChoice.toFontFamily(): FontFamily = when (this) {
+    LyricFontChoice.System -> FontFamily.Default
+    LyricFontChoice.TideSans -> TideTunesFontFamilies.JakartaSans
+    LyricFontChoice.TideCjk -> TideTunesFontFamilies.Sans
+    LyricFontChoice.Monospace -> TideTunesFontFamilies.Mono
+}
+
+@Composable
+private fun LyricDisplaySettings.pageFontFamilyFor(text: String): FontFamily? {
+    if (!font.applyToLyricsPage) return null
+    val choice = if (text.any(Char::isCjkCharacter)) font.cjkFont else font.westernFont
+    return choice.toFontFamily()
+}
+
+private fun Char.isCjkCharacter(): Boolean = code in 0x2E80..0x9FFF ||
+    code in 0xAC00..0xD7AF ||
+    code in 0xF900..0xFAFF
+
+@Composable
 private fun CompactNowPlayingLayout(
     state: NowPlayingState,
+    lyricDisplaySettings: LyricDisplaySettings,
+    playerInteractionSettings: PlayerInteractionSettings,
     isSleepTimerEnabled: Boolean,
     progressContent: @Composable (Long?) -> Unit,
     onAction: (NowPlayingAction) -> Unit,
@@ -521,6 +684,13 @@ private fun CompactNowPlayingLayout(
     ) {
         CoverImage(
             artwork = track?.artwork,
+            swipeEnabled = playerInteractionSettings.coverSwipeEnabled,
+            onSwipePrevious = {
+                if (state.queue.canPlayPrevious) onAction(NowPlayingAction.PlayPrevious)
+            },
+            onSwipeNext = {
+                if (state.queue.canPlayNext) onAction(NowPlayingAction.PlayNext)
+            },
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
@@ -528,6 +698,8 @@ private fun CompactNowPlayingLayout(
         )
         TrackInformation(
             track = track,
+            lyricDisplaySettings = lyricDisplaySettings,
+            playerInteractionSettings = playerInteractionSettings,
             modifier = Modifier
                 .widthIn(max = 560.dp)
                 .padding(top = 16.dp),
@@ -552,6 +724,8 @@ private fun CompactNowPlayingLayout(
 @Composable
 fun NowPlayingScreen(
     state: NowPlayingState,
+    lyricDisplaySettings: LyricDisplaySettings = LyricDisplaySettings.Default,
+    playerInteractionSettings: PlayerInteractionSettings = PlayerInteractionSettings.Default,
     palette: ArtworkPalette = ArtworkPalette.Default,
     currentPositionMs: Long,
     isSleepTimerEnabled: Boolean,
@@ -587,6 +761,8 @@ fun NowPlayingScreen(
                 if (maxWidth >= DesktopPlayerBreakpoint && maxHeight >= 520.dp) {
                     DesktopNowPlayingLayout(
                         state = state,
+                        lyricDisplaySettings = lyricDisplaySettings,
+                        playerInteractionSettings = playerInteractionSettings,
                         currentPositionMs = currentPositionMs,
                         isSleepTimerEnabled = isSleepTimerEnabled,
                         progressContent = progressContent,
@@ -595,6 +771,8 @@ fun NowPlayingScreen(
                 } else {
                     CompactNowPlayingLayout(
                         state = state,
+                        lyricDisplaySettings = lyricDisplaySettings,
+                        playerInteractionSettings = playerInteractionSettings,
                         isSleepTimerEnabled = isSleepTimerEnabled,
                         progressContent = progressContent,
                         onAction = onAction,
@@ -609,6 +787,7 @@ fun NowPlayingScreen(
 internal fun NowPlayingProgressPanel(
     progressState: NowPlayingProgressState,
     trackDurationMs: Long?,
+    playerInteractionSettings: PlayerInteractionSettings = PlayerInteractionSettings.Default,
     onAction: (NowPlayingAction) -> Unit,
 ) {
     val totalDurationMs = trackDurationMs ?: progressState.playerDuration.inWholeMilliseconds
@@ -619,6 +798,8 @@ internal fun NowPlayingProgressPanel(
         bufferDurationMs = progressState.bufferDuration.inWholeMilliseconds.coerceAtLeast(0).toULong(),
         totalDuration = formatDuration(totalDurationMs.milliseconds),
         totalDurationMs = totalDurationMs.coerceAtLeast(0).toULong(),
+        tapToSeekEnabled = playerInteractionSettings.tapProgressToSeekEnabled,
+        showTotalDuration = playerInteractionSettings.showTotalDuration,
         onChangeMusicPosition = { nextMs -> onAction(NowPlayingAction.SeekTo(nextMs)) },
     )
 }

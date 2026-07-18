@@ -7,6 +7,8 @@ import com.github.tidetunes.source.storage.RemoteScannerRepository
 import com.github.tidetunes.core.data.StorageRepositoryImpl
 import com.github.tidetunes.core.domain.repository.StorageRepository
 import com.github.tidetunes.source.api.MusicSourceRegistry
+import com.github.tidetunes.source.api.RemoteServerGateway
+import com.github.tidetunes.source.api.RemoteServerKind
 import com.github.tidetunes.source.api.LegacyStorageConnectionTester
 import com.github.tidetunes.source.api.LegacyStorageDirectoryLister
 import com.github.tidetunes.source.api.LegacyStoragePlaybackResolver
@@ -29,6 +31,8 @@ import com.github.tidetunes.source.storage.toSourceListResult
 import com.github.tidetunes.source.storage.toSourceAuthResult
 import com.github.tidetunes.source.storage.toStorageType
 import com.github.tidetunes.source.webdav.WebDavMusicSource
+import com.github.tidetunes.source.server.RemoteServerGatewayImpl
+import com.github.tidetunes.source.server.ServerMusicSource
 import org.koin.dsl.module
 import org.koin.core.qualifier.named
 import uniffi.tidetunes_backend.ListStorageEntryChildrenResp
@@ -117,12 +121,25 @@ val sourceDataModule = module {
     single { LocalMusicSource(get(), get(), get(named("liveSearch"))) }
     single { WebDavMusicSource(get(), get(), get(), get(named("liveSearch"))) }
     single { OneDriveMusicSource(get(), get(), get(), get(named("liveSearch"))) }
+    single<RemoteServerGateway> { RemoteServerGatewayImpl(get(), get()) }
+    single(named("navidromeSource")) {
+        ServerMusicSource(RemoteServerKind.Navidrome, get())
+    }
+    single(named("openSubsonicSource")) {
+        ServerMusicSource(RemoteServerKind.OpenSubsonic, get())
+    }
+    single(named("embySource")) {
+        ServerMusicSource(RemoteServerKind.Emby, get())
+    }
     single {
         MusicSourceRegistry(
             listOf(
                 get<LocalMusicSource>(),
                 get<WebDavMusicSource>(),
                 get<OneDriveMusicSource>(),
+                get<ServerMusicSource>(named("navidromeSource")),
+                get<ServerMusicSource>(named("openSubsonicSource")),
+                get<ServerMusicSource>(named("embySource")),
             )
         )
     }
@@ -131,7 +148,7 @@ val sourceDataModule = module {
     single { RemoteScannerRepository(get(), get()) }
     single {
         RemoteLibraryImportCoordinator(
-            get(), get(), get(), get(), get(), get(), get()
+            get(), get(), get(), get(), get(), get(), get(), get()
         )
     }
 }

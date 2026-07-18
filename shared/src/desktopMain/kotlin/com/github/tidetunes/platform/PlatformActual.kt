@@ -28,7 +28,15 @@ actual fun platformSettingsCapabilities() =
         customMusicDirectorySupported = true,
         secureCredentialStoreSupported = desktopSecureCredentialStoreAvailable(),
         desktopMediaKeysSupported = true,
+        floatingLyricsSupported = true,
+        gaplessPlaybackSupported = true,
+        crossfadeSupported = true,
+        replayGainSupported = true,
+        audioEffectsSupported = true,
         diagnosticsExportSupported = true,
+        settingsBackupSupported = true,
+        scheduledBackupSupported = true,
+        desktopShortcutsSupported = true,
     )
 
 private val systemLocaleAtStartup: Locale = Locale.getDefault()

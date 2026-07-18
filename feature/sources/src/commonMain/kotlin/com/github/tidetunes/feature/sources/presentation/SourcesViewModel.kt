@@ -82,6 +82,9 @@ private fun SourceId.toSourceTypeLabel(): String {
         BuiltInSourceIds.WebDav -> "WebDAV"
         BuiltInSourceIds.OneDrive -> "OneDrive"
         BuiltInSourceIds.Local -> "Local"
+        BuiltInSourceIds.Navidrome -> "Navidrome"
+        BuiltInSourceIds.OpenSubsonic -> "OpenSubsonic"
+        BuiltInSourceIds.Emby -> "Emby"
         else -> value.replaceFirstChar { char -> char.uppercase() }
     }
 }

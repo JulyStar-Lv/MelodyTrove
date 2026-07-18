@@ -10,6 +10,7 @@ import com.github.tidetunes.core.domain.model.DiagnosticsReport
 import com.github.tidetunes.core.domain.model.DuplicateTrackPolicy
 import com.github.tidetunes.core.domain.model.LibraryRebuildState
 import com.github.tidetunes.core.domain.model.LocalMusicDirectory
+import com.github.tidetunes.core.domain.model.LyricTextAlignment
 import com.github.tidetunes.core.domain.model.MetadataRefreshTarget
 import com.github.tidetunes.core.domain.model.MetadataScanMode
 import com.github.tidetunes.core.domain.model.MissingFilePolicy
@@ -105,8 +106,12 @@ class SettingsVMTest {
             assertTrue(environment.toast.messages.last().contains("write failed"))
 
             viewModel.onAction(SettingsAction.SetAutoScanMode(AutoScanMode.OnStartup))
+            viewModel.onAction(SettingsAction.SetLyricTextAlignment(LyricTextAlignment.Center))
+            viewModel.onAction(SettingsAction.SetLyricPrimaryFontScalePercent(125))
             advanceUntilIdle()
             assertEquals(AutoScanMode.OnStartup, repository.values.value.autoScanMode)
+            assertEquals(LyricTextAlignment.Center, repository.values.value.lyrics.textAlignment)
+            assertEquals(125, repository.values.value.lyrics.primaryFontScalePercent)
             assertFalse(repository.values.value.scanSubdirectories)
         }
     }
@@ -392,6 +397,28 @@ private class FakeSettingsRepository(initial: AppSettings = AppSettings.Default)
     override suspend fun setRetryPlaybackOnFailure(enabled: Boolean) = update { it.copy(retryPlaybackOnFailure = enabled) }
     override suspend fun setResumePlaybackAfterNetworkRecovery(enabled: Boolean) = update { it.copy(resumePlaybackAfterNetworkRecovery = enabled) }
     override suspend fun setKeepScreenOnInPlayer(enabled: Boolean) = update { it.copy(keepScreenOnInPlayer = enabled) }
+    override suspend fun setLyricTextAlignment(alignment: LyricTextAlignment) =
+        update { it.copy(lyrics = it.lyrics.copy(textAlignment = alignment)) }
+    override suspend fun setLyricPrimaryFontScalePercent(value: Int) =
+        update { it.copy(lyrics = it.lyrics.copy(primaryFontScalePercent = value)) }
+    override suspend fun setLyricPrimaryFontSizeSp(value: Int) =
+        update { it.copy(lyrics = it.lyrics.copy(primaryFontSizeSp = value)) }
+    override suspend fun setLyricSecondaryFontScalePercent(value: Int) =
+        update { it.copy(lyrics = it.lyrics.copy(secondaryFontScalePercent = value)) }
+    override suspend fun setLyricSecondaryFontSizeSp(value: Int) =
+        update { it.copy(lyrics = it.lyrics.copy(secondaryFontSizeSp = value)) }
+    override suspend fun setLyricTranslationVisible(visible: Boolean) =
+        update { it.copy(lyrics = it.lyrics.copy(showTranslation = visible)) }
+    override suspend fun setLyricWordLiftEnabled(enabled: Boolean) =
+        update { it.copy(lyrics = it.lyrics.copy(wordLiftEnabled = enabled)) }
+    override suspend fun setLyricBlurEffectEnabled(enabled: Boolean) =
+        update { it.copy(lyrics = it.lyrics.copy(blurEffectEnabled = enabled)) }
+    override suspend fun setLyricPerspectiveEffectEnabled(enabled: Boolean) =
+        update { it.copy(lyrics = it.lyrics.copy(perspectiveEffectEnabled = enabled)) }
+    override suspend fun setLyricPerspectiveAngleDegrees(value: Int) =
+        update { it.copy(lyrics = it.lyrics.copy(perspectiveAngleDegrees = value)) }
+    override suspend fun setLyricTapToSeekEnabled(enabled: Boolean) =
+        update { it.copy(lyrics = it.lyrics.copy(tapToSeekEnabled = enabled)) }
     override suspend fun setAutoScanMode(mode: AutoScanMode) = update { it.copy(autoScanMode = mode) }
     override suspend fun setBackgroundScanEnabled(enabled: Boolean) = update { it.copy(backgroundScanEnabled = enabled) }
     override suspend fun setScanOnlyOnUnmeteredNetwork(enabled: Boolean) = update { it.copy(scanOnlyOnUnmeteredNetwork = enabled) }
