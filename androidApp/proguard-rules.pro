@@ -27,3 +27,6 @@
 -dontwarn java.awt.HeadlessException
 -dontwarn java.awt.Window
 -keepattributes LineNumberTable,SourceFile
+
+# Temporary size-analysis rule; removed after the release baseline is measured.
+-dontwarn android.os.ServiceManager
