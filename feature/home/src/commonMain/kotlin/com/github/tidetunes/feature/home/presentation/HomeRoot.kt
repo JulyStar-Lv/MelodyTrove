@@ -31,7 +31,7 @@ fun HomeRoot(
         }
     }
 
-    HomeOverviewScreen(
+    HomeDesignScreen(
         scaffoldPadding = scaffoldPadding,
         state = state,
         onAction = viewModel::onAction,
