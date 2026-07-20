@@ -3,6 +3,7 @@ package com.github.tidetunes.core.presentation.components
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -72,16 +73,17 @@ fun TideMiniPlayerBar(
     controls: @Composable RowScope.() -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val shapes = TideTunesTokens.shapes
-    val shape = RoundedCornerShape(shapes.lg)
+    val tokens = TideTunesTokens
+    val shape = RoundedCornerShape(tokens.shapes.lg)
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(68.dp)
-            .shadow(8.dp, shape, clip = false)
+            .height(72.dp)
+            .shadow(tokens.elevation.popup, shape, clip = false)
             .clip(shape)
-            .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.88f))
+            .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.90f))
+            .border(1.dp, MiuixTheme.colorScheme.outline.copy(alpha = 0.72f), shape)
             .clickable(onClick = onClick),
     ) {
         Box(
@@ -90,16 +92,23 @@ fun TideMiniPlayerBar(
                 .background(
                     Brush.horizontalGradient(
                         listOf(
-                            TideTunesBrand.Primary.copy(alpha = 0.08f),
-                            TideTunesBrand.Secondary.copy(alpha = 0.08f),
+                            TideTunesBrand.Primary.copy(alpha = 0.12f),
+                            Color.Transparent,
+                            TideTunesBrand.Secondary.copy(alpha = 0.10f),
                         ),
                     ),
                 ),
         )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(Color.White.copy(alpha = 0.12f)),
+        )
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(start = 16.dp, end = 8.dp, bottom = 2.dp),
+                .padding(start = 12.dp, end = 8.dp, bottom = 2.dp),
             horizontalArrangement = Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -120,18 +129,18 @@ fun TideMiniPlayerBar(
                     overflow = TextOverflow.Ellipsis,
                     maxLines = 1,
                 )
-                Spacer(modifier = Modifier.height(3.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = subtitle.ifBlank { "Ready to play" },
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    style = MiuixTheme.textStyles.footnote2,
+                    style = MiuixTheme.textStyles.footnote1,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(6.dp))
             Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 content = controls,
             )
@@ -151,18 +160,34 @@ fun TideCompactMiniPlayerBar(
     modifier: Modifier = Modifier,
     overlayControls: @Composable BoxScope.() -> Unit,
 ) {
-    val shapes = TideTunesTokens.shapes
+    val tokens = TideTunesTokens
+    val shape = RoundedCornerShape(tokens.shapes.lg)
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(76.dp)
             .padding(horizontal = 8.dp, vertical = 8.dp)
-            .clip(RoundedCornerShape(shapes.lg))
-            .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.94f))
+            .shadow(tokens.elevation.card, shape, clip = false)
+            .clip(shape)
+            .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.92f))
+            .border(1.dp, MiuixTheme.colorScheme.outline.copy(alpha = 0.60f), shape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(
+                            TideTunesBrand.Primary.copy(alpha = 0.10f),
+                            Color.Transparent,
+                            TideTunesBrand.Secondary.copy(alpha = 0.08f),
+                        ),
+                    ),
+                ),
+        )
         artwork()
         overlayControls()
         TideMiniPlayerProgress(
@@ -181,7 +206,7 @@ fun TideMiniPlayerProgress(
         modifier = modifier
             .fillMaxWidth()
             .height(2.dp)
-            .background(MiuixTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)),
+            .background(MiuixTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)),
     ) {
         Box(
             modifier = Modifier
@@ -213,7 +238,7 @@ fun TideBottomNavigationBar(
     onItemSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
     height: Dp = 64.dp,
-    contentPadding: PaddingValues = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+    contentPadding: PaddingValues = PaddingValues(horizontal = 8.dp, vertical = 5.dp),
 ) {
     if (items.isEmpty()) return
 
@@ -243,14 +268,14 @@ fun TideBottomNavigationBar(
         ) {
             Box(
                 modifier = Modifier
-                    .padding(top = 7.dp)
-                    .size(width = 42.dp, height = 26.dp)
+                    .padding(top = 5.dp)
+                    .size(width = 48.dp, height = 28.dp)
                     .clip(RoundedCornerShape(shapes.full))
                     .background(
                         Brush.linearGradient(
                             listOf(
-                                TideTunesBrand.Primary.copy(alpha = 0.18f),
-                                TideTunesBrand.Secondary.copy(alpha = 0.16f),
+                                TideTunesBrand.Primary.copy(alpha = 0.20f),
+                                TideTunesBrand.Secondary.copy(alpha = 0.17f),
                             ),
                         ),
                     ),
@@ -279,9 +304,9 @@ fun TideBottomNavigationBar(
                         painter = item.painter,
                         tint = tint,
                         contentDescription = item.contentDescription,
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(21.dp),
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(5.dp))
                     Text(
                         text = item.label,
                         color = tint,
