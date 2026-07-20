@@ -12,38 +12,54 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
+/**
+ * Semantic TideTunes surface used by page cards, settings groups and feedback panels.
+ * Normal content relies on tonal separation instead of a permanent outline; callers can
+ * opt into a border for selected, warning or floating states.
+ */
 @Composable
 fun TideCardSurface(
     modifier: Modifier = Modifier,
-    cornerRadius: Dp = TideTunesTokens.shapes.lg,
+    cornerRadius: Dp = TideTunesTokens.shapes.card,
     contentPadding: PaddingValues = PaddingValues(16.dp),
     fillMaxWidth: Boolean = true,
     backgroundColor: Color? = null,
     borderColor: Color? = null,
+    elevation: Dp = TideTunesTokens.elevation.surface,
     onClick: (() -> Unit)? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val shape = RoundedCornerShape(cornerRadius)
     val widthModifier = if (fillMaxWidth) Modifier.fillMaxWidth() else Modifier
+    val shadowModifier = if (elevation > 0.dp) {
+        Modifier.shadow(elevation, shape, clip = false)
+    } else {
+        Modifier
+    }
+    val borderModifier = borderColor?.let { color ->
+        Modifier.border(1.dp, color, shape)
+    } ?: Modifier
 
     Box(
         modifier = modifier
             .then(widthModifier)
+            .then(shadowModifier)
             .clip(shape)
             .background(backgroundColor ?: MiuixTheme.colorScheme.surfaceContainer)
-            .border(1.dp, borderColor ?: MiuixTheme.colorScheme.outline, shape)
+            .then(borderModifier)
             .then(
                 if (onClick != null) {
                     Modifier.clickable(onClick = onClick)
                 } else {
                     Modifier
-                }
+                },
             )
             .padding(contentPadding),
         content = content,
