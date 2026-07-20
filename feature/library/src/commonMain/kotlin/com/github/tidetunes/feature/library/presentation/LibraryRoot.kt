@@ -1,7 +1,7 @@
 package com.github.tidetunes.feature.library.presentation
 
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -32,7 +32,7 @@ fun LibraryRoot(
         }
     }
 
-    LibraryScreen(
+    LibraryDesignScreen(
         state = state,
         currentPlayingTrackId = playerState.currentItem?.libraryTrackId,
         onNavigateToLibraryFolderImport = onNavigateToLibraryFolderImport,
