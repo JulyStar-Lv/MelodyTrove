@@ -4628,12 +4628,11 @@ function Sidebar({ page, onPage, dsSection, onDsSection, isDark, onToggleDark }:
 function BottomNav({ page, onPage }: { page:Page; onPage:(p:Page)=>void }) {
   const items = APP_NAV;
   return (
-    <nav className="lg:hidden flex items-center justify-around px-3 h-[62px] shrink-0"
+    <nav className="order-last flex h-[62px] shrink-0 items-center justify-around border-t border-[var(--mobile-nav-border)] px-3 lg:hidden landscape:order-first landscape:h-full landscape:w-[74px] landscape:flex-col landscape:justify-start landscape:gap-2 landscape:border-r landscape:border-t-0 landscape:px-2 landscape:pb-3 landscape:pt-4"
       style={{
         background:"var(--mobile-nav-background)",
         backdropFilter:"blur(20px) saturate(1.6)",
         WebkitBackdropFilter:"blur(20px) saturate(1.6)",
-        borderTop:"1px solid var(--mobile-nav-border)",
       }}>
       {items.map(item => {
         const Icon = item.icon;
@@ -4690,7 +4689,8 @@ export default function App() {
       <div className="flex h-full w-full bg-background text-foreground overflow-hidden">
         <Sidebar page={page} onPage={setPage} dsSection={dsSection} onDsSection={setDsSection} isDark={isDark} onToggleDark={()=>setIsDark(!isDark)}/>
 
-        <div className="flex flex-col flex-1 min-w-0 h-full overflow-hidden">
+        <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden landscape:flex-row">
+          <div className="order-first flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden landscape:order-last">
           {/* Content */}
           <div className="flex flex-1 min-h-0 overflow-hidden">
             {/* Main content */}
@@ -4735,6 +4735,7 @@ export default function App() {
           <AnimatePresence>
             {currentSong&&<MiniPlayer song={currentSong} isPlaying={isPlaying} onPlayPause={()=>setIsPlaying(!isPlaying)} onNext={handleNext} onExpand={()=>setPlayerOpen(true)}/>}
           </AnimatePresence>
+          </div>
 
           {/* Bottom Nav */}
           <BottomNav page={page} onPage={setPage}/>
