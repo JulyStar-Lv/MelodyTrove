@@ -41,3 +41,111 @@ Final result: passed
 - Responsive and runtime: mobile and desktop placement verified, browser error log is empty, `git diff --check` passes, and the production Vite build succeeds.
 
 Final result: passed
+
+## Now Playing mobile and landscape refinement — 2026-07-20
+
+- Source visual truth: `audits/reference-player-immersive/mobile-now-playing-final.png` plus the user's portrait and landscape layout constraints.
+- Implementation screenshot: unavailable; the Codex in-app browser is open but no controllable browser capture surface is exposed in this task.
+- Viewports: portrait `390 × 844`; landscape `844 × 390`.
+- State: full player, player view, Midnight Cascade, playing.
+- Full-view comparison evidence: blocked until a browser-rendered portrait and landscape capture can be made.
+- Focused-region comparison evidence: blocked for the lyric scale, progress area, and five-control alignment for the same reason.
+
+**Findings**
+
+- [P1] Landscape composition has not been visually verified.
+  Location: full player landscape branch.
+  Evidence: the production build passes, but no browser-rendered `844 × 390` screenshot is available.
+  Impact: overflow, crop, or optical-alignment issues could remain in a short landscape viewport.
+  Fix: capture the player, lyrics, and queue states at `844 × 390`, then compare and correct any visible drift.
+
+- [P2] Portrait spacing changes have not been visually compared.
+  Location: portrait lyric preview, full lyrics, and five-button transport.
+  Evidence: source values were reduced and control seats normalized in code, but no new `390 × 844` screenshot is available.
+  Impact: the intended extra bottom breathing room and smaller lyric hierarchy are not yet visually proven.
+  Fix: capture `390 × 844` and compare against the reference and user-requested adjustments.
+
+**Implementation Checklist**
+
+- Capture portrait and landscape player states in a browser.
+- Verify all five transport controls share one optical center line and stay clear of the safe area.
+- Verify portrait active lyrics at `28px`, surrounding lyrics at `23px`, and landscape lyrics at `24px` / `20px` do not clip.
+- Exercise player-to-lyrics and player-to-queue transitions in both orientations.
+- Check browser console errors, then update this report with the comparison evidence.
+
+**Follow-up Polish**
+
+- None classified until visual capture is available.
+
+Final result: blocked
+
+## Now Playing mobile queue transition refinement — 2026-07-20
+
+- Source visual truth: the current TideTunes mobile full-player and queue states, with the queue treated as a secondary surface above the player.
+- Implementation screenshot: unavailable; this task does not expose a controllable in-app browser capture surface.
+- Viewport: portrait `390 × 844`.
+- State: full player switching between player, lyrics, and queue views.
+
+**Scoped Follow-up Changes**
+
+- The queue now enters from the bottom with a short spring transition and exits along the same path.
+- Player and lyrics remain stacked beneath the queue and use a subtle scale/opacity response, eliminating the opposing horizontal motion and layout jump.
+- Full-screen mobile panels are absolutely stacked so simultaneous exit/enter animations no longer reflow the page.
+- Reduced-motion users receive a brief opacity transition instead of spatial movement.
+- The existing horizontal player-to-lyrics transition remains unchanged.
+- The three-button lyrics/device/queue footer navigation was removed from both the portrait lyrics and queue screens, plus their landscape counterparts.
+- Lyrics and queue now use one top-level back control so the player remains reachable without restoring the removed footer.
+- Queue previous, play/pause, and next controls now match the main player's button seats, icon scale, translucent play surface, shadow, and pressed motion.
+- Queue playback controls now reserve bottom safe-area spacing after the footer removal.
+- Production build passes; browser screenshot and interaction comparison remain unavailable.
+
+**Implementation Checklist**
+
+- Exercise player-to-queue, queue-to-player, lyrics-to-queue, and queue-to-lyrics transitions at `390 × 844`.
+- Confirm there is no background flash, header jump, or bottom-control misalignment during the spring settle.
+- Check the browser console and repeat the interaction with reduced motion enabled.
+
+Final result: blocked
+
+## Now Playing desktop refinement — 2026-07-20
+
+- Source visual truth: the existing TideTunes full-player desktop implementation and current product design system.
+- Implementation screenshot: unavailable; this task does not expose a controllable in-app browser capture surface.
+- Viewports: primary `1440 × 900`; compact desktop `860 × 520`; ultrawide width capped by a `1600px` content stage.
+- State: full player, lyrics tab, Midnight Cascade, playing.
+- Full-view comparison evidence: blocked until browser-rendered desktop captures can be made.
+- Focused-region comparison evidence: blocked for the artwork/control column, lyrics panel, and compact-height layout.
+
+**Findings**
+
+- [P1] Desktop composition has not been visually verified.
+  Location: full-player wide layout.
+  Evidence: the production build succeeds, but no browser-rendered `1440 × 900` or `860 × 520` screenshot is available.
+  Impact: optical balance, text wrapping, or compact-height overflow could still need refinement.
+  Fix: capture both viewports, compare the artwork/control proportions and lyric panel density, then correct any visible drift.
+
+**Implementation Checklist**
+
+- Capture the player at `1440 × 900` and `860 × 520`.
+- Verify artwork remains square and the full control stack stays visible at the compact height.
+- Verify the centered header label has no trailing action, the lyrics/queue pill tabs remain balanced, and all keyboard focus states are visible.
+- Check the queue tab, seek control, transport controls, and browser console.
+
+**Scoped Follow-up Changes**
+
+- Desktop progress and transport now reuse the mobile interaction set: repeat, previous, play/pause, next, and queue.
+- The queue control switches the desktop content pane to the queue tab.
+- The top-right playback-device control was removed.
+- The lyrics/queue surface no longer has a card background, border, shadow, or backdrop blur.
+- The desktop header now contains only the centered `Now Playing` label; the song title was removed from the header.
+- The top-left overflow icon was removed and a vertical overflow control now sits beside Favorite using the same `48px` / `40px` mobile control seats and icon sizing.
+- The desktop artwork height now reserves `360px` for metadata, progress, margins, and transport, keeping the full bottom control stack visible down to the `860 × 520` desktop threshold.
+- The queue header no longer shows Shuffle, Repeat, or Autoplay shortcuts; the equivalent landscape queue shortcuts were removed for cross-orientation consistency.
+- The desktop lyrics/queue pill switcher is hidden; the transport queue control now toggles between queue and lyrics so the removed switcher does not create a dead end.
+- Production build passes after the scoped changes; browser screenshot comparison remains unavailable.
+
+**Follow-up Polish**
+
+- None classified until visual capture is available.
+
+Final result: blocked

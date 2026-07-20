@@ -22,7 +22,7 @@ import {
   Plug, Puzzle, FileText, GitBranch, Terminal,
   TrendingUp, Clock, CalendarDays, Flame, Timer, Trophy,
   Heart as HeartIcon, Star as StarIcon,
-  FolderOpen, Wifi as WifiIcon, Music, Mic2, Cast,
+  FolderOpen, Wifi as WifiIcon, Music, Mic2,
   GripVertical, Trash2, Eye, EyeOff, Infinity as InfinityIcon
 } from "lucide-react";
 
@@ -1027,6 +1027,22 @@ function usePlayerWide() {
   return wide;
 }
 
+// Dedicated phone/tablet landscape player. Without this branch, short landscape
+// viewports inherit the portrait hero offsets and push playback controls off rhythm.
+function usePlayerLandscape() {
+  const check = () => typeof window !== "undefined"
+    && window.innerWidth >= 640
+    && window.innerWidth > window.innerHeight
+    && window.innerHeight < 520;
+  const [landscape, setLandscape] = useState(check);
+  useEffect(() => {
+    const fn = () => setLandscape(check());
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
+  }, []);
+  return landscape;
+}
+
 // true when the sidebar/desktop layout is active (matches Tailwind lg = 1024px)
 function useIsDesktop() {
   const check = () => typeof window !== "undefined" && window.innerWidth >= 1024;
@@ -1046,15 +1062,20 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
   const [liked, setLiked]        = useState(song.liked);
   const [activeTab, setActiveTab] = useState<"lyrics"|"queue">("lyrics");
   const [mobileView, setMobileView] = useState<"player"|"lyrics"|"queue">("player");
+  const [mobileBaseView, setMobileBaseView] = useState<"player"|"lyrics">("player");
   const [sleepTimer, setSleepTimer] = useState(false);
-  const [shuffle, setShuffle]    = useState(false);
   const [repeat, setRepeat]      = useState(false);
-  const [autoplay, setAutoplay]  = useState(true);
   const [historyVisible, setHistoryVisible] = useState(true);
-  const [outputSelected, setOutputSelected] = useState(false);
   const wide = usePlayerWide();
+  const landscape = usePlayerLandscape();
   const lyricsScrollRef = useRef<HTMLDivElement>(null);
   const activeLyricRef  = useRef<HTMLDivElement>(null);
+  const reduceMotion = useReducedMotion();
+
+  const showMobileView = (nextView:"player"|"lyrics"|"queue") => {
+    if (nextView!=="queue") setMobileBaseView(nextView);
+    setMobileView(nextView);
+  };
 
   useEffect(() => { setLiked(song.liked); }, [song.id]);
 
@@ -1153,8 +1174,8 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
     </div>
   );
 
-  // ── Lyrics: matches TideLyricsView defaults (32/27sp, left aligned) ──
-  const lyricStyle = (dist: number): React.CSSProperties => {
+  // ── Lyrics: preserve the wide scale while giving handheld layouts more air ──
+  const lyricStyle = (dist: number, density:"wide"|"mobile"|"landscape"="wide"): React.CSSProperties => {
     const opacity =
       dist === 0 ? 1 :
       dist === 1 ? 0.62 :
@@ -1163,9 +1184,9 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
     const blurPx =
       dist <= 1 ? 0 :
       Math.min(3.45, (Math.min(dist,4)-1)*1.15);
-    const fontSize =
-      dist === 0 ? 32 :
-      27;
+    const fontSize = dist === 0
+      ? density === "landscape" ? 24 : density === "mobile" ? 28 : 32
+      : density === "landscape" ? 20 : density === "mobile" ? 23 : 27;
     return {
       opacity,
       filter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
@@ -1186,14 +1207,15 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
   const TabsContent = ({ padded }: { padded?: boolean }) => (
     <div className="flex flex-col flex-1 min-h-0">
       {/* Tab bar */}
-      <div className="flex items-center shrink-0 gap-1 border-b"
-        style={{ borderColor:"rgba(255,255,255,0.09)" }}>
+      {!padded && (
+      <div className={cn("flex items-center shrink-0 gap-1",padded?"mb-2 self-start rounded-full border p-1":"border-b")}
+        style={{ borderColor:"rgba(255,255,255,0.09)",background:padded?"rgba(255,255,255,0.055)":undefined }}>
         {tabs.map(t => (
-          <button key={t} onClick={() => setActiveTab(t)}
-            className="relative px-5 h-10 text-sm font-semibold transition-all duration-200"
-            style={{ color: activeTab===t ? "white" : "rgba(255,255,255,0.34)" }}>
+          <button type="button" key={t} onClick={() => setActiveTab(t)} aria-pressed={activeTab===t}
+            className={cn("relative px-5 text-sm font-semibold transition-all duration-200",padded?"h-9 rounded-full":"h-10")}
+            style={{ color:activeTab===t?"white":"rgba(255,255,255,0.40)",background:padded&&activeTab===t?"rgba(255,255,255,0.12)":undefined }}>
             {t==="lyrics"?"歌词":t==="queue"?"队列":t}
-            {activeTab===t && (
+            {activeTab===t && !padded && (
               <motion.div layoutId="fp-tab"
                 className="absolute bottom-0 left-3 right-3 h-[2px] rounded-t-full"
                 style={{ background:"var(--tide-pink)" }}/>
@@ -1201,6 +1223,7 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
           </button>
         ))}
       </div>
+      )}
 
       {/* ── Lyrics ── */}
       {activeTab==="lyrics" && (() => {
@@ -1314,8 +1337,8 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
         className="flex h-14 w-14 items-center justify-center rounded-full text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/40">
         <SkipBack style={{ width:compact?30:36,height:compact?30:36,fill:"currentColor" }}/>
       </motion.button>
-      <motion.button type="button" aria-label={isPlaying?"Pause":"Play"} whileTap={{ scale:0.90 }} onPointerDown={preventMouseFocus} onClick={onPlayPause}
-        className="flex h-[72px] w-[72px] items-center justify-center rounded-full text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/45">
+      <motion.button type="button" aria-label={isPlaying?"Pause":"Play"} whileTap={{ scale:0.92 }} onPointerDown={preventMouseFocus} onClick={onPlayPause}
+        className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-white/[0.16] text-white shadow-[0_10px_34px_rgba(0,0,0,0.18)] outline-none backdrop-blur-lg focus-visible:ring-2 focus-visible:ring-white/45">
         {isPlaying
           ? <Pause style={{ width:compact?32:38,height:compact?32:38,fill:"currentColor" }}/>
           : <Play style={{ width:compact?34:40,height:compact?34:40,fill:"currentColor",marginLeft:3 }}/>
@@ -1328,9 +1351,9 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
     </div>
   );
 
-  const MobileHeroProgress = () => (
+  const MobileHeroProgress = ({ compact=false }: { compact?:boolean }) => (
     <div className="w-full">
-      <div className="group relative flex h-6 items-center">
+      <div className={cn("group relative flex items-center",compact?"h-4":"h-6")}>
         <div className="absolute inset-x-0 top-1/2 h-[3px] -translate-y-1/2 rounded-full bg-white/20">
           <div className="absolute inset-y-0 left-0 rounded-full bg-white/85" style={{ width:`${progress}%` }}/>
           <div className="absolute top-1/2 h-2 w-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-sm" style={{ left:`${progress}%` }}/>
@@ -1338,48 +1361,52 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
         <input type="range" min={0} max={100} value={progress} onChange={e=>onSeek(Number(e.target.value))}
           className="absolute inset-0 h-full w-full cursor-pointer opacity-0" aria-label="Seek"/>
       </div>
-      <div className="grid grid-cols-3 items-center pt-1">
-        <span className="text-left font-mono text-[15px] tabular-nums text-white/52">{elapsed}</span>
-        <span className="mx-auto inline-flex h-8 items-center gap-1.5 rounded-full bg-white/[0.08] px-3 text-[14px] font-medium text-white/58">
-          <InfinityIcon className="h-4 w-4"/>{qualityLabel}
+      <div className={cn("grid grid-cols-3 items-center",compact?"pt-0.5":"pt-1")}>
+        <span className={cn("text-left font-mono tabular-nums text-white/52",compact?"text-[12px]":"text-[15px]")}>{elapsed}</span>
+        <span className={cn("mx-auto inline-flex items-center rounded-full bg-white/[0.08] font-medium text-white/58",compact?"h-6 gap-1 px-2 text-[11px]":"h-8 gap-1.5 px-3 text-[14px]")}>
+          <InfinityIcon className={compact?"h-3.5 w-3.5":"h-4 w-4"}/>{qualityLabel}
         </span>
-        <span className="text-right font-mono text-[15px] tabular-nums text-white/52">{remaining}</span>
+        <span className={cn("text-right font-mono tabular-nums text-white/52",compact?"text-[12px]":"text-[15px]")}>{remaining}</span>
       </div>
     </div>
   );
 
-  const MobileHeroTransport = () => (
-    <div className="mt-2 grid h-[92px] grid-cols-5 items-center">
+  const MobileHeroTransport = ({ compact=false, desktop=false }: { compact?:boolean; desktop?:boolean }) => (
+    <div className={cn("grid grid-cols-5 items-center justify-items-center",compact?"h-[62px]":"mt-1 h-[84px]")}>
       <motion.button type="button" aria-label="Repeat" aria-pressed={repeat} whileTap={{ scale:0.90 }} onPointerDown={preventMouseFocus} onClick={() => setRepeat(!repeat)}
-        className="mx-auto flex h-12 w-12 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+        className={cn("flex items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-white/40",compact?"h-11 w-11":"h-14 w-14")}
         style={{ color:repeat?"var(--tide-pink)":"rgba(255,255,255,0.82)" }}>
-        <Repeat className="h-[25px] w-[25px]"/>
+        <Repeat className={compact?"h-[21px] w-[21px]":"h-6 w-6"}/>
       </motion.button>
       <motion.button type="button" aria-label="Previous track" whileTap={{ scale:0.90 }} onPointerDown={preventMouseFocus} onClick={onPrev}
-        className="mx-auto flex h-14 w-14 items-center justify-center rounded-full text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40">
-        <SkipBack className="h-8 w-8 fill-current"/>
+        className={cn("flex items-center justify-center rounded-full text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40",compact?"h-11 w-11":"h-14 w-14")}>
+        <SkipBack className={cn("fill-current",compact?"h-7 w-7":"h-[30px] w-[30px]")}/>
       </motion.button>
       <motion.button type="button" aria-label={isPlaying?"Pause":"Play"} whileTap={{ scale:0.92 }} onPointerDown={preventMouseFocus} onClick={onPlayPause}
-        className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-white/[0.16] text-white shadow-[0_10px_34px_rgba(0,0,0,0.18)] outline-none backdrop-blur-lg focus-visible:ring-2 focus-visible:ring-white/45">
+        className={cn("flex items-center justify-center rounded-full bg-white/[0.16] text-white shadow-[0_10px_34px_rgba(0,0,0,0.18)] outline-none backdrop-blur-lg focus-visible:ring-2 focus-visible:ring-white/45",compact?"h-[58px] w-[58px]":"h-[72px] w-[72px]")}>
         {isPlaying
-          ? <Pause className="h-9 w-9 fill-current"/>
-          : <Play className="ml-1 h-10 w-10 fill-current"/>
+          ? <Pause className={cn("fill-current",compact?"h-7 w-7":"h-8 w-8")}/>
+          : <Play className={cn("ml-1 fill-current",compact?"h-8 w-8":"h-9 w-9")}/>
         }
       </motion.button>
       <motion.button type="button" aria-label="Next track" whileTap={{ scale:0.90 }} onPointerDown={preventMouseFocus} onClick={onNext}
-        className="mx-auto flex h-14 w-14 items-center justify-center rounded-full text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40">
-        <SkipForward className="h-8 w-8 fill-current"/>
+        className={cn("flex items-center justify-center rounded-full text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40",compact?"h-11 w-11":"h-14 w-14")}>
+        <SkipForward className={cn("fill-current",compact?"h-7 w-7":"h-[30px] w-[30px]")}/>
       </motion.button>
-      <motion.button type="button" aria-label="Queue view" aria-pressed={false} whileTap={{ scale:0.90 }} onPointerDown={preventMouseFocus} onClick={() => setMobileView("queue")}
-        className="mx-auto flex h-12 w-12 items-center justify-center rounded-full text-white/72 outline-none focus-visible:ring-2 focus-visible:ring-white/40">
-        <ListMusic className="h-[27px] w-[27px]"/>
+      <motion.button type="button" aria-label="Queue view" aria-pressed={desktop?activeTab==="queue":mobileView==="queue"} whileTap={{ scale:0.90 }} onPointerDown={preventMouseFocus} onClick={() => desktop?setActiveTab(activeTab==="queue"?"lyrics":"queue"):showMobileView("queue")}
+        className={cn("flex items-center justify-center rounded-full text-white/72 outline-none focus-visible:ring-2 focus-visible:ring-white/40",compact?"h-11 w-11":"h-14 w-14")}>
+        <ListMusic className={compact?"h-[22px] w-[22px]":"h-[25px] w-[25px]"}/>
       </motion.button>
     </div>
   );
 
   const MobileTrackHeader = () => (
-    <div className="flex h-[104px] shrink-0 items-center gap-3 px-5 pt-3">
-      <CoverArt src={cover(song.id)} gradient={song.gradient} className="h-16 w-16 shrink-0 rounded-[14px] shadow-lg ring-1 ring-white/10"/>
+    <div className="flex h-[104px] shrink-0 items-center gap-2 px-4 pt-3">
+      <motion.button type="button" aria-label="Back to player" whileTap={{ scale:0.92 }} onPointerDown={preventMouseFocus} onClick={() => showMobileView("player")}
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/10 text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40">
+        <ChevronLeft className="h-[22px] w-[22px]"/>
+      </motion.button>
+      <CoverArt src={cover(song.id)} gradient={song.gradient} className="h-14 w-14 shrink-0 rounded-[13px] shadow-lg ring-1 ring-white/10"/>
       <div className="min-w-0 flex-1">
         <p className="truncate text-[20px] font-bold leading-6 text-white">{song.title}</p>
         <p className="mt-1 truncate text-[15px]" style={{ color:"rgba(255,255,255,0.62)" }}>{song.artist}</p>
@@ -1393,29 +1420,6 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
       </button>
     </div>
   );
-
-  const MobileBottomNav = () => {
-    const buttonStyle = (selected:boolean) => ({
-      background:selected?"rgba(255,255,255,0.82)":"transparent",
-      color:selected?"#17121f":"rgba(255,255,255,0.66)",
-    });
-    return (
-      <div className="flex h-[68px] shrink-0 items-center justify-around px-12 pb-2">
-        <motion.button type="button" aria-label="Lyrics view" aria-pressed={mobileView==="lyrics"} whileTap={{ scale:0.90 }} onPointerDown={preventMouseFocus} onClick={() => setMobileView(mobileView==="lyrics"?"player":"lyrics")}
-          className="flex h-12 w-14 items-center justify-center rounded-2xl outline-none transition-all focus-visible:ring-2 focus-visible:ring-white/40" style={buttonStyle(mobileView==="lyrics")}>
-          <Mic2 style={{ width:24,height:24 }}/>
-        </motion.button>
-        <motion.button type="button" aria-label="Playback device" aria-pressed={outputSelected} whileTap={{ scale:0.90 }} onPointerDown={preventMouseFocus} onClick={() => setOutputSelected(!outputSelected)}
-          className="flex h-12 w-14 items-center justify-center rounded-2xl outline-none transition-all focus-visible:ring-2 focus-visible:ring-white/40" style={buttonStyle(outputSelected)}>
-          <Cast style={{ width:25,height:25 }}/>
-        </motion.button>
-        <motion.button type="button" aria-label="Queue view" aria-pressed={mobileView==="queue"} whileTap={{ scale:0.90 }} onPointerDown={preventMouseFocus} onClick={() => setMobileView(mobileView==="queue"?"player":"queue")}
-          className="flex h-12 w-14 items-center justify-center rounded-2xl outline-none transition-all focus-visible:ring-2 focus-visible:ring-white/40" style={buttonStyle(mobileView==="queue")}>
-          <ListMusic style={{ width:25,height:25 }}/>
-        </motion.button>
-      </div>
-    );
-  };
 
   const MobileQueueRow = ({ item, current=false }: { item:Song; current?:boolean }) => (
     <button type="button" onClick={current?undefined:onNext}
@@ -1435,6 +1439,108 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
   // ══════════════════════════════════════════════════════════════
   // WIDE LAYOUT (≥860×520) — Apple Music–style 42/58 grid
   // ══════════════════════════════════════════════════════════════
+  if (landscape) return (
+    <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
+      transition={{ duration:0.22,ease:"easeOut" }}
+      className="fixed inset-0 z-[300] flex overflow-hidden">
+      <Backdrop/>
+
+      <motion.button type="button" aria-label="Close player" whileTap={{ scale:0.92 }} onPointerDown={preventMouseFocus} onClick={onClose}
+        className="absolute left-4 top-4 z-30 flex h-10 w-10 items-center justify-center rounded-full bg-black/20 text-white/78 outline-none backdrop-blur-xl focus-visible:ring-2 focus-visible:ring-white/40">
+        <ChevronDown className="h-[22px] w-[22px]"/>
+      </motion.button>
+
+      <aside className="relative z-10 flex w-[40%] min-w-[286px] shrink-0 flex-col items-center justify-center px-5 py-4">
+        <motion.div animate={{ scale:isPlaying?1:0.95 }} transition={{ type:"spring",stiffness:180,damping:26 }}>
+          <CoverArt src={cover(song.id)} gradient={song.gradient}
+            className="shadow-[0_16px_42px_rgba(0,0,0,0.32)] ring-1 ring-white/10"
+            style={{ width:"min(31vw, calc(100vh - 112px))",height:"min(31vw, calc(100vh - 112px))",borderRadius:18 }}/>
+        </motion.div>
+        <div className="mt-3 flex w-full max-w-[320px] items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[18px] font-bold leading-6 text-white">{song.title}</p>
+            <p className="mt-0.5 truncate text-[13px] font-medium text-white/52">{song.artist}</p>
+          </div>
+          <motion.button type="button" aria-label={liked?"Remove from favorites":"Add to favorites"} whileTap={{ scale:0.92 }} onPointerDown={preventMouseFocus} onClick={() => setLiked(!liked)}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40">
+            <Heart className="h-[22px] w-[22px]" style={{ fill:liked?"var(--tide-pink)":"none",color:liked?"var(--tide-pink)":"white" }}/>
+          </motion.button>
+          <button type="button" aria-label="More options" className="flex h-10 w-9 shrink-0 items-center justify-center rounded-full text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40">
+            <MoreVertical className="h-6 w-6"/>
+          </button>
+        </div>
+      </aside>
+
+      <section className="relative z-10 flex min-w-0 flex-1 flex-col py-4 pl-2 pr-5">
+        <AnimatePresence mode="wait" initial={false}>
+          {mobileView==="player"&&(
+            <motion.div key="landscape-player" initial={{ opacity:0,x:-10 }} animate={{ opacity:1,x:0 }} exit={{ opacity:0,x:-10 }}
+              transition={{ duration:0.18,ease:"easeOut" }} className="flex min-h-0 flex-1 flex-col">
+              <button type="button" aria-label="Open lyrics" onClick={() => showMobileView("lyrics")}
+                className="min-h-0 flex-1 overflow-hidden rounded-2xl px-2 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-white/35">
+                <span className="block max-w-[520px] text-[18px] font-bold leading-[1.32] text-white/92">{previewLyric.text}</span>
+                {previewTranslation&&<span className="mt-1.5 block text-[13px] font-medium leading-5 text-white/52">{previewTranslation}</span>}
+                <span className="mt-3 block text-[13px] font-semibold leading-5 text-white/[0.14]">Lyrics by · {song.artist}</span>
+              </button>
+              <div className="shrink-0 px-2">
+                <MobileHeroProgress compact/>
+                <MobileHeroTransport compact/>
+              </div>
+            </motion.div>
+          )}
+
+          {mobileView==="lyrics"&&(
+            <motion.div key="landscape-lyrics" initial={{ opacity:0,x:12 }} animate={{ opacity:1,x:0 }} exit={{ opacity:0,x:12 }}
+              transition={{ duration:0.18,ease:"easeOut" }} className="flex min-h-0 flex-1 flex-col">
+              <div className="flex h-10 shrink-0 items-center gap-2 px-2 pb-1">
+                <motion.button type="button" aria-label="Back to player" whileTap={{ scale:0.92 }} onPointerDown={preventMouseFocus} onClick={() => showMobileView("player")}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40">
+                  <ChevronLeft className="h-[18px] w-[18px]"/>
+                </motion.button>
+                <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-white/36">Lyrics</p>
+              </div>
+              <div ref={lyricsScrollRef} className="hide-scrollbar min-h-0 flex-1 overflow-y-auto px-2"
+                style={{ maskImage:"linear-gradient(to bottom,transparent 0%,black 10%,black 90%,transparent 100%)",WebkitMaskImage:"linear-gradient(to bottom,transparent 0%,black 10%,black 90%,transparent 100%)" }}>
+                <div style={{ height:"22vh" }}/>
+                {LYRICS.map((line,i) => {
+                  const dist = Math.abs(i-activeIdx);
+                  const translation = LYRIC_TRANSLATIONS[line.time];
+                  return (
+                    <div key={i} ref={i===activeIdx?activeLyricRef:undefined}>
+                      <button type="button" onClick={() => onSeek(line.time/SONG_DURATION*100)} aria-current={i===activeIdx?"true":undefined}
+                        className="block w-full rounded-xl px-1 py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-white/35"
+                        style={{ ...lyricStyle(dist,"landscape"),marginBottom:14,cursor:"pointer" }}>
+                        <span className="block">{line.text}</span>
+                        {translation&&<span className="mt-1 block text-[13px] font-medium leading-5" style={{ color:i===activeIdx?"rgba(255,255,255,0.54)":"rgba(255,255,255,0.32)" }}>{translation}</span>}
+                      </button>
+                    </div>
+                  );
+                })}
+                <div style={{ height:"22vh" }}/>
+              </div>
+            </motion.div>
+          )}
+
+          {mobileView==="queue"&&(
+            <motion.div key="landscape-queue" initial={{ opacity:0,x:12 }} animate={{ opacity:1,x:0 }} exit={{ opacity:0,x:12 }}
+              transition={{ duration:0.18,ease:"easeOut" }} className="flex min-h-0 flex-1 flex-col">
+              <div className="flex h-10 shrink-0 items-center gap-2 px-2 pb-1">
+                <motion.button type="button" aria-label="Back to player" whileTap={{ scale:0.92 }} onPointerDown={preventMouseFocus} onClick={() => showMobileView("player")}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40">
+                  <ChevronLeft className="h-[18px] w-[18px]"/>
+                </motion.button>
+                <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-white/36">Queue</p>
+              </div>
+              <div className="hide-scrollbar min-h-0 flex-1 overflow-y-auto">
+                {SONGS.map((item,index)=><MobileQueueRow key={item.id} item={item} current={index===0}/>) }
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </section>
+    </motion.div>
+  );
+
   if (wide) return (
     <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
       transition={{ duration:0.24, ease:"easeOut" }}
@@ -1442,29 +1548,27 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
       <Backdrop/>
 
       {/* ── Top control rail (52px) ── */}
-      <div className="relative z-10 flex items-center px-12 shrink-0"
-        style={{ height:54, borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
+      <div className="relative z-10 flex h-16 shrink-0 items-center px-[clamp(24px,4vw,64px)]"
+        style={{ borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
         {/* Collapse */}
         <motion.button type="button" aria-label="Close player" whileTap={{ scale:0.92 }} onPointerDown={preventMouseFocus} onClick={onClose}
-          className="flex items-center justify-center w-8 h-8 rounded-full transition-all duration-[180ms] outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          className="flex h-9 w-9 items-center justify-center rounded-full outline-none transition-all duration-[180ms] focus-visible:ring-2 focus-visible:ring-primary/40"
           style={{ background:"rgba(255,255,255,0.10)" }}>
-          <ChevronDown style={{ width:16, height:16, color:"rgba(255,255,255,0.65)" }}/>
+          <ChevronDown style={{ width:18, height:18, color:"rgba(255,255,255,0.72)" }}/>
         </motion.button>
-        {/* More */}
-        <span aria-hidden="true"
-          className="flex items-center justify-center w-8 h-8 rounded-full ml-2"
-          style={{ background:"rgba(255,255,255,0.10)" }}>
-          <MoreHorizontal style={{ width:16, height:16, color:"rgba(255,255,255,0.50)" }}/>
-        </span>
+        <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-white/48">Now Playing</p>
+        </div>
       </div>
 
       {/* ── Two-column body ── */}
-      <div className="relative z-10 flex flex-1 min-h-0">
+      <div className="relative z-10 mx-auto grid w-full max-w-[1600px] min-h-0 flex-1 gap-[clamp(28px,4vw,72px)] px-[clamp(24px,4vw,64px)] py-[clamp(20px,3vh,36px)]"
+        style={{ gridTemplateColumns:"minmax(300px,0.82fr) minmax(380px,1.18fr)" }}>
 
         {/* Left 42%: artwork top → metadata → progress → transport */}
-        <div className="flex flex-col px-12 pt-8 pb-10 overflow-hidden" style={{ width:"42%" }}>
+        <div className="flex min-h-0 flex-col justify-center overflow-hidden">
           {/* Artwork — near top, clamp sizing, square, object-cover */}
-          <div className="shrink-0 mb-6">
+          <div className="mx-auto mb-[clamp(14px,2.4vh,24px)] shrink-0">
             <motion.div
               animate={{ scale: isPlaying ? 1 : 0.94 }}
               transition={{ type:"spring", stiffness:180, damping:26 }}>
@@ -1472,53 +1576,51 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
                 src={cover(song.id)}
                 gradient={song.gradient}
                 style={{
-                  width:"clamp(300px, min(34vw, 43vh), 390px)",
-                  height:"clamp(300px, min(34vw, 43vh), 390px)",
-                  borderRadius:19,
-                  boxShadow:"0 18px 48px rgba(0,0,0,0.35)",
+                  width:"min(34vw, calc(100vh - 360px), 420px)",
+                  height:"min(34vw, calc(100vh - 360px), 420px)",
+                  borderRadius:22,
+                  boxShadow:"0 24px 64px rgba(0,0,0,0.38)",
                   flexShrink:0,
                 }}/>
             </motion.div>
           </div>
 
           {/* Metadata */}
-          <div className="flex items-start gap-3 mb-5 shrink-0">
+          <div className="mx-auto mb-[clamp(12px,2vh,20px)] flex w-full max-w-[420px] shrink-0 items-start gap-3">
             <div className="flex-1 min-w-0">
-              <p className="font-bold truncate"
-                style={{ fontSize:22, lineHeight:"28px", color:"white" }}>{song.title}</p>
+              <p className="truncate font-bold"
+                style={{ fontSize:"clamp(20px,2vw,25px)", lineHeight:"30px", color:"white" }}>{song.title}</p>
               <div className="flex items-center gap-2 mt-1">
                 <p className="text-[14px] truncate" style={{ color:"rgba(255,255,255,0.62)" }}>{song.artist}</p>
                 <QualityBadge quality={song.quality}/>
               </div>
             </div>
             <motion.button type="button" aria-label={liked?"Remove from favorites":"Add to favorites"} whileTap={{ scale:0.92 }} onPointerDown={preventMouseFocus} onClick={() => setLiked(!liked)}
-              className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 mt-0.5 outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
-              <Heart style={{
-                width:22, height:22,
-                fill: liked ? "var(--tide-pink)" : "none",
-                color: liked ? "var(--tide-pink)" : "rgba(255,255,255,0.38)",
-                transition:"all 200ms",
-              }}/>
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40">
+              <Heart className="h-[28px] w-[28px]" style={{ fill:liked?"var(--tide-pink)":"none",color:liked?"var(--tide-pink)":"white" }}/>
             </motion.button>
+            <button type="button" aria-label="More options" className="flex h-12 w-10 shrink-0 items-center justify-center rounded-full text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40">
+              <MoreVertical className="h-7 w-7"/>
+            </button>
           </div>
 
           {/* Progress */}
-          <div className="mb-5 shrink-0">
-            <ProgressTrack wide/>
+          <div className="mx-auto mb-[clamp(12px,2vh,20px)] w-full max-w-[420px] shrink-0">
+            <MobileHeroProgress/>
           </div>
 
           {/* Transport */}
-          <div className="shrink-0">
-            <Transport/>
+          <div className="mx-auto w-full max-w-[420px] shrink-0">
+            <MobileHeroTransport desktop/>
           </div>
         </div>
 
         {/* Divider */}
-        <div className="shrink-0 self-stretch my-8"
+        <div className="hidden shrink-0 self-stretch my-8"
           style={{ width:1, background:"rgba(255,255,255,0.07)" }}/>
 
         {/* Right 58%: tabs + lyrics / queue / eq */}
-        <div className="flex flex-col flex-1 pt-4 pl-6 pr-10 pb-10 min-w-0 overflow-hidden">
+        <div className="flex min-w-0 flex-col overflow-hidden p-[clamp(14px,2vw,24px)]">
           <TabsContent padded/>
         </div>
       </div>
@@ -1534,9 +1636,13 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
       className="fixed inset-0 z-[300] flex flex-col overflow-hidden">
       <Backdrop/>
       <AnimatePresence initial={false}>
-        {mobileView==="player"&&(
-          <motion.div key="mobile-player" initial={{ opacity:0,x:-12 }} animate={{ opacity:1,x:0 }} exit={{ opacity:0,x:-12 }}
-            transition={{ duration:0.2,ease:"easeOut" }} className="relative z-10 h-full w-full overflow-hidden bg-[#08060e]">
+        {(mobileView==="player" || (mobileView==="queue" && mobileBaseView==="player"))&&(
+          <motion.div key="mobile-player"
+            initial={{ opacity:0,x:-12 }}
+            animate={mobileView==="queue" && !reduceMotion ? { opacity:0.82,x:0,scale:0.985 } : { opacity:1,x:0,scale:1 }}
+            exit={{ opacity:0,x:-12 }}
+            transition={mobileView==="queue" && !reduceMotion ? { type:"spring",stiffness:360,damping:36,mass:0.85 } : { duration:0.2,ease:"easeOut" }}
+            className="absolute inset-0 z-10 h-full w-full overflow-hidden bg-[#08060e] transform-gpu will-change-transform">
             <div className="absolute inset-x-0 top-0 h-[59vh] overflow-hidden" aria-hidden="true">
               <img src={cover(song.id)} alt="" className="h-full w-full object-cover"/>
               <div className="absolute inset-0" style={{ background:"linear-gradient(180deg,rgba(8,6,14,0.08) 0%,rgba(8,6,14,0.06) 44%,rgba(8,6,14,0.82) 78%,#08060e 100%)" }}/>
@@ -1546,7 +1652,7 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
               <ChevronDown style={{ width:22,height:22 }}/>
             </motion.button>
 
-            <div className="relative z-10 flex h-full flex-col px-7 pt-[44vh]" style={{ paddingBottom:"max(8px,env(safe-area-inset-bottom))" }}>
+            <div className="relative z-10 flex h-full flex-col px-7 pt-[44vh]" style={{ paddingBottom:"max(24px,calc(env(safe-area-inset-bottom) + 12px))" }}>
               <div className="flex shrink-0 items-start gap-2">
                 <div className="min-w-0 flex-1 pt-0.5">
                   <p className="truncate text-[25px] font-bold leading-8 text-white">{song.title}</p>
@@ -1561,12 +1667,12 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
                 </button>
               </div>
 
-              <button type="button" aria-label="Open lyrics" onClick={() => setMobileView("lyrics")}
-                className="mt-7 min-h-0 flex-1 overflow-hidden rounded-2xl text-left outline-none focus-visible:ring-2 focus-visible:ring-white/35">
-                <span className="block text-[20px] font-bold leading-[1.38] text-white/92">{previewLyric.text}</span>
-                {previewTranslation&&<span className="mt-2 block text-[15px] font-medium leading-6 text-white/55">{previewTranslation}</span>}
-                <span className="mt-5 block text-[18px] font-semibold leading-6 text-white/[0.12]">Lyrics by · {song.artist}</span>
-                <span className="mt-4 block text-[18px] font-semibold leading-6 text-white/[0.10]">Composed by · {song.artist}</span>
+              <button type="button" aria-label="Open lyrics" onClick={() => showMobileView("lyrics")}
+                className="mt-6 min-h-0 flex-1 overflow-hidden rounded-2xl text-left outline-none focus-visible:ring-2 focus-visible:ring-white/35">
+                <span className="block text-[18px] font-bold leading-[1.36] text-white/92">{previewLyric.text}</span>
+                {previewTranslation&&<span className="mt-1.5 block text-[14px] font-medium leading-5 text-white/55">{previewTranslation}</span>}
+                <span className="mt-4 block text-[15px] font-semibold leading-5 text-white/[0.12]">Lyrics by · {song.artist}</span>
+                <span className="mt-3 block text-[15px] font-semibold leading-5 text-white/[0.10]">Composed by · {song.artist}</span>
               </button>
 
               <div className="shrink-0">
@@ -1577,9 +1683,13 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
           </motion.div>
         )}
 
-        {mobileView==="lyrics"&&(
-          <motion.div key="mobile-lyrics" initial={{ opacity:0,x:16 }} animate={{ opacity:1,x:0 }} exit={{ opacity:0,x:16 }}
-            transition={{ duration:0.2,ease:"easeOut" }} className="relative z-10 flex h-full w-full flex-col">
+        {(mobileView==="lyrics" || (mobileView==="queue" && mobileBaseView==="lyrics"))&&(
+          <motion.div key="mobile-lyrics"
+            initial={{ opacity:0,x:16 }}
+            animate={mobileView==="queue" && !reduceMotion ? { opacity:0.82,x:0,scale:0.985 } : { opacity:1,x:0,scale:1 }}
+            exit={{ opacity:0,x:16 }}
+            transition={mobileView==="queue" && !reduceMotion ? { type:"spring",stiffness:360,damping:36,mass:0.85 } : { duration:0.2,ease:"easeOut" }}
+            className="absolute inset-0 z-10 flex h-full w-full flex-col transform-gpu will-change-transform">
             <MobileTrackHeader/>
             <div ref={lyricsScrollRef} className="hide-scrollbar min-h-0 flex-1 overflow-y-auto px-5"
               style={{ maskImage:"linear-gradient(to bottom,transparent 0%,black 8%,black 94%,transparent 100%)",WebkitMaskImage:"linear-gradient(to bottom,transparent 0%,black 8%,black 94%,transparent 100%)" }}>
@@ -1591,46 +1701,34 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
                   <div key={i} ref={i===activeIdx?activeLyricRef:undefined}>
                     <button type="button" onClick={() => onSeek(line.time/SONG_DURATION*100)} aria-current={i===activeIdx?"true":undefined}
                       className="block w-full rounded-xl px-1 py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-white/35"
-                      style={{ ...lyricStyle(dist),marginBottom:26,cursor:"pointer" }}>
+                      style={{ ...lyricStyle(dist,"mobile"),marginBottom:22,cursor:"pointer" }}>
                       <span className="block" style={i===activeIdx?{
                         color:"transparent",
                         background:"linear-gradient(90deg,#ffffff 0%,#ffffff 58%,rgba(255,255,255,0.32) 58%,rgba(255,255,255,0.32) 100%)",
                         WebkitBackgroundClip:"text",
                         backgroundClip:"text",
                       }:undefined}>{line.text}</span>
-                      {translation&&<span className="mt-2 block text-[16px] font-medium leading-6" style={{ color:i===activeIdx?"rgba(255,255,255,0.54)":"rgba(255,255,255,0.34)" }}>{translation}</span>}
+                      {translation&&<span className="mt-1.5 block text-[14px] font-medium leading-5" style={{ color:i===activeIdx?"rgba(255,255,255,0.54)":"rgba(255,255,255,0.34)" }}>{translation}</span>}
                     </button>
                   </div>
                 );
               })}
               <div style={{ height:"30vh" }}/>
             </div>
-            <MobileBottomNav/>
           </motion.div>
         )}
 
-        {mobileView==="queue"&&(
-          <motion.div key="mobile-queue" initial={{ opacity:0,x:16 }} animate={{ opacity:1,x:0 }} exit={{ opacity:0,x:16 }}
-            transition={{ duration:0.2,ease:"easeOut" }} className="relative z-10 flex h-full w-full flex-col">
-            <MobileTrackHeader/>
-            <div className="grid shrink-0 grid-cols-3 gap-3 px-5 pb-3 pt-2">
-              <button type="button" aria-label="Shuffle" aria-pressed={shuffle} onClick={() => setShuffle(!shuffle)}
-                className="flex h-12 items-center justify-center rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-                style={{ background:shuffle?"rgba(255,255,255,0.18)":"rgba(255,255,255,0.09)",color:shuffle?"white":"rgba(255,255,255,0.66)" }}>
-                <Shuffle style={{ width:23,height:23 }}/>
-              </button>
-              <button type="button" aria-label="Repeat" aria-pressed={repeat} onClick={() => setRepeat(!repeat)}
-                className="flex h-12 items-center justify-center rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-                style={{ background:repeat?"rgba(255,255,255,0.18)":"rgba(255,255,255,0.09)",color:repeat?"white":"rgba(255,255,255,0.66)" }}>
-                <Repeat style={{ width:23,height:23 }}/>
-              </button>
-              <button type="button" aria-label="Autoplay" aria-pressed={autoplay} onClick={() => setAutoplay(!autoplay)}
-                className="flex h-12 items-center justify-center rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-white/40"
-                style={{ background:autoplay?"rgba(255,255,255,0.18)":"rgba(255,255,255,0.09)",color:autoplay?"white":"rgba(255,255,255,0.66)" }}>
-                <InfinityIcon style={{ width:25,height:25 }}/>
-              </button>
-            </div>
+      </AnimatePresence>
 
+      <AnimatePresence initial={false}>
+        {mobileView==="queue"&&(
+          <motion.div key="mobile-queue"
+            initial={reduceMotion ? { opacity:0 } : { opacity:0,y:48,scale:0.99 }}
+            animate={{ opacity:1,y:0,scale:1 }}
+            exit={reduceMotion ? { opacity:0 } : { opacity:0,y:48,scale:0.99 }}
+            transition={reduceMotion ? { duration:0.12 } : { type:"spring",stiffness:360,damping:36,mass:0.85 }}
+            className="absolute inset-0 z-20 flex h-full w-full flex-col bg-[rgba(12,10,20,0.92)] backdrop-blur-2xl transform-gpu will-change-transform">
+            <MobileTrackHeader/>
             <div className="hide-scrollbar min-h-0 flex-1 overflow-y-auto">
               <div className="flex items-center justify-between px-5 pb-2 pt-2">
                 <p className="text-[21px] font-bold text-white">历史记录</p>
@@ -1648,11 +1746,10 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
               {SONGS.filter(item=>item.id!==song.id).slice(0,3).map(item=><MobileQueueRow key={item.id} item={item}/>)}
             </div>
 
-            <div className="shrink-0 px-5 pt-2">
+            <div className="shrink-0 px-5 pt-2" style={{ paddingBottom:"max(18px,calc(env(safe-area-inset-bottom) + 10px))" }}>
               <ProgressTrack/>
               <div className="mt-1"><MobileTransport compact/></div>
             </div>
-            <MobileBottomNav/>
           </motion.div>
         )}
       </AnimatePresence>
