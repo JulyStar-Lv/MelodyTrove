@@ -15,6 +15,10 @@ import androidx.compose.ui.unit.dp
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
+/**
+ * Shared large-title header for root and detail pages.
+ * Scroll containers may place this inside a sticky item and switch [compact] as the page collapses.
+ */
 @Composable
 fun TidePageHeader(
     title: String,
@@ -23,20 +27,34 @@ fun TidePageHeader(
     titleMaxLines: Int = 1,
     subtitleMaxLines: Int = 1,
     trailing: (@Composable () -> Unit)? = null,
+    compact: Boolean = false,
+    eyebrow: String? = null,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = if (compact) 6.dp else 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.Bottom,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(
             modifier = if (trailing != null) Modifier.weight(1f) else Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 2.dp else 4.dp),
         ) {
+            eyebrow?.let {
+                Text(
+                    text = it.uppercase(),
+                    color = MiuixTheme.colorScheme.primary,
+                    style = MiuixTheme.textStyles.footnote2,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             Text(
                 text = title,
                 color = MiuixTheme.colorScheme.onBackground,
-                style = MiuixTheme.textStyles.title2,
+                style = if (compact) MiuixTheme.textStyles.title3 else MiuixTheme.textStyles.title1,
                 fontWeight = FontWeight.Bold,
                 maxLines = titleMaxLines,
                 overflow = TextOverflow.Ellipsis,
@@ -45,7 +63,7 @@ fun TidePageHeader(
                 Text(
                     text = it,
                     color = MiuixTheme.colorScheme.onBackgroundVariant,
-                    style = MiuixTheme.textStyles.footnote1,
+                    style = MiuixTheme.textStyles.body2,
                     maxLines = subtitleMaxLines,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -54,7 +72,7 @@ fun TidePageHeader(
         trailing?.let {
             Box(
                 modifier = Modifier.padding(start = 12.dp),
-                contentAlignment = Alignment.BottomEnd,
+                contentAlignment = Alignment.CenterEnd,
             ) {
                 it()
             }
