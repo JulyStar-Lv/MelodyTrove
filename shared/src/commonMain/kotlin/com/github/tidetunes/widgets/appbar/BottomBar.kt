@@ -6,17 +6,19 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.github.tidetunes.core.presentation.components.TideBottomNavigationBar
 import com.github.tidetunes.core.presentation.components.TideBottomNavigationItem
+import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import com.github.tidetunes.navigation.HomeTab
 import org.jetbrains.compose.resources.painterResource
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -27,7 +29,7 @@ fun getBottomBarSpace(
 ): Dp {
     var total = 64.dp + scaffoldPadding.calculateBottomPadding()
     if (isPlaying) {
-        total += 76.dp
+        total += 80.dp
     }
     return total
 }
@@ -65,6 +67,10 @@ fun BoxScope.BottomBar(
             contentDescription = tab.label,
         )
     }
+    val shape = RoundedCornerShape(
+        topStart = TideTunesTokens.shapes.lg,
+        topEnd = TideTunesTokens.shapes.lg,
+    )
 
     Column(
         modifier = Modifier
@@ -72,21 +78,17 @@ fun BoxScope.BottomBar(
             .fillMaxWidth(),
     ) {
         if (hasCurrentMusic) {
-            Box(modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
+            Box(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
                 miniPlayerContent()
             }
         }
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.84f)),
+                .clip(shape)
+                .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.94f))
+                .border(1.dp, MiuixTheme.colorScheme.outline.copy(alpha = 0.58f), shape),
         ) {
-            Spacer(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(MiuixTheme.colorScheme.outline),
-            )
             TideBottomNavigationBar(
                 items = bottomItems,
                 selectedIndex = currentTab.index,
