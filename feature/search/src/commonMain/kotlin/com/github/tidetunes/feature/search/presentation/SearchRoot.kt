@@ -23,7 +23,7 @@ fun SearchRoot(
         }
     }
 
-    SearchScreen(
+    SearchDesignScreen(
         state = state,
         onAction = viewModel::onAction,
     )

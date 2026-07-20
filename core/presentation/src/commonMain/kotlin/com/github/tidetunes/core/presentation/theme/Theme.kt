@@ -56,6 +56,8 @@ fun TideTunesTheme(
             LocalTideTunesShapes provides TideTunesShapes(),
             LocalTideTunesMotion provides TideTunesMotion(),
             LocalTideTunesBlur provides TideTunesBlur(),
+            LocalTideTunesElevation provides TideTunesElevation(),
+            LocalTideTunesAdaptive provides TideTunesAdaptive(),
             content = content,
         )
     }
@@ -77,6 +79,14 @@ object TideTunesTokens {
     val blur: TideTunesBlur
         @Composable @ReadOnlyComposable
         get() = LocalTideTunesBlur.current
+
+    val elevation: TideTunesElevation
+        @Composable @ReadOnlyComposable
+        get() = LocalTideTunesElevation.current
+
+    val adaptive: TideTunesAdaptive
+        @Composable @ReadOnlyComposable
+        get() = LocalTideTunesAdaptive.current
 }
 
 @Immutable
@@ -86,8 +96,10 @@ data class TideTunesSpacing(
     val xs: Dp = 8.dp,
     val sm: Dp = 12.dp,
     val md: Dp = 16.dp,
+    val section: Dp = 20.dp,
     val lg: Dp = 24.dp,
     val xl: Dp = 32.dp,
+    val huge: Dp = 40.dp,
     val xxl: Dp = 48.dp,
     val pageCompact: Dp = 16.dp,
     val pageMedium: Dp = 20.dp,
@@ -100,7 +112,9 @@ data class TideTunesShapes(
     val xxs: Dp = 4.dp,
     val xs: Dp = 8.dp,
     val sm: Dp = 12.dp,
+    val compactCard: Dp = 18.dp,
     val md: Dp = 20.dp,
+    val card: Dp = 24.dp,
     val lg: Dp = 28.dp,
     val xl: Dp = 36.dp,
     val xxl: Dp = 40.dp,
@@ -127,7 +141,32 @@ data class TideTunesBlur(
     val ultra: Dp = 48.dp,
 )
 
+@Immutable
+data class TideTunesElevation(
+    val surface: Dp = 0.dp,
+    val card: Dp = 2.dp,
+    val popup: Dp = 12.dp,
+    val floating: Dp = 20.dp,
+    val overlay: Dp = 28.dp,
+)
+
+@Immutable
+data class TideTunesAdaptive(
+    val compactMaxWidth: Dp = 599.dp,
+    val mediumMaxWidth: Dp = 839.dp,
+    val expandedMaxWidth: Dp = 1279.dp,
+    val largeMinWidth: Dp = 1280.dp,
+    val extraLargeMinWidth: Dp = 1600.dp,
+    val contentMaxWidth: Dp = 1180.dp,
+    val detailMaxWidth: Dp = 720.dp,
+    val sidebarWidth: Dp = 224.dp,
+    val railWidth: Dp = 80.dp,
+    val minimumTouchTarget: Dp = 48.dp,
+)
+
 private val LocalTideTunesSpacing = staticCompositionLocalOf { TideTunesSpacing() }
 private val LocalTideTunesShapes = staticCompositionLocalOf { TideTunesShapes() }
 private val LocalTideTunesMotion = staticCompositionLocalOf { TideTunesMotion() }
 private val LocalTideTunesBlur = staticCompositionLocalOf { TideTunesBlur() }
+private val LocalTideTunesElevation = staticCompositionLocalOf { TideTunesElevation() }
+private val LocalTideTunesAdaptive = staticCompositionLocalOf { TideTunesAdaptive() }

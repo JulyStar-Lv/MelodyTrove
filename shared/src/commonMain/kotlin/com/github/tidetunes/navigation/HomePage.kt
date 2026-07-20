@@ -20,11 +20,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.github.tidetunes.core.LocalNavController
 import com.github.tidetunes.core.domain.model.AppSettings
 import com.github.tidetunes.core.domain.model.AppThemeMode
 import com.github.tidetunes.core.domain.repository.SettingsRepository
 import com.github.tidetunes.core.isRouteHome
-import com.github.tidetunes.core.LocalNavController
 import com.github.tidetunes.core.presentation.layout.WindowSizeClass
 import com.github.tidetunes.core.presentation.layout.rememberWindowSizeClass
 import com.github.tidetunes.core.presentation.navigation.MusicGraph
@@ -35,9 +35,6 @@ import com.github.tidetunes.service.playback.presentation.shell.rememberIsPlayba
 import com.github.tidetunes.widgets.appbar.BottomBar
 import com.github.tidetunes.widgets.appbar.NavigationRailBar
 import com.github.tidetunes.widgets.appbar.SidebarBar
-import com.github.tidetunes.widgets.appbar.DesktopToolbar
-import com.github.tidetunes.widgets.appbar.DesktopRightPanel
-import com.github.tidetunes.widgets.appbar.DesktopRightPanelContent
 import com.github.tidetunes.widgets.appbar.getBottomBarSpace
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -83,7 +80,6 @@ fun HomePage(
     }
 
     var currentTab by remember { mutableStateOf(HomeTab.HOME) }
-    var desktopRightPanel by remember { mutableStateOf<DesktopRightPanel?>(null) }
 
     val libraryNavController = rememberNavController()
     val searchNavController = rememberNavController()
@@ -127,25 +123,7 @@ fun HomePage(
                     scaffoldPadding = scaffoldPadding,
                 )
             }
-            WindowSizeClass.Medium -> {
-                Row(modifier = Modifier.fillMaxSize()) {
-                    NavigationRailBar(
-                        currentTab = currentTab,
-                        onTabSelected = { currentTab = it },
-                        modifier = Modifier.fillMaxHeight(),
-                        windowSizeClass = windowSizeClass,
-                    )
-                    HomeMainPane(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight(),
-                        hasCurrentMusic = hasCurrentMusic,
-                        miniPlayerContent = miniPlayerContent,
-                    ) {
-                        tabContent(currentTab)
-                    }
-                }
-            }
+            WindowSizeClass.Medium,
             WindowSizeClass.Expanded -> {
                 Row(modifier = Modifier.fillMaxSize()) {
                     NavigationRailBar(
@@ -190,17 +168,6 @@ fun HomePage(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight(),
-                        showDesktopToolbar = true,
-                        onNavigateToSearch = { currentTab = HomeTab.SEARCH },
-                        desktopRightPanel = desktopRightPanel,
-                        onDesktopRightPanelChange = { desktopRightPanel = it },
-                        onToggleTheme = {
-                            themeScope.launch {
-                                settingsRepository.setThemeMode(
-                                    if (settings.themeMode == AppThemeMode.Dark) AppThemeMode.Light else AppThemeMode.Dark,
-                                )
-                            }
-                        },
                         hasCurrentMusic = hasCurrentMusic,
                         miniPlayerContent = miniPlayerContent,
                     ) {
@@ -217,31 +184,11 @@ private fun HomeMainPane(
     hasCurrentMusic: Boolean,
     miniPlayerContent: @Composable () -> Unit,
     modifier: Modifier = Modifier,
-    showDesktopToolbar: Boolean = false,
-    onNavigateToSearch: () -> Unit = {},
-    desktopRightPanel: DesktopRightPanel? = null,
-    onDesktopRightPanelChange: (DesktopRightPanel?) -> Unit = {},
-    onToggleTheme: () -> Unit = {},
     content: @Composable () -> Unit,
 ) {
     Column(modifier = modifier) {
-        if (showDesktopToolbar) {
-            DesktopToolbar(
-                onSearch = onNavigateToSearch,
-                rightPanel = desktopRightPanel,
-                onRightPanelChange = onDesktopRightPanelChange,
-                onToggleTheme = onToggleTheme,
-            )
-        }
-        Row(modifier = Modifier.weight(1f)) {
-            Box(modifier = Modifier.weight(1f)) { content() }
-            desktopRightPanel?.let { panel ->
-                DesktopRightPanelContent(
-                    panel = panel,
-                    hasCurrentMusic = hasCurrentMusic,
-                    onClose = { onDesktopRightPanelChange(null) },
-                )
-            }
+        Box(modifier = Modifier.weight(1f)) {
+            content()
         }
         if (hasCurrentMusic) {
             Box(

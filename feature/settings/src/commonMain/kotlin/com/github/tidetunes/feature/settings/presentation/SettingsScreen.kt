@@ -28,13 +28,16 @@ fun SettingsScreen(
     onNavigateToAbout: () -> Unit,
 ) {
     SettingsPageLayout(title = stringResource(Res.string.settings_title)) {
-        SettingsSection(title = stringResource(Res.string.settings_home_section)) {
+        SettingsSection(title = "Personalization") {
             SettingsEntryCard(
                 title = stringResource(Res.string.settings_appearance_title),
                 summary = stringResource(Res.string.settings_appearance_summary),
                 icon = CoreRes.drawable.icon_image,
                 onClick = onNavigateToAppearance,
             )
+        }
+
+        SettingsSection(title = "Playback") {
             SettingsEntryCard(
                 title = stringResource(Res.string.settings_playback_title),
                 summary = when (state.settings.audioFocusMode) {
@@ -51,6 +54,9 @@ fun SettingsScreen(
                 icon = CoreRes.drawable.icon_lyrics,
                 onClick = onNavigateToLyrics,
             )
+        }
+
+        SettingsSection(title = "Library & Data") {
             SettingsEntryCard(
                 title = stringResource(Res.string.settings_sources_title),
                 summary = if (state.sourceAccounts.isEmpty()) {
@@ -89,6 +95,9 @@ fun SettingsScreen(
                 icon = CoreRes.drawable.icon_album,
                 onClick = onNavigateToStorage,
             )
+        }
+
+        SettingsSection(title = "App Info") {
             SettingsEntryCard(
                 title = stringResource(Res.string.settings_about_title),
                 summary = stringResource(

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -18,10 +19,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -31,6 +33,7 @@ fun TideSettingsGroup(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val shapes = TideTunesTokens.shapes
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -39,16 +42,16 @@ fun TideSettingsGroup(
             Text(
                 text = title.uppercase(),
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                style = MiuixTheme.textStyles.footnote1,
+                style = MiuixTheme.textStyles.footnote2,
                 fontWeight = FontWeight.Bold,
-                letterSpacing = 1.2.sp,
-                modifier = Modifier.padding(horizontal = 4.dp),
+                letterSpacing = 0.9.sp,
+                modifier = Modifier.padding(horizontal = 6.dp),
             )
         }
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(24.dp))
+                .clip(RoundedCornerShape(shapes.card))
                 .background(MiuixTheme.colorScheme.surfaceContainer),
             content = content,
         )
@@ -76,29 +79,33 @@ fun TidePreferenceRow(
                     Modifier.clickable(onClick = onClick)
                 } else {
                     Modifier
-                }
+                },
             ),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .heightIn(min = 68.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (leading != null) {
                 leading()
-                Spacer(modifier = Modifier.width(16.dp))
+                Spacer(modifier = Modifier.width(14.dp))
             }
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
                 Text(
                     text = title,
-                    style = MiuixTheme.textStyles.main,
+                    style = MiuixTheme.textStyles.body1,
+                    fontWeight = FontWeight.Medium,
                     color = titleColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 if (summary != null) {
-                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = summary,
                         style = MiuixTheme.textStyles.body2,
@@ -117,8 +124,9 @@ fun TidePreferenceRow(
             Spacer(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .padding(start = if (leading != null) 66.dp else 16.dp)
                     .height(1.dp)
-                    .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.55f)),
+                    .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.48f)),
             )
         }
     }

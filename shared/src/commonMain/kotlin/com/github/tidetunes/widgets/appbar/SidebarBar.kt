@@ -35,9 +35,7 @@ import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-fun getSidebarWidth(windowSizeClass: WindowSizeClass = WindowSizeClass.Large): Dp {
-    return 224.dp
-}
+fun getSidebarWidth(windowSizeClass: WindowSizeClass = WindowSizeClass.Large): Dp = 224.dp
 
 @Composable
 fun SidebarBar(
@@ -63,15 +61,17 @@ fun SidebarBar(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 8.dp, vertical = 16.dp),
+                .padding(horizontal = 12.dp, vertical = 18.dp),
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
                     modifier = Modifier
-                        .size(32.dp)
+                        .size(38.dp)
                         .background(
                             brush = Brush.linearGradient(
                                 listOf(TideTunesBrand.Primary, TideTunesBrand.Secondary),
@@ -84,16 +84,16 @@ fun SidebarBar(
                         painter = painterResource(HomeTab.LIBRARY.painterRes),
                         tint = Color.White,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp),
+                        modifier = Modifier.size(20.dp),
                     )
                 }
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
                         text = "TideTunes",
                         color = MiuixTheme.colorScheme.onSurface,
                         style = MiuixTheme.textStyles.body1,
-                        fontWeight = FontWeight.Black,
+                        fontWeight = FontWeight.Bold,
                     )
                     Text(
                         text = "One Library. Every Source.",
@@ -103,13 +103,13 @@ fun SidebarBar(
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(24.dp))
             Text(
-                text = "APP",
+                text = "DISCOVER",
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 style = MiuixTheme.textStyles.footnote2,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
             )
             for (tab in HomeTab.entries) {
                 SidebarItem(
@@ -122,25 +122,25 @@ fun SidebarBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(36.dp)
-                    .clip(RoundedCornerShape(shapes.sm))
-                    .background(MiuixTheme.colorScheme.surfaceContainerHigh)
+                    .height(44.dp)
+                    .clip(RoundedCornerShape(shapes.compactCard))
+                    .background(MiuixTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.72f))
                     .clickable(onClick = onToggleTheme)
-                    .padding(horizontal = 10.dp),
+                    .padding(horizontal = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
                     painter = painterResource(Res.drawable.icon_adjust),
                     tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     contentDescription = if (isDark) "Switch to light mode" else "Switch to dark mode",
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(18.dp),
                 )
-                Spacer(modifier = Modifier.width(10.dp))
+                Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = if (isDark) "Light Mode" else "Dark Mode",
                     color = MiuixTheme.colorScheme.onSurface,
-                    style = MiuixTheme.textStyles.footnote1,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MiuixTheme.textStyles.body2,
+                    fontWeight = FontWeight.Medium,
                 )
             }
         }
@@ -149,7 +149,7 @@ fun SidebarBar(
                 .align(Alignment.CenterEnd)
                 .fillMaxHeight()
                 .width(1.dp)
-                .background(MiuixTheme.colorScheme.outline),
+                .background(MiuixTheme.colorScheme.outline.copy(alpha = 0.64f)),
         )
     }
 }
@@ -161,7 +161,7 @@ private fun SidebarItem(
     onClick: () -> Unit,
 ) {
     val shapes = TideTunesTokens.shapes
-    val itemShape = RoundedCornerShape(shapes.sm)
+    val itemShape = RoundedCornerShape(shapes.compactCard)
     val contentColor = if (selected) {
         MiuixTheme.colorScheme.primary
     } else {
@@ -170,8 +170,8 @@ private fun SidebarItem(
     val backgroundBrush = if (selected) {
         Brush.linearGradient(
             listOf(
-                TideTunesBrand.Primary.copy(alpha = 0.15f),
-                TideTunesBrand.Primary.copy(alpha = 0.15f),
+                TideTunesBrand.Primary.copy(alpha = 0.16f),
+                TideTunesBrand.Secondary.copy(alpha = 0.13f),
             ),
         )
     } else {
@@ -182,26 +182,24 @@ private fun SidebarItem(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .height(32.dp)
+            .height(44.dp)
             .clip(itemShape)
             .background(backgroundBrush)
             .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp),
+            .padding(horizontal = 12.dp),
     ) {
         Icon(
             painter = painterResource(tab.painterRes),
             tint = contentColor,
-            contentDescription = null,
-            modifier = Modifier
-                .width(16.dp)
-                .height(16.dp),
+            contentDescription = tab.label,
+            modifier = Modifier.size(19.dp),
         )
-        Box(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(12.dp))
         Text(
             text = tab.label,
             color = contentColor,
-            style = MiuixTheme.textStyles.footnote1,
-            fontWeight = FontWeight.SemiBold,
+            style = MiuixTheme.textStyles.body1,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
             maxLines = 1,
             modifier = Modifier.weight(1f),
         )
@@ -213,5 +211,5 @@ private fun SidebarItem(
             )
         }
     }
-    Spacer(modifier = Modifier.height(2.dp))
+    Spacer(modifier = Modifier.height(4.dp))
 }

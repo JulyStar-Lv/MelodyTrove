@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -18,7 +19,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.github.tidetunes.core.presentation.components.dropShadow
 import com.github.tidetunes.core.presentation.layout.WindowSizeClass
 import com.github.tidetunes.core.presentation.theme.TideTunesBrand
 import com.github.tidetunes.core.presentation.theme.TideTunesTokens
@@ -40,34 +40,50 @@ fun NavigationRailBar(
     windowSizeClass: WindowSizeClass = WindowSizeClass.Expanded,
 ) {
     val railWidth = getNavigationRailWidth(windowSizeClass)
+    val shapes = TideTunesTokens.shapes
 
     Column(
         modifier = modifier
             .width(railWidth)
-            .dropShadow(
-                MiuixTheme.colorScheme.surfaceVariant,
-                4.dp,
-                0.dp,
-                8.dp,
-            )
-            .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.94f)),
+            .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.96f)),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        Box(
+            modifier = Modifier
+                .padding(top = 18.dp, bottom = 22.dp)
+                .size(38.dp)
+                .background(
+                    brush = Brush.linearGradient(
+                        listOf(TideTunesBrand.Primary, TideTunesBrand.Secondary),
+                    ),
+                    shape = RoundedCornerShape(shapes.sm),
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(HomeTab.LIBRARY.painterRes),
+                contentDescription = "TideTunes",
+                tint = Color.White,
+                modifier = Modifier.size(20.dp),
+            )
+        }
         Column(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxHeight()
-                .padding(vertical = 16.dp),
+                .padding(horizontal = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             for (tab in HomeTab.entries) {
                 NavigationRailItem(
                     tab = tab,
                     selected = currentTab == tab,
-                    itemWidth = railWidth - 8.dp,
+                    itemWidth = railWidth - 12.dp,
                     onClick = { onTabSelected(tab) },
                 )
             }
         }
+        Spacer(modifier = Modifier.height(12.dp))
     }
 }
 
@@ -79,7 +95,7 @@ private fun NavigationRailItem(
     onClick: () -> Unit,
 ) {
     val shapes = TideTunesTokens.shapes
-    val itemShape = RoundedCornerShape(shapes.full)
+    val itemShape = RoundedCornerShape(shapes.compactCard)
     val contentColor = if (selected) {
         MiuixTheme.colorScheme.primary
     } else {
@@ -89,7 +105,7 @@ private fun NavigationRailItem(
         Brush.linearGradient(
             listOf(
                 TideTunesBrand.Primary.copy(alpha = 0.18f),
-                TideTunesBrand.Secondary.copy(alpha = 0.16f),
+                TideTunesBrand.Secondary.copy(alpha = 0.15f),
             ),
         )
     } else {
@@ -107,13 +123,11 @@ private fun NavigationRailItem(
     ) {
         Icon(
             painter = painterResource(tab.painterRes),
-            contentDescription = null,
+            contentDescription = tab.label,
             tint = contentColor,
-            modifier = Modifier
-                .width(24.dp)
-                .height(24.dp),
+            modifier = Modifier.size(22.dp),
         )
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(5.dp))
         Text(
             text = tab.label,
             color = contentColor,
@@ -121,5 +135,5 @@ private fun NavigationRailItem(
             maxLines = 1,
         )
     }
-    Spacer(modifier = Modifier.height(8.dp))
+    Spacer(modifier = Modifier.height(6.dp))
 }
