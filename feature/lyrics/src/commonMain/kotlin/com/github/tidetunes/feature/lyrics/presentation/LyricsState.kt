@@ -7,6 +7,7 @@ import kotlin.time.Duration
 
 @Immutable
 data class LyricsState(
+    val trackId: Long? = null,
     val isLoading: Boolean = true,
     val trackTitle: String = "",
     val trackArtist: String? = null,

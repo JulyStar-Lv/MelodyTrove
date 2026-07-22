@@ -1,0 +1,7 @@
+<resources>
+    <string name="queue_history">历史记录</string>
+    <string name="queue_clear">清除</string>
+    <string name="queue_up_next">继续播放</string>
+    <string name="queue_empty">播放列表为空</string>
+    <string name="queue_track_count">%1$d 首歌曲</string>
+</resources>

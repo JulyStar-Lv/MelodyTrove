@@ -16,6 +16,8 @@ This document maps the production Compose Multiplatform UI to the source-of-trut
 
 The obsolete desktop top toolbar has been removed. Compact, medium, expanded, large, and XL layouts all use the same root destination model.
 
+The compact bottom navigation follows the Design source's flat 62 dp bar, 1 dp top divider, 48 × 28 dp selected indicator, 20 dp Lucide icons, and 10 sp labels. Native bottom safe-area padding remains platform-owned.
+
 ## Root pages
 
 | Page | Compose implementation | Design coverage |
@@ -24,6 +26,8 @@ The obsolete desktop top toolbar has been removed. Compact, medium, expanded, la
 | Search | `SearchDesignScreen.kt` | Search field, history, genre grid, trending, loading/error/empty/results states, source-aware rows |
 | Library | `LibraryDesignScreen.kt` | Playlists, songs, albums, artists, genres, folders, favorites, downloads, history, recently added/played, lossless, Hi-Res, sources |
 | Settings | `SettingsScreen.kt` + shared settings components | Personalization, Playback, Library & Data, App Info |
+
+The compact Home implementation uses the source prototype's 152 dp Daily Picks banner, real Unsplash cover crops, 160 dp pinned-playlist cards, 120 dp recently-added cards, and ranked monthly-listening preview. Its Home title is a sticky list header: after 48 dp of upward scroll it collapses to the source-aligned 58 dp bar with 24 sp type and a subtle bottom divider. Image attribution is recorded in `Design/ATTRIBUTIONS.md`.
 
 ## Secondary and detail pages
 

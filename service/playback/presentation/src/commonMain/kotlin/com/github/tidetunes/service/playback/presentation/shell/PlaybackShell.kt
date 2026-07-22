@@ -5,6 +5,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import com.github.tidetunes.service.playback.domain.SleepModeLeftTime
 import com.github.tidetunes.service.playback.presentation.PlayerVM
+import com.github.tidetunes.service.playback.presentation.miniplayer.IdleMiniPlayer
 import com.github.tidetunes.service.playback.presentation.miniplayer.MiniPlayer
 import com.github.tidetunes.service.playback.presentation.sleep.SleepModeVM
 import com.github.tidetunes.service.playback.presentation.sleep.TimeToPauseModal
@@ -29,6 +30,7 @@ fun rememberHasPlaybackItem(
 @Composable
 fun PlaybackMiniPlayerHost(
     onOpenNowPlaying: () -> Unit,
+    onBrowseLibrary: () -> Unit,
     playerVM: PlayerVM = koinViewModel(),
 ) {
     val playbackState by playerVM.playbackState.collectAsState()
@@ -37,6 +39,8 @@ fun PlaybackMiniPlayerHost(
             onOpenNowPlaying = onOpenNowPlaying,
             playerVM = playerVM,
         )
+    } else {
+        IdleMiniPlayer(onBrowseLibrary = onBrowseLibrary)
     }
 }
 

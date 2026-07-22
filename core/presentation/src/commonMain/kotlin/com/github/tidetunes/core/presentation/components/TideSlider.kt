@@ -63,6 +63,10 @@ fun TideSlider(
     trackHeight: Dp = TideSliderDefaults.TrackHeight,
     thumbSize: Dp = TideSliderDefaults.ThumbSize,
     activeThumbSize: Dp = TideSliderDefaults.ActiveThumbSize,
+    trackColorOverride: Color? = null,
+    bufferColorOverride: Color? = null,
+    activeTrackColorOverride: Color? = null,
+    thumbColorOverride: Color? = null,
 ) {
     require(steps >= 0) { "steps should be >= 0" }
 
@@ -171,21 +175,27 @@ fun TideSlider(
                 .fillMaxWidth()
                 .height(trackHeight)
                 .clip(RoundedCornerShape(TideTunesTokens.shapes.full))
-                .background(trackColor(enabled)),
+                .background(trackColorOverride ?: trackColor(enabled)),
         ) {
             if (bufferFraction != null) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth(bufferFraction)
                         .fillMaxHeight()
-                        .background(bufferColor(enabled)),
+                        .background(bufferColorOverride ?: bufferColor(enabled)),
                 )
             }
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(valueFraction)
-                    .fillMaxHeight()
-                    .background(fillBrush(enabled)),
+                        .fillMaxWidth(valueFraction)
+                        .fillMaxHeight()
+                        .then(
+                            if (activeTrackColorOverride != null) {
+                                Modifier.background(activeTrackColorOverride)
+                            } else {
+                                Modifier.background(fillBrush(enabled))
+                            },
+                        ),
             )
         }
         Box(
@@ -196,7 +206,7 @@ fun TideSlider(
                 )
                 .size(currentThumbSize)
                 .clip(RoundedCornerShape(TideTunesTokens.shapes.full))
-                .background(thumbColor(enabled)),
+                .background(thumbColorOverride ?: thumbColor(enabled)),
         )
     }
 }

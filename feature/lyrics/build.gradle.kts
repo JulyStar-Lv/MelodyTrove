@@ -23,13 +23,18 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(project(":core:domain"))
+            implementation(project(":core:lyrics-core"))
+            implementation(project(":core:lyrics-ui"))
             implementation(project(":core:presentation"))
+            implementation(project(":service:playback:presentation"))
             implementation(libs.runtime)
             implementation(libs.foundation)
             implementation(libs.miuix.ui)
+            implementation(libs.components.resources)
             implementation(libs.animation)
             implementation(libs.kotlinx.collections.immutable)
             implementation(libs.koin.core)
+            implementation(libs.koin.compose)
             implementation(libs.koin.compose.viewmodel)
             implementation(libs.androidx.navigation.compose)
             implementation(libs.kotlinx.coroutines.core)

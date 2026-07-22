@@ -241,6 +241,18 @@ fun PlaybackSettingsSection(
                 },
             )
             SettingsSwitchRow(
+                title = stringResource(Res.string.settings_player_immersive_cover),
+                summary = stringResource(Res.string.settings_player_immersive_cover_summary),
+                checked = interaction.immersiveAlbumCover,
+                onCheckedChange = {
+                    onAction(
+                        SettingsAction.SetPlayerInteractionSettings(
+                            interaction.copy(immersiveAlbumCover = it)
+                        )
+                    )
+                },
+            )
+            SettingsSwitchRow(
                 title = stringResource(Res.string.settings_player_tap_progress),
                 checked = interaction.tapProgressToSeekEnabled,
                 onCheckedChange = {

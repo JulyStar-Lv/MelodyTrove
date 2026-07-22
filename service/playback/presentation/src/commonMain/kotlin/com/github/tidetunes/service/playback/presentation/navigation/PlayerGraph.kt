@@ -10,12 +10,16 @@ import androidx.navigation.compose.composable
 
 fun NavGraphBuilder.playerGraph(
     onNavigateBack: () -> Unit,
+    onNavigateToLyrics: (Long) -> Unit,
+    onNavigateToQueue: () -> Unit,
     onNavigateToLyricImport: () -> Unit,
     onSearchMetadata: (NowPlayingTrackItem) -> Unit,
 ) {
     composable<MusicGraph.NowPlaying> {
         NowPlayingRoot(
             onNavigateBack = onNavigateBack,
+            onNavigateToLyrics = onNavigateToLyrics,
+            onNavigateToQueue = onNavigateToQueue,
             onNavigateToLyricImport = onNavigateToLyricImport,
             onSearchMetadata = onSearchMetadata,
         )

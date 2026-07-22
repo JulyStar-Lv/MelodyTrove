@@ -20,6 +20,8 @@ import org.koin.compose.viewmodel.koinViewModel
 @Composable
 fun NowPlayingRoot(
     onNavigateBack: () -> Unit,
+    onNavigateToLyrics: (Long) -> Unit,
+    onNavigateToQueue: () -> Unit,
     onNavigateToLyricImport: () -> Unit,
     onSearchMetadata: (NowPlayingTrackItem) -> Unit,
     playerViewModel: PlayerVM = koinViewModel(),
@@ -52,6 +54,8 @@ fun NowPlayingRoot(
             }
             NowPlayingAction.SearchMetadata -> state.currentTrack?.let(onSearchMetadata)
             NowPlayingAction.OpenSleepTimer -> sleepModeViewModel.openModal()
+            NowPlayingAction.OpenLyrics -> state.currentTrack?.id?.let(onNavigateToLyrics)
+            NowPlayingAction.OpenQueue -> onNavigateToQueue()
             else -> playerViewModel.onNowPlayingAction(action)
         }
     }

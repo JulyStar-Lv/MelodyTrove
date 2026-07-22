@@ -70,6 +70,8 @@ sealed interface NowPlayingAction {
     data object RemoveCurrentTrack : NowPlayingAction
     data object DownloadCurrentTrack : NowPlayingAction
     data object OpenSleepTimer : NowPlayingAction
+    data object OpenLyrics : NowPlayingAction
+    data object OpenQueue : NowPlayingAction
     data object PlayPrevious : NowPlayingAction
     data object PlayNext : NowPlayingAction
     data object Resume : NowPlayingAction

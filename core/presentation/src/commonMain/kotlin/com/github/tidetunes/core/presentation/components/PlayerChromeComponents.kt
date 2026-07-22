@@ -37,6 +37,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.kyant.backdrop.drawBackdrop
+import com.kyant.backdrop.effects.blur
+import com.kyant.backdrop.effects.colorControls
+import com.kyant.backdrop.effects.lens
 import com.github.tidetunes.core.presentation.theme.TideTunesBrand
 import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import top.yukonga.miuix.kmp.basic.Icon
@@ -74,16 +79,38 @@ fun TideMiniPlayerBar(
     modifier: Modifier = Modifier,
 ) {
     val tokens = TideTunesTokens
-    val shape = RoundedCornerShape(tokens.shapes.lg)
+    val shape = RoundedCornerShape(22.dp)
+    val backdrop = currentTideBackdrop()
+    val surface = MiuixTheme.colorScheme.surfaceContainer
+    val glassModifier = if (backdrop != null) {
+        Modifier.drawBackdrop(
+            backdrop = backdrop,
+            shape = { shape },
+            effects = {
+                colorControls(saturation = 1.18f)
+                blur(16.dp.toPx())
+                lens(
+                    refractionHeight = 12.dp.toPx(),
+                    refractionAmount = 18.dp.toPx(),
+                    depthEffect = true,
+                )
+            },
+            shadow = { null },
+            onDrawSurface = { drawRect(surface.copy(alpha = 0.50f)) },
+        )
+    } else {
+        Modifier
+            .clip(shape)
+            .background(surface.copy(alpha = 0.90f))
+    }
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(72.dp)
             .shadow(tokens.elevation.popup, shape, clip = false)
-            .clip(shape)
-            .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.90f))
-            .border(1.dp, MiuixTheme.colorScheme.outline.copy(alpha = 0.72f), shape)
+            .then(glassModifier)
+            .border(1.dp, MiuixTheme.colorScheme.outline.copy(alpha = 0.42f), shape)
             .clickable(onClick = onClick),
     ) {
         Box(
@@ -162,6 +189,29 @@ fun TideCompactMiniPlayerBar(
 ) {
     val tokens = TideTunesTokens
     val shape = RoundedCornerShape(tokens.shapes.lg)
+    val backdrop = currentTideBackdrop()
+    val surface = MiuixTheme.colorScheme.surfaceContainer
+    val glassModifier = if (backdrop != null) {
+        Modifier.drawBackdrop(
+            backdrop = backdrop,
+            shape = { shape },
+            effects = {
+                colorControls(saturation = 1.16f)
+                blur(14.dp.toPx())
+                lens(
+                    refractionHeight = 10.dp.toPx(),
+                    refractionAmount = 14.dp.toPx(),
+                    depthEffect = true,
+                )
+            },
+            shadow = { null },
+            onDrawSurface = { drawRect(surface.copy(alpha = 0.52f)) },
+        )
+    } else {
+        Modifier
+            .clip(shape)
+            .background(surface.copy(alpha = 0.92f))
+    }
 
     Box(
         modifier = modifier
@@ -169,8 +219,7 @@ fun TideCompactMiniPlayerBar(
             .height(76.dp)
             .padding(horizontal = 8.dp, vertical = 8.dp)
             .shadow(tokens.elevation.card, shape, clip = false)
-            .clip(shape)
-            .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.92f))
+            .then(glassModifier)
             .border(1.dp, MiuixTheme.colorScheme.outline.copy(alpha = 0.60f), shape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
@@ -237,8 +286,8 @@ fun TideBottomNavigationBar(
     selectedIndex: Int,
     onItemSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    height: Dp = 64.dp,
-    contentPadding: PaddingValues = PaddingValues(horizontal = 8.dp, vertical = 5.dp),
+    height: Dp = 61.dp,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 12.dp, vertical = 5.dp),
 ) {
     if (items.isEmpty()) return
 
@@ -271,14 +320,7 @@ fun TideBottomNavigationBar(
                     .padding(top = 5.dp)
                     .size(width = 48.dp, height = 28.dp)
                     .clip(RoundedCornerShape(shapes.full))
-                    .background(
-                        Brush.linearGradient(
-                            listOf(
-                                TideTunesBrand.Primary.copy(alpha = 0.20f),
-                                TideTunesBrand.Secondary.copy(alpha = 0.17f),
-                            ),
-                        ),
-                    ),
+                    .background(MiuixTheme.colorScheme.primary.copy(alpha = 0.12f)),
             )
         }
 
@@ -304,13 +346,16 @@ fun TideBottomNavigationBar(
                         painter = item.painter,
                         tint = tint,
                         contentDescription = item.contentDescription,
-                        modifier = Modifier.size(21.dp),
+                        modifier = Modifier.size(20.dp),
                     )
-                    Spacer(modifier = Modifier.height(5.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = item.label,
                         color = tint,
-                        style = MiuixTheme.textStyles.footnote2,
+                        style = MiuixTheme.textStyles.footnote2.copy(
+                            fontSize = 10.sp,
+                            lineHeight = 12.sp,
+                        ),
                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,

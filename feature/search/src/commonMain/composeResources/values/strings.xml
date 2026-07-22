@@ -19,6 +19,15 @@
     <string name="search_history">History</string>
     <string name="search_suggestions">Suggestions</string>
     <string name="search_remote_failures">sources failed</string>
+    <string name="searching">Searching</string>
+    <string name="search_connection_retry">Check source connection and try again.</string>
+    <string name="search_try_suggestion">Try a recent search, artist, album, folder, or source.</string>
+    <string name="search_recent_searches">Recent Searches</string>
+    <string name="searching_library">Searching your library</string>
+    <string name="search_sources_unavailable">Some sources are unavailable</string>
+    <string name="search_no_matches_yet">No matches yet</string>
+    <string name="search_try_query">Try a song, artist, album, genre or source name.</string>
+    <string name="search_change_filter">Choose another result type to keep browsing.</string>
     <string name="downloads_title">Downloads</string>
     <string name="downloads_empty">No downloads yet</string>
     <string name="downloads_pause">Pause</string>

@@ -139,6 +139,103 @@ final result: passed
 
 ---
 
+## Now Playing Design alignment — 2026-07-22
+
+### Evidence
+
+- Design source: `/Users/shine/CommonWork/MobileWork/TideTunes/artifacts/design-source/now-playing.png`.
+- Final native capture: `/Users/shine/CommonWork/MobileWork/TideTunes/artifacts/native/now-playing-final-design-aligned.png`.
+- Same-viewport combined comparison: `/Users/shine/CommonWork/MobileWork/TideTunes/artifacts/comparisons/now-playing-current-final.png`.
+- Viewport: Design 393 × 852; native iPhone 15 Pro 1179 × 2556 at 3×, normalized to 393 × 852 for comparison.
+
+### Fidelity review
+
+- Typography and hierarchy: the 24 sp bold title, muted artist, lyric preview, compact time labels, and five-button transport follow the Design hierarchy.
+- Spacing and layout: artwork occupies the upper 59% of the viewport, content starts at 44%, controls stay anchored above the home indicator, and the collapse action clears the native status bar.
+- Colors and imagery: real production artwork uses the Design crop and the four-stop `#08060E` gradient; fallback artwork still uses the same geometry.
+- Controls: repeat, previous, play/pause, next, queue, favorite, more, seek, collapse, and lyric navigation remain wired to production actions.
+
+### Iteration history
+
+- Iteration 1 blocked: the shared shell pushed the whole screen below the status bar, immersive artwork was opt-in, the left/right transport actions differed from Design, and the lyric preview reused the next lyric as a translation.
+- Iteration 2 blocked: fullscreen artwork and transport alignment passed, but the collapse action overlapped the iOS clock.
+- Iteration 3 passed: Now Playing alone draws edge-to-edge; the collapse action applies native status-bar padding; immersive artwork is the default; lyrics and queue route through the existing navigation graph.
+
+### P3 platform/data adaptations
+
+- The native capture includes iOS status and home-indicator chrome, which the Design screenshot omits.
+- The live track has different artwork/copy from the Design fixture. Quality and credit badges are not rendered because the current production Now Playing model does not expose that metadata; no fixture values are fabricated.
+
+### Verification
+
+- `git diff --check`: passed.
+- Playback presentation and shared desktop regression tests: passed.
+- iPhone 15 Pro simulator `xcodebuild`: passed after the final safe-area correction.
+- Clean install, launch, real-track playback, seek/progress updates, and play/pause rendering: passed.
+
+## Findings
+
+No actionable P0, P1, or P2 Now Playing fidelity findings remain.
+
+final result: passed
+
+---
+
+## Compose Multiplatform Design screen completion — 2026-07-21
+
+### Source, implementation, and comparison evidence
+
+- Source visual truth (393 × 852): `/Users/shine/CommonWork/MobileWork/TideTunes/artifacts/design-source/home.png`, `search.png`, `library.png`, `settings.png`, and `now-playing.png`.
+- Native iPhone 15 Pro implementation (1179 × 2556 at 3×): `/Users/shine/CommonWork/MobileWork/TideTunes/artifacts/native/home-final.png`, `search-final.png`, `library-final.png`, `settings-final.png`, and `now-playing-final.png`.
+- Same-viewport combined comparisons, source on the left and native implementation on the right: `/Users/shine/CommonWork/MobileWork/TideTunes/artifacts/comparisons/home.png`, `search.png`, `library.png`, `settings.png`, and `now-playing.png`.
+- State: dark theme; Home/Search/Library/Settings root states; persistent idle mini player in the cold-start native app; paused Now Playing QA state. Temporary QA-only start destinations and player data were removed before the final production build.
+
+### Required fidelity surfaces
+
+- Fonts and typography: the native hierarchy matches the Design headings, section titles, chips, playlist metadata, settings rows, lyric summary, time labels, and selected-navigation labels using the existing TideTunes type system. The compact player time format was corrected from `00:01:42` / `-00:02:00` to `1:42` / `-2:00`.
+- Spacing and layout rhythm: the four-item flat bottom navigation, 12 dp mini-player gutter, 72 dp mini-player height, segmented Library tabs, two-row horizontal genre rail, grouped settings cards, and full-width Now Playing hero align at the normalized 393 × 852 viewport. Content scrolls beneath the fixed player/navigation stack, while Home retains the verified 58 dp sticky header.
+- Colors and visual tokens: the implementation reuses the production dark surfaces, low-alpha outlines, TideTunes pink selected/action states, blue-purple gradients, muted secondary copy, and white Now Playing transport control. The mini-player outline was reduced after native comparison to match the source's quieter glass edge.
+- Image quality and asset fidelity: Home and Library reuse the source's eight 900 × 900 production covers with crop scaling and matching rounded corners. Library playlist rows now use the exact corresponding Design covers rather than the default record placeholder. The native Now Playing QA fixture could not resolve a database-backed cover and therefore shows the production fallback; the production screen still renders `track.artwork` through the same full-bleed crop path.
+- Copy and content: Search recent queries, genre names/order, and trending heading; Library tab/playlist copy; Settings grouping; and Now Playing title, artist, lyric, translation, and time structure follow the Design fixture. Native Settings copy follows the simulator's Chinese locale, a content-localization difference rather than a layout difference.
+- Icons and controls: the production Lucide navigation vectors, existing playback resources, real collapse/heart assets, clickable tabs/chips/rows, functional settings search, mini-player routing, Now Playing overflow menu, favorite toggle, progress seek, repeat, previous/play/next controls, and persistent navigation targets were retained.
+
+### Comparison history
+
+#### Iteration 1 — blocked
+
+- [P1] A cold start had no mini player because the shell only rendered it when a current track existed.
+- [P2] The mini-player outline was much brighter than the Design glass edge.
+- [P2] Search genres were rendered in the wrong two-row order; Library rows used one generic placeholder cover; Now Playing used long `hh:mm:ss` labels.
+- Fixes: added a semantically honest idle mini player that routes to Library, kept real-track controls for active playback, reduced the glass outline, corrected Search to row-major genre order, connected Library to the existing source covers, and added compact player-duration formatting.
+
+#### Iteration 2 — passed
+
+- Same-viewport combined evidence confirms the persistent mini player and flat four-item navigation on Home, Search, Library, and Settings; no content overlaps or horizontal overflow are visible.
+- Search now presents Electronic / Synthwave over Ambient / Techno and keeps the next column partially visible, matching the source affordance.
+- Library now matches the source segmented tabs, New action, playlist ordering, real cover crops, dividers, descriptions, and circular play actions.
+- Settings matches the source search field and Personalization / Playback / Library & Data grouping; search filters visible rows.
+- Now Playing matches the source hero-first composition, close action, title/artist/favorite/overflow row, lyric summary, progress/time rail, and five transport controls.
+- [P3] Native iOS status-bar, Dynamic Island, and home-indicator safe areas are platform chrome absent from the web Design capture.
+- [P3] The cold-start native mini player shows the honest idle state while the Design fixture shows Midnight Cascade playing.
+- [P3] Settings uses the simulator's Chinese localization, and the isolated Now Playing QA fixture uses the production fallback cover; neither changes component geometry or the real data/artwork path.
+
+### Technical verification
+
+- Targeted iOS simulator compilation for Search, Library, Settings, playback presentation, and shared navigation: passed.
+- Desktop regression suite for Search, Library, Settings, playback presentation, and shared navigation: passed (`BUILD SUCCESSFUL`).
+- Post-cover Library desktop test: passed (`BUILD SUCCESSFUL`).
+- Final `xcodebuild` for the iPhone 15 Pro simulator after restoring the production Home start tab: passed (`** BUILD SUCCEEDED **`). Existing malformed iOS 15.5 runtime and newer-object deployment warnings remain non-blocking.
+- Final app install and clean launch: passed with bundle `com.github.tidetunes`.
+- `git diff --check`: passed.
+
+## Findings
+
+No actionable P0, P1, or P2 findings remain. The P3 notes are deliberate native-platform, localization, and runtime-content adaptations.
+
+final result: passed
+
+---
+
 ## Immersive mobile now playing — 2026-07-20
 
 ### Source and implementation evidence
@@ -227,5 +324,200 @@ final result: passed
 ## Findings
 
 No actionable P0, P1, or P2 findings remain. The two P3 notes are deliberate product-system adaptations rather than defects.
+
+final result: passed
+
+---
+
+## Compose Multiplatform native Home fidelity — 2026-07-20
+
+### Source and implementation evidence
+
+- Source visual truth: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/tidetunes-native-ui/source-design-home-mobile.png`.
+- Native implementation screenshot: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/tidetunes-native-ui/final-ios-home.png`.
+- Final combined comparison: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/tidetunes-native-ui/final-comparison.png`.
+- Viewport and state: source 390 × 844; native iPhone 15 Pro 393 × 852 points (1179 × 2556 at 3×), normalized to 390 × 844 for comparison; dark theme; Home selected; native playback inactive.
+- The source and native capture were placed side by side at the same normalized viewport. The full-view comparison was sufficient for focused review because the hero copy, cover crops, card metadata, section hierarchy, ranking details, and bottom navigation remained readable at 2× output resolution.
+
+### Required fidelity surfaces
+
+- Fonts and typography: native Plus Jakarta Sans styling preserves the source's large Home title, heavy Daily Picks title, compact muted status line, section hierarchy, card labels, and two-line ranking metadata.
+- Spacing and layout: the compact hero is 152 dp with a 22 dp radius; horizontal content gutters, 160 dp pinned cards, section rhythm, and 120 dp recently-added cards map to the source. Native safe-area and status-bar space remain platform-owned.
+- Colors and tokens: the dark background, blue-purple hero, TideTunes pink action/selected states, muted secondary text, translucent icon containers, and card overlays use existing production tokens while matching the source hierarchy.
+- Image quality: the eight source Unsplash crops are stored as 900 × 900 production resources and rendered with crop scaling; the hero uses three circular source crops with visible borders. No placeholder or code-drawn cover remains.
+- Copy and content: Daily Picks, current-track status, My Favorites, pinned metadata, descriptions, and the Top tracks by time / This month ranking copy match the Design fixture.
+- Icons and affordances: play and chevron actions use existing production icon assets and clickable Compose surfaces. Section-leading glyphs retain the production music-note family; this is recorded below as a non-blocking P3 system adaptation.
+
+### Comparison history
+
+#### Iteration 1 — blocked
+
+- Evidence: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/tidetunes-native-ui/iteration-1-comparison.png`.
+- [P1] The compact Daily Picks banner rendered as a 250 dp poster instead of the source's 152 px horizontal banner.
+- [P2] Section headers displayed “See All” instead of the source chevron treatment.
+- [P2] Pinned and album artwork used gradient placeholders and omitted the source's first My Favorites card.
+- [P2] Your Listening used a summary metric card instead of the source's ranked Top tracks by time preview.
+- Fix: restored source dimensions, copy, real cover resources, hero crop composition, My Favorites data, chevron headers, card sizes, and monthly ranking rows.
+
+#### Iteration 2 — passed
+
+- Hero proportion, title/status/button hierarchy, cover placement, playlist crops and metadata, first-card content, listening heading, ranking row, and bottom navigation now align in the combined viewport.
+- [P3] iOS status-bar, Dynamic Island, home indicator, and additional safe-area spacing are native platform chrome absent from the web source.
+- [P3] Section-leading glyphs reuse the app's existing music-note resource instead of introducing new source-only bookmark/activity assets.
+- [P3] The native capture has no mini player because playback was inactive; the Design capture shows a playing-state mini player. The persistent player host remains part of the production shell and was not forced into an artificial state for this comparison.
+
+### Technical verification
+
+- `pnpm build` in `Design/`: passed with the existing Vite chunk-size advisory only.
+- `./gradlew :feature:home:compileKotlinDesktop`: passed after the final Home changes.
+- `./gradlew :desktopApp:compileKotlinDesktop :shared:desktopTest --continue`: passed; the existing experimental-coroutines opt-in warning remains non-blocking.
+- `xcodebuild` for the iPhone 15 Pro simulator: passed; the existing simulator-runtime and newer-object deployment warnings remain non-blocking.
+- App install and launch: passed with bundle `com.github.tidetunes`; final screenshot captured after a clean relaunch.
+- Runtime log review found no TideTunes error or fault entries; `git diff --check` passed.
+
+## Findings
+
+No actionable P0, P1, or P2 findings remain. The listed P3 differences are deliberate production-system, native-platform, or playback-state adaptations.
+
+final result: passed
+
+---
+
+## Compose Multiplatform bottom navigation correction — 2026-07-21
+
+### Source and implementation evidence
+
+- Source visual truth: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/tidetunes-native-ui/source-design-home-mobile.png`.
+- Pre-fix native screenshot: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/tidetunes-native-ui/final-ios-home.png`.
+- Post-fix native screenshot: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/tidetunes-native-ui/nav-final-ios-home.png`.
+- Full-view comparison: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/tidetunes-native-ui/nav-final-comparison.png`.
+- Focused bottom-navigation comparison: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/tidetunes-native-ui/nav-final-focused.png`.
+- Viewport and state: source 390 × 844; native iPhone 15 Pro 393 × 852 points, normalized to 390 × 844; dark theme; Home selected; playback inactive in the native capture.
+
+### Required fidelity surfaces
+
+- Fonts and typography: labels now use 10 sp type with 12 sp line height and semibold weight only for the selected item, matching the source hierarchy and compact density.
+- Spacing and layout: the full rounded floating shell was replaced with the source's flat 62 dp navigation region and 1 dp top divider. Four equal-width targets retain full-height click surfaces; the selected indicator is 48 × 28 dp and icon-to-label spacing is 2 dp.
+- Colors and tokens: the navigation surface uses the production surface token at the source's 86% opacity; the divider uses the existing low-alpha outline token; the selected indicator uses primary at 12% rather than the earlier saturated gradient.
+- Image and icon fidelity: Home, Search, Library, and Settings now use the exact Lucide 0.487.0 icon definitions used by the Design source, translated into production Compose vector resources under the ISC license. No placeholder, emoji, text glyph, or hand-drawn substitute remains.
+- Copy and content: Home, Search, Library, and Settings labels and ordering are unchanged and match the source.
+
+### Comparison history
+
+#### Iteration 1 — blocked
+
+- [P1] The native navigation used a large top-rounded floating container with a high-contrast full border, materially changing the persistent bottom region from the Design source's flat bar.
+- [P2] Home used a filled dashboard grid and Library used a music note, while the source uses Lucide House and Library line icons.
+- [P2] The selected background was a stronger pink-purple gradient and the 5 dp icon-label gap made the navigation appear taller and looser than the source.
+- Fix: removed rounded clipping and the full border, added the source-aligned divider and dimensions, reduced indicator opacity and spacing, and supplied exact Lucide navigation assets.
+
+#### Iteration 2 — passed
+
+- Full-view evidence confirms the bottom region is now flat and visually integrated with the page instead of appearing as a separate floating panel.
+- Focused evidence confirms the four icons, selected indicator, labels, alignment, ordering, and divider match the source at the normalized viewport.
+- [P3] The native capture retains the iOS home-indicator safe area below the 62 dp navigation content; the web Design source has no operating-system safe area.
+- [P3] The source capture includes a playing-state mini player above the navigation; the native capture is intentionally playback-inactive. This does not alter the navigation component's measured styling.
+
+### Technical verification
+
+- `./gradlew :shared:compileKotlinDesktop`: passed after adding the navigation resources and component changes.
+- `./gradlew :desktopApp:compileKotlinDesktop :shared:desktopTest --continue`: passed.
+- `xcodebuild` for the iPhone 15 Pro simulator: passed; the existing simulator-runtime and deployment-version warnings remain non-blocking.
+- App install and clean relaunch: passed; the final screenshot was captured from the rebuilt native app.
+
+## Findings
+
+No actionable P0, P1, or P2 bottom-navigation findings remain. The two P3 differences are native-platform and playback-state adaptations.
+
+final result: passed
+
+---
+
+## Compose Multiplatform Home sticky-header correction — 2026-07-21
+
+### Source and implementation evidence
+
+- Dynamic source state: the `Design/` prototype at 390 × 844 with the Home scroller at `scrollTop = 130`; its header measured 390 × 58 px and its title measured 24 px with a 30 px line height.
+- Source focused crop: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/tidetunes-native-ui/source-sticky-focused.png`.
+- Native collapsed-state screenshot: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/tidetunes-native-ui/sticky-native-scrolled.png`.
+- Final focused side-by-side comparison: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/tidetunes-native-ui/sticky-final-focused.png`.
+- Final production initial-state screenshot after removing the QA scroll seed: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/tidetunes-native-ui/sticky-native-final-initial.png`.
+- Viewport and state: source 390 × 844; native iPhone 15 Pro 393 × 852 points, normalized to 390 × 844. The comparison excludes the native status-bar safe area and inspects the same 180 px collapsed-header/content segment.
+
+### Required fidelity surfaces
+
+- Fonts and typography: the collapsed native title uses the source's 24 sp size, 30 sp line height, bold weight, and single-line truncation behavior.
+- Spacing and layout: `Home` is now a Compose `stickyHeader`; after 48 dp of upward scroll it occupies a full-width 58 dp bar. The hero and following section remain beneath the fixed header instead of replacing it.
+- Colors and tokens: the header uses the production background token and a low-alpha foreground divider. The opaque native treatment preserves the visual result of the source's blurred translucent surface without allowing unblurred card copy to bleed through.
+- Image and content continuity: the real Daily Picks covers and Pinned Playlists artwork continue scrolling underneath the header with no crop, scale, or data substitutions.
+- Icons and affordances: the existing Home content and bottom-navigation controls are unchanged; the correction only changes the scroll container and shared compact-title styling.
+
+### Comparison history
+
+#### Iteration 1 — blocked
+
+- [P1] The Home title was a normal `LazyColumn` item and disappeared with the rest of the content, while the source header stayed fixed at the top.
+- Fix: converted the title item to `stickyHeader`, derived the collapsed state from list position/offset, and switched to the compact title after 48 dp.
+
+#### Iteration 2 — blocked
+
+- [P2] A 92% opaque header without native backdrop blur allowed unblurred Daily Picks copy to show through.
+- [P2] The first divider was constrained by the page gutters and used a stronger outline color than the source.
+- Fix: used an opaque production background, extended the compact header and divider to the viewport width, set the collapsed bar to 58 dp, and reduced the divider to an 8% foreground tint.
+
+#### Iteration 3 — passed
+
+- The focused combined comparison confirms matching header height, 24 sp title scale, gutters, solid overlap behavior, divider weight, hero position, and following-section entry point.
+- [P3] The web source exposes a thin scrollbar at the right edge during browser capture; the native Compose list intentionally uses the platform's non-persistent scroll indicator behavior.
+
+### Technical verification
+
+- `git diff --check`: passed.
+- `./gradlew :desktopApp:compileKotlinDesktop :shared:desktopTest --continue`: passed after restoring the normal initial list state.
+- `xcodebuild` for the iPhone 15 Pro simulator: passed after restoring the normal initial list state; the existing malformed iOS 15.5 runtime and newer-object deployment warnings remain non-blocking.
+- App install and clean launch: passed with bundle `com.github.tidetunes`; the production build opens at the top of Home, while the collapsed-state evidence was captured from a temporary QA-only initial list position that was removed before the final build.
+- Runtime log inspection showed the simulator's existing `libxpc` assertion, but the TideTunes process remained live and rendered both initial and collapsed states without a crash or visible fault.
+
+## Findings
+
+No actionable P0, P1, or P2 sticky-header findings remain. The scrollbar note is a deliberate browser/native platform difference.
+
+final result: passed
+
+---
+
+## Final Design UI suite verification — 2026-07-21
+
+### Evidence
+
+- Source screenshots: `/Users/shine/CommonWork/MobileWork/TideTunes/artifacts/design-source/home.png`, `search.png`, `library.png`, `settings.png`, `now-playing.png`.
+- Native screenshots: `/Users/shine/CommonWork/MobileWork/TideTunes/artifacts/native/home-final.png`, `search-final.png`, `library-final.png`, `settings-final.png`, `now-playing-final.png`.
+- Same-viewport source/implementation comparisons: `/Users/shine/CommonWork/MobileWork/TideTunes/artifacts/comparisons/home.png`, `search.png`, `library.png`, `settings.png`, `now-playing.png`.
+- Viewport: 393 × 852 points; native captures are 1179 × 2556 at 3× and normalized to 393 × 852 in every combined comparison.
+
+### Five fidelity surfaces
+
+- Typography: page titles, section hierarchy, chips, row copy, lyric summary, compact time labels, and selected navigation labels match the Design hierarchy using the production TideTunes font system.
+- Spacing/layout: the persistent 72 dp mini player, flat four-item navigation, Home sticky header, Search two-row genre rail, Library segmented tabs and rows, Settings groups, and Now Playing hero/controls fit without overlap or horizontal overflow.
+- Colors/tokens: production dark surfaces, TideTunes pink, blue-purple gradients, low-alpha glass borders, muted copy, dividers, and white transport controls match the source hierarchy.
+- Images/assets: Home and Library use the source's real 900 × 900 covers with matching crops and radii; production vector resources are used for navigation, collapse, favorite, playback, and settings actions. The isolated Now Playing fixture's unresolved database artwork exercises the production fallback while real playback uses the same `track.artwork` crop path.
+- Copy/controls: Search queries and genre order, Library tabs/playlists, Settings groups/search, mini-player routing, page navigation, menu, favorite, seek, and transport controls align with the source and remain interactive. The Chinese Settings capture reflects the simulator locale.
+
+### Final iteration history
+
+- Iteration 1 blocked: cold-start mini player absent; mini glass outline too bright; Search card order wrong; Library used placeholder covers; Now Playing used long time labels.
+- Iteration 2 passed: idle mini player added, player/nav stacking corrected, outline reduced, Search reordered, Library connected to exact source covers, Settings grouped and searchable, and Now Playing time/controls corrected.
+- P3 adaptations: native status/safe-area chrome, localized Settings copy, idle versus playing fixture content, and the isolated Now Playing fallback cover. These do not affect component geometry or production data paths.
+
+### Verification
+
+- Search/Library/Settings/playback/shared desktop regression tests: passed.
+- Post-cover Library desktop test: passed.
+- Final iPhone 15 Pro simulator `xcodebuild`, after all QA-only start-state overrides were removed and Home was restored as the initial tab: passed.
+- Final app install and clean launch: passed; `git diff --check` passed.
+
+## Findings
+
+No actionable P0, P1, or P2 findings remain.
 
 final result: passed

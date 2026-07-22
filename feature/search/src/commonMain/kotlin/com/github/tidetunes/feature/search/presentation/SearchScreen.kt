@@ -57,9 +57,14 @@ import tidetunes.feature.search.generated.resources.icon_music_note
 import tidetunes.feature.search.generated.resources.icon_search
 import tidetunes.feature.search.generated.resources.search_empty
 import tidetunes.feature.search.generated.resources.search_hint
+import tidetunes.feature.search.generated.resources.search_connection_retry
+import tidetunes.feature.search.generated.resources.search_recent_searches
 import tidetunes.feature.search.generated.resources.search_remote_failures
 import tidetunes.feature.search.generated.resources.search_suggestions
 import tidetunes.feature.search.generated.resources.search_title
+import tidetunes.feature.search.generated.resources.search_try_suggestion
+import tidetunes.feature.search.generated.resources.searching
+import tidetunes.feature.search.generated.resources.downloads_retry
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -143,7 +148,7 @@ private fun SearchContent(
             SearchLoadState.Searching -> {
                 item {
                     SearchStatusCard(
-                        title = "Searching",
+                        title = stringResource(Res.string.searching),
                         message = state.query.ifBlank { stringResource(Res.string.search_hint) },
                         loading = true,
                     )
@@ -153,8 +158,8 @@ private fun SearchContent(
                 item {
                     SearchStatusCard(
                         title = stringResource(Res.string.search_remote_failures),
-                        message = "Check source connection and try again.",
-                        actionText = "Retry",
+                        message = stringResource(Res.string.search_connection_retry),
+                        actionText = stringResource(Res.string.downloads_retry),
                         onAction = { onAction(SearchAction.Retry) },
                     )
                 }
@@ -169,7 +174,7 @@ private fun SearchContent(
                 item {
                     SearchStatusCard(
                         title = stringResource(Res.string.search_empty),
-                        message = "Try a recent search, artist, album, folder, or source.",
+                        message = stringResource(Res.string.search_try_suggestion),
                     )
                 }
                 item {
@@ -299,7 +304,7 @@ private fun SearchDiscovery(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(TideTunesTokens.spacing.lg)) {
         TideChipSection(
-            title = "Recent Searches",
+            title = stringResource(Res.string.search_recent_searches),
             labels = state.history.take(8).ifEmpty { state.trendingQueries().take(5) },
             trailing = if (state.history.isNotEmpty()) {
                 {

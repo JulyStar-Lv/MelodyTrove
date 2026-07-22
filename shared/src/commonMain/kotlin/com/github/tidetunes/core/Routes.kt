@@ -17,6 +17,10 @@ fun isRouteHome(route: String?): Boolean {
     return routeIsHome(route)
 }
 
+fun isRouteNowPlaying(route: String?): Boolean {
+    return route != null && (route == "NowPlaying" || route.endsWith(".NowPlaying"))
+}
+
 fun RouteAddDevices(id: String): MusicGraph.EditStorage {
     return MusicGraph.EditStorage(id.toLongOrNull() ?: NEW_STORAGE_ID)
 }

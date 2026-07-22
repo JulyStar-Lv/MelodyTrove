@@ -112,6 +112,8 @@ internal fun RootNavHost(
         downloadsGraph()
         playerGraph(
             onNavigateBack = { navController.popBackStack() },
+            onNavigateToLyrics = { trackId -> navController.navigate(MusicGraph.Lyrics(trackId)) },
+            onNavigateToQueue = { navController.navigate(MusicGraph.Queue) },
             onNavigateToLyricImport = {
                 navController.navigate(MusicGraph.Import(RouteImportType.Lyric))
             },

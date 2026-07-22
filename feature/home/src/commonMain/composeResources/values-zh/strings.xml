@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_title">首页</string>
+    <string name="home_good_evening">晚上好</string>
+    <string name="home_subtitle">一个音乐库，所有音源。</string>
+    <string name="home_pinned_playlists">置顶播放列表</string>
+    <string name="home_your_listening">你的聆听</string>
+    <string name="home_continue_playing">继续播放</string>
+    <string name="home_recently_played">最近播放</string>
+    <string name="home_recently_added">最近添加</string>
+    <string name="home_recommended_artists">推荐艺术家</string>
+    <string name="home_daily_picks">每日精选</string>
+    <string name="home_play">播放</string>
+    <string name="home_save">保存</string>
+    <string name="home_now_playing">正在播放：%1$s</string>
+    <string name="home_no_track">暂无曲目</string>
+    <string name="home_top_tracks">按时长排行的曲目</string>
+    <string name="home_this_month">本月</string>
+    <string name="home_music_all_sources">所有音源中的音乐</string>
+    <string name="home_favorite">收藏</string>
+</resources>

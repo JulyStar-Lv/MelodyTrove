@@ -69,6 +69,20 @@
     <string name="settings_language_chinese_summary">Use Chinese after restart</string>
     <string name="settings_language_english">English</string>
     <string name="settings_language_english_summary">Use English after restart</string>
+    <string name="settings_search_hint">Search settings…</string>
+    <string name="settings_personalization_section">Personalization</string>
+    <string name="settings_appearance_card_summary">Theme, dynamic color, and app language</string>
+    <string name="settings_lyrics_card_summary">Sources, alignment, type, effects, and external output</string>
+    <string name="settings_playback_card_summary">Audio focus, queue behavior, ReplayGain, and DSP</string>
+    <string name="settings_library_data_section">Library &amp; data</string>
+    <string name="settings_sources_card_summary">%1$d sources · %2$d ready</string>
+    <string name="settings_metadata_plugins">Metadata plugins</string>
+    <string name="settings_metadata_plugins_summary">Import and configure Lyrico Plugin API v3 providers</string>
+    <string name="settings_network_cache_card_summary">Streaming policy, cache limits, timeout, and retries</string>
+    <string name="settings_storage_card_summary">%1$s used · cleanup, backup, and diagnostics</string>
+    <string name="settings_app_info_section">App &amp; info</string>
+    <string name="settings_about_card_summary">TideTunes %1$s · build, links, privacy, and licenses</string>
+    <string name="settings_search_empty">No settings match “%1$s”</string>
 
     <string name="settings_audio_focus_section">Audio focus</string>
     <string name="settings_audio_focus_pause">Pause other audio</string>
@@ -391,6 +405,8 @@
     <string name="settings_player_interaction_section">Player interaction</string>
     <string name="settings_open_player_on_play">Open player when playback starts</string>
     <string name="settings_player_cover_swipe">Swipe the cover to change tracks</string>
+    <string name="settings_player_immersive_cover">Immersive album cover</string>
+    <string name="settings_player_immersive_cover_summary">Extend the cover to the top of the player; disable it to use the compact rounded cover layout</string>
     <string name="settings_player_tap_progress">Tap the progress bar to seek</string>
     <string name="settings_player_total_duration">Show total duration</string>
     <string name="settings_player_song_annotation">Show song annotation</string>

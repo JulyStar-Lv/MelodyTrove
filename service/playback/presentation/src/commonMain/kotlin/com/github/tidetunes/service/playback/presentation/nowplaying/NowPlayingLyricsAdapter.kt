@@ -11,7 +11,7 @@ import com.mocharealm.accompanist.lyrics.core.model.karaoke.KaraokeSyllable
 import com.mocharealm.accompanist.lyrics.core.model.synced.SyncedLine
 
 /** Converts TideTunes timestamped lyric lines into the accompanist lyrics-core timeline model. */
-internal fun List<LyricLine>.toSyncedLyrics(
+fun List<LyricLine>.toSyncedLyrics(
     trackTitle: String,
     trackDurationMs: Long?,
     settings: LyricDisplaySettings = LyricDisplaySettings.Default,

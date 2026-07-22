@@ -2,6 +2,7 @@ package com.github.tidetunes.feature.queue.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.github.tidetunes.core.domain.model.Artwork
 import com.github.tidetunes.service.playback.domain.PlayableItem
 import com.github.tidetunes.service.playback.domain.PlaybackController
 import com.github.tidetunes.service.playback.domain.PlaybackStatus
@@ -37,6 +38,7 @@ class QueueViewModel(
                     artist = item.artist,
                     durationMs = item.durationMs,
                     isCurrent = index == queue.currentIndex,
+                    artwork = item.toArtwork(),
                 )
             }.toPersistentList(),
             currentIndex = queue.currentIndex,
@@ -68,4 +70,10 @@ class QueueViewModel(
             QueueAction.ToggleShuffle -> playbackController.setShuffle(!state.value.isShuffleEnabled)
         }
     }
+}
+
+private fun PlayableItem.toArtwork(): Artwork? = when {
+    libraryTrackId != null -> libraryTrackId?.let(Artwork::LibraryTrack)
+    mediaId != null -> mediaId?.let(Artwork::SourceMedia)
+    else -> null
 }

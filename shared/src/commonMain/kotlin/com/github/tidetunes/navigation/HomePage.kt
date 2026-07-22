@@ -28,9 +28,9 @@ import com.github.tidetunes.core.isRouteHome
 import com.github.tidetunes.core.presentation.layout.WindowSizeClass
 import com.github.tidetunes.core.presentation.layout.rememberWindowSizeClass
 import com.github.tidetunes.core.presentation.navigation.MusicGraph
+import com.github.tidetunes.core.presentation.components.TideGlassScene
 import com.github.tidetunes.feature.importing.presentation.navigation.RouteImportType
 import com.github.tidetunes.service.playback.presentation.shell.PlaybackMiniPlayerHost
-import com.github.tidetunes.service.playback.presentation.shell.rememberHasPlaybackItem
 import com.github.tidetunes.service.playback.presentation.shell.rememberIsPlaybackPlaying
 import com.github.tidetunes.widgets.appbar.BottomBar
 import com.github.tidetunes.widgets.appbar.NavigationRailBar
@@ -50,7 +50,6 @@ fun HomePage(
     val currentRootBackStackEntry by globalNavController.currentBackStackEntryAsState()
     val currentRootRoute = currentRootBackStackEntry?.destination?.route.orEmpty()
     val showHomeChrome = isRouteHome(currentRootRoute)
-    val hasCurrentMusic = rememberHasPlaybackItem()
     val isPlaybackPlaying = rememberIsPlaybackPlaying()
     val onOpenNowPlaying = {
         globalNavController.navigate(MusicGraph.NowPlaying)
@@ -73,22 +72,23 @@ fun HomePage(
         }
         wasPlaybackPlaying = isPlaybackPlaying
     }
+    var currentTab by remember { mutableStateOf(HomeTab.HOME) }
     val miniPlayerContent: @Composable () -> Unit = {
         PlaybackMiniPlayerHost(
             onOpenNowPlaying = onOpenNowPlaying,
+            onBrowseLibrary = { currentTab = HomeTab.LIBRARY },
         )
     }
-
-    var currentTab by remember { mutableStateOf(HomeTab.HOME) }
 
     val libraryNavController = rememberNavController()
     val searchNavController = rememberNavController()
     val settingsNavController = rememberNavController()
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val windowSizeClass = rememberWindowSizeClass(
-            containerSize = androidx.compose.ui.unit.DpSize(maxWidth, maxHeight),
-        )
+    TideGlassScene(modifier = Modifier.fillMaxSize()) {
+        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+            val windowSizeClass = rememberWindowSizeClass(
+                containerSize = androidx.compose.ui.unit.DpSize(maxWidth, maxHeight),
+            )
 
         val tabContent: @Composable (HomeTab) -> Unit = { tab ->
             HomeTabContent(
@@ -105,11 +105,11 @@ fun HomePage(
             )
         }
 
-        when (windowSizeClass) {
+            when (windowSizeClass) {
             WindowSizeClass.Compact -> {
                 Box(
                     modifier = Modifier.padding(
-                        bottom = getBottomBarSpace(hasCurrentMusic, scaffoldPadding),
+                        bottom = getBottomBarSpace(showHomeChrome, scaffoldPadding),
                     ),
                 ) {
                     tabContent(currentTab)
@@ -118,7 +118,7 @@ fun HomePage(
                     currentTab = currentTab,
                     onTabSelected = { currentTab = it },
                     miniPlayerContent = miniPlayerContent,
-                    hasCurrentMusic = hasCurrentMusic,
+                    showMiniPlayer = showHomeChrome,
                     showChrome = showHomeChrome,
                     scaffoldPadding = scaffoldPadding,
                 )
@@ -136,7 +136,7 @@ fun HomePage(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight(),
-                        hasCurrentMusic = hasCurrentMusic,
+                        showMiniPlayer = showHomeChrome,
                         miniPlayerContent = miniPlayerContent,
                     ) {
                         tabContent(currentTab)
@@ -168,12 +168,13 @@ fun HomePage(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight(),
-                        hasCurrentMusic = hasCurrentMusic,
+                        showMiniPlayer = showHomeChrome,
                         miniPlayerContent = miniPlayerContent,
                     ) {
                         tabContent(currentTab)
                     }
                 }
+            }
             }
         }
     }
@@ -181,7 +182,7 @@ fun HomePage(
 
 @Composable
 private fun HomeMainPane(
-    hasCurrentMusic: Boolean,
+    showMiniPlayer: Boolean,
     miniPlayerContent: @Composable () -> Unit,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
@@ -190,7 +191,7 @@ private fun HomeMainPane(
         Box(modifier = Modifier.weight(1f)) {
             content()
         }
-        if (hasCurrentMusic) {
+        if (showMiniPlayer) {
             Box(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             ) {

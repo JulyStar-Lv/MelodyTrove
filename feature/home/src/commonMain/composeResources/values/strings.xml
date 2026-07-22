@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_title">Home</string>
+    <string name="home_good_evening">Good Evening</string>
+    <string name="home_subtitle">One library, every source.</string>
+    <string name="home_pinned_playlists">Pinned Playlists</string>
+    <string name="home_your_listening">Your Listening</string>
+    <string name="home_continue_playing">Continue Playing</string>
+    <string name="home_recently_played">Recently Played</string>
+    <string name="home_recently_added">Recently Added</string>
+    <string name="home_recommended_artists">Recommended Artists</string>
+    <string name="home_daily_picks">Daily Picks</string>
+    <string name="home_play">Play</string>
+    <string name="home_save">Save</string>
+    <string name="home_now_playing">Now Playing: %1$s</string>
+    <string name="home_no_track">No track</string>
+    <string name="home_top_tracks">Top tracks by time</string>
+    <string name="home_this_month">This month</string>
+    <string name="home_music_all_sources">Music across all sources</string>
+    <string name="home_favorite">Favorite</string>
+</resources>

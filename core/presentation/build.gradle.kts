@@ -35,6 +35,7 @@ kotlin {
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.kotlinx.collections.immutable)
+            implementation(libs.backdrop)
         }
         androidMain.dependencies {
             implementation(libs.androidx.activity.compose)

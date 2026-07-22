@@ -139,6 +139,8 @@ class PlayerVM constructor(
             NowPlayingAction.RemoveCurrentTrack -> remove()
             NowPlayingAction.DownloadCurrentTrack -> downloadCurrentTrack()
             NowPlayingAction.OpenSleepTimer -> Unit
+            NowPlayingAction.OpenLyrics -> Unit
+            NowPlayingAction.OpenQueue -> Unit
             NowPlayingAction.PlayPrevious -> playPrevious()
             NowPlayingAction.PlayNext -> playNext()
             NowPlayingAction.Resume -> resume()

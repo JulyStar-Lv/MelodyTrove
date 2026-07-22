@@ -69,6 +69,20 @@
     <string name="settings_language_chinese_summary">重启后使用中文</string>
     <string name="settings_language_english">English</string>
     <string name="settings_language_english_summary">重启后使用英文</string>
+    <string name="settings_search_hint">搜索设置…</string>
+    <string name="settings_personalization_section">个性化</string>
+    <string name="settings_appearance_card_summary">主题、动态配色与应用语言</string>
+    <string name="settings_lyrics_card_summary">音源、对齐、字体、效果与外部输出</string>
+    <string name="settings_playback_card_summary">音频焦点、队列行为、ReplayGain 与 DSP</string>
+    <string name="settings_library_data_section">音乐库与数据</string>
+    <string name="settings_sources_card_summary">%1$d 个音源 · %2$d 个已就绪</string>
+    <string name="settings_metadata_plugins">元数据插件</string>
+    <string name="settings_metadata_plugins_summary">导入并配置 Lyrico Plugin API v3 提供方</string>
+    <string name="settings_network_cache_card_summary">流媒体策略、缓存上限、超时与重试</string>
+    <string name="settings_storage_card_summary">已使用 %1$s · 清理、备份与诊断</string>
+    <string name="settings_app_info_section">应用与信息</string>
+    <string name="settings_about_card_summary">TideTunes %1$s · 构建、链接、隐私与许可证</string>
+    <string name="settings_search_empty">没有与“%1$s”匹配的设置</string>
 
     <string name="settings_audio_focus_section">音频焦点</string>
     <string name="settings_audio_focus_pause">暂停其他播放</string>
@@ -391,6 +405,8 @@
     <string name="settings_player_interaction_section">播放器交互</string>
     <string name="settings_open_player_on_play">开始播放时打开播放器</string>
     <string name="settings_player_cover_swipe">滑动封面切歌</string>
+    <string name="settings_player_immersive_cover">沉浸专辑封面</string>
+    <string name="settings_player_immersive_cover_summary">开启后封面延伸到播放器顶部；关闭后使用收敛的圆角封面布局</string>
     <string name="settings_player_tap_progress">点击进度条跳转</string>
     <string name="settings_player_total_duration">显示总时长</string>
     <string name="settings_player_song_annotation">显示歌曲注释</string>

@@ -18,12 +18,11 @@ class LyricsViewModel(
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(LyricsState())
+    private val trackId: Long = savedStateHandle["id"]!!
+    private val _state = MutableStateFlow(LyricsState(trackId = trackId))
     private val _events = Channel<LyricsEvent>(Channel.BUFFERED)
     val state = _state.asStateFlow()
     val events = _events.receiveAsFlow()
-
-    private val trackId: Long = savedStateHandle["id"]!!
 
     init {
         load()
@@ -43,6 +42,7 @@ class LyricsViewModel(
                 val lyrics: DomainLyrics = lyricsRepository.loadLyrics(trackId)
 
                 _state.value = LyricsState(
+                    trackId = trackId,
                     isLoading = false,
                     trackTitle = lyrics.trackTitle,
                     trackArtist = lyrics.trackArtist,

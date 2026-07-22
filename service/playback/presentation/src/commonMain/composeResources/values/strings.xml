@@ -14,4 +14,20 @@
     <string name="time_to_pause_delete">Delete</string>
     <string name="time_to_pause_hour">Hour</string>
     <string name="time_to_pause_minute">Minute</string>
+    <string name="now_playing_title">Now Playing</string>
+    <string name="player_more_options">More options</string>
+    <string name="player_play">Play</string>
+    <string name="player_pause">Pause</string>
+    <string name="player_next_track">Next track</string>
+    <string name="player_close">Close player</string>
+    <string name="player_add_favorite">Add to favorites</string>
+    <string name="player_remove_favorite">Remove from favorites</string>
+    <string name="player_nothing_playing">Nothing playing</string>
+    <string name="player_choose_from_library">Choose something from your library</string>
+    <string name="player_unknown_artist">Unknown artist</string>
+    <string name="player_loading_lyrics">Loading lyrics</string>
+    <string name="player_lyrics_unavailable">Lyrics are not available for this track</string>
+    <string name="player_lyrics_tap_to_seek">Lyrics · tap to seek</string>
+    <string name="player_lyrics_by">Lyrics by · %1$s</string>
+    <string name="player_composed_by">Composed by · %1$s</string>
 </resources>

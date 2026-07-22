@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -54,7 +55,11 @@ fun TidePageHeader(
             Text(
                 text = title,
                 color = MiuixTheme.colorScheme.onBackground,
-                style = if (compact) MiuixTheme.textStyles.title3 else MiuixTheme.textStyles.title1,
+                style = if (compact) {
+                    MiuixTheme.textStyles.title2.copy(fontSize = 24.sp, lineHeight = 30.sp)
+                } else {
+                    MiuixTheme.textStyles.title1
+                },
                 fontWeight = FontWeight.Bold,
                 maxLines = titleMaxLines,
                 overflow = TextOverflow.Ellipsis,

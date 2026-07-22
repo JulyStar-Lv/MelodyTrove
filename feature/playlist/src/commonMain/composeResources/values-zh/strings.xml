@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="music_count_unit">首歌曲</string>
+    <string name="playlist_empty">暂无播放列表。点按以添加。</string>
+    <string name="playlist_empty_list">播放列表中没有歌曲</string>
+    <string name="playlist_list_count_suffix">首歌曲</string>
+    <string name="playlist_list_count_suffixes">首歌曲</string>
+    <string name="playlist_context_menu_import">导入歌曲</string>
+    <string name="playlist_context_menu_edit">编辑</string>
+    <string name="playlist_context_menu_remove">移除</string>
+    <string name="playlist_remove_dialog_text">确定要移除播放列表吗</string>
+    <string name="playlists_dialog_button_cancel">取消</string>
+    <string name="playlists_dialog_button_ok">确定</string>
+    <string name="playlists_dialog_button_reset">重置</string>
+    <string name="playlists_dialog_cover">封面（可选）</string>
+    <string name="playlists_dialog_import_info">导入信息</string>
+    <string name="playlists_dialog_playlist_full_import_desc">从存储中导入歌曲和封面</string>
+    <string name="playlists_dialog_playlist_name">播放列表名称</string>
+    <string name="playlists_dialog_tab_empty">空白</string>
+    <string name="playlists_dialog_tab_full">完整</string>
+</resources>

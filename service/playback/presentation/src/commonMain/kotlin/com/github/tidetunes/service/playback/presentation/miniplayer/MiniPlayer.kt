@@ -25,12 +25,18 @@ import com.github.tidetunes.core.utils.formatDuration
 import com.github.tidetunes.service.playback.domain.PlaybackStatus
 import com.github.tidetunes.service.playback.presentation.PlayerVM
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import tidetunes.service.playback.presentation.generated.resources.Res
 import tidetunes.service.playback.presentation.generated.resources.icon_pause
 import tidetunes.service.playback.presentation.generated.resources.icon_play
 import tidetunes.service.playback.presentation.generated.resources.icon_play_next
 import tidetunes.service.playback.presentation.generated.resources.icon_play_previous
+import tidetunes.service.playback.presentation.generated.resources.player_choose_from_library
+import tidetunes.service.playback.presentation.generated.resources.player_next_track
+import tidetunes.service.playback.presentation.generated.resources.player_nothing_playing
+import tidetunes.service.playback.presentation.generated.resources.player_pause
+import tidetunes.service.playback.presentation.generated.resources.player_play
 import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
@@ -123,7 +129,9 @@ private fun MiniPlayerBar(
                 enabled = !loading,
                 size = TidePlayerControlSize.Mini,
                 variant = TidePlayerControlVariant.Ghost,
-                contentDescription = if (isPlaying) "Pause" else "Play",
+                contentDescription = stringResource(
+                    if (isPlaying) Res.string.player_pause else Res.string.player_play
+                ),
                 onClick = if (isPlaying) onPause else onPlay,
             )
             TidePlayerControlButton(
@@ -131,7 +139,7 @@ private fun MiniPlayerBar(
                 enabled = canNext,
                 size = TidePlayerControlSize.Mini,
                 variant = TidePlayerControlVariant.Ghost,
-                contentDescription = "Next track",
+                contentDescription = stringResource(Res.string.player_next_track),
                 onClick = onNext,
             )
         },
@@ -166,7 +174,9 @@ private fun CompactMiniPlayer(
                 painter = painterResource(if (isPlaying) Res.drawable.icon_pause else Res.drawable.icon_play),
                 enabled = !loading,
                 size = TidePlayerControlSize.Mini,
-                contentDescription = if (isPlaying) "Pause" else "Play",
+                contentDescription = stringResource(
+                    if (isPlaying) Res.string.player_pause else Res.string.player_play
+                ),
                 onClick = if (isPlaying) onPause else onPlay,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
@@ -215,6 +225,46 @@ fun MiniPlayer(
         onPause = { playerVM.pause() },
         onPrevious = { playerVM.playPrevious() },
         onNext = { playerVM.playNext() },
+    )
+}
+
+@Composable
+fun IdleMiniPlayer(
+    onBrowseLibrary: () -> Unit,
+) {
+    val shapes = TideTunesTokens.shapes
+
+    TideMiniPlayerBar(
+        title = stringResource(Res.string.player_nothing_playing),
+        subtitle = stringResource(Res.string.player_choose_from_library),
+        progress = 0f,
+        onClick = onBrowseLibrary,
+        artwork = {
+            MusicCover(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(shapes.sm))
+                    .size(44.dp),
+                artwork = null,
+            )
+        },
+        controls = {
+            TidePlayerControlButton(
+                painter = painterResource(Res.drawable.icon_play),
+                enabled = false,
+                size = TidePlayerControlSize.Mini,
+                variant = TidePlayerControlVariant.Ghost,
+                contentDescription = stringResource(Res.string.player_play),
+                onClick = {},
+            )
+            TidePlayerControlButton(
+                painter = painterResource(Res.drawable.icon_play_next),
+                enabled = false,
+                size = TidePlayerControlSize.Mini,
+                variant = TidePlayerControlVariant.Ghost,
+                contentDescription = stringResource(Res.string.player_next_track),
+                onClick = {},
+            )
+        },
     )
 }
 

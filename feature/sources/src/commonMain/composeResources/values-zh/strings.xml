@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dashboard_devices_add">添加设备</string>
+    <string name="storage_edit_addr">地址</string>
+    <string name="storage_edit_alias">名称（别名）</string>
+    <string name="storage_edit_anonymous">匿名访问</string>
+    <string name="storage_edit_form_address">地址不能为空</string>
+    <string name="storage_edit_form_password">密码不能为空</string>
+    <string name="storage_edit_form_username">用户名不能为空</string>
+    <string name="storage_edit_import_library_action">选择音乐库文件夹</string>
+    <string name="storage_edit_import_library_label">音乐库</string>
+    <string name="storage_edit_oauth">OAuth</string>
+    <string name="storage_edit_onedrive_alias_not_empty">别名不能为空</string>
+    <string name="storage_edit_onedrive_connect">连接你的账号</string>
+    <string name="storage_edit_onedrive_disconnect">断开连接</string>
+    <string name="storage_edit_onedrive_drive">驱动器</string>
+    <string name="storage_edit_onedrive_drive_loading">正在加载驱动器…</string>
+    <string name="storage_edit_onedrive_drive_required">请选择驱动器</string>
+    <string name="storage_edit_onedrive_should_auth">请先连接你的账号</string>
+    <string name="storage_edit_password">密码</string>
+    <string name="storage_edit_username">用户名</string>
+    <string name="storage_remove_desc_count">将移除 $$B__E_MCNT$$ 首歌曲。</string>
+    <string name="storage_remove_desc_main">确定要移除存储“$$B__E_TITLE$$”吗？</string>
+</resources>

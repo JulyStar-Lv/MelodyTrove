@@ -1,5 +1,9 @@
 package com.github.tidetunes.feature.settings.presentation
 
+import androidx.compose.runtime.Immutable
+import androidx.compose.ui.window.Popup
+import com.github.tidetunes.core.presentation.components.TideLoadingIndicator
+import com.github.tidetunes.core.presentation.theme.TideTunesBrand
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
@@ -21,13 +26,16 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
@@ -61,6 +69,7 @@ import tidetunes.core.presentation.generated.resources.icon_lyrics
 import tidetunes.core.presentation.generated.resources.icon_mode_repeat
 import tidetunes.core.presentation.generated.resources.icon_music_note
 import tidetunes.core.presentation.generated.resources.icon_onedrive
+import tidetunes.core.presentation.generated.resources.icon_ok
 import tidetunes.core.presentation.generated.resources.icon_play
 import tidetunes.core.presentation.generated.resources.icon_search
 import tidetunes.core.presentation.generated.resources.icon_setting
@@ -522,4 +531,235 @@ private fun formatOneDecimal(value: Double): String {
     val whole = scaled / 10
     val decimal = scaled % 10
     return if (decimal == 0L) whole.toString() else "$whole.$decimal"
+}
+
+// ── Select Row (popup choice menu) ──
+
+@Composable
+internal fun SettingsSelectRow(
+    label: String,
+    subtitle: String? = null,
+    selectedValue: String,
+    selectedLabel: String,
+    options: List<SettingsSelectOption>,
+    enabled: Boolean = true,
+    onSelect: (String) -> Unit,
+) {
+    var menuOpen by remember { mutableStateOf(false) }
+
+    Box {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(enabled = enabled) { menuOpen = true }
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = label,
+                    color = MiuixTheme.colorScheme.onSurface,
+                    style = MiuixTheme.textStyles.body1,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (subtitle != null) {
+                    Text(
+                        text = subtitle,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        style = MiuixTheme.textStyles.footnote1,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            Text(
+                text = selectedLabel,
+                color = if (menuOpen) MiuixTheme.colorScheme.primary
+                else MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                style = MiuixTheme.textStyles.body2,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(end = 8.dp),
+            )
+            // Up/down chevron
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                TideChevron(
+                    direction = TideChevronDirection.Right,
+                    size = 10.dp,
+                    modifier = Modifier.graphicsLayer(rotationZ = -90f),
+                )
+                TideChevron(
+                    direction = TideChevronDirection.Right,
+                    size = 10.dp,
+                    modifier = Modifier.graphicsLayer(rotationZ = 90f),
+                )
+            }
+        }
+
+        if (menuOpen) {
+            androidx.compose.ui.window.Popup(
+                alignment = Alignment.TopEnd,
+                onDismissRequest = { menuOpen = false },
+            ) {
+                Column(
+                    modifier = Modifier
+                        .widthIn(min = 200.dp, max = 300.dp)
+                        .clip(RoundedCornerShape(28.dp))
+                        .background(MiuixTheme.colorScheme.surfaceContainerHighest)
+                        .padding(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    options.forEach { option ->
+                        val isSelected = option.value == selectedValue
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(56.dp)
+                                .clip(RoundedCornerShape(20.dp))
+                                .clickable {
+                                    onSelect(option.value)
+                                    menuOpen = false
+                                }
+                                .padding(horizontal = 20.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = option.label,
+                                color = if (isSelected) MiuixTheme.colorScheme.primary
+                                else MiuixTheme.colorScheme.onSurface,
+                                style = MiuixTheme.textStyles.body1,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f),
+                            )
+                            if (isSelected) {
+                                Icon(
+                                    painter = painterResource(CoreRes.drawable.icon_ok),
+                                    contentDescription = null,
+                                    tint = MiuixTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Immutable
+internal data class SettingsSelectOption(
+    val value: String,
+    val label: String,
+)
+
+// ── Action Row (destructive actions with confirm states) ──
+
+@Composable
+internal fun SettingsActionRow(
+    label: String,
+    subtitle: String,
+    state: SettingsActionState,
+    actionLabel: String = "Clear",
+    onStateChange: (SettingsActionState) -> Unit,
+    onConfirm: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = label,
+                color = MiuixTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.body1,
+                fontWeight = FontWeight.Medium,
+            )
+            val statusText = when (state) {
+                SettingsActionState.Busy -> "Working…"
+                SettingsActionState.Success -> "Done"
+                SettingsActionState.Error -> "Failed — tap to retry"
+                else -> subtitle
+            }
+            Text(
+                text = statusText,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                style = MiuixTheme.textStyles.footnote1,
+            )
+
+            // Confirm buttons
+            if (state == SettingsActionState.Confirm) {
+                Row(
+                    modifier = Modifier.padding(top = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = "Confirm",
+                        color = Color.White,
+                        style = MiuixTheme.textStyles.footnote1,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MiuixTheme.colorScheme.error)
+                            .clickable { onConfirm() }
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                    )
+                    Text(
+                        text = "Cancel",
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        style = MiuixTheme.textStyles.footnote1,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MiuixTheme.colorScheme.surfaceContainerHigh)
+                            .clickable { onStateChange(SettingsActionState.Idle) }
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                    )
+                }
+            }
+        }
+
+        // Right side state indicator
+        when (state) {
+            SettingsActionState.Busy -> TideLoadingIndicator(size = 18.dp)
+            SettingsActionState.Success -> Icon(
+                painter = painterResource(CoreRes.drawable.icon_ok),
+                contentDescription = null,
+                tint = TideTunesBrand.SupportGreen,
+                modifier = Modifier.size(18.dp),
+            )
+            SettingsActionState.Idle -> Text(
+                text = actionLabel,
+                color = MiuixTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.footnote1,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MiuixTheme.colorScheme.surfaceContainerHigh)
+                    .clickable { onStateChange(SettingsActionState.Confirm) }
+                    .padding(horizontal = 14.dp, vertical = 7.dp),
+            )
+            else -> {}
+        }
+    }
+}
+
+internal enum class SettingsActionState {
+    Idle,
+    Confirm,
+    Busy,
+    Success,
+    Error,
 }

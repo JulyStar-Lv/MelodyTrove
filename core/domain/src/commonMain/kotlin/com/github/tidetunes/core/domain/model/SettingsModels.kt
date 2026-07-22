@@ -163,6 +163,7 @@ data class PlaybackAdvancedSettings(
 data class PlayerInteractionSettings(
     val openPlayerOnPlay: Boolean = false,
     val coverSwipeEnabled: Boolean = true,
+    val immersiveAlbumCover: Boolean = true,
     val tapProgressToSeekEnabled: Boolean = true,
     val showTotalDuration: Boolean = false,
     val showSongAnnotation: Boolean = true,

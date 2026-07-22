@@ -1,0 +1,7 @@
+<resources>
+    <string name="queue_history">History</string>
+    <string name="queue_clear">Clear</string>
+    <string name="queue_up_next">Up next</string>
+    <string name="queue_empty">Queue is empty</string>
+    <string name="queue_track_count">%1$d tracks</string>
+</resources>
