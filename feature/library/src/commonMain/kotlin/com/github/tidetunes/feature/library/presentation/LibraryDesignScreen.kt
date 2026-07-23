@@ -39,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
@@ -129,6 +130,7 @@ fun LibraryDesignScreen(
                 }
             }
         }
+        val pageTitleAlpha = (1f - actionBarProgress / 0.70f).coerceIn(0f, 1f)
 
         if (isDesktop) {
             Row(modifier = Modifier.fillMaxSize()) {
@@ -176,6 +178,7 @@ fun LibraryDesignScreen(
                     TidePageHeader(
                         title = "Library",
                         subtitle = null,
+                        modifier = Modifier.alpha(pageTitleAlpha),
                     )
                 }
                 item {
@@ -488,6 +491,7 @@ private fun LibraryContent(
                 }
             }
         }
+        val pageTitleAlpha = (1f - actionBarProgress / 0.70f).coerceIn(0f, 1f)
 
         LazyColumn(
             state = listState,
@@ -500,7 +504,11 @@ private fun LibraryContent(
         ) {
             if (!compact) {
                 item {
-                    TidePageHeader(title = "Library", subtitle = null)
+                    TidePageHeader(
+                        title = "Library",
+                        subtitle = null,
+                        modifier = Modifier.alpha(pageTitleAlpha),
+                    )
                 }
             }
 

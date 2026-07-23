@@ -25,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -82,6 +83,7 @@ fun SettingsScreen(
             (scrollState.value / collapseDistance.toFloat()).coerceIn(0f, 1f)
         }
     }
+    val pageTitleAlpha = (1f - actionBarProgress / 0.70f).coerceIn(0f, 1f)
 
     TideGlassScene(modifier = Modifier.fillMaxSize()) {
         Box(
@@ -102,6 +104,7 @@ fun SettingsScreen(
             color = MiuixTheme.colorScheme.onBackground,
             style = MiuixTheme.textStyles.title1,
             fontWeight = FontWeight.Bold,
+            modifier = Modifier.alpha(pageTitleAlpha),
         )
 
         // Search bar

@@ -1,15 +1,11 @@
 package com.github.tidetunes
 
 import androidx.compose.ui.window.ComposeUIViewController
+import com.github.tidetunes.di.AppInitializer
 import com.github.tidetunes.di.initKoin
-import com.github.tidetunes.singleton.Bridge
-import com.github.tidetunes.service.playback.data.PlayerRepository
-import com.github.tidetunes.core.data.PlaylistRepositoryImpl
 import com.github.tidetunes.core.data.StorageRepositoryImpl
 import com.github.tidetunes.service.download.data.scheduler.IosUrlSessionDownloadScheduler
 import com.github.tidetunes.service.download.domain.DownloadTaskScheduler
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.launch
 import org.koin.core.Koin
 import org.koin.core.context.stopKoin
 import platform.UIKit.UIViewController
@@ -22,12 +18,8 @@ private fun initializeApplication() {
 
     val koin = initKoin().koin
     applicationKoin = koin
-    koin.get<Bridge>().initialize()
-    koin.get<CoroutineScope>().launch {
-        koin.get<PlayerRepository>().reload()
-        koin.get<StorageRepositoryImpl>().reload()
-        koin.get<PlaylistRepositoryImpl>().reload()
-    }
+    AppInitializer.initializeBridge(koin)
+    AppInitializer.reloadRepositories(koin, koin.get())
     applicationInitialized = true
 }
 

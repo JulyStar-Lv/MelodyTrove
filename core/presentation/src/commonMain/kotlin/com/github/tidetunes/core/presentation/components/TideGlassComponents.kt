@@ -52,6 +52,7 @@ fun TideStickyGlassActionBar(
     modifier: Modifier = Modifier,
 ) {
     val fraction = collapseFraction.coerceIn(0f, 1f)
+    val titleFraction = ((fraction - 0.72f) / 0.28f).coerceIn(0f, 1f)
     val backdrop = LocalTideBackdrop.current
     val surface = MiuixTheme.colorScheme.surfaceContainer
     val glassModifier = if (backdrop != null) {
@@ -76,15 +77,17 @@ fun TideStickyGlassActionBar(
         modifier = modifier
             .fillMaxWidth()
             .height(64.dp)
-            .then(glassModifier)
-            .alpha(fraction),
+            .alpha(fraction)
+            .then(glassModifier),
         contentAlignment = Alignment.Center,
     ) {
         TidePageHeader(
             title = title,
             subtitle = subtitle,
             compact = true,
-            modifier = Modifier.padding(horizontal = 20.dp),
+            modifier = Modifier
+                .padding(horizontal = 20.dp)
+                .alpha(titleFraction),
         )
     }
 }

@@ -9,8 +9,6 @@ import com.github.tidetunes.core.domain.model.PlayerInteractionSettings
 import com.github.tidetunes.core.domain.repository.SettingsRepository
 import com.github.tidetunes.service.playback.presentation.PlayerVM
 import com.github.tidetunes.service.playback.presentation.sleep.SleepModeVM
-import com.github.tidetunes.core.presentation.media.ArtworkPalette
-import com.github.tidetunes.core.presentation.media.rememberArtworkPalette
 import com.github.tidetunes.core.presentation.platform.KeepScreenOnEffect
 import com.github.tidetunes.core.presentation.theme.TideTunesTheme
 import com.github.tidetunes.core.presentation.theme.TideTunesThemeMode
@@ -30,7 +28,6 @@ fun NowPlayingRoot(
 ) {
     val state by playerViewModel.nowPlayingState.collectAsState()
     val settings by settingsRepository.settings.collectAsState(AppSettings.Default)
-    val palette = rememberArtworkPalette(artwork = state.currentTrack?.artwork)
     val sleepModeState by sleepModeViewModel.state.collectAsState()
     KeepScreenOnEffect(enabled = settings.keepScreenOnInPlayer)
 
@@ -68,7 +65,6 @@ fun NowPlayingRoot(
             state = state,
             lyricDisplaySettings = settings.lyrics,
             playerInteractionSettings = settings.playerInteraction,
-            palette = palette,
             currentPositionMs = currentDuration.inWholeMilliseconds,
             isSleepTimerEnabled = sleepModeState.enabled,
             progressContent = { trackDurationMs ->

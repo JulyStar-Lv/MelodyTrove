@@ -30,9 +30,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -66,7 +63,6 @@ import com.github.tidetunes.core.presentation.components.TideTextButtonSize
 import com.github.tidetunes.core.presentation.components.TideTextButtonVariant
 import com.github.tidetunes.core.presentation.components.dropShadow
 import com.github.tidetunes.core.presentation.media.ArtworkImage
-import com.github.tidetunes.core.presentation.media.ArtworkPalette
 import com.github.tidetunes.core.presentation.theme.TideTunesFontFamilies
 import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import com.github.tidetunes.core.utils.toMusicDurationMs
@@ -932,115 +928,6 @@ private fun CompactLyricPreview(
 }
 
 @Composable
-private fun CompactImmersiveNowPlayingLayout(
-    state: NowPlayingState,
-    lyricDisplaySettings: LyricDisplaySettings,
-    playerInteractionSettings: PlayerInteractionSettings,
-    palette: ArtworkPalette,
-    lyricLines: List<LyricLine>,
-    activeLyricIndex: Int,
-    liked: Boolean,
-    onLikedChange: (Boolean) -> Unit,
-    progressContent: @Composable (Long?) -> Unit,
-    onAction: (NowPlayingAction) -> Unit,
-) {
-    val track = state.currentTrack
-    BoxWithConstraints(
-        modifier = Modifier
-            .fillMaxSize()
-    ) {
-        val artworkHeight = maxHeight * 0.59f
-        val contentTop = maxHeight * 0.44f
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(artworkHeight)
-                .pointerInput(playerInteractionSettings.coverSwipeEnabled) {
-                    if (playerInteractionSettings.coverSwipeEnabled) {
-                        var accumulatedDrag = 0f
-                        detectHorizontalDragGestures(
-                            onDragStart = { accumulatedDrag = 0f },
-                            onHorizontalDrag = { _, dragAmount -> accumulatedDrag += dragAmount },
-                            onDragEnd = {
-                                if (abs(accumulatedDrag) >= 72f) {
-                                    if (accumulatedDrag > 0f && state.queue.canPlayPrevious) {
-                                        onAction(NowPlayingAction.PlayPrevious)
-                                    } else if (accumulatedDrag < 0f && state.queue.canPlayNext) {
-                                        onAction(NowPlayingAction.PlayNext)
-                                    }
-                                }
-                            },
-                        )
-                    }
-                },
-        ) {
-            ArtworkImage(
-                modifier = Modifier.fillMaxSize(),
-                artwork = track?.artwork,
-                contentScale = ContentScale.Crop,
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            0f to palette.darkMuted.copy(alpha = 0.08f),
-                            0.44f to palette.darkMuted.copy(alpha = 0.06f),
-                            0.78f to palette.muted.copy(alpha = 0.82f),
-                            1f to palette.muted,
-                        ),
-                    ),
-            )
-        }
-
-        TideIconButton(
-            size = TideIconButtonSize.Touch,
-            variant = TideIconButtonVariant.Default,
-            painter = painterResource(Res.drawable.icon_collapse),
-            contentDescription = stringResource(Res.string.player_close),
-            colors = TideIconButtonColors(
-                iconTint = Color.White.copy(alpha = 0.76f),
-            ),
-            onClick = { onAction(NowPlayingAction.NavigateBack) },
-            modifier = Modifier
-                .statusBarsPadding()
-                .padding(start = 16.dp, top = 8.dp),
-        )
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(start = 28.dp, top = contentTop, end = 20.dp, bottom = 24.dp),
-        ) {
-            CompactTrackRow(
-                state = state,
-                lyricDisplaySettings = lyricDisplaySettings,
-                playerInteractionSettings = playerInteractionSettings,
-                liked = liked,
-                onLikedChange = onLikedChange,
-                onAction = onAction,
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-            CompactLyricPreview(
-                lyricLines = lyricLines,
-                activeLyricIndex = activeLyricIndex,
-                showTranslation = lyricDisplaySettings.showTranslation,
-                onOpenLyrics = { onAction(NowPlayingAction.OpenLyrics) },
-            )
-            progressContent(track?.durationMs)
-            Spacer(modifier = Modifier.height(16.dp))
-            TransportPanel(
-                nowPlayingState = state,
-                isSleepTimerEnabled = false,
-                onAction = onAction,
-                lightTheme = true,
-                compact = true,
-            )
-        }
-    }
-}
-
-@Composable
 private fun CompactClassicNowPlayingLayout(
     state: NowPlayingState,
     lyricDisplaySettings: LyricDisplaySettings,
@@ -1123,7 +1010,6 @@ private fun CompactNowPlayingLayout(
     state: NowPlayingState,
     lyricDisplaySettings: LyricDisplaySettings,
     playerInteractionSettings: PlayerInteractionSettings,
-    palette: ArtworkPalette,
     currentPositionMs: Long,
     progressContent: @Composable (Long?) -> Unit,
     onAction: (NowPlayingAction) -> Unit,
@@ -1135,32 +1021,17 @@ private fun CompactNowPlayingLayout(
         it.duration.inWholeMilliseconds <= currentPositionMs
     }.coerceAtLeast(0)
 
-    if (playerInteractionSettings.immersiveAlbumCover) {
-        CompactImmersiveNowPlayingLayout(
-            state = state,
-            lyricDisplaySettings = lyricDisplaySettings,
-            playerInteractionSettings = playerInteractionSettings,
-            palette = palette,
-            lyricLines = lyricLines,
-            activeLyricIndex = activeLyricIndex,
-            liked = liked,
-            onLikedChange = { liked = it },
-            progressContent = progressContent,
-            onAction = onAction,
-        )
-    } else {
-        CompactClassicNowPlayingLayout(
-            state = state,
-            lyricDisplaySettings = lyricDisplaySettings,
-            playerInteractionSettings = playerInteractionSettings,
-            lyricLines = lyricLines,
-            activeLyricIndex = activeLyricIndex,
-            liked = liked,
-            onLikedChange = { liked = it },
-            progressContent = progressContent,
-            onAction = onAction,
-        )
-    }
+    CompactClassicNowPlayingLayout(
+        state = state,
+        lyricDisplaySettings = lyricDisplaySettings,
+        playerInteractionSettings = playerInteractionSettings,
+        lyricLines = lyricLines,
+        activeLyricIndex = activeLyricIndex,
+        liked = liked,
+        onLikedChange = { liked = it },
+        progressContent = progressContent,
+        onAction = onAction,
+    )
 }
 
 // ── Main Screen ──
@@ -1170,7 +1041,6 @@ fun NowPlayingScreen(
     state: NowPlayingState,
     lyricDisplaySettings: LyricDisplaySettings = LyricDisplaySettings.Default,
     playerInteractionSettings: PlayerInteractionSettings = PlayerInteractionSettings.Default,
-    palette: ArtworkPalette = ArtworkPalette.Default,
     currentPositionMs: Long,
     isSleepTimerEnabled: Boolean,
     progressContent: @Composable (Long?) -> Unit,
@@ -1184,11 +1054,7 @@ fun NowPlayingScreen(
             .clipToBounds()
             .fillMaxSize(),
     ) {
-        NowPlayingBackground(
-            artwork = currentTrack?.artwork,
-            palette = palette,
-            immersive = playerInteractionSettings.immersiveAlbumCover,
-        )
+        NowPlayingBackground()
         BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
             if (maxWidth >= DesktopPlayerBreakpoint && maxHeight >= 520.dp) {
                 Column(
@@ -1217,7 +1083,6 @@ fun NowPlayingScreen(
                     state = state,
                     lyricDisplaySettings = lyricDisplaySettings,
                     playerInteractionSettings = playerInteractionSettings,
-                    palette = palette,
                     currentPositionMs = currentPositionMs,
                     progressContent = progressContent,
                     onAction = onAction,
@@ -1228,66 +1093,12 @@ fun NowPlayingScreen(
 }
 
 @Composable
-private fun NowPlayingBackground(
-    artwork: Artwork?,
-    palette: ArtworkPalette,
-    immersive: Boolean,
-) {
-    if (immersive) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            palette.darkMuted,
-                            palette.muted,
-                            palette.vibrant.copy(alpha = 0.86f),
-                            MiuixTheme.colorScheme.surface,
-                        ),
-                    ),
-                )
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFF100A1C).copy(alpha = 0.48f),
-                            palette.darkMuted.copy(alpha = 0.34f),
-                        ),
-                    ),
-                ),
-        )
-    } else {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(palette.muted),
-        )
-        ArtworkImage(
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    scaleX = 1.18f
-                    scaleY = 1.18f
-                    alpha = 0.78f
-                }
-                .blur(48.dp),
-            artwork = artwork,
-            contentScale = ContentScale.Crop,
-        )
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            palette.vibrant.copy(alpha = 0.24f),
-                            palette.darkMuted.copy(alpha = 0.40f),
-                            Color.Black.copy(alpha = 0.34f),
-                        ),
-                    ),
-                ),
-        )
-    }
+private fun NowPlayingBackground() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MiuixTheme.colorScheme.surface),
+    )
 }
 
 // ── Progress Panel ──

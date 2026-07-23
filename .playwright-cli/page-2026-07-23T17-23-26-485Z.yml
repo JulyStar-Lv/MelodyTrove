@@ -1,0 +1,265 @@
+- generic [ref=e4]:
+  - generic: 9:41
+  - generic [ref=e5]:
+    - generic [ref=e6]:
+      - main [ref=e8]:
+        - generic [ref=e10]:
+          - heading "Home" [level=1] [ref=e14]
+          - generic [ref=e17]:
+            - paragraph [ref=e18]: Daily Picks
+            - generic [ref=e19]:
+              - paragraph [ref=e20]: Now playing
+              - paragraph [ref=e21]: Midnight Cascade
+            - button "Play" [ref=e22]
+          - generic [ref=e29]:
+            - button [ref=e31]:
+              - heading "Pinned Playlists" [level=2] [ref=e35]
+            - generic [ref=e38]:
+              - button [ref=e39] [cursor=pointer]:
+                - paragraph [ref=e42]: 4 tracks · 14m 22s
+                - paragraph [ref=e47]: My Favorites
+                - paragraph [ref=e48]: Your liked songs
+              - button [ref=e49] [cursor=pointer]:
+                - paragraph [ref=e52]: 24 tracks · 1h 32m
+                - paragraph [ref=e57]: Evening Frequencies
+                - paragraph [ref=e58]: Deep electronic for golden hour
+              - button [ref=e59] [cursor=pointer]:
+                - paragraph [ref=e62]: 18 tracks · 1h 08m
+                - paragraph [ref=e67]: Spatial Audio Mix
+                - paragraph [ref=e68]: Hi-Res Dolby Atmos collection
+              - button [ref=e69] [cursor=pointer]:
+                - paragraph [ref=e72]: 32 tracks · 2h 15m
+                - paragraph [ref=e77]: Deep Focus
+                - paragraph [ref=e78]: Minimal ambient for concentration
+              - button [ref=e79] [cursor=pointer]:
+                - paragraph [ref=e82]: 20 tracks · 1h 22m
+                - paragraph [ref=e87]: Night Drive
+                - paragraph [ref=e88]: Synthwave for late-night cruising
+              - button [ref=e89] [cursor=pointer]:
+                - paragraph [ref=e92]: 16 tracks · 58m
+                - paragraph [ref=e97]: Sunrise Protocol
+                - paragraph [ref=e98]: Gentle morning electronic
+              - button [ref=e99] [cursor=pointer]:
+                - paragraph [ref=e102]: 28 tracks · 1h 45m
+                - paragraph [ref=e107]: System Override
+                - paragraph [ref=e108]: High-energy techno and industrial
+          - generic [ref=e109]:
+            - button [ref=e110]:
+              - heading "Your Listening" [level=2] [ref=e114]
+            - generic [ref=e117]:
+              - generic [ref=e118]:
+                - region "Top tracks by time" [ref=e119]:
+                  - generic [ref=e120]:
+                    - paragraph [ref=e121]: Top tracks by time
+                    - paragraph [ref=e122]: This month
+                  - generic [ref=e123]:
+                    - button "1 Midnight Cascade Luna Waves 4h 28m 32 plays" [ref=e124]:
+                      - generic [ref=e125]: "1"
+                      - generic [ref=e127]:
+                        - paragraph [ref=e128]: Midnight Cascade
+                        - paragraph [ref=e129]: Luna Waves
+                      - generic [ref=e130]:
+                        - paragraph [ref=e131]: 4h 28m
+                        - paragraph [ref=e132]: 32 plays
+                    - button "2 Aurora Sequence Polar Echo 3h 31m 25 plays" [ref=e133]:
+                      - generic [ref=e134]: "2"
+                      - generic [ref=e136]:
+                        - paragraph [ref=e137]: Aurora Sequence
+                        - paragraph [ref=e138]: Polar Echo
+                      - generic [ref=e139]:
+                        - paragraph [ref=e140]: 3h 31m
+                        - paragraph [ref=e141]: 25 plays
+                    - button "3 Liminal Space Threshold 3h 18m 14 plays" [ref=e142]:
+                      - generic [ref=e143]: "3"
+                      - generic [ref=e145]:
+                        - paragraph [ref=e146]: Liminal Space
+                        - paragraph [ref=e147]: Threshold
+                      - generic [ref=e148]:
+                        - paragraph [ref=e149]: 3h 18m
+                        - paragraph [ref=e150]: 14 plays
+                - region "Top tracks by plays" [ref=e151]:
+                  - generic [ref=e152]:
+                    - paragraph [ref=e153]: Top tracks by plays
+                    - paragraph [ref=e154]: This month
+                  - generic [ref=e155]:
+                    - button "1 Midnight Cascade Luna Waves 32 plays 4h 28m" [ref=e156]:
+                      - generic [ref=e157]: "1"
+                      - generic [ref=e159]:
+                        - paragraph [ref=e160]: Midnight Cascade
+                        - paragraph [ref=e161]: Luna Waves
+                      - generic [ref=e162]:
+                        - paragraph [ref=e163]: 32 plays
+                        - paragraph [ref=e164]: 4h 28m
+                    - button "2 Silver Tide Coastal Drift 27 plays 2h 9m" [ref=e165]:
+                      - generic [ref=e166]: "2"
+                      - generic [ref=e168]:
+                        - paragraph [ref=e169]: Silver Tide
+                        - paragraph [ref=e170]: Coastal Drift
+                      - generic [ref=e171]:
+                        - paragraph [ref=e172]: 27 plays
+                        - paragraph [ref=e173]: 2h 9m
+                    - button "3 Aurora Sequence Polar Echo 25 plays 3h 31m" [ref=e174]:
+                      - generic [ref=e175]: "3"
+                      - generic [ref=e177]:
+                        - paragraph [ref=e178]: Aurora Sequence
+                        - paragraph [ref=e179]: Polar Echo
+                      - generic [ref=e180]:
+                        - paragraph [ref=e181]: 25 plays
+                        - paragraph [ref=e182]: 3h 31m
+              - generic "Top tracks page 1 of 2" [ref=e183]
+          - generic [ref=e186]:
+            - button [ref=e188]:
+              - heading "Continue Playing" [level=2] [ref=e192]
+            - generic [ref=e195]:
+              - button [ref=e196] [cursor=pointer]:
+                - paragraph [ref=e202]: Daily Tide
+                - paragraph [ref=e203]: Your calm mix
+              - button [ref=e204] [cursor=pointer]:
+                - paragraph [ref=e210]: Night Drive
+                - paragraph [ref=e211]: After-dark energy
+              - button [ref=e212] [cursor=pointer]:
+                - paragraph [ref=e218]: Deep Focus
+                - paragraph [ref=e219]: Minimal ambient for concentration
+              - button [ref=e220] [cursor=pointer]:
+                - paragraph [ref=e226]: Spatial Audio Mix
+                - paragraph [ref=e227]: Hi-Res Dolby Atmos collection
+              - button [ref=e228] [cursor=pointer]:
+                - paragraph [ref=e234]: Sunrise Protocol
+                - paragraph [ref=e235]: Gentle morning electronic
+              - button [ref=e236] [cursor=pointer]:
+                - paragraph [ref=e242]: System Override
+                - paragraph [ref=e243]: High-energy techno and industrial
+          - generic [ref=e244]:
+            - button [ref=e246]:
+              - heading "Recently Played" [level=2] [ref=e251]
+            - generic [ref=e254]:
+              - generic [ref=e255]:
+                - button "1 Midnight Cascade Luna Waves 12 min ago 3:42" [ref=e256]:
+                  - generic [ref=e257]: "1"
+                  - generic [ref=e259]:
+                    - paragraph [ref=e260]: Midnight Cascade
+                    - paragraph [ref=e261]: Luna Waves
+                  - generic [ref=e262]:
+                    - paragraph [ref=e263]: 12 min ago
+                    - paragraph [ref=e264]: 3:42
+                - button "2 Neon Undertow Prism Circuit 28 min ago 4:18" [ref=e265]:
+                  - generic [ref=e266]: "2"
+                  - generic [ref=e268]:
+                    - paragraph [ref=e269]: Neon Undertow
+                    - paragraph [ref=e270]: Prism Circuit
+                  - generic [ref=e271]:
+                    - paragraph [ref=e272]: 28 min ago
+                    - paragraph [ref=e273]: 4:18
+                - button "3 Silver Tide Coastal Drift 1 hr ago 3:55" [ref=e274]:
+                  - generic [ref=e275]: "3"
+                  - generic [ref=e277]:
+                    - paragraph [ref=e278]: Silver Tide
+                    - paragraph [ref=e279]: Coastal Drift
+                  - generic [ref=e280]:
+                    - paragraph [ref=e281]: 1 hr ago
+                    - paragraph [ref=e282]: 3:55
+              - generic [ref=e283]:
+                - button "4 Aurora Sequence Polar Echo 2 hr ago 5:02" [ref=e284]:
+                  - generic [ref=e285]: "4"
+                  - generic [ref=e287]:
+                    - paragraph [ref=e288]: Aurora Sequence
+                    - paragraph [ref=e289]: Polar Echo
+                  - generic [ref=e290]:
+                    - paragraph [ref=e291]: 2 hr ago
+                    - paragraph [ref=e292]: 5:02
+                - button "5 Depth Protocol Ocean Syntax Yesterday 3:30" [ref=e293]:
+                  - generic [ref=e294]: "5"
+                  - generic [ref=e296]:
+                    - paragraph [ref=e297]: Depth Protocol
+                    - paragraph [ref=e298]: Ocean Syntax
+                  - generic [ref=e299]:
+                    - paragraph [ref=e300]: Yesterday
+                    - paragraph [ref=e301]: 3:30
+                - button "6 Glass Architecture Fractal Mind Yesterday 4:44" [ref=e302]:
+                  - generic [ref=e303]: "6"
+                  - generic [ref=e305]:
+                    - paragraph [ref=e306]: Glass Architecture
+                    - paragraph [ref=e307]: Fractal Mind
+                  - generic [ref=e308]:
+                    - paragraph [ref=e309]: Yesterday
+                    - paragraph [ref=e310]: 4:44
+              - generic [ref=e311]:
+                - button "7 Resonance Fields Wave Function 2 days ago 3:15" [ref=e312]:
+                  - generic [ref=e313]: "7"
+                  - generic [ref=e315]:
+                    - paragraph [ref=e316]: Resonance Fields
+                    - paragraph [ref=e317]: Wave Function
+                  - generic [ref=e318]:
+                    - paragraph [ref=e319]: 2 days ago
+                    - paragraph [ref=e320]: 3:15
+                - button "8 Liminal Space Threshold 3 days ago 5:30" [ref=e321]:
+                  - generic [ref=e322]: "8"
+                  - generic [ref=e324]:
+                    - paragraph [ref=e325]: Liminal Space
+                    - paragraph [ref=e326]: Threshold
+                  - generic [ref=e327]:
+                    - paragraph [ref=e328]: 3 days ago
+                    - paragraph [ref=e329]: 5:30
+            - generic "Recently Played page 1 of 3" [ref=e330]
+          - generic [ref=e334]:
+            - button [ref=e336]:
+              - heading "Recently Added" [level=2] [ref=e340]
+            - generic [ref=e343]:
+              - button [ref=e344] [cursor=pointer]:
+                - paragraph [ref=e350]: Open Water
+                - paragraph [ref=e351]: Coastal Drift · 2023
+              - button [ref=e352] [cursor=pointer]:
+                - paragraph [ref=e358]: Northern Lights
+                - paragraph [ref=e359]: Polar Echo · 2024
+              - button [ref=e360] [cursor=pointer]:
+                - paragraph [ref=e366]: Subsonic
+                - paragraph [ref=e367]: Ocean Syntax · 2023
+              - button [ref=e368] [cursor=pointer]:
+                - paragraph [ref=e374]: Glass Architecture
+                - paragraph [ref=e375]: Fractal Mind · 2024
+              - button [ref=e376] [cursor=pointer]:
+                - paragraph [ref=e382]: Quantum
+                - paragraph [ref=e383]: Wave Function · 2024
+              - button [ref=e384] [cursor=pointer]:
+                - paragraph [ref=e390]: Between
+                - paragraph [ref=e391]: Threshold · 2023
+          - generic [ref=e392]:
+            - button [ref=e394]:
+              - heading "Recommended Artists" [level=2] [ref=e400]
+            - generic [ref=e403]:
+              - button "LW Luna Waves 2.4M" [ref=e404] [cursor=pointer]:
+                - generic [ref=e405]: LW
+                - paragraph [ref=e408]: Luna Waves
+                - paragraph [ref=e409]: 2.4M
+              - button "PC Prism Circuit 1.8M" [ref=e410] [cursor=pointer]:
+                - generic [ref=e411]: PC
+                - paragraph [ref=e414]: Prism Circuit
+                - paragraph [ref=e415]: 1.8M
+              - button "CD Coastal Drift 890K" [ref=e416] [cursor=pointer]:
+                - generic [ref=e417]: CD
+                - paragraph [ref=e420]: Coastal Drift
+                - paragraph [ref=e421]: 890K
+              - button "PE Polar Echo 3.1M" [ref=e422] [cursor=pointer]:
+                - generic [ref=e423]: PE
+                - paragraph [ref=e426]: Polar Echo
+                - paragraph [ref=e427]: 3.1M
+              - button "OS Ocean Syntax 670K" [ref=e428] [cursor=pointer]:
+                - generic [ref=e429]: OS
+                - paragraph [ref=e432]: Ocean Syntax
+                - paragraph [ref=e433]: 670K
+              - button "FM Fractal Mind 1.2M" [ref=e434] [cursor=pointer]:
+                - generic [ref=e435]: FM
+                - paragraph [ref=e438]: Fractal Mind
+                - paragraph [ref=e439]: 1.2M
+      - generic [ref=e442] [cursor=pointer]:
+        - generic [ref=e444]:
+          - paragraph [ref=e445]: Midnight Cascade
+          - paragraph [ref=e446]: Luna Waves
+        - generic [ref=e449]:
+          - button "Play" [ref=e450]
+          - button "Next track" [ref=e453]
+    - navigation [ref=e456]:
+      - button "Home" [ref=e457]
+      - button "Search" [ref=e463]
+      - button "Library" [ref=e469]
+      - button "Settings" [ref=e474]

@@ -63,10 +63,6 @@ class DataStoreSettingsRepositoryTest {
         repository.setAudioPreloadBytes(8L * 1024L * 1024L)
         repository.setAudioCacheLimitBytes(512L * 1024L * 1024L)
         repository.setImageCacheLimitBytes(128L * 1024L * 1024L)
-        repository.setPlayerInteractionSettings(
-            repository.settingsValue().playerInteraction.copy(immersiveAlbumCover = true)
-        )
-
         val settings = DataStoreSettingsRepository(dataStore).settingsValue()
         assertEquals(AppThemeMode.Light, settings.themeMode)
         assertFalse(settings.dynamicColorEnabled)
@@ -103,7 +99,6 @@ class DataStoreSettingsRepositoryTest {
         assertEquals(8L * 1024L * 1024L, settings.audioPreloadBytes)
         assertEquals(512L * 1024L * 1024L, settings.audioCacheLimitBytes)
         assertEquals(128L * 1024L * 1024L, settings.imageCacheLimitBytes)
-        assertTrue(settings.playerInteraction.immersiveAlbumCover)
     }
 
     @Test

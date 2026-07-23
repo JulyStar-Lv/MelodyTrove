@@ -32,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -62,8 +63,14 @@ import tidetunes.feature.home.generated.resources.home_cover_5
 import tidetunes.feature.home.generated.resources.home_cover_6
 import tidetunes.feature.home.generated.resources.home_cover_7
 import tidetunes.feature.home.generated.resources.home_cover_8
+import tidetunes.feature.home.generated.resources.icon_activity
+import tidetunes.feature.home.generated.resources.icon_bookmark
+import tidetunes.feature.home.generated.resources.icon_clock
+import tidetunes.feature.home.generated.resources.icon_headphones
 import tidetunes.feature.home.generated.resources.icon_heart
+import tidetunes.feature.home.generated.resources.icon_mic_vocal
 import tidetunes.feature.home.generated.resources.icon_music_note
+import tidetunes.feature.home.generated.resources.icon_sparkles
 import tidetunes.feature.home.generated.resources.home_continue_playing
 import tidetunes.feature.home.generated.resources.home_daily_picks
 import tidetunes.feature.home.generated.resources.home_favorite
@@ -119,6 +126,7 @@ fun HomeDesignScreen(
                     }
                 }
             }
+            val pageTitleAlpha = (1f - actionBarProgress / 0.70f).coerceIn(0f, 1f)
 
             LazyColumn(
                 state = listState,
@@ -140,6 +148,7 @@ fun HomeDesignScreen(
                             if (compact) Res.string.home_title else Res.string.home_good_evening
                         ),
                         subtitle = if (compact) null else stringResource(Res.string.home_subtitle),
+                        modifier = Modifier.alpha(pageTitleAlpha),
                     )
                 }
                 item {
@@ -152,6 +161,7 @@ fun HomeDesignScreen(
                 item {
                     HomeSection(
                         title = stringResource(Res.string.home_pinned_playlists),
+                        icon = Res.drawable.icon_bookmark,
                         compact = compact,
                         onClick = { onAction(HomeAction.NavigateToLibrary) },
                     ) {
@@ -166,6 +176,7 @@ fun HomeDesignScreen(
                 item {
                     HomeSection(
                         title = stringResource(Res.string.home_your_listening),
+                        icon = Res.drawable.icon_activity,
                         compact = compact,
                         onClick = { onAction(HomeAction.NavigateToLibrary) },
                     ) {
@@ -178,6 +189,7 @@ fun HomeDesignScreen(
                 item {
                     HomeSection(
                         title = stringResource(Res.string.home_continue_playing),
+                        icon = Res.drawable.icon_headphones,
                         compact = compact,
                         onClick = { onAction(HomeAction.NavigateToLibrary) },
                     ) {
@@ -192,6 +204,7 @@ fun HomeDesignScreen(
                 item {
                     HomeSection(
                         title = stringResource(Res.string.home_recently_played),
+                        icon = Res.drawable.icon_clock,
                         compact = compact,
                         onClick = { onAction(HomeAction.NavigateToLibrary) },
                     ) {
@@ -204,6 +217,7 @@ fun HomeDesignScreen(
                 item {
                     HomeSection(
                         title = stringResource(Res.string.home_recently_added),
+                        icon = Res.drawable.icon_sparkles,
                         compact = compact,
                         onClick = { onAction(HomeAction.NavigateToLibrary) },
                     ) {
@@ -217,6 +231,7 @@ fun HomeDesignScreen(
                 item {
                     HomeSection(
                         title = stringResource(Res.string.home_recommended_artists),
+                        icon = Res.drawable.icon_mic_vocal,
                         compact = compact,
                         onClick = { onAction(HomeAction.NavigateToLibrary) },
                     ) {
@@ -501,6 +516,7 @@ private fun HeroAction(
 @Composable
 private fun HomeSection(
     title: String,
+    icon: DrawableResource,
     compact: Boolean,
     onClick: (() -> Unit)? = null,
     content: @Composable () -> Unit,
@@ -522,7 +538,7 @@ private fun HomeSection(
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    painter = painterResource(Res.drawable.icon_music_note),
+                    painter = painterResource(icon),
                     contentDescription = null,
                     tint = MiuixTheme.colorScheme.primary,
                     modifier = Modifier.size(14.dp),
@@ -534,9 +550,9 @@ private fun HomeSection(
                 color = MiuixTheme.colorScheme.onBackground,
                 style = MiuixTheme.textStyles.title3,
                 fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f),
             )
             if (onClick != null) {
+                Spacer(modifier = Modifier.width(10.dp))
                 Icon(
                     painter = painterResource(CoreRes.drawable.icon_chevron_right),
                     contentDescription = null,

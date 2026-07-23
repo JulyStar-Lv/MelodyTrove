@@ -10,7 +10,7 @@ import {
   Volume2, VolumeX, Shuffle, Repeat,
   MoreHorizontal, MoreVertical, Download, Share2, Sun, Moon,
   List, Grid3x3, Plus, X, Bell,
-  Disc3, Headphones, Speaker, Wifi, Bluetooth,
+  Disc3, Headphones, Speaker, Wifi, Bluetooth, Signal, BatteryFull,
   Database, Cloud, HardDrive, ArrowLeft, ArrowRight,
   Zap, SlidersHorizontal, Folder, Globe, Server,
   RefreshCw, AlertCircle, Star, Bookmark, Mic,
@@ -23,7 +23,7 @@ import {
   TrendingUp, Clock, CalendarDays, Flame, Timer, Trophy,
   Heart as HeartIcon, Star as StarIcon,
   FolderOpen, Wifi as WifiIcon, Music, Mic2,
-  GripVertical, Trash2, Eye, EyeOff, Infinity as InfinityIcon
+  GripVertical, Trash2, Eye, EyeOff
 } from "lucide-react";
 
 const cn = (...i: unknown[]) => twMerge(clsx(i));
@@ -40,7 +40,7 @@ interface Song { id: number; title: string; artist: string; album: string; durat
 interface Album { id: number; title: string; artist: string; year: number; gradient: [string,string]; tracks: number; genre: string; }
 interface Artist { id: number; name: string; followers: string; gradient: [string,string]; genre: string; initials: string; }
 interface Playlist { id: number; title: string; description: string; gradient: [string,string]; tracks: number; duration: string; }
-type Page = "home"|"search"|"library"|"listening"|"settings"|"design-system";
+type Page = "home"|"search"|"library"|"playlist"|"listening"|"settings"|"design-system";
 type DSSection = "cover"|"foundation"|"tokens"|"components"|"patterns"|"compose";
 type LibTab = "songs"|"albums"|"artists"|"genres"|"folders"|"playlists"|"favorites"|"downloads"|"history"|"recently-added"|"recently-played"|"lossless"|"hi-res";
 
@@ -113,7 +113,6 @@ const FAVORITE_PLAYLIST: Playlist = {
   duration:"14m 22s",
 };
 const PINNED_PLAYLISTS = [FAVORITE_PLAYLIST,...PLAYLISTS];
-const FAVORITE_SONG = SONGS.find(song=>song.liked)??SONGS[0];
 const LISTENING_MINUTES = [0,18,42,27,64,35,0,52,81,24,39,0,68,46,30,12,75,0,58,44,20,0,33,71,54,26,48,0,62,38,19,84,43,0,57,29,66,34,0,76,41,23,59,88,0,36,65,28,72,45,0,53,31,79,47,18];
 const LISTENING_DAYS = LISTENING_MINUTES.map((minutes,index)=>({
   id:index,
@@ -156,6 +155,12 @@ const LYRICS: { time:number; section:string; text:string }[] = [
   { time:216, section:"Final Chorus", text:"Every road I follow leads me back to you" },
 ];
 const LYRIC_TRANSLATIONS: Record<number,string> = {
+  18:"街灯在雨幕中闪烁",
+  26:"你的声音从列车那端轻轻传来",
+  34:"我沿着车窗上的水痕描摹河流",
+  42:"每一站都像来自往昔的回声",
+  54:"如果信号消失，请别挂断",
+  62:"今夜我会在噪声中找到你",
   74:"午夜瀑布般倾落在我身上",
   82:"银光落在水面，电流穿过街道",
   90:"夜色倾泻，别让这股潮流停下",
@@ -164,22 +169,20 @@ const LYRIC_TRANSLATIONS: Record<number,string> = {
   123:"我们故意错过最后一个路口，只为留住这里",
   131:"天际线闪烁得像一道警告",
   139:"你的手在恰好的时刻找到我的手",
+  152:"当所有频率归于寂静",
+  160:"当整座城市熄灭灯火",
+  168:"我会记得你的声音",
+  176:"在那一刻的中央",
+  188:"午夜潮汐，带我们奔向黎明",
+  196:"即使离去，也让信号继续燃烧",
+  208:"水面泛着银光，穿行于蓝色夜幕",
+  216:"我走过的每条路，最终都通向你",
 };
 const SONG_DURATION = 222; // 3:42 in seconds
 
 // ─────────────────────────────────────────────────────────────
 // PRIMITIVE COMPONENTS
 // ─────────────────────────────────────────────────────────────
-function QualityBadge({ quality }: { quality?: string }) {
-  if (!quality || quality === "standard") return null;
-  const c = { "hi-res": { l:"Hi-Res", color:"#FFD93D" }, lossless:{ l:"Lossless", color:"#3DCA8A" }, dolby:{ l:"Dolby Atmos", color:"#3D9AFF" } };
-  const cfg = c[quality as keyof typeof c]; if (!cfg) return null;
-  return (
-    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wide font-mono shrink-0"
-      style={{ background:`${cfg.color}20`, color:cfg.color, border:`1px solid ${cfg.color}40` }}>{cfg.l}</span>
-  );
-}
-
 // CoverArt: img over gradient fallback, fills parent container
 function CoverArt({ src, gradient, className, style, overlay, children }: {
   src: string; gradient: [string,string]; className?: string; style?: React.CSSProperties; overlay?: boolean; children?: React.ReactNode;
@@ -192,6 +195,31 @@ function CoverArt({ src, gradient, className, style, overlay, children }: {
       {children}
     </div>
   );
+}
+
+// iPhone 17 Pro baseline: 59pt portrait status area and a compact 28pt landscape status area.
+function MobileStatusBar({ inverse=false }: { inverse?:boolean }) {
+  const ink = inverse ? "text-white" : "text-foreground";
+  const surface = inverse ? "bg-transparent" : "bg-background";
+  return (
+    <div aria-hidden="true" className={cn("pointer-events-none absolute inset-x-0 top-0 z-[80] h-[59px] lg:hidden landscape:h-0",ink,surface)}>
+      <span className="absolute left-7 top-[15px] text-[15px] font-semibold tracking-[-0.03em] landscape:hidden">9:41</span>
+      <span className="absolute left-1/2 top-[10px] h-[37px] w-[126px] -translate-x-1/2 rounded-full bg-black shadow-[0_1px_0_rgba(255,255,255,0.06)] landscape:fixed landscape:left-auto landscape:right-[10px] landscape:top-1/2 landscape:h-[126px] landscape:w-[37px] landscape:translate-x-0 landscape:-translate-y-1/2"/>
+      <span className="absolute right-7 top-[16px] flex items-center gap-[5px] landscape:hidden">
+        <Signal className="h-[14px] w-[14px]" strokeWidth={2.4}/>
+        <Wifi className="h-[14px] w-[14px]" strokeWidth={2.3}/>
+        <BatteryFull className="h-[18px] w-[18px]" strokeWidth={2.25}/>
+      </span>
+    </div>
+  );
+}
+
+function MobileHomeIndicator({ inverse=false }: { inverse?:boolean }) {
+  return <span aria-hidden="true" className={cn("pointer-events-none absolute bottom-[9px] left-1/2 z-[70] h-[5px] w-[134px] -translate-x-1/2 rounded-full lg:hidden landscape:hidden",inverse?"bg-white/88":"bg-foreground/82")}/>;
+}
+
+function MobileLandscapeHomeIndicator({ inverse=false }: { inverse?:boolean }) {
+  return <span aria-hidden="true" className={cn("pointer-events-none fixed bottom-[6px] left-1/2 z-[380] hidden h-[4px] w-[134px] -translate-x-1/2 rounded-full lg:hidden landscape:block",inverse?"bg-white/88":"bg-foreground/82")}/>;
 }
 
 function Btn({ children, variant="filled", size="md", className="", onClick, icon, iconOnly }: {
@@ -416,7 +444,6 @@ function MusicCard({ song, onPlay, isPlaying, highlightPlaying=true, coverClassN
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <p className={cn("text-sm font-semibold truncate",isPlaying&&highlightPlaying?"text-primary":"text-foreground")}>{song.title}</p>
-          <QualityBadge quality={song.quality}/>
         </div>
         <p className="text-xs text-muted-foreground truncate mt-0.5">{song.artist} · {song.album}</p>
       </div>
@@ -427,6 +454,63 @@ function MusicCard({ song, onPlay, isPlaying, highlightPlaying=true, coverClassN
         </span>
       </div>
     </motion.button>
+  );
+}
+
+function PlaylistDetailPage({ playlist, onBack, onPlay }: {
+  playlist:Playlist; onBack:()=>void; onPlay:(song:Song)=>void;
+}) {
+  const tracks = playlist.tracks===0
+    ? []
+    : playlist.title==="My Favorites"
+      ? SONGS.filter(song=>song.liked)
+      : SONGS.map((_,index)=>SONGS[(index+Math.max(playlist.id-1,0))%SONGS.length]);
+
+  return (
+    <div className="mx-auto w-full max-w-[960px] px-5 pb-8 lg:px-8 lg:pt-4">
+      <div className="sticky top-0 z-30 -mx-5 flex h-14 items-center justify-between bg-background/90 px-4 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 lg:static lg:mx-0 lg:bg-transparent lg:px-0 lg:backdrop-blur-none">
+        <button type="button" onPointerDown={preventMouseFocus} onClick={onBack}
+          className="flex h-10 items-center gap-1.5 rounded-full px-2 text-sm font-semibold text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/40">
+          <ChevronLeft className="h-5 w-5"/><span>Back</span>
+        </button>
+        <button type="button" aria-label="More playlist actions"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/40">
+          <MoreHorizontal className="h-5 w-5"/>
+        </button>
+      </div>
+
+      <section className="flex flex-col items-center gap-5 pb-6 pt-3 sm:flex-row sm:items-end sm:gap-7 lg:pt-5">
+        <CoverArt src={cover(playlist.id)} gradient={playlist.gradient}
+          className="aspect-square w-[min(62vw,240px)] shrink-0 rounded-[24px] shadow-2xl sm:w-[220px] lg:w-[240px]"/>
+        <div className="min-w-0 flex-1 text-center sm:pb-1 sm:text-left">
+          <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-primary">Playlist</p>
+          <h1 className="text-[30px] font-bold leading-[36px] text-foreground sm:text-[36px] sm:leading-[42px]">{playlist.title}</h1>
+          <p className="mt-2 text-sm leading-5 text-muted-foreground">{playlist.description}</p>
+          <p className="mt-3 text-xs font-medium text-muted-foreground">{playlist.tracks} tracks · {playlist.duration}</p>
+          <div className="mt-5 flex items-center justify-center gap-2 sm:justify-start">
+            <Btn onClick={()=>tracks[0]&&onPlay(tracks[0])} icon={<Play className="h-4 w-4 fill-current"/>} className="min-w-[104px]">Play</Btn>
+            <Btn variant="tonal" onClick={()=>tracks.length&&onPlay(tracks[Math.min(3,tracks.length-1)])}
+              icon={<Shuffle className="h-4 w-4"/>}>Shuffle</Btn>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="playlist-songs-heading">
+        <div className="mb-2 flex items-center justify-between px-2">
+          <h2 id="playlist-songs-heading" className="text-lg font-semibold text-foreground">Songs</h2>
+          <span className="text-xs text-muted-foreground">{tracks.length}</span>
+        </div>
+        {tracks.length ? (
+          <div className="overflow-hidden">
+            {tracks.map((song,index)=><MusicCard key={song.id} song={song} onPlay={onPlay} trackNumber={index+1}/>)}
+          </div>
+        ) : (
+          <div className="rounded-[24px] border border-border bg-card">
+            <EmptyState icon={<Music className="h-7 w-7"/>} title="No songs yet" subtitle="Songs added to this playlist will appear here."/>
+          </div>
+        )}
+      </section>
+    </div>
   );
 }
 
@@ -1085,10 +1169,9 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
   const remaining   = `-${Math.floor(remainSec/60)}:${String(remainSec%60).padStart(2,"0")}`;
   const currentTime = progress * SONG_DURATION / 100;
   const activeIdx   = LYRICS.reduce((acc, l, i) => l.time <= currentTime ? i : acc, -1);
-  const previewLyric = LYRICS[Math.max(activeIdx,0)];
-  const previewTranslation = LYRIC_TRANSLATIONS[previewLyric.time];
-  const qualityLabel = song.quality==="hi-res" ? "Hi-Res" : song.quality==="lossless" ? "Lossless" : song.quality==="dolby" ? "Dolby Atmos" : "Standard";
-
+  const previewIndex = Math.max(activeIdx,0);
+  const previewLine = LYRICS[previewIndex];
+  const previewTranslation = LYRIC_TRANSLATIONS[previewLine.time];
   // Auto-scroll active lyric to vertical center (respects prefers-reduced-motion)
   useEffect(() => {
     if ((wide && activeTab !== "lyrics") || (!wide && mobileView !== "lyrics")) return;
@@ -1102,16 +1185,21 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
     container.scrollTo({ top: Math.max(0, top), behavior: reducedMotion ? "instant" : "smooth" });
   }, [activeIdx, activeTab, mobileView, wide]);
 
-  // ── Background: opaque base + artwork-derived blur fill ───────
+  // ── Background: artwork-derived blur fill ─────────────────────
   const Backdrop = () => (
-    <div className="absolute inset-0 overflow-hidden" style={{ background:"#0C0A14" }}>
-      {/* Opaque base ensures zero bleed-through regardless of image load state */}
-      <img src={cover(song.id)} alt=""
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ filter:"blur(88px) saturate(1.45) brightness(1.02)", transform:"scale(1.14)" }}/>
-      {/* Muted artwork wash, inspired by the reference while retaining TideTunes contrast */}
-      <div className="absolute inset-0"
-        style={{ background:"linear-gradient(180deg,rgba(16,10,28,0.48) 0%,rgba(8,6,18,0.68) 100%)" }}/>
+    <div className="absolute inset-0 overflow-hidden bg-[#08060e]" aria-hidden="true">
+      <div className="absolute inset-0" style={{ background:`linear-gradient(135deg,${song.gradient[0]},${song.gradient[1]})` }}/>
+      <img
+        src={cover(song.id)}
+        alt=""
+        className="absolute left-[-12%] top-[-12%] h-[124%] w-[124%] max-w-none scale-110 object-cover opacity-75"
+        style={{ filter:"blur(54px) saturate(1.18)" }}
+      />
+      <div className="absolute inset-0 bg-black/10"/>
+      <div
+        className="absolute inset-0"
+        style={{ background:"linear-gradient(180deg,rgba(8,6,14,0.28) 0%,rgba(8,6,14,0.46) 52%,rgba(8,6,14,0.72) 100%)" }}
+      />
     </div>
   );
 
@@ -1199,6 +1287,42 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
       transform: dist === 0 ? "scale(1)" : "scale(0.94)",
       transformOrigin: "left center",
     };
+  };
+
+  const LyricsPreview = ({ density }: { density:"mobile"|"landscape" }) => {
+    if (density==="landscape") {
+      const start = Math.min(previewIndex,Math.max(0,LYRICS.length-2));
+      return (
+        <span className="block min-w-0 max-w-[520px]" aria-live="polite">
+          {LYRICS.slice(start,start+2).map((line,index) => {
+            const active = start+index===previewIndex;
+            return (
+              <span key={line.time} className={cn("block",index===0?"":"mt-2.5")}>
+                <span className={cn("block whitespace-normal break-words text-[17px] leading-[1.38] transition-[color,opacity] duration-300",active?"font-bold text-white":"font-semibold text-white/48")}>
+                  {line.text}
+                </span>
+                <span className={cn("mt-1 block whitespace-normal break-words text-[12px] font-medium leading-4",active?"text-white/55":"text-white/30")}>
+                  {LYRIC_TRANSLATIONS[line.time]}
+                </span>
+              </span>
+            );
+          })}
+        </span>
+      );
+    }
+
+    return (
+      <span className="block min-w-0 max-w-[520px]" aria-live="polite">
+        <span
+          className="block whitespace-normal break-words font-bold text-white transition-[color,opacity] duration-300"
+          style={{ fontSize:17,lineHeight:"1.38" }}>
+          {previewLine.text}
+        </span>
+        <span className="mt-1.5 block whitespace-normal break-words text-[12px] font-medium leading-4 text-white/55">
+          {previewTranslation}
+        </span>
+      </span>
+    );
   };
 
   // ── Tabs block (wide + compact share, padded = wide) ──────────
@@ -1361,11 +1485,8 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
         <input type="range" min={0} max={100} value={progress} onChange={e=>onSeek(Number(e.target.value))}
           className="absolute inset-0 h-full w-full cursor-pointer opacity-0" aria-label="Seek"/>
       </div>
-      <div className={cn("grid grid-cols-3 items-center",compact?"pt-0.5":"pt-1")}>
+      <div className={cn("grid grid-cols-2 items-center",compact?"pt-0.5":"pt-1")}>
         <span className={cn("text-left font-mono tabular-nums text-white/52",compact?"text-[12px]":"text-[15px]")}>{elapsed}</span>
-        <span className={cn("mx-auto inline-flex items-center rounded-full bg-white/[0.08] font-medium text-white/58",compact?"h-6 gap-1 px-2 text-[11px]":"h-8 gap-1.5 px-3 text-[14px]")}>
-          <InfinityIcon className={compact?"h-3.5 w-3.5":"h-4 w-4"}/>{qualityLabel}
-        </span>
         <span className={cn("text-right font-mono tabular-nums text-white/52",compact?"text-[12px]":"text-[15px]")}>{remaining}</span>
       </div>
     </div>
@@ -1401,11 +1522,7 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
   );
 
   const MobileTrackHeader = () => (
-    <div className="flex h-[104px] shrink-0 items-center gap-2 px-4 pt-3">
-      <motion.button type="button" aria-label="Back to player" whileTap={{ scale:0.92 }} onPointerDown={preventMouseFocus} onClick={() => showMobileView("player")}
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/10 text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40">
-        <ChevronLeft className="h-[22px] w-[22px]"/>
-      </motion.button>
+    <div className="flex h-[136px] shrink-0 items-center gap-2 px-4 pt-[50px]">
       <CoverArt src={cover(song.id)} gradient={song.gradient} className="h-14 w-14 shrink-0 rounded-[13px] shadow-lg ring-1 ring-white/10"/>
       <div className="min-w-0 flex-1">
         <p className="truncate text-[20px] font-bold leading-6 text-white">{song.title}</p>
@@ -1444,46 +1561,43 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
       transition={{ duration:0.22,ease:"easeOut" }}
       className="fixed inset-0 z-[300] flex overflow-hidden">
       <Backdrop/>
+      <MobileStatusBar inverse/>
+      <MobileLandscapeHomeIndicator inverse/>
 
-      <motion.button type="button" aria-label="Close player" whileTap={{ scale:0.92 }} onPointerDown={preventMouseFocus} onClick={onClose}
-        className="absolute left-4 top-4 z-30 flex h-10 w-10 items-center justify-center rounded-full bg-black/20 text-white/78 outline-none backdrop-blur-xl focus-visible:ring-2 focus-visible:ring-white/40">
-        <ChevronDown className="h-[22px] w-[22px]"/>
-      </motion.button>
-
-      <aside className="relative z-10 flex w-[40%] min-w-[286px] shrink-0 flex-col items-center justify-center px-5 py-4">
+      <aside className="relative z-10 order-2 flex w-[47%] min-w-[413px] shrink-0 self-center flex-col items-end justify-center pl-5 pr-[87px]"
+        style={{ height:"min(clamp(300px, 82vh, 340px), calc(100vh - 34px))" }}>
         <motion.div animate={{ scale:isPlaying?1:0.95 }} transition={{ type:"spring",stiffness:180,damping:26 }}>
           <CoverArt src={cover(song.id)} gradient={song.gradient}
             className="shadow-[0_16px_42px_rgba(0,0,0,0.32)] ring-1 ring-white/10"
-            style={{ width:"min(31vw, calc(100vh - 112px))",height:"min(31vw, calc(100vh - 112px))",borderRadius:18 }}/>
+            style={{ width:"min(clamp(300px, 82vh, 340px), calc(100vh - 34px))",height:"min(clamp(300px, 82vh, 340px), calc(100vh - 34px))",borderRadius:18 }}/>
         </motion.div>
-        <div className="mt-3 flex w-full max-w-[320px] items-center gap-2">
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[18px] font-bold leading-6 text-white">{song.title}</p>
-            <p className="mt-0.5 truncate text-[13px] font-medium text-white/52">{song.artist}</p>
-          </div>
-          <motion.button type="button" aria-label={liked?"Remove from favorites":"Add to favorites"} whileTap={{ scale:0.92 }} onPointerDown={preventMouseFocus} onClick={() => setLiked(!liked)}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40">
-            <Heart className="h-[22px] w-[22px]" style={{ fill:liked?"var(--tide-pink)":"none",color:liked?"var(--tide-pink)":"white" }}/>
-          </motion.button>
-          <button type="button" aria-label="More options" className="flex h-10 w-9 shrink-0 items-center justify-center rounded-full text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40">
-            <MoreVertical className="h-6 w-6"/>
-          </button>
-        </div>
       </aside>
 
-      <section className="relative z-10 flex min-w-0 flex-1 flex-col py-4 pl-2 pr-5">
+      <section className="relative z-10 order-1 flex min-w-0 flex-1 self-center flex-col pl-10 pr-2"
+        style={{ height:"min(clamp(300px, 82vh, 340px), calc(100vh - 34px))" }}>
         <AnimatePresence mode="wait" initial={false}>
           {mobileView==="player"&&(
             <motion.div key="landscape-player" initial={{ opacity:0,x:-10 }} animate={{ opacity:1,x:0 }} exit={{ opacity:0,x:-10 }}
               transition={{ duration:0.18,ease:"easeOut" }} className="flex min-h-0 flex-1 flex-col">
+              <div className="flex shrink-0 items-start gap-2 px-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[20px] font-bold leading-7 text-white">{song.title}</p>
+                  <p className="mt-0.5 truncate text-[14px] font-medium text-white/52">{song.artist}</p>
+                </div>
+                <motion.button type="button" aria-label={liked?"Remove from favorites":"Add to favorites"} whileTap={{ scale:0.92 }} onPointerDown={preventMouseFocus} onClick={() => setLiked(!liked)}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40">
+                  <Heart className="h-[22px] w-[22px]" style={{ fill:liked?"var(--tide-pink)":"none",color:liked?"var(--tide-pink)":"white" }}/>
+                </motion.button>
+                <button type="button" aria-label="More options" className="flex h-10 w-9 shrink-0 items-center justify-center rounded-full text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40">
+                  <MoreVertical className="h-6 w-6"/>
+                </button>
+              </div>
               <button type="button" aria-label="Open lyrics" onClick={() => showMobileView("lyrics")}
-                className="min-h-0 flex-1 overflow-hidden rounded-2xl px-2 py-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-white/35">
-                <span className="block max-w-[520px] text-[18px] font-bold leading-[1.32] text-white/92">{previewLyric.text}</span>
-                {previewTranslation&&<span className="mt-1.5 block text-[13px] font-medium leading-5 text-white/52">{previewTranslation}</span>}
-                <span className="mt-3 block text-[13px] font-semibold leading-5 text-white/[0.14]">Lyrics by · {song.artist}</span>
+                className="mt-2 min-h-0 flex-1 overflow-hidden rounded-2xl px-2 pb-2 pt-0 text-left outline-none focus-visible:ring-2 focus-visible:ring-white/35">
+                <LyricsPreview density="landscape"/>
               </button>
               <div className="shrink-0 px-2">
-                <MobileHeroProgress compact/>
+                <div className="-translate-y-2"><MobileHeroProgress compact/></div>
                 <MobileHeroTransport compact/>
               </div>
             </motion.div>
@@ -1492,11 +1606,7 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
           {mobileView==="lyrics"&&(
             <motion.div key="landscape-lyrics" initial={{ opacity:0,x:12 }} animate={{ opacity:1,x:0 }} exit={{ opacity:0,x:12 }}
               transition={{ duration:0.18,ease:"easeOut" }} className="flex min-h-0 flex-1 flex-col">
-              <div className="flex h-10 shrink-0 items-center gap-2 px-2 pb-1">
-                <motion.button type="button" aria-label="Back to player" whileTap={{ scale:0.92 }} onPointerDown={preventMouseFocus} onClick={() => showMobileView("player")}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40">
-                  <ChevronLeft className="h-[18px] w-[18px]"/>
-                </motion.button>
+              <div className="flex h-10 shrink-0 items-center px-2 pb-1">
                 <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-white/36">Lyrics</p>
               </div>
               <div ref={lyricsScrollRef} className="hide-scrollbar min-h-0 flex-1 overflow-y-auto px-2"
@@ -1524,11 +1634,7 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
           {mobileView==="queue"&&(
             <motion.div key="landscape-queue" initial={{ opacity:0,x:12 }} animate={{ opacity:1,x:0 }} exit={{ opacity:0,x:12 }}
               transition={{ duration:0.18,ease:"easeOut" }} className="flex min-h-0 flex-1 flex-col">
-              <div className="flex h-10 shrink-0 items-center gap-2 px-2 pb-1">
-                <motion.button type="button" aria-label="Back to player" whileTap={{ scale:0.92 }} onPointerDown={preventMouseFocus} onClick={() => showMobileView("player")}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40">
-                  <ChevronLeft className="h-[18px] w-[18px]"/>
-                </motion.button>
+              <div className="flex h-10 shrink-0 items-center px-2 pb-1">
                 <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-white/36">Queue</p>
               </div>
               <div className="hide-scrollbar min-h-0 flex-1 overflow-y-auto">
@@ -1552,8 +1658,7 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
         style={{ borderBottom:"1px solid rgba(255,255,255,0.06)" }}>
         {/* Collapse */}
         <motion.button type="button" aria-label="Close player" whileTap={{ scale:0.92 }} onPointerDown={preventMouseFocus} onClick={onClose}
-          className="flex h-9 w-9 items-center justify-center rounded-full outline-none transition-all duration-[180ms] focus-visible:ring-2 focus-visible:ring-primary/40"
-          style={{ background:"rgba(255,255,255,0.10)" }}>
+          className="flex h-9 w-9 items-center justify-center rounded-full outline-none transition-all duration-[180ms] focus-visible:ring-2 focus-visible:ring-primary/40">
           <ChevronDown style={{ width:18, height:18, color:"rgba(255,255,255,0.72)" }}/>
         </motion.button>
         <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
@@ -1592,7 +1697,6 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
                 style={{ fontSize:"clamp(20px,2vw,25px)", lineHeight:"30px", color:"white" }}>{song.title}</p>
               <div className="flex items-center gap-2 mt-1">
                 <p className="text-[14px] truncate" style={{ color:"rgba(255,255,255,0.62)" }}>{song.artist}</p>
-                <QualityBadge quality={song.quality}/>
               </div>
             </div>
             <motion.button type="button" aria-label={liked?"Remove from favorites":"Add to favorites"} whileTap={{ scale:0.92 }} onPointerDown={preventMouseFocus} onClick={() => setLiked(!liked)}
@@ -1635,6 +1739,7 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
       transition={{ type:"spring", stiffness:280, damping:32 }}
       className="fixed inset-0 z-[300] flex flex-col overflow-hidden">
       <Backdrop/>
+      <MobileStatusBar inverse/>
       <AnimatePresence initial={false}>
         {(mobileView==="player" || (mobileView==="queue" && mobileBaseView==="player"))&&(
           <motion.div key="mobile-player"
@@ -1642,42 +1747,41 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
             animate={mobileView==="queue" && !reduceMotion ? { opacity:0.82,x:0,scale:0.985 } : { opacity:1,x:0,scale:1 }}
             exit={{ opacity:0,x:-12 }}
             transition={mobileView==="queue" && !reduceMotion ? { type:"spring",stiffness:360,damping:36,mass:0.85 } : { duration:0.2,ease:"easeOut" }}
-            className="absolute inset-0 z-10 h-full w-full overflow-hidden bg-[#08060e] transform-gpu will-change-transform">
-            <div className="absolute inset-x-0 top-0 h-[59vh] overflow-hidden" aria-hidden="true">
-              <img src={cover(song.id)} alt="" className="h-full w-full object-cover"/>
-              <div className="absolute inset-0" style={{ background:"linear-gradient(180deg,rgba(8,6,14,0.08) 0%,rgba(8,6,14,0.06) 44%,rgba(8,6,14,0.82) 78%,#08060e 100%)" }}/>
-            </div>
-            <motion.button type="button" aria-label="Close player" whileTap={{ scale:0.92 }} onPointerDown={preventMouseFocus} onClick={onClose}
-              className="absolute left-4 top-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-black/15 text-white/76 outline-none backdrop-blur-xl focus-visible:ring-2 focus-visible:ring-white/40">
-              <ChevronDown style={{ width:22,height:22 }}/>
-            </motion.button>
+            className="absolute inset-0 z-10 h-full w-full overflow-hidden transform-gpu will-change-transform">
+            <div className="relative z-10 flex h-full flex-col" style={{ paddingTop:"max(90px,calc(env(safe-area-inset-top) + 56px))",paddingBottom:"max(44px,calc(env(safe-area-inset-bottom) + 28px))" }}>
+              <div
+                className="mx-auto flex h-full min-h-0 flex-col items-stretch"
+                style={{ width:"min(88%, 356px)" }}>
+                <motion.div className="aspect-square w-full shrink-0" animate={{ scale:isPlaying?1:0.96 }} transition={{ type:"spring",stiffness:180,damping:26 }}>
+                  <CoverArt src={cover(song.id)} gradient={song.gradient}
+                    className="h-full w-full ring-1 ring-white/10 shadow-[0_20px_44px_rgba(0,0,0,0.28)]"
+                    style={{ borderRadius:28 }}/>
+                </motion.div>
 
-            <div className="relative z-10 flex h-full flex-col px-7 pt-[44vh]" style={{ paddingBottom:"max(24px,calc(env(safe-area-inset-bottom) + 12px))" }}>
-              <div className="flex shrink-0 items-start gap-2">
-                <div className="min-w-0 flex-1 pt-0.5">
-                  <p className="truncate text-[25px] font-bold leading-8 text-white">{song.title}</p>
-                  <p className="mt-1 truncate text-[17px] font-medium text-white/56">{song.artist}</p>
+                <div className="mt-5 flex w-full shrink-0 items-center gap-2 px-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[20px] font-bold leading-7 text-white">{song.title}</p>
+                    <p className="mt-1 truncate text-[14px] font-medium text-white/56">{song.artist}</p>
+                  </div>
+                  <motion.button type="button" aria-label={liked?"Remove from favorites":"Add to favorites"} whileTap={{ scale:0.92 }} onPointerDown={preventMouseFocus} onClick={() => setLiked(!liked)}
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40">
+                    <Heart className="h-[28px] w-[28px]" style={{ fill:liked?"var(--tide-pink)":"none",color:liked?"var(--tide-pink)":"white" }}/>
+                  </motion.button>
+                  <button type="button" aria-label="More options" className="flex h-12 w-10 shrink-0 items-center justify-center rounded-full text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40">
+                    <MoreVertical className="h-7 w-7"/>
+                  </button>
                 </div>
-                <motion.button type="button" aria-label={liked?"Remove from favorites":"Add to favorites"} whileTap={{ scale:0.92 }} onPointerDown={preventMouseFocus} onClick={() => setLiked(!liked)}
-                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40">
-                  <Heart className="h-[28px] w-[28px]" style={{ fill:liked?"var(--tide-pink)":"none",color:liked?"var(--tide-pink)":"white" }}/>
-                </motion.button>
-                <button type="button" aria-label="More options" className="flex h-12 w-10 shrink-0 items-center justify-center rounded-full text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40">
-                  <MoreVertical className="h-7 w-7"/>
+
+                <button type="button" aria-label="Open lyrics" onClick={() => showMobileView("lyrics")}
+                  className="mt-5 w-full shrink-0 overflow-visible rounded-2xl px-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-white/35">
+                  <LyricsPreview density="mobile"/>
                 </button>
-              </div>
+                <div className="min-h-3 flex-1"/>
 
-              <button type="button" aria-label="Open lyrics" onClick={() => showMobileView("lyrics")}
-                className="mt-6 min-h-0 flex-1 overflow-hidden rounded-2xl text-left outline-none focus-visible:ring-2 focus-visible:ring-white/35">
-                <span className="block text-[18px] font-bold leading-[1.36] text-white/92">{previewLyric.text}</span>
-                {previewTranslation&&<span className="mt-1.5 block text-[14px] font-medium leading-5 text-white/55">{previewTranslation}</span>}
-                <span className="mt-4 block text-[15px] font-semibold leading-5 text-white/[0.12]">Lyrics by · {song.artist}</span>
-                <span className="mt-3 block text-[15px] font-semibold leading-5 text-white/[0.10]">Composed by · {song.artist}</span>
-              </button>
-
-              <div className="shrink-0">
-                <MobileHeroProgress/>
-                <MobileHeroTransport/>
+                <div className="w-full shrink-0 px-2">
+                  <div className="-translate-y-2"><MobileHeroProgress/></div>
+                  <MobileHeroTransport/>
+                </div>
               </div>
             </div>
           </motion.div>
@@ -1691,7 +1795,7 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
             transition={mobileView==="queue" && !reduceMotion ? { type:"spring",stiffness:360,damping:36,mass:0.85 } : { duration:0.2,ease:"easeOut" }}
             className="absolute inset-0 z-10 flex h-full w-full flex-col transform-gpu will-change-transform">
             <MobileTrackHeader/>
-            <div ref={lyricsScrollRef} className="hide-scrollbar min-h-0 flex-1 overflow-y-auto px-5"
+            <div ref={lyricsScrollRef} className="hide-scrollbar min-h-0 flex-1 overflow-y-auto px-5 pb-[38px]"
               style={{ maskImage:"linear-gradient(to bottom,transparent 0%,black 8%,black 94%,transparent 100%)",WebkitMaskImage:"linear-gradient(to bottom,transparent 0%,black 8%,black 94%,transparent 100%)" }}>
               <div style={{ height:"30vh" }}/>
               {LYRICS.map((line,i) => {
@@ -1743,16 +1847,17 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
                 <p className="text-[21px] font-bold text-white">继续播放</p>
                 <p className="mt-1 truncate text-[14px] text-white/42">来自 {song.album}</p>
               </div>
-              {SONGS.filter(item=>item.id!==song.id).slice(0,3).map(item=><MobileQueueRow key={item.id} item={item}/>)}
+              {SONGS.filter(item=>item.id!==song.id).map(item=><MobileQueueRow key={item.id} item={item}/>)}
             </div>
 
-            <div className="shrink-0 px-5 pt-2" style={{ paddingBottom:"max(18px,calc(env(safe-area-inset-bottom) + 10px))" }}>
+            <div className="shrink-0 px-5 pt-2" style={{ paddingBottom:"max(42px,calc(env(safe-area-inset-bottom) + 28px))" }}>
               <ProgressTrack/>
               <div className="mt-1"><MobileTransport compact/></div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+      <MobileHomeIndicator inverse/>
     </motion.div>
   );
 }
@@ -1831,7 +1936,8 @@ function OverflowMarquee({ text }: { text:string }) {
 }
 
 function DailyPicksHero({ onPlay, currentSong }: { onPlay:(s:Song)=>void; currentSong:Song|null }) {
-  const nowPlayingLabel = `Now Playing: ${currentSong?.title??"No track"}`;
+  const currentTrackTitle = currentSong?.title??"No track";
+  const nowPlayingLabel = `Now Playing: ${currentTrackTitle}`;
   return (
     <div className="mx-4 lg:mx-0 mt-5 relative rounded-[22px] overflow-hidden"
       style={{ height:152 }}>
@@ -1843,10 +1949,14 @@ function DailyPicksHero({ onPlay, currentSong }: { onPlay:(s:Song)=>void; curren
       <div className="absolute top-0 inset-x-0 h-px"
         style={{ background:"var(--daily-picks-highlight)" }}/>
 
-      {/* Left: text + play */}
-      <div className="absolute left-5 top-0 bottom-0 flex flex-col justify-center">
+      {/* Left: text + play. Reserve the right-side artwork zone on compact screens. */}
+      <div className="absolute left-5 right-[154px] top-0 bottom-0 flex min-w-0 flex-col justify-center lg:right-auto">
         <p className="text-[20px] font-black leading-tight mb-1" style={{ color:"var(--daily-picks-foreground)" }}>Daily Picks</p>
-        <div className="text-[13px] mb-3" style={{ color:"var(--daily-picks-muted)" }}>
+        <div className="mb-3 min-w-0 lg:hidden" style={{ color:"var(--daily-picks-muted)" }}>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.08em]">Now playing</p>
+          <p className="mt-0.5 truncate text-[14px] font-medium" title={currentTrackTitle}>{currentTrackTitle}</p>
+        </div>
+        <div className="mb-3 hidden text-[13px] lg:block" style={{ color:"var(--daily-picks-muted)" }}>
           <OverflowMarquee text={nowPlayingLabel}/>
         </div>
         <motion.button type="button" whileTap={{ scale:0.95 }} onPointerDown={preventMouseFocus} onClick={() => onPlay(SONGS[0])}
@@ -2056,7 +2166,7 @@ function ListeningPage({ onBack, onPlay }: { onBack:()=>void; onPlay:(song:Song)
 
   return (
     <div ref={pageRef} className="mx-auto w-full px-4 pb-10 pt-2 lg:max-w-[1180px] lg:px-8 lg:pt-3">
-      <div className="sticky top-0 z-30 -mx-4 mb-3 flex h-[68px] items-center gap-2 border-b border-border/60 bg-background/90 px-4 backdrop-blur-xl lg:hidden">
+      <div className="sticky top-[59px] z-30 -mx-4 mb-3 flex h-[68px] items-center gap-2 border-b border-border/60 bg-background/90 px-4 backdrop-blur-xl lg:top-0 lg:hidden">
         <button type="button" onClick={onBack} aria-label="Back to Home"
           className="flex h-10 w-10 items-center justify-center rounded-full text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/40">
           <ArrowLeft className="h-5 w-5"/>
@@ -2185,8 +2295,8 @@ function ListeningPage({ onBack, onPlay }: { onBack:()=>void; onPlay:(song:Song)
   );
 }
 
-function HomePage({ onPlay, currentSong, isPlaying, onOpenLibrary, onOpenListening }: {
-  onPlay:(s:Song)=>void; currentSong:Song|null; isPlaying:boolean; onOpenLibrary:(tab:LibTab)=>void; onOpenListening:()=>void;
+function HomePage({ onPlay, currentSong, isPlaying, onOpenLibrary, onOpenPlaylist, onOpenListening }: {
+  onPlay:(s:Song)=>void; currentSong:Song|null; isPlaying:boolean; onOpenLibrary:(tab:LibTab)=>void; onOpenPlaylist:(playlist:Playlist)=>void; onOpenListening:()=>void;
 }) {
   const isDesktop = useIsDesktop();
   const [recentPage,setRecentPage] = useState(0);
@@ -2196,13 +2306,13 @@ function HomePage({ onPlay, currentSong, isPlaying, onOpenLibrary, onOpenListeni
   const recentTrackPages = Array.from({ length:Math.ceil(recentTracks.length/3) },(_,pageIndex)=>
     recentTracks.slice(pageIndex*3,pageIndex*3+3)
   );
-  const continuePlaylists: { playlist:Playlist; song:Song }[] = [
-    { playlist:{ id:5, title:"Daily Tide", description:"Your calm mix", gradient:G[4], tracks:12, duration:"42m" }, song:SONGS[3] },
-    { playlist:{ id:2, title:"Night Drive", description:"After-dark energy", gradient:G[1], tracks:20, duration:"1h 22m" }, song:SONGS[0] },
-    { playlist:PLAYLISTS[2], song:SONGS[2] },
-    { playlist:PLAYLISTS[1], song:SONGS[1] },
-    { playlist:PLAYLISTS[4], song:SONGS[4] },
-    { playlist:PLAYLISTS[5], song:SONGS[5] },
+  const continuePlaylists: Playlist[] = [
+    { id:5, title:"Daily Tide", description:"Your calm mix", gradient:G[4], tracks:12, duration:"42m" },
+    { id:2, title:"Night Drive", description:"After-dark energy", gradient:G[1], tracks:20, duration:"1h 22m" },
+    PLAYLISTS[2],
+    PLAYLISTS[1],
+    PLAYLISTS[4],
+    PLAYLISTS[5],
   ];
 
   if (!isDesktop) {
@@ -2220,7 +2330,7 @@ function HomePage({ onPlay, currentSong, isPlaying, onOpenLibrary, onOpenListeni
           <div className="mt-3 flex gap-4 px-4 overflow-x-auto hide-scrollbar pb-1">
             {PINNED_PLAYLISTS.map(playlist=>(
               <PlaylistCard key={playlist.id} playlist={playlist}
-                onClick={()=>onPlay(playlist.id===FAVORITE_PLAYLIST.id?FAVORITE_SONG:SONGS[playlist.id-1]||SONGS[0])}/>
+                onClick={()=>onOpenPlaylist(playlist)}/>
             ))}
           </div>
         </div>
@@ -2235,8 +2345,8 @@ function HomePage({ onPlay, currentSong, isPlaying, onOpenLibrary, onOpenListeni
         <div className="mt-7">
           <div className="px-4"><HomeSectionHeader title="Continue Playing" icon={<Headphones className="h-4 w-4"/>} onClick={()=>onOpenLibrary("history")}/></div>
           <div className="mt-3 flex gap-4 px-4 overflow-x-auto hide-scrollbar pb-1">
-            {continuePlaylists.map(({playlist,song})=>(
-              <PlaylistCard key={playlist.title} playlist={playlist} showMeta={false} onClick={()=>onPlay(song)}/>
+            {continuePlaylists.map(playlist=>(
+              <PlaylistCard key={playlist.title} playlist={playlist} showMeta={false} onClick={()=>onOpenPlaylist(playlist)}/>
             ))}
           </div>
         </div>
@@ -2288,7 +2398,7 @@ function HomePage({ onPlay, currentSong, isPlaying, onOpenLibrary, onOpenListeni
       <StickyPageHeader title="Good Evening" className="-mx-8 px-8 py-3 mb-3"/>
       <HeroBanner onPlay={onPlay}/>
       <div className="mb-6"><HomeSectionHeader title="Pinned Playlists" icon={<Bookmark className="h-4 w-4"/>} onClick={()=>onOpenLibrary("playlists")}/>
-        <div className="flex gap-4 overflow-x-auto pb-2 hide-scrollbar">{PINNED_PLAYLISTS.map(p=><PlaylistCard key={p.id} playlist={p} onClick={()=>onPlay(p.id===FAVORITE_PLAYLIST.id?FAVORITE_SONG:SONGS[p.id-1]||SONGS[0])}/>)}</div></div>
+        <div className="flex gap-4 overflow-x-auto pb-2 hide-scrollbar">{PINNED_PLAYLISTS.map(p=><PlaylistCard key={p.id} playlist={p} onClick={()=>onOpenPlaylist(p)}/>)}</div></div>
       <div className="mb-6">
         <HomeSectionHeader title="Your Listening" icon={<Activity className="h-4 w-4"/>} onClick={onOpenListening}/>
         <ListeningHomePreview onPlay={onPlay} currentSong={currentSong} isPlaying={isPlaying}/>
@@ -2310,7 +2420,6 @@ function SearchPage({ onPlay }: { onPlay:(s:Song)=>void }) {
   const [q,setQ] = useState("");
   const [filter,setFilter] = useState<"all"|"songs"|"albums"|"artists">("all");
   const [recentSearches,setRecentSearches] = useState(["Luna Waves","Synthwave","Midnight Cascade","Hi-Res","Ambient"]);
-  const cats = ["Electronic","Ambient","Synthwave","Techno","IDM","Post-Rock","Shoegaze","Experimental","Jazz","Classical"].map((n,i)=>({name:n,gradient:G[i%8]}));
   const trending = SONGS.slice(0,6);
   const query = q.trim().toLowerCase();
   const songResults = query ? SONGS.filter(song => {
@@ -2370,17 +2479,6 @@ function SearchPage({ onPlay }: { onPlay:(s:Song)=>void }) {
             ))}</div>
           </section>
         )}
-        <section className="mb-6" aria-label="Browse Genres">
-          <SectionHeader title="Browse Genres"/>
-          <div className="grid grid-flow-col grid-rows-2 auto-cols-[44%] gap-3 overflow-x-auto pb-1 snap-x snap-mandatory hide-scrollbar sm:grid-flow-row sm:grid-rows-none sm:grid-cols-4 sm:auto-cols-auto sm:overflow-visible lg:grid-cols-5">{cats.map(c=>(
-            <motion.button type="button" key={c.name} whileTap={{scale:0.97}} onClick={()=>runSearch(c.name)}
-              className="relative h-[88px] lg:h-[96px] snap-start rounded-[14px] overflow-hidden flex items-end p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-              style={{background:`linear-gradient(135deg,${c.gradient[0]},${c.gradient[1]})`}}>
-              <Hash aria-hidden="true" className="absolute right-3 top-3 w-5 h-5 text-white/45"/>
-              <span className="text-sm font-bold text-white drop-shadow-sm">{c.name}</span>
-            </motion.button>
-          ))}</div>
-        </section>
         <section aria-labelledby="library-trending-heading">
           <div className="mb-3">
             <h2 id="library-trending-heading" className="text-[20px] font-semibold text-foreground">Trending in Your Library</h2>
@@ -2400,7 +2498,6 @@ function SearchPage({ onPlay }: { onPlay:(s:Song)=>void }) {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <p className="truncate text-sm font-semibold text-foreground">{song.title}</p>
-                  <QualityBadge quality={song.quality}/>
                 </div>
                 <p className="mt-0.5 truncate text-xs text-muted-foreground">{song.artist} · {song.album}</p>
               </div>
@@ -2490,8 +2587,8 @@ function libraryDuration(songs:Song[]) {
     : `${totalMinutes} min`;
 }
 
-function LibraryPlaylistRow({ playlist, editing, onEnterEdit, onDelete, onPlay }: {
-  playlist:Playlist; editing:boolean; onEnterEdit:()=>void; onDelete:()=>void; onPlay:()=>void;
+function LibraryPlaylistRow({ playlist, editing, onEnterEdit, onDelete, onOpen }: {
+  playlist:Playlist; editing:boolean; onEnterEdit:()=>void; onDelete:()=>void; onOpen:()=>void;
 }) {
   const dragControls = useDragControls();
   const longPressTimer = useRef<ReturnType<typeof setTimeout>|null>(null);
@@ -2525,7 +2622,7 @@ function LibraryPlaylistRow({ playlist, editing, onEnterEdit, onDelete, onPlay }
       longPressTriggered.current = false;
       return;
     }
-    if (!editing) onPlay();
+    if (!editing) onOpen();
   };
 
   useEffect(() => () => cancelLongPress(),[]);
@@ -2548,7 +2645,7 @@ function LibraryPlaylistRow({ playlist, editing, onEnterEdit, onDelete, onPlay }
           <p className="text-xs font-medium text-foreground">{playlist.tracks} tracks</p>
           <p className="text-[11px] text-muted-foreground mt-0.5">{playlist.duration}</p>
         </div>
-        {!editing&&<span className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center shrink-0"><Play className="w-4 h-4 fill-current ml-0.5"/></span>}
+        {!editing&&<ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground/70 transition-transform group-hover:translate-x-0.5"/>}
       </motion.button>
       {editing&&(
         <div className="flex items-center gap-1 pr-2 shrink-0">
@@ -2567,8 +2664,9 @@ function LibraryPlaylistRow({ playlist, editing, onEnterEdit, onDelete, onPlay }
   );
 }
 
-function LibraryPage({ onPlay, tab, onTab }: { onPlay:(s:Song)=>void; tab:LibTab; onTab:(tab:LibTab)=>void }) {
-  const [moreOpen,setMoreOpen] = useState(false);
+function LibraryPage({ onPlay, onOpenPlaylist, tab, onTab }: {
+  onPlay:(s:Song)=>void; onOpenPlaylist:(playlist:Playlist)=>void; tab:LibTab; onTab:(tab:LibTab)=>void;
+}) {
   const [query,setQuery] = useState("");
   const [sortBy,setSortBy] = useState<"title"|"artist"|"album">("title");
   const [editingPlaylists,setEditingPlaylists] = useState(false);
@@ -2601,13 +2699,9 @@ function LibraryPage({ onPlay, tab, onTab }: { onPlay:(s:Song)=>void; tab:LibTab
       {id:"artists",label:"Artists",icon:<Mic2 className="w-4 h-4"/>},
       {id:"genres",label:"Genres",icon:<Hash className="w-4 h-4"/>},
     ]},
-    {label:"Storage",items:[
-      {id:"folders",label:"Folders",icon:<FolderOpen className="w-4 h-4"/>},
-    ]},
   ];
 
   useEffect(() => {
-    setMoreOpen(false);
     setQuery("");
     setEditingPlaylists(false);
     setCreatingPlaylist(false);
@@ -2620,7 +2714,6 @@ function LibraryPage({ onPlay, tab, onTab }: { onPlay:(s:Song)=>void; tab:LibTab
     if (creatingPlaylist) newPlaylistNameRef.current?.focus();
   },[creatingPlaylist]);
 
-  const primaryTabActive = PRIMARY_LIB_TABS.some(item=>item.id===tab);
   const songTabs: LibTab[] = ["songs","favorites","history","recently-added","recently-played","lossless","hi-res"];
   const supportsSongTools = songTabs.includes(tab);
   const tabSongs = tab==="favorites" ? SONGS.filter(song=>song.liked)
@@ -2649,7 +2742,6 @@ function LibraryPage({ onPlay, tab, onTab }: { onPlay:(s:Song)=>void; tab:LibTab
 
   const selectTab = (nextTab:LibTab) => {
     onTab(nextTab);
-    setMoreOpen(false);
   };
   const jumpToArtistLetter = (letter:string) => {
     setActiveArtistLetter(letter);
@@ -2718,47 +2810,13 @@ function LibraryPage({ onPlay, tab, onTab }: { onPlay:(s:Song)=>void; tab:LibTab
                   {item.label}
                 </button>
               ))}
-              <button type="button" onPointerDown={preventMouseFocus} onClick={()=>setMoreOpen(open=>!open)}
-                aria-expanded={moreOpen} aria-controls="library-more-categories"
-                className={cn("h-9 rounded-xl text-[11px] font-semibold transition-all duration-[180ms] outline-none focus-visible:ring-2 focus-visible:ring-primary/40 flex items-center justify-center gap-1",
-                  !primaryTabActive?"bg-primary text-primary-foreground shadow-sm":"text-muted-foreground hover:text-foreground hover:bg-muted/60")}>
-                More <ChevronDown className={cn("w-3 h-3 transition-transform",moreOpen&&"rotate-180")}/>
+              <button type="button" onPointerDown={preventMouseFocus} onClick={()=>selectTab("genres")}
+                aria-pressed={tab==="genres"}
+                className={cn("h-9 rounded-xl text-[11px] font-semibold transition-all duration-[180ms] outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
+                  tab==="genres"?"bg-primary text-primary-foreground shadow-sm":"text-muted-foreground hover:text-foreground hover:bg-muted/60")}>
+                Genres
               </button>
             </div>
-
-            <AnimatePresence initial={false}>
-              {moreOpen&&(
-                <motion.div id="library-more-categories" initial={{opacity:0,y:-6}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-6}}
-                  transition={{duration:0.18,ease:"easeOut"}} className="mt-2 rounded-[20px] border border-border bg-card p-3 shadow-xl">
-                  <div className="mb-3">
-                    <p className="px-1 mb-1.5 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/70">Browse</p>
-                    <div className="grid grid-cols-2 gap-1">
-                      {libraryGroups[0].items.filter(item=>item.id==="genres").map(item=>(
-                        <button type="button" key={item.id} onClick={()=>selectTab(item.id)}
-                          className={cn("flex items-center gap-2 h-10 px-2.5 rounded-xl text-left text-[12px] font-semibold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-                            tab===item.id?"bg-primary/10 text-primary":"text-muted-foreground hover:bg-muted/60 hover:text-foreground")}>
-                          {item.icon}<span>{item.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  {libraryGroups.slice(1).map(group=>(
-                    <div key={group.label} className="mb-3 last:mb-0">
-                      <p className="px-1 mb-1.5 text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground/70">{group.label}</p>
-                      <div className="grid grid-cols-2 gap-1">
-                        {group.items.map(item=>(
-                          <button type="button" key={item.id} onClick={()=>selectTab(item.id)}
-                            className={cn("flex items-center gap-2 h-10 px-2.5 rounded-xl text-left text-[12px] font-semibold transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-                              tab===item.id?"bg-primary/10 text-primary":"text-muted-foreground hover:bg-muted/60 hover:text-foreground")}>
-                            {item.icon}<span className="truncate">{item.label}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
           </div>
 
           <div className="flex items-end justify-between gap-4 mb-4">
@@ -2801,7 +2859,7 @@ function LibraryPage({ onPlay, tab, onTab }: { onPlay:(s:Song)=>void; tab:LibTab
 
           {supportsSongTools&&tabSongs.length>0&&(
             visibleSongs.length>0 ? (
-              <div className="overflow-hidden">
+              <div className={cn("overflow-hidden",tab==="songs"&&"-ml-4 lg:ml-0")}>
                 {visibleSongs.map((song,index)=><MusicCard key={song.id} song={song} onPlay={onPlay} trackNumber={tab==="songs"?index+1:undefined}/>) }
               </div>
             ) : (
@@ -2870,7 +2928,7 @@ function LibraryPage({ onPlay, tab, onTab }: { onPlay:(s:Song)=>void; tab:LibTab
               <Reorder.Group as="ul" axis="y" values={libraryPlaylists} onReorder={setLibraryPlaylists} className="overflow-hidden">
                 {libraryPlaylists.map(playlist=><LibraryPlaylistRow key={playlist.id} playlist={playlist} editing={editingPlaylists}
                   onEnterEdit={()=>setEditingPlaylists(true)} onDelete={()=>setLibraryPlaylists(items=>items.filter(item=>item.id!==playlist.id))}
-                  onPlay={()=>onPlay(playlist.id===8?FAVORITE_SONG:SONGS[playlist.id-1]||SONGS[0])}/>) }
+                  onOpen={()=>onOpenPlaylist(playlist)}/>) }
               </Reorder.Group>
             ) : (
               <div className="rounded-[24px] border border-border bg-card">
@@ -4025,11 +4083,6 @@ function DSComponents() {
           </div>
         </div>
       </section>
-      <section><SectionHeader title="Quality Badges"/>
-        <div className="bg-card rounded-3xl border border-border p-5 flex flex-wrap gap-3">
-          <QualityBadge quality="lossless"/><QualityBadge quality="hi-res"/><QualityBadge quality="dolby"/>
-        </div>
-      </section>
       <section><SectionHeader title="Controls — Switch & Slider"/>
         <div className="bg-card rounded-3xl border border-border p-5 space-y-5">
           <div className="flex flex-wrap gap-8"><TideSwitch checked={sw1} onChange={setSw1} label="Dynamic Color"/><TideSwitch checked={sw2} onChange={setSw2} label="Blur Effect"/></div>
@@ -4599,7 +4652,7 @@ function Sidebar({ page, onPage, dsSection, onDsSection, isDark, onToggleDark }:
       {/* App Nav */}
       <div className="px-2 mb-1">
         <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/60 px-4 mb-1 mt-5 first:mt-0">App</p>
-        {DESKTOP_APP_NAV.map(item=>{const Icon=item.icon; const active=page===item.id&&page!=="design-system";
+        {DESKTOP_APP_NAV.map(item=>{const Icon=item.icon; const active=(page===item.id||(page==="playlist"&&item.id==="library"))&&page!=="design-system";
           return <button type="button" key={item.id} onPointerDown={preventMouseFocus} onClick={()=>onPage(item.id)} className={cn("w-full flex items-center gap-2.5 px-4 h-9 rounded-[10px] mb-0.5 text-xs font-semibold transition-all duration-[180ms] outline-none focus-visible:ring-2 focus-visible:ring-primary/40",active?"bg-[var(--surface-selected)] text-primary":"text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-foreground")}>
             <Icon style={{width:15,height:15}}/>{item.label}
           </button>;
@@ -4628,7 +4681,7 @@ function Sidebar({ page, onPage, dsSection, onDsSection, isDark, onToggleDark }:
 function BottomNav({ page, onPage }: { page:Page; onPage:(p:Page)=>void }) {
   const items = APP_NAV;
   return (
-    <nav className="order-last flex h-[62px] shrink-0 items-center justify-around border-t border-[var(--mobile-nav-border)] px-3 lg:hidden landscape:order-first landscape:h-full landscape:w-[74px] landscape:flex-col landscape:justify-start landscape:gap-2 landscape:border-r landscape:border-t-0 landscape:px-2 landscape:pb-3 landscape:pt-4"
+    <nav className="relative order-last flex h-[88px] shrink-0 items-center justify-around border-t border-[var(--mobile-nav-border)] px-3 pb-[26px] lg:hidden landscape:order-first landscape:h-full landscape:w-[74px] landscape:flex-col landscape:justify-start landscape:gap-2 landscape:border-r landscape:border-t-0 landscape:px-2 landscape:pb-3 landscape:pt-4"
       style={{
         background:"var(--mobile-nav-background)",
         backdropFilter:"blur(20px) saturate(1.6)",
@@ -4636,7 +4689,7 @@ function BottomNav({ page, onPage }: { page:Page; onPage:(p:Page)=>void }) {
       }}>
       {items.map(item => {
         const Icon = item.icon;
-        const active = page === item.id;
+        const active = page === item.id || (page==="playlist"&&item.id==="library");
         return (
           <button type="button" key={item.id} onPointerDown={preventMouseFocus} onClick={() => onPage(item.id)}
             className={cn("flex flex-col items-center gap-0.5 rounded-xl transition-all duration-[180ms] outline-none focus-visible:ring-2 focus-visible:ring-primary/40", active ? "text-primary" : "text-muted-foreground")}>
@@ -4650,6 +4703,7 @@ function BottomNav({ page, onPage }: { page:Page; onPage:(p:Page)=>void }) {
           </button>
         );
       })}
+      <MobileHomeIndicator/>
     </nav>
   );
 }
@@ -4668,6 +4722,8 @@ export default function App() {
   const [volume,setVolume] = useState(75);
   const [songIdx,setSongIdx] = useState(0);
   const [libraryTab,setLibraryTab] = useState<LibTab>("playlists");
+  const [selectedPlaylist,setSelectedPlaylist] = useState<Playlist|null>(null);
+  const [playlistReturnPage,setPlaylistReturnPage] = useState<Page>("library");
   const mainScrollRef = useRef<HTMLElement>(null);
 
   useEffect(()=>{ mainScrollRef.current?.scrollTo({top:0}); },[page]);
@@ -4676,6 +4732,11 @@ export default function App() {
   const handleNext = () => { const n=(songIdx+1)%SONGS.length; setSongIdx(n); setCurrentSong(SONGS[n]); setIsPlaying(true); };
   const handlePrev = () => { const p=(songIdx-1+SONGS.length)%SONGS.length; setSongIdx(p); setCurrentSong(SONGS[p]); setIsPlaying(true); };
   const handleOpenLibrary = (tab:LibTab) => { setLibraryTab(tab); setPage("library"); };
+  const handleOpenPlaylist = (playlist:Playlist) => {
+    setSelectedPlaylist(playlist);
+    setPlaylistReturnPage(page==="library"?"library":"home");
+    setPage("playlist");
+  };
 
   const mobilePageTitle: Partial<Record<Page,string>> = {
     home:"Good Evening", search:"Search", library:"Library", listening:"Listening", settings:"Settings",
@@ -4686,20 +4747,26 @@ export default function App() {
 
   return (
     <div className={cn("flex h-screen w-screen overflow-hidden",isDark?"dark":"")}>
-      <div className="flex h-full w-full bg-background text-foreground overflow-hidden">
+      <div className="relative flex h-full w-full bg-background text-foreground overflow-hidden">
+        <MobileStatusBar/>
+        <MobileLandscapeHomeIndicator/>
         <Sidebar page={page} onPage={setPage} dsSection={dsSection} onDsSection={setDsSection} isDark={isDark} onToggleDark={()=>setIsDark(!isDark)}/>
 
-        <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden landscape:flex-row">
+        <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden max-lg:landscape:pb-[18px] max-lg:landscape:pr-16 landscape:flex-row">
           <div className="order-first flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden landscape:order-last">
           {/* Content */}
           <div className="flex flex-1 min-h-0 overflow-hidden">
             {/* Main content */}
-            <main ref={mainScrollRef} className="flex-1 overflow-y-auto">
-              {page !== "home" && page !== "listening" && (
+            <main ref={mainScrollRef} className="mt-[59px] flex-1 overflow-y-auto lg:mt-0 landscape:mt-0">
+              {page !== "home" && page !== "playlist" && page !== "listening" && (
                 <StickyPageHeader
                   title={page==="design-system"?dsTitles[dsSection]:mobilePageTitle[page]||"TideTunes"}
                   subtitle={page==="design-system"?"TideTunes DS · v3.0":undefined}
-                  className={cn("lg:hidden pt-5 pb-3",page==="library"?"px-6":"px-5")}
+                  className={cn(
+                    "lg:hidden pt-5 pb-3",
+                    page==="library"?"px-6":"px-5",
+                    page==="search"&&"before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-10 before:h-px before:bg-background before:content-['']",
+                  )}
                 />
               )}
               {page==="design-system"&&(
@@ -4713,10 +4780,11 @@ export default function App() {
                 </>
               )}
               <AnimatePresence mode="wait">
-                <motion.div key={page==="design-system"?`ds-${dsSection}`:page} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} transition={{duration:0.18,ease:"easeOut"}} className="min-h-full">
-                  {page==="home"&&<HomePage onPlay={handlePlay} currentSong={currentSong} isPlaying={isPlaying} onOpenLibrary={handleOpenLibrary} onOpenListening={()=>setPage("listening")}/>}
+                <motion.div key={page==="design-system"?`ds-${dsSection}`:page==="playlist"?`playlist-${selectedPlaylist?.id}`:page} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} transition={{duration:0.18,ease:"easeOut"}} className="min-h-full">
+                  {page==="home"&&<HomePage onPlay={handlePlay} currentSong={currentSong} isPlaying={isPlaying} onOpenLibrary={handleOpenLibrary} onOpenPlaylist={handleOpenPlaylist} onOpenListening={()=>setPage("listening")}/>}
                   {page==="search"&&<SearchPage onPlay={handlePlay}/>}
-                  {page==="library"&&<LibraryPage onPlay={handlePlay} tab={libraryTab} onTab={setLibraryTab}/>}
+                  {page==="library"&&<LibraryPage onPlay={handlePlay} onOpenPlaylist={handleOpenPlaylist} tab={libraryTab} onTab={setLibraryTab}/>}
+                  {page==="playlist"&&selectedPlaylist&&<PlaylistDetailPage playlist={selectedPlaylist} onBack={()=>setPage(playlistReturnPage)} onPlay={handlePlay}/>}
                   {page==="listening"&&<ListeningPage onBack={()=>setPage("home")} onPlay={handlePlay}/>}
                   {page==="settings"&&<SettingsPage/>}
                   {page==="design-system"&&dsSection==="cover"&&<DSCover/>}

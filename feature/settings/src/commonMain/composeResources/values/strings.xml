@@ -405,8 +405,6 @@
     <string name="settings_player_interaction_section">Player interaction</string>
     <string name="settings_open_player_on_play">Open player when playback starts</string>
     <string name="settings_player_cover_swipe">Swipe the cover to change tracks</string>
-    <string name="settings_player_immersive_cover">Immersive album cover</string>
-    <string name="settings_player_immersive_cover_summary">Extend the cover to the top of the player; disable it to use the compact rounded cover layout</string>
     <string name="settings_player_tap_progress">Tap the progress bar to seek</string>
     <string name="settings_player_total_duration">Show total duration</string>
     <string name="settings_player_song_annotation">Show song annotation</string>

@@ -151,7 +151,6 @@ class DataStoreSettingsRepository(
             playerInteraction = PlayerInteractionSettings(
                 openPlayerOnPlay = preferences[OPEN_PLAYER_ON_PLAY_KEY] ?: false,
                 coverSwipeEnabled = preferences[PLAYER_COVER_SWIPE_KEY] ?: true,
-                immersiveAlbumCover = preferences[PLAYER_IMMERSIVE_ALBUM_COVER_KEY] ?: true,
                 tapProgressToSeekEnabled = preferences[PLAYER_TAP_PROGRESS_SEEK_KEY] ?: true,
                 showTotalDuration = preferences[PLAYER_SHOW_TOTAL_DURATION_KEY] ?: false,
                 showSongAnnotation = preferences[PLAYER_SHOW_SONG_ANNOTATION_KEY] ?: true,
@@ -367,7 +366,6 @@ class DataStoreSettingsRepository(
         dataStore.edit { preferences ->
             preferences[OPEN_PLAYER_ON_PLAY_KEY] = settings.openPlayerOnPlay
             preferences[PLAYER_COVER_SWIPE_KEY] = settings.coverSwipeEnabled
-            preferences[PLAYER_IMMERSIVE_ALBUM_COVER_KEY] = settings.immersiveAlbumCover
             preferences[PLAYER_TAP_PROGRESS_SEEK_KEY] = settings.tapProgressToSeekEnabled
             preferences[PLAYER_SHOW_TOTAL_DURATION_KEY] = settings.showTotalDuration
             preferences[PLAYER_SHOW_SONG_ANNOTATION_KEY] = settings.showSongAnnotation
@@ -642,7 +640,6 @@ internal val PLAY_NEXT_MODE_KEY = stringPreferencesKey("settings.playback.playNe
 internal val SHUFFLE_STRATEGY_KEY = stringPreferencesKey("settings.playback.shuffleStrategy")
 internal val OPEN_PLAYER_ON_PLAY_KEY = booleanPreferencesKey("settings.player.openOnPlay")
 internal val PLAYER_COVER_SWIPE_KEY = booleanPreferencesKey("settings.player.coverSwipe")
-internal val PLAYER_IMMERSIVE_ALBUM_COVER_KEY = booleanPreferencesKey("settings.player.immersiveAlbumCover")
 internal val PLAYER_TAP_PROGRESS_SEEK_KEY = booleanPreferencesKey("settings.player.tapProgressSeek")
 internal val PLAYER_SHOW_TOTAL_DURATION_KEY = booleanPreferencesKey("settings.player.showTotalDuration")
 internal val PLAYER_SHOW_SONG_ANNOTATION_KEY = booleanPreferencesKey("settings.player.showSongAnnotation")

@@ -36,6 +36,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
@@ -114,6 +115,7 @@ fun SearchDesignScreen(
                 }
             }
         }
+        val pageTitleAlpha = (1f - actionBarProgress / 0.70f).coerceIn(0f, 1f)
 
         LazyColumn(
             state = listState,
@@ -133,6 +135,7 @@ fun SearchDesignScreen(
                 TidePageHeader(
                     title = stringResource(Res.string.search_title),
                     subtitle = if (compact) null else "Songs, artists, albums, genres and connected sources.",
+                    modifier = Modifier.alpha(pageTitleAlpha),
                 )
             }
             item {
