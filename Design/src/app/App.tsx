@@ -36,11 +36,23 @@ const LIST_ROW_INTERACTION = "rounded-sm outline-none transition-colors duration
 // ─────────────────────────────────────────────────────────────
 // TYPES
 // ─────────────────────────────────────────────────────────────
-interface Song { id: number; title: string; artist: string; album: string; duration: string; gradient: [string,string]; liked: boolean; quality?: "lossless"|"hi-res"|"dolby"|"standard"; }
+interface Song {
+  id: number;
+  title: string;
+  artist: string;
+  album: string;
+  duration: string;
+  gradient: [string,string];
+  liked: boolean;
+  rating?: number;
+  year?: number;
+  fileType?: "flac"|"alac"|"mp3"|"aac";
+  quality?: "lossless"|"hi-res"|"dolby"|"standard";
+}
 interface Album { id: number; title: string; artist: string; year: number; gradient: [string,string]; tracks: number; genre: string; }
-interface Artist { id: number; name: string; followers: string; gradient: [string,string]; genre: string; initials: string; }
+interface Artist { id: number; name: string; followers: string; gradient: [string,string]; genre: string; initials: string; bio: string; }
 interface Playlist { id: number; title: string; description: string; gradient: [string,string]; tracks: number; duration: string; }
-type Page = "home"|"search"|"library"|"playlist"|"listening"|"settings"|"design-system";
+type Page = "home"|"search"|"library"|"playlist"|"album"|"artist"|"listening"|"settings"|"design-system";
 type DSSection = "cover"|"foundation"|"tokens"|"components"|"patterns"|"compose";
 type LibTab = "songs"|"albums"|"artists"|"genres"|"folders"|"playlists"|"favorites"|"downloads"|"history"|"recently-added"|"recently-played"|"lossless"|"hi-res";
 
@@ -69,15 +81,24 @@ const COVERS = [
 function cover(id: number): string { return COVERS[(id - 1) % COVERS.length]; }
 
 const SONGS: Song[] = [
-  { id:1, title:"Midnight Cascade", artist:"Luna Waves", album:"Tidal Drift", duration:"3:42", gradient:G[0], liked:true, quality:"hi-res" },
-  { id:2, title:"Neon Undertow", artist:"Prism Circuit", album:"Voltage Dreams", duration:"4:18", gradient:G[1], liked:false, quality:"lossless" },
-  { id:3, title:"Silver Tide", artist:"Coastal Drift", album:"Open Water", duration:"3:55", gradient:G[2], liked:true, quality:"standard" },
-  { id:4, title:"Aurora Sequence", artist:"Polar Echo", album:"Northern Lights", duration:"5:02", gradient:G[3], liked:false, quality:"dolby" },
-  { id:5, title:"Depth Protocol", artist:"Ocean Syntax", album:"Subsonic", duration:"3:30", gradient:G[4], liked:true },
-  { id:6, title:"Glass Architecture", artist:"Fractal Mind", album:"Prism", duration:"4:44", gradient:G[5], liked:false, quality:"lossless" },
-  { id:7, title:"Resonance Fields", artist:"Wave Function", album:"Quantum", duration:"3:15", gradient:G[6], liked:true },
-  { id:8, title:"Liminal Space", artist:"Threshold", album:"Between", duration:"5:30", gradient:G[7], liked:false, quality:"hi-res" },
+  { id:1, title:"Midnight Cascade", artist:"Luna Waves", album:"Tidal Drift", duration:"3:42", gradient:G[0], liked:true, rating:5, year:2024, fileType:"flac", quality:"hi-res" },
+  { id:2, title:"Neon Undertow", artist:"Prism Circuit", album:"Voltage Dreams", duration:"4:18", gradient:G[1], liked:false, rating:4, year:2024, fileType:"alac", quality:"lossless" },
+  { id:3, title:"Silver Tide", artist:"Coastal Drift", album:"Open Water", duration:"3:55", gradient:G[2], liked:true, rating:5, year:2023, fileType:"flac", quality:"standard" },
+  { id:4, title:"Aurora Sequence", artist:"Polar Echo", album:"Northern Lights", duration:"5:02", gradient:G[3], liked:false, rating:4, year:2024, fileType:"aac", quality:"dolby" },
+  { id:5, title:"Depth Protocol", artist:"Ocean Syntax", album:"Subsonic", duration:"3:30", gradient:G[4], liked:true, rating:3, year:2022, fileType:"mp3", quality:"standard" },
+  { id:6, title:"Glass Architecture", artist:"Fractal Mind", album:"Prism", duration:"4:44", gradient:G[5], liked:false, rating:4, year:2023, fileType:"alac", quality:"lossless" },
+  { id:7, title:"Resonance Fields", artist:"Wave Function", album:"Quantum", duration:"3:15", gradient:G[6], liked:true, rating:5, year:2022, fileType:"flac", quality:"standard" },
+  { id:8, title:"Liminal Space", artist:"Threshold", album:"Between", duration:"5:30", gradient:G[7], liked:false, rating:3, year:2024, fileType:"aac", quality:"hi-res" },
 ];
+const PLAYLIST_DEMO_SONGS: Song[] = Array.from({length:20},(_,index)=>({
+  id:101+index,
+  title:`Demo Track ${String(index+1).padStart(2,"0")}`,
+  artist:`Demo Artist ${(index%5)+1}`,
+  album:"Playlist Demo",
+  duration:`${3+(index%3)}:${String((index*13+17)%60).padStart(2,"0")}`,
+  gradient:G[index%G.length],
+  liked:false,
+}));
 const ALBUMS: Album[] = [
   { id:1, title:"Tidal Drift", artist:"Luna Waves", year:2024, gradient:G[0], tracks:12, genre:"Electronic" },
   { id:2, title:"Voltage Dreams", artist:"Prism Circuit", year:2024, gradient:G[1], tracks:9, genre:"Synthwave" },
@@ -89,13 +110,26 @@ const ALBUMS: Album[] = [
   { id:8, title:"Between", artist:"Threshold", year:2023, gradient:G[7], tracks:13, genre:"Shoegaze" },
 ];
 const ARTISTS: Artist[] = [
-  { id:1, name:"Luna Waves", followers:"2.4M", gradient:G[0], genre:"Electronic", initials:"LW" },
-  { id:2, name:"Prism Circuit", followers:"1.8M", gradient:G[1], genre:"Synthwave", initials:"PC" },
-  { id:3, name:"Coastal Drift", followers:"890K", gradient:G[2], genre:"Ambient", initials:"CD" },
-  { id:4, name:"Polar Echo", followers:"3.1M", gradient:G[3], genre:"IDM", initials:"PE" },
-  { id:5, name:"Ocean Syntax", followers:"670K", gradient:G[4], genre:"Techno", initials:"OS" },
-  { id:6, name:"Fractal Mind", followers:"1.2M", gradient:G[5], genre:"Post-Rock", initials:"FM" },
+  { id:1, name:"Luna Waves", followers:"2.4M", gradient:G[0], genre:"Electronic", initials:"LW", bio:"Luna Waves blends nocturnal electronics with expansive coastal ambience, building immersive songs around luminous synths and slow-moving rhythms." },
+  { id:2, name:"Prism Circuit", followers:"1.8M", gradient:G[1], genre:"Synthwave", initials:"PC", bio:"Prism Circuit turns neon-lit melodies, analog textures, and precise drum programming into cinematic synthwave made for late-night listening." },
+  { id:3, name:"Coastal Drift", followers:"890K", gradient:G[2], genre:"Ambient", initials:"CD", bio:"Coastal Drift creates patient ambient music inspired by open water, shifting weather, and the quiet spaces between field recordings." },
+  { id:4, name:"Polar Echo", followers:"3.1M", gradient:G[3], genre:"IDM", initials:"PE", bio:"Polar Echo explores detailed electronic rhythms and glacial harmony, pairing intricate production with a distinctly human sense of movement." },
+  { id:5, name:"Ocean Syntax", followers:"670K", gradient:G[4], genre:"Techno", initials:"OS", bio:"Ocean Syntax combines deep techno pressure with fluid low-end design, drawing a line between underground club music and oceanic soundscapes." },
+  { id:6, name:"Fractal Mind", followers:"1.2M", gradient:G[5], genre:"Post-Rock", initials:"FM", bio:"Fractal Mind builds wide-screen post-rock from layered guitars, electronic detail, and patient crescendos that reward focused listening." },
 ];
+function tracksForAlbum(album:Album):Song[] {
+  const albumSongs = SONGS.filter(song=>song.album===album.title);
+  const fillerTracks = PLAYLIST_DEMO_SONGS
+    .slice(0,Math.max(0,album.tracks-albumSongs.length))
+    .map((song,index):Song=>({
+      ...song,
+      id:1000+album.id*100+index,
+      artist:album.artist,
+      album:album.title,
+      gradient:album.gradient,
+    }));
+  return [...albumSongs,...fillerTracks].slice(0,album.tracks);
+}
 const PLAYLISTS: Playlist[] = [
   { id:1, title:"Evening Frequencies", description:"Deep electronic for golden hour", gradient:G[0], tracks:24, duration:"1h 32m" },
   { id:2, title:"Spatial Audio Mix", description:"Hi-Res Dolby Atmos collection", gradient:G[1], tracks:18, duration:"1h 08m" },
@@ -358,7 +392,7 @@ function EmptyState({ icon, title, subtitle, action, onAction }: { icon:React.Re
 // ─────────────────────────────────────────────────────────────
 // MUSIC CARD COMPONENTS
 // ─────────────────────────────────────────────────────────────
-function AlbumCard({ album, size="md", onClick }: { album:Album; size?:"sm"|"md"|"lg"; onClick?:()=>void }) {
+function AlbumCard({ album, size="md", action="play", onClick }: { album:Album; size?:"sm"|"md"|"lg"; action?:"play"|"open"; onClick?:()=>void }) {
   const s = { sm:{a:120,w:"w-[120px]"}, md:{a:160,w:"w-[160px]"}, lg:{a:200,w:"w-[200px]"} }[size];
   return (
     <motion.button type="button" disabled={!onClick} whileTap={onClick?{scale:0.97}:undefined} transition={{type:"spring",stiffness:400,damping:30}}
@@ -366,7 +400,11 @@ function AlbumCard({ album, size="md", onClick }: { album:Album; size?:"sm"|"md"
       onClick={onClick} className={cn("shrink-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-[14px]",onClick?"cursor-pointer group":"cursor-default",s.w)}>
       <CoverArt src={cover(album.id)} gradient={album.gradient} className="rounded-[14px] shadow-lg mb-3" style={{width:s.a,height:s.a}}>
         {onClick&&<div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-end p-3">
-          <div className="w-9 h-9 bg-white/95 rounded-full flex items-center justify-center shadow-lg"><Play className="w-4 h-4 ml-0.5" style={{color:album.gradient[0]}}/></div>
+          <div className="w-9 h-9 bg-white/95 rounded-full flex items-center justify-center shadow-lg">
+            {action==="open"
+              ? <ChevronRight className="h-4 w-4" style={{color:album.gradient[0]}}/>
+              : <Play className="w-4 h-4 ml-0.5" style={{color:album.gradient[0]}}/>}
+          </div>
         </div>}
       </CoverArt>
       <p className="text-sm font-semibold text-foreground truncate">{album.title}</p>
@@ -412,8 +450,19 @@ function PlaylistCard({ playlist, onClick, showMeta=true }: { playlist:Playlist;
   );
 }
 
-function MusicCard({ song, onPlay, isPlaying, highlightPlaying=true, coverClassName, trackNumber }: {
-  song:Song; onPlay:(s:Song)=>void; isPlaying?:boolean; highlightPlaying?:boolean; coverClassName?:string; trackNumber?:number;
+function SongRowText({ song, active=false }: { song:Song; active?:boolean }) {
+  return (
+    <div className="min-w-0 flex-1">
+      <div className="flex items-center gap-2">
+        <p className={cn("truncate text-sm font-semibold",active?"text-primary":"text-foreground")}>{song.title}</p>
+      </div>
+      <p className={cn("mt-0.5 truncate text-xs font-normal",active?"text-primary":"text-muted-foreground")}>{song.artist} · {song.album}</p>
+    </div>
+  );
+}
+
+function MusicCard({ song, onPlay, isPlaying, highlightPlaying=true, showDuration=true, coverClassName, trackNumber }: {
+  song:Song; onPlay:(s:Song)=>void; isPlaying?:boolean; highlightPlaying?:boolean; showDuration?:boolean; coverClassName?:string; trackNumber?:number;
 }) {
   return (
     <motion.button type="button" whileTap={{scale:0.985}} transition={LIST_ROW_TRANSITION}
@@ -441,14 +490,9 @@ function MusicCard({ song, onPlay, isPlaying, highlightPlaying=true, coverClassN
           )}
         </CoverArt>
       )}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2">
-          <p className={cn("text-sm font-semibold truncate",isPlaying&&highlightPlaying?"text-primary":"text-foreground")}>{song.title}</p>
-        </div>
-        <p className="text-xs text-muted-foreground truncate mt-0.5">{song.artist} · {song.album}</p>
-      </div>
-      <div className="flex items-center gap-2 shrink-0">
-        <span className="text-xs text-muted-foreground font-mono">{song.duration}</span>
+      <SongRowText song={song} active={!!isPlaying&&highlightPlaying}/>
+      <div className={cn("flex shrink-0 items-center gap-2",trackNumber!==undefined&&"w-14 justify-between")}>
+        {showDuration&&<span className="text-xs text-muted-foreground font-mono">{song.duration}</span>}
         <span className={cn("opacity-0 group-hover:opacity-100 transition-opacity",song.liked?"opacity-100":"")}>
           <Heart className={cn("w-4 h-4",song.liked?"fill-primary text-primary":"text-muted-foreground")}/>
         </span>
@@ -457,19 +501,69 @@ function MusicCard({ song, onPlay, isPlaying, highlightPlaying=true, coverClassN
   );
 }
 
-function PlaylistDetailPage({ playlist, currentSong, onBack, onPlay }: {
-  playlist:Playlist; currentSong:Song|null; onBack:()=>void; onPlay:(song:Song)=>void;
+function PlaylistTrackRow({ song, trackNumber, active, onPlay }: {
+  song:Song; trackNumber:number; active:boolean; onPlay:(song:Song)=>void;
+}) {
+  const [liked,setLiked] = useState(song.liked);
+
+  return (
+    <div className="flex h-14 w-full items-center border-b border-border/40 px-3.5">
+      <motion.button type="button" whileTap={{scale:0.985}} transition={LIST_ROW_TRANSITION}
+        onPointerDown={preventMouseFocus} onClick={()=>onPlay(song)}
+        className="flex h-full min-w-0 flex-1 items-center gap-4 rounded-sm text-left outline-none hover:bg-muted/50 focus-visible:ring-2 focus-visible:ring-primary/40">
+        <span className="flex w-10 shrink-0 items-center justify-center">
+          {active ? (
+            <span className="flex h-4 items-end gap-0.5" aria-label="Now playing">
+              {[1,2,3,4].map(index=>(
+                <motion.span key={index} className="w-1 rounded-full bg-primary"
+                  animate={{height:["35%","100%","55%","80%"]}}
+                  transition={{duration:0.8,repeat:Infinity,delay:index*0.1,ease:"easeInOut"}}/>
+              ))}
+            </span>
+          ) : (
+            <span className="font-mono text-xs tabular-nums text-muted-foreground">{trackNumber}</span>
+          )}
+        </span>
+        <SongRowText song={song} active={active}/>
+      </motion.button>
+      <div className="flex w-16 shrink-0 items-center justify-end">
+        <button type="button" aria-label={liked?`Remove ${song.title} from favorites`:`Add ${song.title} to favorites`}
+          aria-pressed={liked} onPointerDown={preventMouseFocus} onClick={()=>setLiked(value=>!value)}
+          className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/40">
+          <Heart className={cn("h-4 w-4",liked&&"fill-primary text-primary")}/>
+        </button>
+        <button type="button" aria-label={`More actions for ${song.title}`} onPointerDown={preventMouseFocus}
+          className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/40">
+          <MoreVertical className="h-4 w-4"/>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PlaylistDetailPage({ playlist, initialTracks, collectionType="playlist", allowEditing=true, currentSong, isPlaying, onBack, onPlay }: {
+  playlist:Playlist;
+  initialTracks?:Song[];
+  collectionType?:"playlist"|"album";
+  allowEditing?:boolean;
+  currentSong:Song|null;
+  isPlaying:boolean;
+  onBack:()=>void;
+  onPlay:(song:Song)=>void;
 }) {
   const [headerCollapsed,setHeaderCollapsed] = useState(false);
   const [editing,setEditing] = useState(false);
   const [selectedTrackIds,setSelectedTrackIds] = useState<Set<number>>(()=>new Set());
   const playlistPageRef = useRef<HTMLDivElement>(null);
   const trackRowRefs = useRef<Map<number,HTMLElement>>(new Map());
-  const baseTracks = playlist.tracks===0
+  const baseTracks = initialTracks??(playlist.tracks===0
     ? []
     : playlist.title==="My Favorites"
       ? SONGS.filter(song=>song.liked)
-      : SONGS.map((_,index)=>SONGS[(index+Math.max(playlist.id-1,0))%SONGS.length]);
+      : [
+          ...SONGS.map((_,index)=>SONGS[(index+Math.max(playlist.id-1,0))%SONGS.length]),
+          ...PLAYLIST_DEMO_SONGS,
+        ]);
   const [orderedTracks,setOrderedTracks] = useState<Song[]>(baseTracks);
   const allSelected = orderedTracks.length>0&&orderedTracks.every(song=>selectedTrackIds.has(song.id));
   const currentTrackAvailable = !!currentSong&&orderedTracks.some(song=>song.id===currentSong.id);
@@ -552,7 +646,7 @@ function PlaylistDetailPage({ playlist, currentSong, onBack, onPlay }: {
             </motion.p>
           )}
         </AnimatePresence>
-        <button type="button" aria-label="More playlist actions"
+        <button type="button" aria-label={`More ${collectionType} actions`}
           className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/40">
           <MoreHorizontal className="h-5 w-5"/>
         </button>
@@ -561,7 +655,7 @@ function PlaylistDetailPage({ playlist, currentSong, onBack, onPlay }: {
       <AnimatePresence initial={false}>
         {!headerCollapsed&&(
       <motion.section initial={{opacity:0,height:0,y:-10}} animate={{opacity:1,height:"auto",y:0}} exit={{opacity:0,height:0,y:-10}}
-        transition={{duration:0.2,ease:"easeOut"}} className="overflow-hidden pb-5 pt-3 sm:pb-6 lg:pt-5">
+        transition={{duration:0.2,ease:"easeOut"}} className="overflow-hidden pt-3 lg:pt-5">
         <div className="flex items-center gap-4 sm:items-end sm:gap-7">
         <CoverArt src={cover(playlist.id)} gradient={playlist.gradient}
           className="aspect-square w-[112px] shrink-0 rounded-[18px] shadow-2xl sm:w-[220px] sm:rounded-[24px] lg:w-[240px]"/>
@@ -571,59 +665,62 @@ function PlaylistDetailPage({ playlist, currentSong, onBack, onPlay }: {
           <p className="mt-3 text-xs font-medium text-muted-foreground">{playlist.tracks} tracks · {playlist.duration}</p>
         </div>
         </div>
-        <div className="mt-3 flex items-center gap-2 sm:mt-5">
-          <Btn onClick={()=>orderedTracks[0]&&onPlay(orderedTracks[0])} icon={<Play className="h-4 w-4 fill-current"/>} className="min-w-[112px] px-4 sm:min-w-[140px]">Play</Btn>
-          <button type="button" aria-label="Locate current song" disabled={!currentTrackAvailable} onClick={locateCurrentTrack}
-            className="ml-auto flex h-10 w-10 items-center justify-center rounded-full bg-muted text-foreground outline-none transition-colors hover:bg-muted/80 disabled:cursor-not-allowed disabled:opacity-35 focus-visible:ring-2 focus-visible:ring-primary/40">
-            <LocateFixed className="h-[18px] w-[18px]"/>
-          </button>
-          <button type="button" aria-label={editing?"Finish editing":"Edit playlist"} aria-pressed={editing} onClick={toggleEditing}
-            className={cn("flex h-10 w-10 items-center justify-center rounded-full outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary/40",editing?"bg-primary text-primary-foreground":"bg-muted text-foreground hover:bg-muted/80")}>
-            {editing?<Check className="h-[18px] w-[18px]"/>:<Pencil className="h-[18px] w-[18px]"/>}
-          </button>
-        </div>
       </motion.section>
         )}
       </AnimatePresence>
 
-      <section aria-labelledby="playlist-songs-heading">
-        <div className="mb-2 flex items-center justify-between px-2">
-          <h2 id="playlist-songs-heading" className="text-lg font-semibold text-foreground">Songs</h2>
-          {editing ? (
-            <button type="button" aria-pressed={allSelected} onClick={toggleSelectAll}
-              className="flex h-9 items-center gap-2 rounded-full px-2 text-xs font-semibold text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/40">
-              <span className={cn("flex h-[18px] w-[18px] items-center justify-center rounded-[6px] border",allSelected?"border-primary bg-primary text-primary-foreground":"border-border bg-card")}>
-                {allSelected&&<Check className="h-3 w-3"/>}
-              </span>
-              {allSelected?"Deselect all":"Select all"}
-              {!!selectedTrackIds.size&&<span className="text-muted-foreground">({selectedTrackIds.size})</span>}
-            </button>
-          ) : (
-            <span className="text-xs text-muted-foreground">{orderedTracks.length}</span>
-          )}
-        </div>
+      <div className={cn(
+        "sticky top-14 z-20 -mx-5 flex items-center gap-2 bg-background/90 px-5 pb-3 pt-3 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 sm:pt-5 lg:static lg:mx-0 lg:bg-transparent lg:px-0 lg:backdrop-blur-none",
+        headerCollapsed&&"pt-1 sm:pt-1",
+      )}>
+        {editing ? (
+          <button type="button" aria-pressed={allSelected} onClick={toggleSelectAll}
+            className="flex h-10 items-center gap-2 rounded-full pl-2 pr-2 text-sm font-semibold text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/40">
+            <span className={cn("flex h-[18px] w-[18px] items-center justify-center rounded-[6px] border",allSelected?"border-primary bg-primary text-primary-foreground":"border-border bg-card")}>
+              {allSelected&&<Check className="h-3 w-3"/>}
+            </span>
+            {allSelected?"Deselect All":"Select All"}
+            {!!selectedTrackIds.size&&<span className="text-muted-foreground">({selectedTrackIds.size})</span>}
+          </button>
+        ) : (
+          <button type="button" disabled={!orderedTracks.length} onClick={()=>orderedTracks[0]&&onPlay(orderedTracks[0])}
+            className="flex h-10 items-center gap-2 rounded-full pl-2 pr-2 text-sm font-semibold text-primary outline-none transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-35 focus-visible:ring-2 focus-visible:ring-primary/40">
+            <span className="flex h-[18px] w-[18px] items-center justify-center"><Play className="h-4 w-4 fill-current"/></span>Play All
+          </button>
+        )}
+        <button type="button" aria-label="Locate current song" disabled={!currentTrackAvailable} onClick={locateCurrentTrack}
+          className="ml-auto flex h-10 w-10 items-center justify-center rounded-full bg-muted text-foreground outline-none transition-colors hover:bg-muted/80 disabled:cursor-not-allowed disabled:opacity-35 focus-visible:ring-2 focus-visible:ring-primary/40">
+          <LocateFixed className="h-[18px] w-[18px]"/>
+        </button>
+        {allowEditing&&(
+          <button type="button" aria-label={editing?"Finish editing":"Edit playlist"} aria-pressed={editing} onClick={toggleEditing}
+            className={cn("flex h-10 w-10 items-center justify-center rounded-full outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary/40",editing?"bg-primary text-primary-foreground":"bg-muted text-foreground hover:bg-muted/80")}>
+            {editing?<Check className="h-[18px] w-[18px]"/>:<Pencil className="h-[18px] w-[18px]"/>}
+          </button>
+        )}
+      </div>
+
+      <section aria-label={collectionType==="album"?"Album tracks":"Playlist tracks"} className="-ml-4">
         {orderedTracks.length ? (
           editing ? (
             <Reorder.Group as="ul" axis="y" values={orderedTracks} onReorder={setOrderedTracks} className="overflow-hidden">
-              {orderedTracks.map((song,index)=>(
+              {orderedTracks.map(song=>(
                 <Reorder.Item as="li" key={song.id} value={song} whileDrag={{scale:1.015,boxShadow:"0 12px 34px rgba(0,0,0,0.24)"}}
                   ref={node => {
                     if (node) trackRowRefs.current.set(song.id,node);
                     else trackRowRefs.current.delete(song.id);
                   }}
-                  className={cn("flex touch-none select-none items-center gap-2 border-b border-border/40 px-2 py-2.5 last:border-0",selectedTrackIds.has(song.id)&&"bg-primary/[0.08]")}>
+                  className="flex h-14 touch-none select-none items-center gap-4 border-b border-border/40 px-3.5 py-2.5 last:border-0">
                   <button type="button" aria-label={`Select ${song.title}`} aria-pressed={selectedTrackIds.has(song.id)} onClick={()=>toggleTrackSelection(song.id)}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+                    className="flex h-9 w-10 shrink-0 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
                     <span className={cn("flex h-5 w-5 items-center justify-center rounded-[7px] border",selectedTrackIds.has(song.id)?"border-primary bg-primary text-primary-foreground":"border-border bg-card")}>
                       {selectedTrackIds.has(song.id)&&<Check className="h-3.5 w-3.5"/>}
                     </span>
                   </button>
-                  <span className="w-6 shrink-0 text-center font-mono text-xs tabular-nums text-muted-foreground">{index+1}</span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-foreground">{song.title}</p>
-                    <p className="mt-0.5 truncate text-xs text-muted-foreground">{song.artist} · {song.album}</p>
-                  </div>
-                  <GripVertical className="h-5 w-5 shrink-0 cursor-grab text-muted-foreground active:cursor-grabbing"/>
+                  <SongRowText song={song} active={isPlaying&&currentSong?.id===song.id}/>
+                  <span className="flex w-16 shrink-0 justify-end">
+                    <GripVertical className="h-5 w-5 cursor-grab text-muted-foreground active:cursor-grabbing"/>
+                  </span>
                 </Reorder.Item>
               ))}
             </Reorder.Group>
@@ -634,17 +731,144 @@ function PlaylistDetailPage({ playlist, currentSong, onBack, onPlay }: {
                   if (node) trackRowRefs.current.set(song.id,node);
                   else trackRowRefs.current.delete(song.id);
                 }}>
-                  <MusicCard song={song} onPlay={onPlay} trackNumber={index+1}/>
+                  <PlaylistTrackRow song={song} onPlay={onPlay} trackNumber={index+1} active={isPlaying&&currentSong?.id===song.id}/>
                 </div>
               ))}
             </div>
           )
         ) : (
           <div className="rounded-[24px] border border-border bg-card">
-            <EmptyState icon={<Music className="h-7 w-7"/>} title="No songs yet" subtitle="Songs added to this playlist will appear here."/>
+            <EmptyState icon={<Music className="h-7 w-7"/>} title="No songs yet"
+              subtitle={collectionType==="album"?"Songs from this album will appear here.":"Songs added to this playlist will appear here."}/>
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+function AlbumDetailPage({ album, currentSong, isPlaying, onBack, onPlay }: {
+  album:Album;
+  currentSong:Song|null;
+  isPlaying:boolean;
+  onBack:()=>void;
+  onPlay:(song:Song)=>void;
+}) {
+  const tracks = tracksForAlbum(album);
+  const albumAsPlaylist:Playlist = {
+    id:album.id,
+    title:album.title,
+    description:`${album.artist} · ${album.year} · ${album.genre}`,
+    gradient:album.gradient,
+    tracks:tracks.length,
+    duration:libraryDuration(tracks),
+  };
+
+  return (
+    <PlaylistDetailPage playlist={albumAsPlaylist} initialTracks={tracks} collectionType="album" allowEditing={false}
+      currentSong={currentSong} isPlaying={isPlaying} onBack={onBack} onPlay={onPlay}/>
+  );
+}
+
+function ArtistDetailPage({ artist, currentSong, isPlaying, onBack, onPlay, onOpenAlbum }: {
+  artist:Artist;
+  currentSong:Song|null;
+  isPlaying:boolean;
+  onBack:()=>void;
+  onPlay:(song:Song)=>void;
+  onOpenAlbum:(album:Album)=>void;
+}) {
+  const [view,setView] = useState<"albums"|"songs">("albums");
+  const artistAlbums = ALBUMS.filter(album=>album.artist===artist.name);
+  const artistSongs = artistAlbums.flatMap(tracksForAlbum);
+
+  useEffect(()=>{
+    setView("albums");
+  },[artist.id]);
+
+  return (
+    <div className="mx-auto w-full max-w-[960px] px-5 pb-8 lg:px-8 lg:pt-4">
+      <div className="sticky top-0 z-30 -mx-5 flex h-14 items-center justify-between bg-background/90 px-4 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 lg:static lg:mx-0 lg:bg-transparent lg:px-0 lg:backdrop-blur-none">
+        <button type="button" aria-label="Back" onPointerDown={preventMouseFocus} onClick={onBack}
+          className="flex h-10 w-10 items-center justify-center rounded-full text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/40">
+          <ArrowLeft className="h-5 w-5"/>
+        </button>
+        <button type="button" aria-label="More artist actions"
+          className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/40">
+          <MoreHorizontal className="h-5 w-5"/>
+        </button>
+      </div>
+
+      <section className="pt-3 lg:pt-5">
+        <div className="flex items-center gap-4 sm:items-end sm:gap-7">
+          <div className="flex aspect-square w-[112px] shrink-0 items-center justify-center rounded-full text-[30px] font-bold text-white shadow-2xl sm:w-[220px] sm:text-[52px] lg:w-[240px]"
+            style={{background:`linear-gradient(135deg,${artist.gradient[0]},${artist.gradient[1]})`}}>
+            {artist.initials}
+          </div>
+          <div className="min-w-0 flex-1 pb-0.5 text-left sm:pb-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">Artist</p>
+            <h1 className="mt-1 text-[26px] font-bold leading-[31px] text-foreground sm:text-[38px] sm:leading-[44px]">{artist.name}</h1>
+            <div className="mt-3 flex items-center gap-4 text-xs font-medium text-muted-foreground">
+              <span><strong className="mr-1 text-sm font-semibold text-foreground">{artistAlbums.length}</strong>{artistAlbums.length===1?"album":"albums"}</span>
+              <span><strong className="mr-1 text-sm font-semibold text-foreground">{artistSongs.length}</strong>{artistSongs.length===1?"song":"songs"}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-5 rounded-[20px] bg-card px-4 py-3.5 sm:mt-6 sm:px-5 sm:py-4">
+          <h2 className="text-xs font-semibold text-foreground">About</h2>
+          <p className="mt-1.5 text-[13px] leading-5 text-muted-foreground sm:text-sm sm:leading-6">{artist.bio}</p>
+        </div>
+      </section>
+
+      <div className="sticky top-14 z-20 -mx-5 bg-background/90 px-5 pb-3 pt-5 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 lg:static lg:mx-0 lg:bg-transparent lg:px-0 lg:backdrop-blur-none">
+        <div className="grid h-10 grid-cols-2 rounded-full bg-muted p-1">
+          {([
+            {id:"albums" as const,label:`Albums (${artistAlbums.length})`},
+            {id:"songs" as const,label:`All Songs (${artistSongs.length})`},
+          ]).map(item=>(
+            <button key={item.id} type="button" aria-pressed={view===item.id} onClick={()=>setView(item.id)}
+              className={cn("rounded-full text-xs font-semibold outline-none transition-all focus-visible:ring-2 focus-visible:ring-primary/40",view===item.id?"bg-card text-foreground shadow-sm":"text-muted-foreground hover:text-foreground")}>
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {view==="albums" ? (
+        artistAlbums.length ? (
+          <section aria-label={`${artist.name} albums`} className="grid grid-cols-2 justify-items-center gap-x-4 gap-y-6 sm:grid-cols-3 xl:grid-cols-4">
+            {artistAlbums.map(album=>(
+              <AlbumCard key={album.id} album={album} action="open" onClick={()=>onOpenAlbum(album)}/>
+            ))}
+          </section>
+        ) : (
+          <div className="rounded-[24px] border border-border bg-card">
+            <EmptyState icon={<Disc3 className="h-7 w-7"/>} title="No albums yet" subtitle="Albums by this artist will appear here."/>
+          </div>
+        )
+      ) : (
+        <section aria-label={`${artist.name} songs`}>
+          <div className="mb-1 flex h-10 items-center">
+            <button type="button" disabled={!artistSongs.length} onClick={()=>artistSongs[0]&&onPlay(artistSongs[0])}
+              className="flex h-10 items-center gap-2 rounded-full px-2 text-sm font-semibold text-primary outline-none transition-opacity hover:opacity-80 disabled:cursor-not-allowed disabled:opacity-35 focus-visible:ring-2 focus-visible:ring-primary/40">
+              <span className="flex h-[18px] w-[18px] items-center justify-center"><Play className="h-4 w-4 fill-current"/></span>Play All
+            </button>
+          </div>
+          {artistSongs.length ? (
+            <div className="-ml-4 overflow-hidden">
+              {artistSongs.map((song,index)=>(
+                <PlaylistTrackRow key={song.id} song={song} onPlay={onPlay} trackNumber={index+1}
+                  active={isPlaying&&currentSong?.id===song.id}/>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-[24px] border border-border bg-card">
+              <EmptyState icon={<Music className="h-7 w-7"/>} title="No songs yet" subtitle="Music by this artist will appear here."/>
+            </div>
+          )}
+        </section>
+      )}
     </div>
   );
 }
@@ -2125,8 +2349,8 @@ function DailyPicksHero({ onPlay, currentSong }: { onPlay:(s:Song)=>void; curren
 }
 
 // ── Recently played ranked row ─────────────────────────────────
-function RecentlyPlayedRow({ rank, song, playedAt, detail, isPlaying, onPlay }: {
-  rank:number; song:Song; playedAt:string; detail?:string; isPlaying:boolean; onPlay:(s:Song)=>void;
+function RecentlyPlayedRow({ rank, song, playedAt, detail, showDetail=true, isPlaying, onPlay }: {
+  rank:number; song:Song; playedAt:string; detail?:string; showDetail?:boolean; isPlaying:boolean; onPlay:(s:Song)=>void;
 }) {
   const reduceMotion = useReducedMotion();
   return (
@@ -2152,7 +2376,7 @@ function RecentlyPlayedRow({ rank, song, playedAt, detail, isPlaying, onPlay }: 
       </div>
       <div className="shrink-0 text-right">
         <p className="text-[11px] font-medium text-muted-foreground">{playedAt}</p>
-        <p className="mt-0.5 text-[12px] font-medium text-foreground/70">{detail??song.duration}</p>
+        {showDetail&&<p className="mt-0.5 text-[12px] font-medium text-foreground/70">{detail??song.duration}</p>}
       </div>
     </motion.button>
   );
@@ -2430,8 +2654,14 @@ function ListeningPage({ onBack, onPlay }: { onBack:()=>void; onPlay:(song:Song)
   );
 }
 
-function HomePage({ onPlay, currentSong, isPlaying, onOpenLibrary, onOpenPlaylist, onOpenListening }: {
-  onPlay:(s:Song)=>void; currentSong:Song|null; isPlaying:boolean; onOpenLibrary:(tab:LibTab)=>void; onOpenPlaylist:(playlist:Playlist)=>void; onOpenListening:()=>void;
+function HomePage({ onPlay, currentSong, isPlaying, onOpenLibrary, onOpenPlaylist, onOpenArtist, onOpenListening }: {
+  onPlay:(s:Song)=>void;
+  currentSong:Song|null;
+  isPlaying:boolean;
+  onOpenLibrary:(tab:LibTab)=>void;
+  onOpenPlaylist:(playlist:Playlist)=>void;
+  onOpenArtist:(artist:Artist)=>void;
+  onOpenListening:()=>void;
 }) {
   const isDesktop = useIsDesktop();
   const [recentPage,setRecentPage] = useState(0);
@@ -2495,7 +2725,7 @@ function HomePage({ onPlay, currentSong, isPlaying, onOpenLibrary, onOpenPlaylis
               <div key={pageIndex} className="min-w-full snap-start px-4">
                 {tracks.map(({ rank, song, playedAt }) => (
                   <RecentlyPlayedRow key={song.id} rank={rank} song={song} playedAt={playedAt}
-                    isPlaying={isPlaying&&currentSong?.id===song.id} onPlay={onPlay}/>
+                    showDetail={false} isPlaying={isPlaying&&currentSong?.id===song.id} onPlay={onPlay}/>
                 ))}
               </div>
             ))}
@@ -2520,7 +2750,7 @@ function HomePage({ onPlay, currentSong, isPlaying, onOpenLibrary, onOpenPlaylis
         <div className="mt-7">
           <div className="px-4"><HomeSectionHeader title="Recommended Artists" icon={<Mic2 className="h-4 w-4"/>} onClick={()=>onOpenLibrary("artists")}/></div>
           <div className="mt-3 flex gap-4 px-4 overflow-x-auto hide-scrollbar pb-1">
-            {ARTISTS.map(artist=><ArtistCard key={artist.id} artist={artist} onClick={()=>onOpenLibrary("artists")}/>)}
+            {ARTISTS.map(artist=><ArtistCard key={artist.id} artist={artist} onClick={()=>onOpenArtist(artist)}/>)}
           </div>
         </div>
       </div>
@@ -2542,11 +2772,11 @@ function HomePage({ onPlay, currentSong, isPlaying, onOpenLibrary, onOpenPlaylis
         <div className="flex gap-4 overflow-x-auto pb-2 hide-scrollbar">{ALBUMS.slice(0,6).map(a=><AlbumCard key={a.id} album={a} onClick={()=>onPlay(SONGS[a.id-1]||SONGS[0])}/>)}</div></div>
       <div className="mb-6"><HomeSectionHeader title="Recently Played" icon={<Clock className="h-4 w-4"/>} onClick={()=>onOpenLibrary("recently-played")}/>
         <div className="space-y-1">{SONGS.slice(0,6).map(s=><MusicCard key={s.id} song={s} onPlay={onPlay}
-          isPlaying={isPlaying&&currentSong?.id===s.id} highlightPlaying={false} coverClassName="rounded-[14px]"/>)}</div></div>
+          isPlaying={isPlaying&&currentSong?.id===s.id} highlightPlaying={false} showDuration={false} coverClassName="rounded-[14px]"/>)}</div></div>
       <div className="mb-6"><HomeSectionHeader title="Recently Added" icon={<Sparkles className="h-4 w-4"/>} onClick={()=>onOpenLibrary("recently-added")}/>
         <div className="flex gap-4 overflow-x-auto pb-2 hide-scrollbar">{ALBUMS.slice(2,8).map(a=><AlbumCard key={a.id} album={a} size="sm" onClick={()=>onPlay(SONGS[a.id-1]||SONGS[0])}/>)}</div></div>
       <div className="mb-6"><HomeSectionHeader title="Recommended Artists" icon={<Mic2 className="h-4 w-4"/>} onClick={()=>onOpenLibrary("artists")}/>
-        <div className="flex gap-4 overflow-x-auto pb-2 hide-scrollbar">{ARTISTS.map(a=><ArtistCard key={a.id} artist={a} onClick={()=>onOpenLibrary("artists")}/>)}</div></div>
+        <div className="flex gap-4 overflow-x-auto pb-2 hide-scrollbar">{ARTISTS.map(a=><ArtistCard key={a.id} artist={a} onClick={()=>onOpenArtist(a)}/>)}</div></div>
     </div>
   );
 }
@@ -2799,8 +3029,31 @@ function LibraryPlaylistRow({ playlist, editing, onEnterEdit, onDelete, onOpen }
   );
 }
 
-function LibraryPage({ onPlay, onOpenPlaylist, tab, onTab }: {
-  onPlay:(s:Song)=>void; onOpenPlaylist:(playlist:Playlist)=>void; tab:LibTab; onTab:(tab:LibTab)=>void;
+type SongFilterPanel = "main"|"rating"|"year"|"fileType"|"quality";
+type SongFilterState = {
+  favorites: boolean;
+  rating: "all"|"3"|"4"|"5";
+  year: "all"|"2022"|"2023"|"2024";
+  fileType: "all"|"flac"|"alac"|"mp3"|"aac";
+  quality: "all"|"lossless"|"hi-res"|"dolby"|"standard";
+};
+const DEFAULT_SONG_FILTERS: SongFilterState = {
+  favorites:false,
+  rating:"all",
+  year:"all",
+  fileType:"all",
+  quality:"all",
+};
+
+function LibraryPage({ onPlay, onOpenPlaylist, onOpenAlbum, onOpenArtist, currentSong, isPlaying, tab, onTab }: {
+  onPlay:(s:Song)=>void;
+  onOpenPlaylist:(playlist:Playlist)=>void;
+  onOpenAlbum:(album:Album)=>void;
+  onOpenArtist:(artist:Artist)=>void;
+  currentSong:Song|null;
+  isPlaying:boolean;
+  tab:LibTab;
+  onTab:(tab:LibTab)=>void;
 }) {
   const [query,setQuery] = useState("");
   const [sortBy,setSortBy] = useState<"title"|"artist"|"album">("title");
@@ -2809,7 +3062,14 @@ function LibraryPage({ onPlay, onOpenPlaylist, tab, onTab }: {
   const [newPlaylistName,setNewPlaylistName] = useState("");
   const [newPlaylistDescription,setNewPlaylistDescription] = useState("");
   const [activeArtistLetter,setActiveArtistLetter] = useState<string|null>(null);
+  const [songFilters,setSongFilters] = useState<SongFilterState>(DEFAULT_SONG_FILTERS);
+  const [filterMenuPanel,setFilterMenuPanel] = useState<SongFilterPanel>("main");
+  const [filterMenuOpen,setFilterMenuOpen] = useState(false);
+  const [filterMenuDark,setFilterMenuDark] = useState(false);
+  const [filterMenuPosition,setFilterMenuPosition] = useState({top:0,right:16,maxHeight:360});
   const newPlaylistNameRef = useRef<HTMLInputElement>(null);
+  const filterTriggerRef = useRef<HTMLButtonElement>(null);
+  const filterMenuRef = useRef<HTMLDivElement>(null);
   const nextPlaylistId = useRef(Math.max(FAVORITE_PLAYLIST.id,...PLAYLISTS.map(playlist=>playlist.id))+1);
   const [libraryPlaylists,setLibraryPlaylists] = useState<Playlist[]>(() => [
     {...FAVORITE_PLAYLIST,id:8},
@@ -2843,11 +3103,32 @@ function LibraryPage({ onPlay, onOpenPlaylist, tab, onTab }: {
     setNewPlaylistName("");
     setNewPlaylistDescription("");
     setActiveArtistLetter(null);
+    setFilterMenuOpen(false);
+    setFilterMenuPanel("main");
   },[tab]);
 
   useEffect(() => {
     if (creatingPlaylist) newPlaylistNameRef.current?.focus();
   },[creatingPlaylist]);
+
+  useEffect(() => {
+    if (!filterMenuOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event:KeyboardEvent) => {
+      if (event.key==="Escape") closeFilterMenu();
+    };
+    const handleResize = () => closeFilterMenu(false);
+    document.body.style.overflow = "hidden";
+    const focusFrame = window.requestAnimationFrame(()=>filterMenuRef.current?.focus());
+    window.addEventListener("keydown",handleKeyDown);
+    window.addEventListener("resize",handleResize);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.cancelAnimationFrame(focusFrame);
+      window.removeEventListener("keydown",handleKeyDown);
+      window.removeEventListener("resize",handleResize);
+    };
+  },[filterMenuOpen]);
 
   const songTabs: LibTab[] = ["songs","favorites","history","recently-added","recently-played","lossless","hi-res"];
   const supportsSongTools = songTabs.includes(tab);
@@ -2859,12 +3140,24 @@ function LibraryPage({ onPlay, onOpenPlaylist, tab, onTab }: {
     : tab==="songs" ? SONGS
     : [];
   const normalizedQuery = query.trim().toLowerCase();
+  const activeSongFilterCount = Number(songFilters.favorites)
+    + Number(songFilters.rating!=="all")
+    + Number(songFilters.year!=="all")
+    + Number(songFilters.fileType!=="all")
+    + Number(songFilters.quality!=="all");
   const visibleSongs = [...tabSongs]
     .filter(song=>!normalizedQuery||[song.title,song.artist,song.album].some(value=>value.toLowerCase().includes(normalizedQuery)))
+    .filter(song=>tab!=="songs"||(
+      (!songFilters.favorites||song.liked)
+      && (songFilters.rating==="all"||(song.rating??0)>=Number(songFilters.rating))
+      && (songFilters.year==="all"||String(song.year)===songFilters.year)
+      && (songFilters.fileType==="all"||song.fileType===songFilters.fileType)
+      && (songFilters.quality==="all"||(song.quality??"standard")===songFilters.quality)
+    ))
     .sort((a,b)=>a[sortBy].localeCompare(b[sortBy]));
   const title = LIB_TAB_LABELS[tab];
   const meta = supportsSongTools
-    ? `${tabSongs.length} ${tabSongs.length===1?"song":"songs"}${tabSongs.length?` · ${libraryDuration(tabSongs)}`:""}`
+    ? `${tab==="songs"&&activeSongFilterCount?`${visibleSongs.length} of `:""}${tabSongs.length} ${tabSongs.length===1?"song":"songs"}${tabSongs.length?` · ${libraryDuration(tabSongs)}`:""}`
     : tab==="albums" ? `${ALBUMS.length} albums · ${ALBUMS.reduce((total,album)=>total+album.tracks,0)} tracks`
     : tab==="artists" ? `${ARTISTS.length} artists`
     : tab==="genres" ? `${genres.length} genres`
@@ -2878,6 +3171,74 @@ function LibraryPage({ onPlay, onOpenPlaylist, tab, onTab }: {
   const selectTab = (nextTab:LibTab) => {
     onTab(nextTab);
   };
+  const filterPanelOptions: Record<Exclude<SongFilterPanel,"main">,{value:string;label:string}[]> = {
+    rating:[
+      {value:"all",label:"All Ratings"},
+      {value:"3",label:"3 Stars & Up"},
+      {value:"4",label:"4 Stars & Up"},
+      {value:"5",label:"5 Stars"},
+    ],
+    year:[
+      {value:"all",label:"All Years"},
+      {value:"2024",label:"2024"},
+      {value:"2023",label:"2023"},
+      {value:"2022",label:"2022"},
+    ],
+    fileType:[
+      {value:"all",label:"All File Types"},
+      {value:"flac",label:"FLAC"},
+      {value:"alac",label:"ALAC"},
+      {value:"mp3",label:"MP3"},
+      {value:"aac",label:"AAC"},
+    ],
+    quality:[
+      {value:"all",label:"All Quality"},
+      {value:"lossless",label:"Lossless"},
+      {value:"hi-res",label:"Hi-Res"},
+      {value:"dolby",label:"Dolby Atmos"},
+      {value:"standard",label:"Standard"},
+    ],
+  };
+  const filterPanelTitles: Record<Exclude<SongFilterPanel,"main">,string> = {
+    rating:"Rating",
+    year:"Year",
+    fileType:"File Type",
+    quality:"Audio Quality",
+  };
+  const filterCategoryRows: {panel:Exclude<SongFilterPanel,"main">;label:string;summary:string}[] = [
+    {panel:"rating",label:"Rating",summary:songFilters.rating==="all"?"All":`${songFilters.rating}★ & up`},
+    {panel:"year",label:"Year",summary:songFilters.year==="all"?"All":songFilters.year},
+    {panel:"fileType",label:"File Type",summary:songFilters.fileType==="all"?"All":songFilters.fileType.toUpperCase()},
+    {panel:"quality",label:"Audio Quality",summary:songFilters.quality==="all"?"All":songFilters.quality==="hi-res"?"Hi-Res":songFilters.quality==="dolby"?"Dolby Atmos":songFilters.quality[0].toUpperCase()+songFilters.quality.slice(1)},
+  ];
+  function showFilterMenu() {
+    const rect = filterTriggerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const viewportPadding = 16;
+    const gap = 8;
+    const estimatedHeight = Math.min(6*56+16,360,window.innerHeight-viewportPadding*2);
+    const below = rect.bottom+gap;
+    const placeAbove = rect.top>window.innerHeight/2||below+estimatedHeight>window.innerHeight-viewportPadding;
+    const top = placeAbove?Math.max(viewportPadding,rect.top-estimatedHeight-gap):below;
+    const right = Math.max(viewportPadding,window.innerWidth-rect.right);
+    setFilterMenuPosition({top,right,maxHeight:window.innerHeight-top-viewportPadding});
+    setFilterMenuDark(Boolean(filterTriggerRef.current?.closest(".dark")));
+    setFilterMenuPanel("main");
+    setFilterMenuOpen(true);
+  }
+  function closeFilterMenu(restoreFocus=true) {
+    setFilterMenuOpen(false);
+    if (restoreFocus) window.requestAnimationFrame(()=>filterTriggerRef.current?.focus());
+  }
+  function selectSongFilter(panel:Exclude<SongFilterPanel,"main">,value:string) {
+    setSongFilters(filters => {
+      if (panel==="rating") return {...filters,rating:value as SongFilterState["rating"]};
+      if (panel==="year") return {...filters,year:value as SongFilterState["year"]};
+      if (panel==="fileType") return {...filters,fileType:value as SongFilterState["fileType"]};
+      return {...filters,quality:value as SongFilterState["quality"]};
+    });
+    closeFilterMenu();
+  }
   const jumpToArtistLetter = (letter:string) => {
     setActiveArtistLetter(letter);
     document.getElementById(`library-artists-${letter}`)?.scrollIntoView({behavior:"smooth",block:"start"});
@@ -2978,32 +3339,45 @@ function LibraryPage({ onPlay, onOpenPlaylist, tab, onTab }: {
             <div className="flex items-center gap-2 mb-4">
               <div className="flex flex-1 min-w-0 items-center gap-2.5 h-10 px-3.5 rounded-2xl bg-card border border-border focus-within:ring-2 focus-within:ring-primary/30">
                 <Search className="w-4 h-4 text-muted-foreground shrink-0"/>
-                <input value={query} onChange={event=>setQuery(event.target.value)} aria-label={`Search ${title.toLowerCase()}`}
-                  placeholder={`Search ${title.toLowerCase()}`} className="w-full min-w-0 bg-transparent border-0 outline-none text-sm text-foreground placeholder:text-muted-foreground"/>
+                <input value={query} onChange={event=>setQuery(event.target.value)} aria-label={tab==="songs"?"Search songs, artists, or albums":`Search ${title.toLowerCase()}`}
+                  placeholder={tab==="songs"?"Search songs, artists, or albums":`Search ${title.toLowerCase()}`} className="w-full min-w-0 bg-transparent border-0 outline-none text-sm text-foreground placeholder:text-muted-foreground"/>
                 {query&&<button type="button" onClick={()=>setQuery("")} aria-label="Clear library search" className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4"/></button>}
               </div>
-              <label className="flex items-center gap-2 h-10 px-3 rounded-2xl bg-card border border-border text-muted-foreground shrink-0">
+              {tab==="songs" ? (
+                <button ref={filterTriggerRef} type="button" onPointerDown={preventMouseFocus} onClick={showFilterMenu}
+                  aria-label={`Filter songs${activeSongFilterCount?`, ${activeSongFilterCount} active`:""}`} aria-haspopup="menu" aria-expanded={filterMenuOpen}
+                  className={cn("relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border bg-card outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary/30",filterMenuOpen||activeSongFilterCount?"border-primary/40 text-primary":"border-border text-muted-foreground hover:text-foreground")}>
+                  <Filter className="h-4 w-4"/>
+                  {activeSongFilterCount>0&&<span aria-hidden="true" className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-primary"/>}
+                </button>
+              ) : <label className="flex items-center gap-2 h-10 px-3 rounded-2xl bg-card border border-border text-muted-foreground shrink-0">
                 <SlidersHorizontal className="w-4 h-4"/>
                 <select value={sortBy} onChange={event=>setSortBy(event.target.value as "title"|"artist"|"album")}
                   aria-label="Sort library" className="bg-transparent border-0 outline-none text-xs font-semibold text-foreground cursor-pointer max-w-[84px]">
                   <option value="title">Title</option><option value="artist">Artist</option><option value="album">Album</option>
                 </select>
-              </label>
+              </label>}
             </div>
           )}
 
           {supportsSongTools&&tabSongs.length>0&&(
             visibleSongs.length>0 ? (
               <div className={cn("overflow-hidden",tab==="songs"&&"-ml-4 lg:ml-0")}>
-                {visibleSongs.map((song,index)=><MusicCard key={song.id} song={song} onPlay={onPlay} trackNumber={tab==="songs"?index+1:undefined}/>) }
+                {visibleSongs.map((song,index)=>tab==="songs"
+                  ? <PlaylistTrackRow key={song.id} song={song} onPlay={onPlay} trackNumber={index+1} active={isPlaying&&currentSong?.id===song.id}/>
+                  : <MusicCard key={song.id} song={song} onPlay={onPlay}/>)}
               </div>
             ) : (
               <div className="rounded-[24px] border border-border bg-card">
-                <EmptyState icon={<Search className="w-7 h-7"/>} title={`No matches for “${query}”`} subtitle="Try a title, artist, or album name." action="Clear search" onAction={()=>setQuery("")}/>
+                <EmptyState icon={<Search className="w-7 h-7"/>}
+                  title={query?`No matches for “${query}”`:"No songs match these filters"}
+                  subtitle={query?"Try a title, artist, or album name.":"Adjust or clear the active filters to see more songs."}
+                  action={query?"Clear search":"Clear filters"}
+                  onAction={()=>query?setQuery(""):setSongFilters(DEFAULT_SONG_FILTERS)}/>
               </div>
             )
           )}
-          {tab==="albums"&&<div className="grid grid-cols-2 justify-items-center gap-x-4 gap-y-6 sm:grid-cols-3 xl:grid-cols-4">{ALBUMS.map(album=><AlbumCard key={album.id} album={album} onClick={()=>onPlay(SONGS[album.id-1]||SONGS[0])}/>)}</div>}
+          {tab==="albums"&&<div className="grid grid-cols-2 justify-items-center gap-x-4 gap-y-6 sm:grid-cols-3 xl:grid-cols-4">{ALBUMS.map(album=><AlbumCard key={album.id} album={album} action="open" onClick={()=>onOpenAlbum(album)}/>)}</div>}
           {tab==="artists"&&(
             <div className="grid grid-cols-[minmax(0,1fr)_24px] items-start gap-2">
               <div className="min-w-0">
@@ -3013,7 +3387,7 @@ function LibraryPage({ onPlay, onOpenPlaylist, tab, onTab }: {
                     <div>
                       {group.artists.map(artist=>(
                         <motion.button type="button" key={artist.id} whileTap={{scale:0.99}} transition={LIST_ROW_TRANSITION}
-                          onPointerDown={preventMouseFocus} onClick={()=>onPlay(SONGS[artist.id-1]||SONGS[0])}
+                          onPointerDown={preventMouseFocus} onClick={()=>onOpenArtist(artist)}
                           className={cn("group flex w-full items-center gap-3 border-b border-border/40 px-2 py-2.5 text-left last:border-0",LIST_ROW_INTERACTION)}>
                           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white shadow-sm"
                             style={{background:`linear-gradient(135deg,${artist.gradient[0]},${artist.gradient[1]})`}}>{artist.initials}</span>
@@ -3127,6 +3501,87 @@ function LibraryPage({ onPlay, onOpenPlaylist, tab, onTab }: {
           </motion.div>
         )}
       </AnimatePresence>
+      {filterMenuOpen&&createPortal(
+        <AnimatePresence>
+          <motion.div className={cn("fixed inset-0 z-[150]",filterMenuDark?"bg-black/45":"bg-black/25")}
+            initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:0.16}}
+            onClick={()=>closeFilterMenu()}>
+            <motion.div ref={filterMenuRef} role="menu" aria-label="Filter songs" tabIndex={-1}
+              className={cn("fixed w-max min-w-[260px] max-w-[calc(100vw-32px)] overflow-y-auto rounded-[28px] p-2 shadow-[0_24px_80px_rgba(0,0,0,0.34)] outline-none",filterMenuDark?"bg-[#2b2b2d]":"bg-[#f3f3f5]")}
+              style={{top:filterMenuPosition.top,right:filterMenuPosition.right,maxHeight:filterMenuPosition.maxHeight}}
+              initial={{opacity:0,scale:0.94,y:-6}} animate={{opacity:1,scale:1,y:0}} exit={{opacity:0,scale:0.96,y:-4}}
+              transition={{type:"spring",stiffness:430,damping:34,mass:0.72}}
+              onClick={event=>event.stopPropagation()}>
+              {filterMenuPanel==="main" ? (
+                <>
+                  <button type="button" role="menuitemcheckbox" aria-checked={songFilters.favorites}
+                    onClick={()=>setSongFilters(filters=>({...filters,favorites:!filters.favorites}))}
+                    className={cn(
+                      "flex h-14 w-max min-w-full items-center gap-4 rounded-[20px] px-5 text-left text-[16px] font-medium outline-none transition-colors",
+                      filterMenuDark?"hover:bg-white/[0.06] focus-visible:bg-white/[0.08]":"hover:bg-black/[0.045] focus-visible:bg-black/[0.06]",
+                      songFilters.favorites?"text-[#4F8DFF]":filterMenuDark?"text-white":"text-[#1f1f21]",
+                    )}>
+                    <span className="flex-1 whitespace-nowrap">Favorites</span>
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center" aria-hidden="true">
+                      {songFilters.favorites&&<Check className="h-6 w-6 stroke-[2.5]"/>}
+                    </span>
+                  </button>
+                  {filterCategoryRows.map(item=>(
+                    <button key={item.panel} type="button" role="menuitem" onClick={()=>setFilterMenuPanel(item.panel)}
+                      className={cn(
+                        "flex h-14 w-max min-w-full items-center gap-3 rounded-[20px] px-5 text-left text-[16px] font-medium outline-none transition-colors",
+                        filterMenuDark?"text-white hover:bg-white/[0.06] focus-visible:bg-white/[0.08]":"text-[#1f1f21] hover:bg-black/[0.045] focus-visible:bg-black/[0.06]",
+                      )}>
+                      <span className="flex-1 whitespace-nowrap">{item.label}</span>
+                      <span className={cn("max-w-[112px] truncate text-[13px] font-normal",item.summary==="All"?filterMenuDark?"text-white/45":"text-black/45":"text-[#4F8DFF]")}>{item.summary}</span>
+                      <ChevronRight className={cn("h-5 w-5 shrink-0",filterMenuDark?"text-white/45":"text-black/40")} aria-hidden="true"/>
+                    </button>
+                  ))}
+                  <div className={cn("mx-3 border-t",filterMenuDark?"border-white/[0.08]":"border-black/[0.08]")}/>
+                  <button type="button" role="menuitem" disabled={!activeSongFilterCount}
+                    onClick={()=>{setSongFilters(DEFAULT_SONG_FILTERS);closeFilterMenu();}}
+                    className={cn(
+                      "flex h-14 w-max min-w-full items-center rounded-[20px] px-5 text-left text-[16px] font-medium text-[#FF5B6E] outline-none transition-colors disabled:cursor-default disabled:opacity-35",
+                      filterMenuDark?"hover:bg-white/[0.06] focus-visible:bg-white/[0.08]":"hover:bg-black/[0.045] focus-visible:bg-black/[0.06]",
+                    )}>
+                    <span className="flex-1 whitespace-nowrap">Clear Filters</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button type="button" role="menuitem" onClick={()=>setFilterMenuPanel("main")}
+                    className={cn(
+                      "flex h-14 w-max min-w-full items-center gap-3 rounded-[20px] px-5 text-left text-[16px] font-semibold outline-none transition-colors",
+                      filterMenuDark?"text-white hover:bg-white/[0.06] focus-visible:bg-white/[0.08]":"text-[#1f1f21] hover:bg-black/[0.045] focus-visible:bg-black/[0.06]",
+                    )}>
+                    <ChevronLeft className="h-5 w-5 shrink-0" aria-hidden="true"/>
+                    <span className="flex-1 whitespace-nowrap">{filterPanelTitles[filterMenuPanel]}</span>
+                  </button>
+                  <div className={cn("mx-3 border-t",filterMenuDark?"border-white/[0.08]":"border-black/[0.08]")}/>
+                  {filterPanelOptions[filterMenuPanel].map(option=>{
+                    const selected = songFilters[filterMenuPanel]===option.value;
+                    return (
+                      <button key={option.value} type="button" role="menuitemradio" aria-checked={selected}
+                        onClick={()=>selectSongFilter(filterMenuPanel,option.value)}
+                        className={cn(
+                          "flex h-14 w-max min-w-full items-center gap-4 rounded-[20px] px-5 text-left text-[16px] font-medium outline-none transition-colors",
+                          filterMenuDark?"hover:bg-white/[0.06] focus-visible:bg-white/[0.08]":"hover:bg-black/[0.045] focus-visible:bg-black/[0.06]",
+                          selected?"text-[#4F8DFF]":filterMenuDark?"text-white":"text-[#1f1f21]",
+                        )}>
+                        <span className="flex-1 whitespace-nowrap">{option.label}</span>
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center" aria-hidden="true">
+                          {selected&&<Check className="h-6 w-6 stroke-[2.5]"/>}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        </AnimatePresence>,
+        document.body,
+      )}
     </div>
   );
 }
@@ -4787,7 +5242,7 @@ function Sidebar({ page, onPage, dsSection, onDsSection, isDark, onToggleDark }:
       {/* App Nav */}
       <div className="px-2 mb-1">
         <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground/60 px-4 mb-1 mt-5 first:mt-0">App</p>
-        {DESKTOP_APP_NAV.map(item=>{const Icon=item.icon; const active=(page===item.id||(page==="playlist"&&item.id==="library"))&&page!=="design-system";
+        {DESKTOP_APP_NAV.map(item=>{const Icon=item.icon; const active=(page===item.id||((page==="playlist"||page==="album"||page==="artist")&&item.id==="library"))&&page!=="design-system";
           return <button type="button" key={item.id} onPointerDown={preventMouseFocus} onClick={()=>onPage(item.id)} className={cn("w-full flex items-center gap-2.5 px-4 h-9 rounded-[10px] mb-0.5 text-xs font-semibold transition-all duration-[180ms] outline-none focus-visible:ring-2 focus-visible:ring-primary/40",active?"bg-[var(--surface-selected)] text-primary":"text-muted-foreground hover:bg-[var(--surface-hover)] hover:text-foreground")}>
             <Icon style={{width:15,height:15}}/>{item.label}
           </button>;
@@ -4824,7 +5279,7 @@ function BottomNav({ page, onPage }: { page:Page; onPage:(p:Page)=>void }) {
       }}>
       {items.map(item => {
         const Icon = item.icon;
-        const active = page === item.id || (page==="playlist"&&item.id==="library");
+        const active = page === item.id || ((page==="playlist"||page==="album"||page==="artist")&&item.id==="library");
         return (
           <button type="button" key={item.id} onPointerDown={preventMouseFocus} onClick={() => onPage(item.id)}
             className={cn("flex flex-col items-center gap-0.5 rounded-xl transition-all duration-[180ms] outline-none focus-visible:ring-2 focus-visible:ring-primary/40", active ? "text-primary" : "text-muted-foreground")}>
@@ -4858,7 +5313,11 @@ export default function App() {
   const [songIdx,setSongIdx] = useState(0);
   const [libraryTab,setLibraryTab] = useState<LibTab>("playlists");
   const [selectedPlaylist,setSelectedPlaylist] = useState<Playlist|null>(null);
+  const [selectedAlbum,setSelectedAlbum] = useState<Album|null>(null);
+  const [selectedArtist,setSelectedArtist] = useState<Artist|null>(null);
   const [playlistReturnPage,setPlaylistReturnPage] = useState<Page>("library");
+  const [albumReturnPage,setAlbumReturnPage] = useState<Page>("library");
+  const [artistReturnPage,setArtistReturnPage] = useState<Page>("library");
   const mainScrollRef = useRef<HTMLElement>(null);
 
   useEffect(()=>{ mainScrollRef.current?.scrollTo({top:0}); },[page]);
@@ -4871,6 +5330,16 @@ export default function App() {
     setSelectedPlaylist(playlist);
     setPlaylistReturnPage(page==="library"?"library":"home");
     setPage("playlist");
+  };
+  const handleOpenAlbum = (album:Album) => {
+    setSelectedAlbum(album);
+    setAlbumReturnPage(page==="artist"?"artist":"library");
+    setPage("album");
+  };
+  const handleOpenArtist = (artist:Artist) => {
+    setSelectedArtist(artist);
+    setArtistReturnPage(page==="library"?"library":"home");
+    setPage("artist");
   };
 
   const mobilePageTitle: Partial<Record<Page,string>> = {
@@ -4893,7 +5362,7 @@ export default function App() {
           <div className="flex flex-1 min-h-0 overflow-hidden">
             {/* Main content */}
             <main ref={mainScrollRef} className="mt-[59px] flex-1 overflow-y-auto lg:mt-0 landscape:mt-0">
-              {page !== "home" && page !== "playlist" && page !== "listening" && (
+              {page !== "home" && page !== "playlist" && page !== "album" && page !== "artist" && page !== "listening" && (
                 <StickyPageHeader
                   title={page==="design-system"?dsTitles[dsSection]:mobilePageTitle[page]||"TideTunes"}
                   subtitle={page==="design-system"?"TideTunes DS · v3.0":undefined}
@@ -4915,11 +5384,13 @@ export default function App() {
                 </>
               )}
               <AnimatePresence mode="wait">
-                <motion.div key={page==="design-system"?`ds-${dsSection}`:page==="playlist"?`playlist-${selectedPlaylist?.id}`:page} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} transition={{duration:0.18,ease:"easeOut"}} className="min-h-full">
-                  {page==="home"&&<HomePage onPlay={handlePlay} currentSong={currentSong} isPlaying={isPlaying} onOpenLibrary={handleOpenLibrary} onOpenPlaylist={handleOpenPlaylist} onOpenListening={()=>setPage("listening")}/>}
+                <motion.div key={page==="design-system"?`ds-${dsSection}`:page==="playlist"?`playlist-${selectedPlaylist?.id}`:page==="album"?`album-${selectedAlbum?.id}`:page==="artist"?`artist-${selectedArtist?.id}`:page} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} transition={{duration:0.18,ease:"easeOut"}} className="min-h-full">
+                  {page==="home"&&<HomePage onPlay={handlePlay} currentSong={currentSong} isPlaying={isPlaying} onOpenLibrary={handleOpenLibrary} onOpenPlaylist={handleOpenPlaylist} onOpenArtist={handleOpenArtist} onOpenListening={()=>setPage("listening")}/>}
                   {page==="search"&&<SearchPage onPlay={handlePlay}/>}
-                  {page==="library"&&<LibraryPage onPlay={handlePlay} onOpenPlaylist={handleOpenPlaylist} tab={libraryTab} onTab={setLibraryTab}/>}
-                  {page==="playlist"&&selectedPlaylist&&<PlaylistDetailPage playlist={selectedPlaylist} currentSong={currentSong} onBack={()=>setPage(playlistReturnPage)} onPlay={handlePlay}/>}
+                  {page==="library"&&<LibraryPage onPlay={handlePlay} onOpenPlaylist={handleOpenPlaylist} onOpenAlbum={handleOpenAlbum} onOpenArtist={handleOpenArtist} currentSong={currentSong} isPlaying={isPlaying} tab={libraryTab} onTab={setLibraryTab}/>}
+                  {page==="playlist"&&selectedPlaylist&&<PlaylistDetailPage playlist={selectedPlaylist} currentSong={currentSong} isPlaying={isPlaying} onBack={()=>setPage(playlistReturnPage)} onPlay={handlePlay}/>}
+                  {page==="album"&&selectedAlbum&&<AlbumDetailPage album={selectedAlbum} currentSong={currentSong} isPlaying={isPlaying} onBack={()=>setPage(albumReturnPage)} onPlay={handlePlay}/>}
+                  {page==="artist"&&selectedArtist&&<ArtistDetailPage artist={selectedArtist} currentSong={currentSong} isPlaying={isPlaying} onBack={()=>setPage(artistReturnPage)} onPlay={handlePlay} onOpenAlbum={handleOpenAlbum}/>}
                   {page==="listening"&&<ListeningPage onBack={()=>setPage("home")} onPlay={handlePlay}/>}
                   {page==="settings"&&<SettingsPage/>}
                   {page==="design-system"&&dsSection==="cover"&&<DSCover/>}
