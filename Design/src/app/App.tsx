@@ -23,7 +23,7 @@ import {
   TrendingUp, Clock, CalendarDays, Flame, Timer, Trophy,
   Heart as HeartIcon, Star as StarIcon,
   FolderOpen, Wifi as WifiIcon, Music, Mic2,
-  GripVertical, Trash2, Eye, EyeOff
+  GripVertical, Trash2, Eye, EyeOff, LocateFixed, Pencil
 } from "lucide-react";
 
 const cn = (...i: unknown[]) => twMerge(clsx(i));
@@ -457,53 +457,188 @@ function MusicCard({ song, onPlay, isPlaying, highlightPlaying=true, coverClassN
   );
 }
 
-function PlaylistDetailPage({ playlist, onBack, onPlay }: {
-  playlist:Playlist; onBack:()=>void; onPlay:(song:Song)=>void;
+function PlaylistDetailPage({ playlist, currentSong, onBack, onPlay }: {
+  playlist:Playlist; currentSong:Song|null; onBack:()=>void; onPlay:(song:Song)=>void;
 }) {
-  const tracks = playlist.tracks===0
+  const [headerCollapsed,setHeaderCollapsed] = useState(false);
+  const [editing,setEditing] = useState(false);
+  const [selectedTrackIds,setSelectedTrackIds] = useState<Set<number>>(()=>new Set());
+  const playlistPageRef = useRef<HTMLDivElement>(null);
+  const trackRowRefs = useRef<Map<number,HTMLElement>>(new Map());
+  const baseTracks = playlist.tracks===0
     ? []
     : playlist.title==="My Favorites"
       ? SONGS.filter(song=>song.liked)
       : SONGS.map((_,index)=>SONGS[(index+Math.max(playlist.id-1,0))%SONGS.length]);
+  const [orderedTracks,setOrderedTracks] = useState<Song[]>(baseTracks);
+  const allSelected = orderedTracks.length>0&&orderedTracks.every(song=>selectedTrackIds.has(song.id));
+  const currentTrackAvailable = !!currentSong&&orderedTracks.some(song=>song.id===currentSong.id);
+
+  useEffect(() => {
+    setOrderedTracks(baseTracks);
+    setSelectedTrackIds(new Set());
+    setEditing(false);
+  },[playlist.id]);
+
+  const toggleEditing = () => {
+    setEditing(value=>!value);
+    setSelectedTrackIds(new Set());
+  };
+  const toggleTrackSelection = (id:number) => {
+    setSelectedTrackIds(previous => {
+      const next = new Set(previous);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const toggleSelectAll = () => {
+    setSelectedTrackIds(allSelected?new Set():new Set(orderedTracks.map(song=>song.id)));
+  };
+  const locateCurrentTrack = () => {
+    if (!currentSong) return;
+    const row = trackRowRefs.current.get(currentSong.id);
+    row?.scrollIntoView({
+      behavior:window.matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth",
+      block:"center",
+    });
+  };
+
+  useEffect(() => {
+    const scroller = playlistPageRef.current?.closest("main");
+    if (!scroller) return;
+    let touchStartY = 0;
+    const onWheel = (event:WheelEvent) => {
+      if (event.deltaY > 12 && !editing) setHeaderCollapsed(true);
+      if (event.deltaY < -12 && scroller.scrollTop <= 2) setHeaderCollapsed(false);
+    };
+    const onTouchStart = (event:TouchEvent) => {
+      touchStartY = event.touches.item(0)?.clientY ?? 0;
+    };
+    const onTouchMove = (event:TouchEvent) => {
+      const currentY = event.touches.item(0)?.clientY ?? touchStartY;
+      const delta = touchStartY-currentY;
+      if (delta > 24 && !editing) {
+        setHeaderCollapsed(true);
+        touchStartY = currentY;
+      } else if (delta < -24 && scroller.scrollTop <= 2) {
+        setHeaderCollapsed(false);
+        touchStartY = currentY;
+      }
+    };
+    setHeaderCollapsed(false);
+    scroller.addEventListener("wheel",onWheel,{ passive:true });
+    scroller.addEventListener("touchstart",onTouchStart,{ passive:true });
+    scroller.addEventListener("touchmove",onTouchMove,{ passive:true });
+    return () => {
+      scroller.removeEventListener("wheel",onWheel);
+      scroller.removeEventListener("touchstart",onTouchStart);
+      scroller.removeEventListener("touchmove",onTouchMove);
+    };
+  },[editing,playlist.id]);
 
   return (
-    <div className="mx-auto w-full max-w-[960px] px-5 pb-8 lg:px-8 lg:pt-4">
+    <div ref={playlistPageRef} className="mx-auto w-full max-w-[960px] px-5 pb-8 lg:px-8 lg:pt-4">
       <div className="sticky top-0 z-30 -mx-5 flex h-14 items-center justify-between bg-background/90 px-4 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80 lg:static lg:mx-0 lg:bg-transparent lg:px-0 lg:backdrop-blur-none">
-        <button type="button" onPointerDown={preventMouseFocus} onClick={onBack}
-          className="flex h-10 items-center gap-1.5 rounded-full px-2 text-sm font-semibold text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/40">
-          <ChevronLeft className="h-5 w-5"/><span>Back</span>
+        <button type="button" aria-label="Back" onPointerDown={preventMouseFocus} onClick={onBack}
+          className="flex h-10 w-10 items-center justify-center rounded-full text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/40">
+          <ArrowLeft className="h-5 w-5"/>
         </button>
+        <AnimatePresence>
+          {headerCollapsed&&(
+            <motion.p initial={{opacity:0,y:5}} animate={{opacity:1,y:0}} exit={{opacity:0,y:5}}
+              className="pointer-events-none absolute left-14 right-14 truncate text-left text-[16px] font-semibold text-foreground lg:hidden">
+              {playlist.title}
+            </motion.p>
+          )}
+        </AnimatePresence>
         <button type="button" aria-label="More playlist actions"
           className="flex h-10 w-10 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/40">
           <MoreHorizontal className="h-5 w-5"/>
         </button>
       </div>
 
-      <section className="flex flex-col items-center gap-5 pb-6 pt-3 sm:flex-row sm:items-end sm:gap-7 lg:pt-5">
+      <AnimatePresence initial={false}>
+        {!headerCollapsed&&(
+      <motion.section initial={{opacity:0,height:0,y:-10}} animate={{opacity:1,height:"auto",y:0}} exit={{opacity:0,height:0,y:-10}}
+        transition={{duration:0.2,ease:"easeOut"}} className="overflow-hidden pb-5 pt-3 sm:pb-6 lg:pt-5">
+        <div className="flex items-center gap-4 sm:items-end sm:gap-7">
         <CoverArt src={cover(playlist.id)} gradient={playlist.gradient}
-          className="aspect-square w-[min(62vw,240px)] shrink-0 rounded-[24px] shadow-2xl sm:w-[220px] lg:w-[240px]"/>
-        <div className="min-w-0 flex-1 text-center sm:pb-1 sm:text-left">
-          <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.12em] text-primary">Playlist</p>
-          <h1 className="text-[30px] font-bold leading-[36px] text-foreground sm:text-[36px] sm:leading-[42px]">{playlist.title}</h1>
-          <p className="mt-2 text-sm leading-5 text-muted-foreground">{playlist.description}</p>
+          className="aspect-square w-[112px] shrink-0 rounded-[18px] shadow-2xl sm:w-[220px] sm:rounded-[24px] lg:w-[240px]"/>
+        <div className="min-w-0 flex-1 pb-0.5 text-left sm:pb-1">
+          <h1 className="text-[24px] font-bold leading-[29px] text-foreground sm:text-[36px] sm:leading-[42px]">{playlist.title}</h1>
+          <p className="mt-1 line-clamp-2 text-[12px] leading-4 text-muted-foreground sm:mt-2 sm:text-sm sm:leading-5">{playlist.description}</p>
           <p className="mt-3 text-xs font-medium text-muted-foreground">{playlist.tracks} tracks · {playlist.duration}</p>
-          <div className="mt-5 flex items-center justify-center gap-2 sm:justify-start">
-            <Btn onClick={()=>tracks[0]&&onPlay(tracks[0])} icon={<Play className="h-4 w-4 fill-current"/>} className="min-w-[104px]">Play</Btn>
-            <Btn variant="tonal" onClick={()=>tracks.length&&onPlay(tracks[Math.min(3,tracks.length-1)])}
-              icon={<Shuffle className="h-4 w-4"/>}>Shuffle</Btn>
-          </div>
         </div>
-      </section>
+        </div>
+        <div className="mt-3 flex items-center gap-2 sm:mt-5">
+          <Btn onClick={()=>orderedTracks[0]&&onPlay(orderedTracks[0])} icon={<Play className="h-4 w-4 fill-current"/>} className="min-w-[112px] px-4 sm:min-w-[140px]">Play</Btn>
+          <button type="button" aria-label="Locate current song" disabled={!currentTrackAvailable} onClick={locateCurrentTrack}
+            className="ml-auto flex h-10 w-10 items-center justify-center rounded-full bg-muted text-foreground outline-none transition-colors hover:bg-muted/80 disabled:cursor-not-allowed disabled:opacity-35 focus-visible:ring-2 focus-visible:ring-primary/40">
+            <LocateFixed className="h-[18px] w-[18px]"/>
+          </button>
+          <button type="button" aria-label={editing?"Finish editing":"Edit playlist"} aria-pressed={editing} onClick={toggleEditing}
+            className={cn("flex h-10 w-10 items-center justify-center rounded-full outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary/40",editing?"bg-primary text-primary-foreground":"bg-muted text-foreground hover:bg-muted/80")}>
+            {editing?<Check className="h-[18px] w-[18px]"/>:<Pencil className="h-[18px] w-[18px]"/>}
+          </button>
+        </div>
+      </motion.section>
+        )}
+      </AnimatePresence>
 
       <section aria-labelledby="playlist-songs-heading">
         <div className="mb-2 flex items-center justify-between px-2">
           <h2 id="playlist-songs-heading" className="text-lg font-semibold text-foreground">Songs</h2>
-          <span className="text-xs text-muted-foreground">{tracks.length}</span>
+          {editing ? (
+            <button type="button" aria-pressed={allSelected} onClick={toggleSelectAll}
+              className="flex h-9 items-center gap-2 rounded-full px-2 text-xs font-semibold text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/40">
+              <span className={cn("flex h-[18px] w-[18px] items-center justify-center rounded-[6px] border",allSelected?"border-primary bg-primary text-primary-foreground":"border-border bg-card")}>
+                {allSelected&&<Check className="h-3 w-3"/>}
+              </span>
+              {allSelected?"Deselect all":"Select all"}
+              {!!selectedTrackIds.size&&<span className="text-muted-foreground">({selectedTrackIds.size})</span>}
+            </button>
+          ) : (
+            <span className="text-xs text-muted-foreground">{orderedTracks.length}</span>
+          )}
         </div>
-        {tracks.length ? (
-          <div className="overflow-hidden">
-            {tracks.map((song,index)=><MusicCard key={song.id} song={song} onPlay={onPlay} trackNumber={index+1}/>)}
-          </div>
+        {orderedTracks.length ? (
+          editing ? (
+            <Reorder.Group as="ul" axis="y" values={orderedTracks} onReorder={setOrderedTracks} className="overflow-hidden">
+              {orderedTracks.map((song,index)=>(
+                <Reorder.Item as="li" key={song.id} value={song} whileDrag={{scale:1.015,boxShadow:"0 12px 34px rgba(0,0,0,0.24)"}}
+                  ref={node => {
+                    if (node) trackRowRefs.current.set(song.id,node);
+                    else trackRowRefs.current.delete(song.id);
+                  }}
+                  className={cn("flex touch-none select-none items-center gap-2 border-b border-border/40 px-2 py-2.5 last:border-0",selectedTrackIds.has(song.id)&&"bg-primary/[0.08]")}>
+                  <button type="button" aria-label={`Select ${song.title}`} aria-pressed={selectedTrackIds.has(song.id)} onClick={()=>toggleTrackSelection(song.id)}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+                    <span className={cn("flex h-5 w-5 items-center justify-center rounded-[7px] border",selectedTrackIds.has(song.id)?"border-primary bg-primary text-primary-foreground":"border-border bg-card")}>
+                      {selectedTrackIds.has(song.id)&&<Check className="h-3.5 w-3.5"/>}
+                    </span>
+                  </button>
+                  <span className="w-6 shrink-0 text-center font-mono text-xs tabular-nums text-muted-foreground">{index+1}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-foreground">{song.title}</p>
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">{song.artist} · {song.album}</p>
+                  </div>
+                  <GripVertical className="h-5 w-5 shrink-0 cursor-grab text-muted-foreground active:cursor-grabbing"/>
+                </Reorder.Item>
+              ))}
+            </Reorder.Group>
+          ) : (
+            <div className="overflow-hidden">
+              {orderedTracks.map((song,index)=>(
+                <div key={song.id} ref={node => {
+                  if (node) trackRowRefs.current.set(song.id,node);
+                  else trackRowRefs.current.delete(song.id);
+                }}>
+                  <MusicCard song={song} onPlay={onPlay} trackNumber={index+1}/>
+                </div>
+              ))}
+            </div>
+          )
         ) : (
           <div className="rounded-[24px] border border-border bg-card">
             <EmptyState icon={<Music className="h-7 w-7"/>} title="No songs yet" subtitle="Songs added to this playlist will appear here."/>
@@ -2165,15 +2300,15 @@ function ListeningPage({ onBack, onPlay }: { onBack:()=>void; onPlay:(song:Song)
   useEffect(()=>{ pageRef.current?.closest("main")?.scrollTo({top:0}); },[tab]);
 
   return (
-    <div ref={pageRef} className="mx-auto w-full px-4 pb-10 pt-2 lg:max-w-[1180px] lg:px-8 lg:pt-3">
-      <div className="sticky top-[59px] z-30 -mx-4 mb-3 flex h-[68px] items-center gap-2 border-b border-border/60 bg-background/90 px-4 backdrop-blur-xl lg:top-0 lg:hidden">
+    <div ref={pageRef} className="mx-auto w-full px-4 pb-10 pt-0 lg:max-w-[1180px] lg:px-8">
+      <div className="sticky top-0 z-30 -mx-4 mb-3 flex h-[60px] items-center gap-2 border-b border-border/60 bg-background/90 px-4 backdrop-blur-xl lg:hidden">
         <button type="button" onClick={onBack} aria-label="Back to Home"
           className="flex h-10 w-10 items-center justify-center rounded-full text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/40">
           <ArrowLeft className="h-5 w-5"/>
         </button>
-        <div><h1 className="text-[24px] font-bold text-foreground">Listening</h1><p className="text-[11px] text-muted-foreground">Your plays, habits, and favorites</p></div>
+        <h1 className="text-[24px] font-bold text-foreground">Listening</h1>
       </div>
-      <StickyPageHeader title="Listening" subtitle="Your plays, habits, and favorites" className="-mx-8 mb-3 hidden px-8 py-3 lg:block"/>
+      <StickyPageHeader title="Listening" className="-mx-8 mb-3 hidden px-8 py-3 lg:block"/>
 
       <div className="mb-5 overflow-x-auto hide-scrollbar">
         <PillTabs tabs={[
@@ -4784,7 +4919,7 @@ export default function App() {
                   {page==="home"&&<HomePage onPlay={handlePlay} currentSong={currentSong} isPlaying={isPlaying} onOpenLibrary={handleOpenLibrary} onOpenPlaylist={handleOpenPlaylist} onOpenListening={()=>setPage("listening")}/>}
                   {page==="search"&&<SearchPage onPlay={handlePlay}/>}
                   {page==="library"&&<LibraryPage onPlay={handlePlay} onOpenPlaylist={handleOpenPlaylist} tab={libraryTab} onTab={setLibraryTab}/>}
-                  {page==="playlist"&&selectedPlaylist&&<PlaylistDetailPage playlist={selectedPlaylist} onBack={()=>setPage(playlistReturnPage)} onPlay={handlePlay}/>}
+                  {page==="playlist"&&selectedPlaylist&&<PlaylistDetailPage playlist={selectedPlaylist} currentSong={currentSong} onBack={()=>setPage(playlistReturnPage)} onPlay={handlePlay}/>}
                   {page==="listening"&&<ListeningPage onBack={()=>setPage("home")} onPlay={handlePlay}/>}
                   {page==="settings"&&<SettingsPage/>}
                   {page==="design-system"&&dsSection==="cover"&&<DSCover/>}
