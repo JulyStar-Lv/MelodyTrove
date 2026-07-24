@@ -15,8 +15,11 @@ import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun LibraryRoot(
-    onOpenNowPlaying: () -> Unit = {},
     onNavigateToLibraryFolderImport: () -> Unit = {},
+    onNavigateToAlbum: (Long) -> Unit = {},
+    onNavigateToArtist: (Long) -> Unit = {},
+    onNavigateToPlaylist: (Long) -> Unit = {},
+    onNavigateToPlaylists: () -> Unit = {},
     viewModel: LibraryVM = koinViewModel(),
 ) {
     val playbackController = koinInject<PlaybackController>()
@@ -36,6 +39,10 @@ fun LibraryRoot(
         state = state,
         currentPlayingTrackId = playerState.currentItem?.libraryTrackId,
         onNavigateToLibraryFolderImport = onNavigateToLibraryFolderImport,
+        onNavigateToAlbum = onNavigateToAlbum,
+        onNavigateToArtist = onNavigateToArtist,
+        onNavigateToPlaylist = onNavigateToPlaylist,
+        onNavigateToPlaylists = onNavigateToPlaylists,
         onAction = { action ->
             when (action) {
                 is LibraryAction.PlayTrack -> {
@@ -48,7 +55,6 @@ fun LibraryRoot(
                                 startIndex = startIndex,
                             )
                         }
-                        onOpenNowPlaying()
                     }
                 }
                 else -> viewModel.onAction(action)

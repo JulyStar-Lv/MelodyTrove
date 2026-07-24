@@ -27,7 +27,10 @@ internal fun HomeTabContent(
     onNavigateToLibrary: () -> Unit,
     onNavigateToSearch: () -> Unit,
     onNavigateToLibraryFolderImport: () -> Unit,
-    onOpenNowPlaying: () -> Unit,
+    onNavigateToAlbum: (Long) -> Unit,
+    onNavigateToArtist: (Long) -> Unit,
+    onNavigateToPlaylist: (Long) -> Unit,
+    onNavigateToPlaylists: () -> Unit,
 ) {
     val openSleepTimer = rememberOpenSleepTimer()
     val rootNavController = LocalNavController.current
@@ -40,13 +43,15 @@ internal fun HomeTabContent(
                 onNavigateToLibrary = onNavigateToLibrary,
                 onNavigateToSearch = onNavigateToSearch,
                 onOpenSleepTimer = { openSleepTimer(SleepModeLeftTime(30 * 60 * 1000L)) },
-                onOpenNowPlaying = onOpenNowPlaying,
             )
             HomeTab.SEARCH -> SearchTabGraph(searchNavController)
             HomeTab.LIBRARY -> LibraryTabGraph(
                 navController = libraryNavController,
                 onNavigateToLibraryFolderImport = onNavigateToLibraryFolderImport,
-                onOpenNowPlaying = onOpenNowPlaying,
+                onNavigateToAlbum = onNavigateToAlbum,
+                onNavigateToArtist = onNavigateToArtist,
+                onNavigateToPlaylist = onNavigateToPlaylist,
+                onNavigateToPlaylists = onNavigateToPlaylists,
             )
             HomeTab.SETTINGS -> SettingsTabGraph(
                 navController = settingsNavController,

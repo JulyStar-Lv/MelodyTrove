@@ -17,7 +17,6 @@ fun PlaylistRoot(
     scaffoldPadding: PaddingValues,
     onNavigateBack: () -> Unit,
     onNavigateToImport: () -> Unit,
-    onNavigateToPlayer: () -> Unit,
     playlistViewModel: PlaylistVM = koinViewModel(),
     editPlaylistViewModel: EditPlaylistVM = koinViewModel(),
 ) {
@@ -58,7 +57,6 @@ fun PlaylistRoot(
                         coroutineScope.launch {
                             playbackController.play(items = items)
                         }
-                        onNavigateToPlayer()
                     }
                 }
                 is PlaylistAction.PlayTrack -> {
@@ -75,7 +73,6 @@ fun PlaylistRoot(
                                 startIndex = startIndex,
                             )
                         }
-                        onNavigateToPlayer()
                     }
                 }
                 else -> playlistViewModel.onAction(action)

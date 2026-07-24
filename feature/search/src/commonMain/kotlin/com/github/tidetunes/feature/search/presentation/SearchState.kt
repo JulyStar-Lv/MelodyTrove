@@ -1,7 +1,6 @@
 package com.github.tidetunes.feature.search.presentation
 
 import androidx.compose.runtime.Immutable
-import com.github.tidetunes.core.domain.model.MediaId
 import com.github.tidetunes.feature.search.domain.SearchTrackItem
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
@@ -40,6 +39,6 @@ sealed interface SearchAction {
 }
 
 sealed interface SearchEvent {
-    data class OpenTrack(val mediaId: MediaId) : SearchEvent
+    data class OpenTrack(val track: SearchTrackItem) : SearchEvent
     data class ShowMessage(val message: String) : SearchEvent
 }

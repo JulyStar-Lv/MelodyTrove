@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.github.tidetunes.core.domain.model.LibraryTrackItem
 import com.github.tidetunes.core.domain.repository.LibraryRepository
+import com.github.tidetunes.core.domain.repository.PlaylistRepository
 import com.github.tidetunes.service.download.domain.DownloadRequest
 import com.github.tidetunes.service.download.domain.EnqueueDownloadUseCase
 import kotlinx.collections.immutable.toPersistentList
@@ -17,6 +18,7 @@ import kotlinx.coroutines.launch
 
 class LibraryVM(
     libraryRepository: LibraryRepository,
+    playlistRepository: PlaylistRepository,
     private val enqueueDownload: EnqueueDownloadUseCase,
 ) : ViewModel() {
     private val _events = Channel<LibraryEvent>(Channel.BUFFERED)
@@ -26,11 +28,13 @@ class LibraryVM(
         libraryRepository.tracks,
         libraryRepository.albums,
         libraryRepository.artists,
-    ) { tracks, albums, artists ->
+        playlistRepository.playlistSummaries,
+    ) { tracks, albums, artists, playlists ->
             LibraryState(
                 tracks = tracks.toPersistentList(),
                 albums = albums.toPersistentList(),
                 artists = artists.toPersistentList(),
+                playlists = playlists.toPersistentList(),
             )
         }
         .stateIn(

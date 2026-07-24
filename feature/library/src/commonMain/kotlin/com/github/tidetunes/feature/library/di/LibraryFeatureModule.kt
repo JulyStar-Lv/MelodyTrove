@@ -5,5 +5,5 @@ import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
 val libraryFeatureDiModule = module {
-    viewModel { LibraryVM(get(), get()) }
+    viewModel { LibraryVM(get(), get(), get()) }
 }

@@ -18,4 +18,12 @@
     <string name="home_this_month">This month</string>
     <string name="home_music_all_sources">Music across all sources</string>
     <string name="home_favorite">Favorite</string>
+    <string name="home_from_library">From your library</string>
+    <string name="home_playlists">Playlists</string>
+    <string name="home_songs">Songs</string>
+    <string name="home_albums">Albums</string>
+    <string name="home_artists">Artists</string>
+    <string name="home_empty_title">Your library is empty</string>
+    <string name="home_empty_message">Add a music source or import a folder to see it here.</string>
+    <string name="home_open_library">Open Library</string>
 </resources>

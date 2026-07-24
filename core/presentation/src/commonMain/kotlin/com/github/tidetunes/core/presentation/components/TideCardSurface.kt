@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -46,11 +47,17 @@ fun TideCardSurface(
     val borderModifier = borderColor?.let { color ->
         Modifier.border(1.dp, color, shape)
     } ?: Modifier
+    val interactionModifier = if (onClick != null) {
+        Modifier.heightIn(min = TideTunesTokens.adaptive.minimumTouchTarget)
+    } else {
+        Modifier
+    }
 
     Box(
         modifier = modifier
             .then(widthModifier)
             .then(shadowModifier)
+            .then(interactionModifier)
             .clip(shape)
             .background(backgroundColor ?: MiuixTheme.colorScheme.surfaceContainer)
             .then(borderModifier)

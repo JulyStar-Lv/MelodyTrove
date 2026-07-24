@@ -122,7 +122,7 @@ fun SidebarBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(44.dp)
+                    .height(TideTunesTokens.adaptive.minimumTouchTarget)
                     .clip(RoundedCornerShape(shapes.compactCard))
                     .background(MiuixTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.72f))
                     .clickable(onClick = onToggleTheme)
@@ -182,7 +182,7 @@ private fun SidebarItem(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .height(44.dp)
+            .height(TideTunesTokens.adaptive.minimumTouchTarget)
             .clip(itemShape)
             .background(backgroundBrush)
             .clickable(onClick = onClick)

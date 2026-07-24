@@ -3,6 +3,7 @@ package com.github.tidetunes.feature.library.presentation
 import com.github.tidetunes.core.domain.model.LibraryTrackItem
 import com.github.tidetunes.core.domain.model.LibraryAlbumItem
 import com.github.tidetunes.core.domain.model.LibraryArtistItem
+import com.github.tidetunes.core.domain.model.PlaylistSummary
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentList
 import kotlin.test.Test
@@ -17,6 +18,7 @@ class LibraryStateTest {
         val state = LibraryState()
 
         assertTrue(state.tracks.isEmpty())
+        assertTrue(state.playlists.isEmpty())
     }
 
     @Test
@@ -43,6 +45,25 @@ class LibraryStateTest {
         assertEquals(13, state.artists.size)
         assertEquals("Album 12", state.albums.last().name)
         assertEquals("Artist 13", state.artists.last().name)
+    }
+
+    @Test
+    fun `state preserves real playlist summaries`() {
+        val playlists = persistentListOf(
+            PlaylistSummary(
+                id = 7,
+                title = "Long title",
+                musicCount = 12,
+                durationMs = 2_400_000,
+                coverArtwork = null,
+            ),
+        )
+
+        val state = LibraryState(playlists = playlists)
+
+        assertEquals(1, state.playlists.size)
+        assertEquals("Long title", state.playlists.single().title)
+        assertEquals(12, state.playlists.single().musicCount)
     }
 
     @Test

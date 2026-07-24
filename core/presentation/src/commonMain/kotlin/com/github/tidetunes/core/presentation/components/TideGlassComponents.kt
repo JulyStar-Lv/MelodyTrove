@@ -18,6 +18,7 @@ import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.colorControls
+import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 private val LocalTideBackdrop = staticCompositionLocalOf<Backdrop?> { null }
@@ -52,6 +53,7 @@ fun TideStickyGlassActionBar(
     modifier: Modifier = Modifier,
 ) {
     val fraction = collapseFraction.coerceIn(0f, 1f)
+    val adaptive = TideTunesTokens.adaptive
     val titleFraction = ((fraction - 0.72f) / 0.28f).coerceIn(0f, 1f)
     val backdrop = LocalTideBackdrop.current
     val surface = MiuixTheme.colorScheme.surfaceContainer
@@ -76,7 +78,7 @@ fun TideStickyGlassActionBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(64.dp)
+            .height(adaptive.compactHeaderHeight)
             .alpha(fraction)
             .then(glassModifier),
         contentAlignment = Alignment.Center,

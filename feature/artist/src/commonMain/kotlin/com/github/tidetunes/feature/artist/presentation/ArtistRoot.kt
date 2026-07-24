@@ -33,26 +33,18 @@ fun ArtistRoot(
                 ArtistAction.NavigateBack -> onNavigateBack()
                 ArtistAction.Retry -> viewModel.onAction(action)
                 ArtistAction.PlayAll -> {
-                    val items = state.tracks.map { track ->
-                        PlayableItem(
-                            title = track.title,
-                            libraryTrackId = track.id,
-                        )
-                    }
+                    val items = state.tracks.map { it.toPlayableItem(state.name) }
                     kotlinx.coroutines.runBlocking {
                         playbackController.play(items = items)
                     }
                 }
                 is ArtistAction.PlayTrack -> {
-                    kotlinx.coroutines.runBlocking {
-                        playbackController.play(
-                            items = listOf(
-                                PlayableItem(
-                                    title = "Track ${action.trackId}",
-                                    libraryTrackId = action.trackId,
-                                )
-                            )
-                        )
+                    val items = state.tracks.map { it.toPlayableItem(state.name) }
+                    val startIndex = state.tracks.indexOfFirst { it.id == action.trackId }
+                    if (startIndex >= 0) {
+                        kotlinx.coroutines.runBlocking {
+                            playbackController.play(items = items, startIndex = startIndex)
+                        }
                     }
                 }
                 is ArtistAction.NavigateToAlbum -> onNavigateToAlbum(action.albumId)
@@ -61,3 +53,11 @@ fun ArtistRoot(
         },
     )
 }
+
+private fun ArtistTrackItem.toPlayableItem(artistName: String): PlayableItem = PlayableItem(
+    mediaId = mediaId,
+    title = title,
+    artist = artistName.ifBlank { null },
+    durationMs = durationMs,
+    libraryTrackId = id,
+)

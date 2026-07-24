@@ -23,7 +23,7 @@ import {
   TrendingUp, Clock, CalendarDays, Flame, Timer, Trophy,
   Heart as HeartIcon, Star as StarIcon,
   FolderOpen, Wifi as WifiIcon, Music, Mic2,
-  GripVertical, Trash2, Eye, EyeOff, LocateFixed, Pencil
+  GripVertical, Trash2, Eye, EyeOff, LocateFixed, Pencil, Pin
 } from "lucide-react";
 
 const cn = (...i: unknown[]) => twMerge(clsx(i));
@@ -146,7 +146,6 @@ const FAVORITE_PLAYLIST: Playlist = {
   tracks:SONGS.filter(song=>song.liked).length,
   duration:"14m 22s",
 };
-const PINNED_PLAYLISTS = [FAVORITE_PLAYLIST,...PLAYLISTS];
 const LISTENING_MINUTES = [0,18,42,27,64,35,0,52,81,24,39,0,68,46,30,12,75,0,58,44,20,0,33,71,54,26,48,0,62,38,19,84,43,0,57,29,66,34,0,76,41,23,59,88,0,36,65,28,72,45,0,53,31,79,47,18];
 const LISTENING_DAYS = LISTENING_MINUTES.map((minutes,index)=>({
   id:index,
@@ -2654,10 +2653,11 @@ function ListeningPage({ onBack, onPlay }: { onBack:()=>void; onPlay:(song:Song)
   );
 }
 
-function HomePage({ onPlay, currentSong, isPlaying, onOpenLibrary, onOpenPlaylist, onOpenArtist, onOpenListening }: {
+function HomePage({ onPlay, currentSong, isPlaying, pinnedPlaylists, onOpenLibrary, onOpenPlaylist, onOpenArtist, onOpenListening }: {
   onPlay:(s:Song)=>void;
   currentSong:Song|null;
   isPlaying:boolean;
+  pinnedPlaylists:Playlist[];
   onOpenLibrary:(tab:LibTab)=>void;
   onOpenPlaylist:(playlist:Playlist)=>void;
   onOpenArtist:(artist:Artist)=>void;
@@ -2693,7 +2693,7 @@ function HomePage({ onPlay, currentSong, isPlaying, onOpenLibrary, onOpenPlaylis
         <div className="mt-7">
           <div className="px-4"><HomeSectionHeader title="Pinned Playlists" icon={<Bookmark className="h-4 w-4"/>} onClick={()=>onOpenLibrary("playlists")}/></div>
           <div className="mt-3 flex gap-4 px-4 overflow-x-auto hide-scrollbar pb-1">
-            {PINNED_PLAYLISTS.map(playlist=>(
+            {pinnedPlaylists.map(playlist=>(
               <PlaylistCard key={playlist.id} playlist={playlist}
                 onClick={()=>onOpenPlaylist(playlist)}/>
             ))}
@@ -2763,7 +2763,7 @@ function HomePage({ onPlay, currentSong, isPlaying, onOpenLibrary, onOpenPlaylis
       <StickyPageHeader title="Good Evening" className="-mx-8 px-8 py-3 mb-3"/>
       <HeroBanner onPlay={onPlay}/>
       <div className="mb-6"><HomeSectionHeader title="Pinned Playlists" icon={<Bookmark className="h-4 w-4"/>} onClick={()=>onOpenLibrary("playlists")}/>
-        <div className="flex gap-4 overflow-x-auto pb-2 hide-scrollbar">{PINNED_PLAYLISTS.map(p=><PlaylistCard key={p.id} playlist={p} onClick={()=>onOpenPlaylist(p)}/>)}</div></div>
+        <div className="flex gap-4 overflow-x-auto pb-2 hide-scrollbar">{pinnedPlaylists.map(p=><PlaylistCard key={p.id} playlist={p} onClick={()=>onOpenPlaylist(p)}/>)}</div></div>
       <div className="mb-6">
         <HomeSectionHeader title="Your Listening" icon={<Activity className="h-4 w-4"/>} onClick={onOpenListening}/>
         <ListeningHomePreview onPlay={onPlay} currentSong={currentSong} isPlaying={isPlaying}/>
@@ -2952,8 +2952,14 @@ function libraryDuration(songs:Song[]) {
     : `${totalMinutes} min`;
 }
 
-function LibraryPlaylistRow({ playlist, editing, onEnterEdit, onDelete, onOpen }: {
-  playlist:Playlist; editing:boolean; onEnterEdit:()=>void; onDelete:()=>void; onOpen:()=>void;
+function LibraryPlaylistRow({ playlist, editing, pinned, onEnterEdit, onDelete, onOpen, onTogglePin }: {
+  playlist:Playlist;
+  editing:boolean;
+  pinned:boolean;
+  onEnterEdit:()=>void;
+  onDelete:()=>void;
+  onOpen:()=>void;
+  onTogglePin:()=>void;
 }) {
   const dragControls = useDragControls();
   const longPressTimer = useRef<ReturnType<typeof setTimeout>|null>(null);
@@ -3010,8 +3016,14 @@ function LibraryPlaylistRow({ playlist, editing, onEnterEdit, onDelete, onOpen }
           <p className="text-xs font-medium text-foreground">{playlist.tracks} tracks</p>
           <p className="text-[11px] text-muted-foreground mt-0.5">{playlist.duration}</p>
         </div>
-        {!editing&&<ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground/70 transition-transform group-hover:translate-x-0.5"/>}
       </motion.button>
+      {!editing&&(
+        <button type="button" aria-label={pinned?`Unpin ${playlist.title} from Home`:`Pin ${playlist.title} to Home`}
+          aria-pressed={pinned} title={pinned?"Unpin from Home":"Pin to Home"} onPointerDown={preventMouseFocus} onClick={onTogglePin}
+          className={cn("mr-2 flex h-10 w-10 shrink-0 items-center justify-center rounded-full outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/40",pinned?"text-primary":"text-muted-foreground hover:text-foreground")}>
+          <Pin className={cn("h-[18px] w-[18px]",pinned&&"fill-current")}/>
+        </button>
+      )}
       {editing&&(
         <div className="flex items-center gap-1 pr-2 shrink-0">
           <button type="button" aria-label={`Drag ${playlist.title}`} title="Drag to reorder"
@@ -3045,11 +3057,13 @@ const DEFAULT_SONG_FILTERS: SongFilterState = {
   quality:"all",
 };
 
-function LibraryPage({ onPlay, onOpenPlaylist, onOpenAlbum, onOpenArtist, currentSong, isPlaying, tab, onTab }: {
+function LibraryPage({ onPlay, onOpenPlaylist, onOpenAlbum, onOpenArtist, pinnedPlaylistIds, onTogglePlaylistPin, currentSong, isPlaying, tab, onTab }: {
   onPlay:(s:Song)=>void;
   onOpenPlaylist:(playlist:Playlist)=>void;
   onOpenAlbum:(album:Album)=>void;
   onOpenArtist:(artist:Artist)=>void;
+  pinnedPlaylistIds:number[];
+  onTogglePlaylistPin:(playlist:Playlist)=>void;
   currentSong:Song|null;
   isPlaying:boolean;
   tab:LibTab;
@@ -3072,7 +3086,7 @@ function LibraryPage({ onPlay, onOpenPlaylist, onOpenAlbum, onOpenArtist, curren
   const filterMenuRef = useRef<HTMLDivElement>(null);
   const nextPlaylistId = useRef(Math.max(FAVORITE_PLAYLIST.id,...PLAYLISTS.map(playlist=>playlist.id))+1);
   const [libraryPlaylists,setLibraryPlaylists] = useState<Playlist[]>(() => [
-    {...FAVORITE_PLAYLIST,id:8},
+    FAVORITE_PLAYLIST,
     ...PLAYLISTS,
   ]);
   const genres = ["Electronic","Ambient","Synthwave","Techno","IDM","Post-Rock","Shoegaze","Experimental","Jazz","Classical"];
@@ -3435,9 +3449,16 @@ function LibraryPage({ onPlay, onOpenPlaylist, onOpenAlbum, onOpenArtist, curren
           {tab==="playlists"&&(
             libraryPlaylists.length>0 ? (
               <Reorder.Group as="ul" axis="y" values={libraryPlaylists} onReorder={setLibraryPlaylists} className="overflow-hidden">
-                {libraryPlaylists.map(playlist=><LibraryPlaylistRow key={playlist.id} playlist={playlist} editing={editingPlaylists}
-                  onEnterEdit={()=>setEditingPlaylists(true)} onDelete={()=>setLibraryPlaylists(items=>items.filter(item=>item.id!==playlist.id))}
-                  onOpen={()=>onOpenPlaylist(playlist)}/>) }
+                {libraryPlaylists.map(playlist=>{
+                  const pinned = pinnedPlaylistIds.includes(playlist.id);
+                  return <LibraryPlaylistRow key={playlist.id} playlist={playlist} editing={editingPlaylists} pinned={pinned}
+                    onEnterEdit={()=>setEditingPlaylists(true)}
+                    onDelete={()=>{
+                      setLibraryPlaylists(items=>items.filter(item=>item.id!==playlist.id));
+                      if (pinned) onTogglePlaylistPin(playlist);
+                    }}
+                    onOpen={()=>onOpenPlaylist(playlist)} onTogglePin={()=>onTogglePlaylistPin(playlist)}/>;
+                }) }
               </Reorder.Group>
             ) : (
               <div className="rounded-[24px] border border-border bg-card">
@@ -5315,6 +5336,7 @@ export default function App() {
   const [selectedPlaylist,setSelectedPlaylist] = useState<Playlist|null>(null);
   const [selectedAlbum,setSelectedAlbum] = useState<Album|null>(null);
   const [selectedArtist,setSelectedArtist] = useState<Artist|null>(null);
+  const [pinnedPlaylists,setPinnedPlaylists] = useState<Playlist[]>([FAVORITE_PLAYLIST]);
   const [playlistReturnPage,setPlaylistReturnPage] = useState<Page>("library");
   const [albumReturnPage,setAlbumReturnPage] = useState<Page>("library");
   const [artistReturnPage,setArtistReturnPage] = useState<Page>("library");
@@ -5340,6 +5362,11 @@ export default function App() {
     setSelectedArtist(artist);
     setArtistReturnPage(page==="library"?"library":"home");
     setPage("artist");
+  };
+  const handleTogglePlaylistPin = (playlist:Playlist) => {
+    setPinnedPlaylists(items=>items.some(item=>item.id===playlist.id)
+      ? items.filter(item=>item.id!==playlist.id)
+      : [...items,playlist]);
   };
 
   const mobilePageTitle: Partial<Record<Page,string>> = {
@@ -5385,9 +5412,11 @@ export default function App() {
               )}
               <AnimatePresence mode="wait">
                 <motion.div key={page==="design-system"?`ds-${dsSection}`:page==="playlist"?`playlist-${selectedPlaylist?.id}`:page==="album"?`album-${selectedAlbum?.id}`:page==="artist"?`artist-${selectedArtist?.id}`:page} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} transition={{duration:0.18,ease:"easeOut"}} className="min-h-full">
-                  {page==="home"&&<HomePage onPlay={handlePlay} currentSong={currentSong} isPlaying={isPlaying} onOpenLibrary={handleOpenLibrary} onOpenPlaylist={handleOpenPlaylist} onOpenArtist={handleOpenArtist} onOpenListening={()=>setPage("listening")}/>}
+                  {page==="home"&&<HomePage onPlay={handlePlay} currentSong={currentSong} isPlaying={isPlaying} pinnedPlaylists={pinnedPlaylists} onOpenLibrary={handleOpenLibrary} onOpenPlaylist={handleOpenPlaylist} onOpenArtist={handleOpenArtist} onOpenListening={()=>setPage("listening")}/>}
                   {page==="search"&&<SearchPage onPlay={handlePlay}/>}
-                  {page==="library"&&<LibraryPage onPlay={handlePlay} onOpenPlaylist={handleOpenPlaylist} onOpenAlbum={handleOpenAlbum} onOpenArtist={handleOpenArtist} currentSong={currentSong} isPlaying={isPlaying} tab={libraryTab} onTab={setLibraryTab}/>}
+                  {page==="library"&&<LibraryPage onPlay={handlePlay} onOpenPlaylist={handleOpenPlaylist} onOpenAlbum={handleOpenAlbum} onOpenArtist={handleOpenArtist}
+                    pinnedPlaylistIds={pinnedPlaylists.map(playlist=>playlist.id)} onTogglePlaylistPin={handleTogglePlaylistPin}
+                    currentSong={currentSong} isPlaying={isPlaying} tab={libraryTab} onTab={setLibraryTab}/>}
                   {page==="playlist"&&selectedPlaylist&&<PlaylistDetailPage playlist={selectedPlaylist} currentSong={currentSong} isPlaying={isPlaying} onBack={()=>setPage(playlistReturnPage)} onPlay={handlePlay}/>}
                   {page==="album"&&selectedAlbum&&<AlbumDetailPage album={selectedAlbum} currentSong={currentSong} isPlaying={isPlaying} onBack={()=>setPage(albumReturnPage)} onPlay={handlePlay}/>}
                   {page==="artist"&&selectedArtist&&<ArtistDetailPage artist={selectedArtist} currentSong={currentSong} isPlaying={isPlaying} onBack={()=>setPage(artistReturnPage)} onPlay={handlePlay} onOpenAlbum={handleOpenAlbum}/>}

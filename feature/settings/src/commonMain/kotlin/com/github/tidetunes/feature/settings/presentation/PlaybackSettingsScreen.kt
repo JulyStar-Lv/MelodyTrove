@@ -219,15 +219,11 @@ fun PlaybackSettingsSection(
         SettingsSection(title = stringResource(Res.string.settings_player_interaction_section)) {
             val interaction = settings.playerInteraction
             SettingsSwitchRow(
-                title = stringResource(Res.string.settings_open_player_on_play),
-                checked = interaction.openPlayerOnPlay,
-                onCheckedChange = {
-                    onAction(
-                        SettingsAction.SetPlayerInteractionSettings(
-                            interaction.copy(openPlayerOnPlay = it)
-                        )
-                    )
-                },
+                title = stringResource(Res.string.settings_now_playing_entry),
+                summary = stringResource(Res.string.settings_now_playing_entry_summary),
+                checked = false,
+                enabled = false,
+                onCheckedChange = {},
             )
             SettingsSwitchRow(
                 title = stringResource(Res.string.settings_player_cover_swipe),

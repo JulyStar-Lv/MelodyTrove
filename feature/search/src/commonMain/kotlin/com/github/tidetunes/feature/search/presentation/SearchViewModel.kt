@@ -148,7 +148,7 @@ class SearchViewModel(
             return
         }
         coroutineScope.launch {
-            _events.send(SearchEvent.OpenTrack(mediaId))
+            _events.send(SearchEvent.OpenTrack(track))
         }
     }
 

@@ -79,7 +79,7 @@ fun HomeOverviewScreen(
                 FeaturedHero(
                     playlist = state.pinnedPlaylists.firstOrNull(),
                     height = layout.heroHeight,
-                    onPlay = { onAction(HomeAction.OpenNowPlaying) },
+                    onPlay = { onAction(HomeAction.NavigateToLibrary) },
                 )
             }
             item {
@@ -114,7 +114,7 @@ fun HomeOverviewScreen(
                         state.recentTracks.forEach { track ->
                             RecentTrackRow(
                                 track = track,
-                                onClick = { onAction(HomeAction.OpenNowPlaying) },
+                            onClick = { onAction(HomeAction.NavigateToLibrary) },
                             )
                         }
                     }

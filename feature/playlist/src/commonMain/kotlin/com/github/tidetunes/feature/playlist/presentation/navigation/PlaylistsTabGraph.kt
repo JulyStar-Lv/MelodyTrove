@@ -20,7 +20,6 @@ fun PlaylistsTabGraph(
     onNavigateToEditPlaylistImport: () -> Unit,
     onNavigateToEditPlaylistCoverImport: () -> Unit,
     onNavigateToMusicImport: () -> Unit,
-    onOpenNowPlaying: () -> Unit,
 ) {
     NavHost(
         navController = navController,
@@ -47,7 +46,6 @@ fun PlaylistsTabGraph(
                     navController.popBackStack()
                 },
                 onNavigateToImport = onNavigateToMusicImport,
-                onNavigateToPlayer = onOpenNowPlaying,
             )
             EditPlaylistRoot(
                 onNavigateToCoverImport = onNavigateToEditPlaylistCoverImport,

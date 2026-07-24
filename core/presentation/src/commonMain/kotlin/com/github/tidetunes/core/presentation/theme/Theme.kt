@@ -8,7 +8,9 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import top.yukonga.miuix.kmp.theme.ColorSchemeMode
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.theme.ThemeController
@@ -58,6 +60,8 @@ fun TideTunesTheme(
             LocalTideTunesBlur provides TideTunesBlur(),
             LocalTideTunesElevation provides TideTunesElevation(),
             LocalTideTunesAdaptive provides TideTunesAdaptive(),
+            LocalTideTunesNavigation provides TideTunesNavigation(),
+            LocalTideTunesPlayer provides TideTunesPlayer(),
             content = content,
         )
     }
@@ -87,6 +91,14 @@ object TideTunesTokens {
     val adaptive: TideTunesAdaptive
         @Composable @ReadOnlyComposable
         get() = LocalTideTunesAdaptive.current
+
+    val navigation: TideTunesNavigation
+        @Composable @ReadOnlyComposable
+        get() = LocalTideTunesNavigation.current
+
+    val player: TideTunesPlayer
+        @Composable @ReadOnlyComposable
+        get() = LocalTideTunesPlayer.current
 }
 
 @Immutable
@@ -162,6 +174,24 @@ data class TideTunesAdaptive(
     val sidebarWidth: Dp = 224.dp,
     val railWidth: Dp = 80.dp,
     val minimumTouchTarget: Dp = 48.dp,
+    val compactHeaderCollapseDistance: Dp = 48.dp,
+    val compactHeaderHeight: Dp = 58.dp,
+)
+
+@Immutable
+data class TideTunesNavigation(
+    val compactBarHeight: Dp = 62.dp,
+    val compactBarDividerHeight: Dp = 1.dp,
+    val compactSelectedIndicatorWidth: Dp = 48.dp,
+    val compactSelectedIndicatorHeight: Dp = 28.dp,
+    val compactIconSize: Dp = 20.dp,
+    val compactLabelSize: TextUnit = 10.sp,
+)
+
+@Immutable
+data class TideTunesPlayer(
+    val miniBarHeight: Dp = 72.dp,
+    val compactMiniBarHeight: Dp = 76.dp,
 )
 
 private val LocalTideTunesSpacing = staticCompositionLocalOf { TideTunesSpacing() }
@@ -170,3 +200,5 @@ private val LocalTideTunesMotion = staticCompositionLocalOf { TideTunesMotion() 
 private val LocalTideTunesBlur = staticCompositionLocalOf { TideTunesBlur() }
 private val LocalTideTunesElevation = staticCompositionLocalOf { TideTunesElevation() }
 private val LocalTideTunesAdaptive = staticCompositionLocalOf { TideTunesAdaptive() }
+private val LocalTideTunesNavigation = staticCompositionLocalOf { TideTunesNavigation() }
+private val LocalTideTunesPlayer = staticCompositionLocalOf { TideTunesPlayer() }

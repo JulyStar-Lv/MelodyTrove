@@ -20,13 +20,13 @@ fun rememberWindowSizeClass(
 ): WindowSizeClass {
     val widthDp = containerSize.width
 
-    return remember(widthDp) {
-        when {
-            widthDp < 600.dp -> WindowSizeClass.Compact
-            widthDp < 840.dp -> WindowSizeClass.Medium
-            widthDp < 1280.dp -> WindowSizeClass.Expanded
-            widthDp < 1600.dp -> WindowSizeClass.Large
-            else -> WindowSizeClass.XL
-        }
-    }
+    return remember(widthDp) { windowSizeClassFor(widthDp) }
+}
+
+fun windowSizeClassFor(widthDp: Dp): WindowSizeClass = when {
+    widthDp < 600.dp -> WindowSizeClass.Compact
+    widthDp < 840.dp -> WindowSizeClass.Medium
+    widthDp < 1280.dp -> WindowSizeClass.Expanded
+    widthDp < 1600.dp -> WindowSizeClass.Large
+    else -> WindowSizeClass.XL
 }

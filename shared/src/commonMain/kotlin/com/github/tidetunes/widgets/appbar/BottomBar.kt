@@ -15,15 +15,17 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.github.tidetunes.core.presentation.components.TideBottomNavigationBar
 import com.github.tidetunes.core.presentation.components.TideBottomNavigationItem
+import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import com.github.tidetunes.navigation.HomeTab
 import org.jetbrains.compose.resources.painterResource
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
+@Composable
 fun getBottomBarSpace(
     isPlaying: Boolean,
     scaffoldPadding: PaddingValues,
 ): Dp {
-    var total = 62.dp + scaffoldPadding.calculateBottomPadding()
+    var total = TideTunesTokens.navigation.compactBarHeight + scaffoldPadding.calculateBottomPadding()
     if (isPlaying) {
         total += 80.dp
     }
@@ -81,7 +83,7 @@ fun BoxScope.BottomBar(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(1.dp)
+                    .height(TideTunesTokens.navigation.compactBarDividerHeight)
                     .background(MiuixTheme.colorScheme.outline),
             )
             TideBottomNavigationBar(
@@ -90,7 +92,6 @@ fun BoxScope.BottomBar(
                 onItemSelected = { index ->
                     HomeTab.entries.getOrNull(index)?.let(onTabSelected)
                 },
-                height = 61.dp,
             )
             Box(
                 modifier = Modifier

@@ -107,7 +107,7 @@ fun TideMiniPlayerBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(72.dp)
+            .height(tokens.player.miniBarHeight)
             .shadow(tokens.elevation.popup, shape, clip = false)
             .then(glassModifier)
             .border(1.dp, MiuixTheme.colorScheme.outline.copy(alpha = 0.42f), shape)
@@ -216,7 +216,7 @@ fun TideCompactMiniPlayerBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(76.dp)
+            .height(tokens.player.compactMiniBarHeight)
             .padding(horizontal = 8.dp, vertical = 8.dp)
             .shadow(tokens.elevation.card, shape, clip = false)
             .then(glassModifier)
@@ -286,18 +286,19 @@ fun TideBottomNavigationBar(
     selectedIndex: Int,
     onItemSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
-    height: Dp = 61.dp,
+    height: Dp? = null,
     contentPadding: PaddingValues = PaddingValues(horizontal = 12.dp, vertical = 5.dp),
 ) {
     if (items.isEmpty()) return
 
     val shapes = TideTunesTokens.shapes
     val motion = TideTunesTokens.motion
+    val navigation = TideTunesTokens.navigation
 
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
-            .height(height)
+            .height(height ?: navigation.compactBarHeight)
             .padding(contentPadding),
     ) {
         val selected = selectedIndex.coerceIn(0, items.lastIndex)
@@ -318,7 +319,10 @@ fun TideBottomNavigationBar(
             Box(
                 modifier = Modifier
                     .padding(top = 5.dp)
-                    .size(width = 48.dp, height = 28.dp)
+                    .size(
+                        width = navigation.compactSelectedIndicatorWidth,
+                        height = navigation.compactSelectedIndicatorHeight,
+                    )
                     .clip(RoundedCornerShape(shapes.full))
                     .background(MiuixTheme.colorScheme.primary.copy(alpha = 0.12f)),
             )
@@ -346,14 +350,14 @@ fun TideBottomNavigationBar(
                         painter = item.painter,
                         tint = tint,
                         contentDescription = item.contentDescription,
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(navigation.compactIconSize),
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = item.label,
                         color = tint,
                         style = MiuixTheme.textStyles.footnote2.copy(
-                            fontSize = 10.sp,
+                            fontSize = navigation.compactLabelSize,
                             lineHeight = 12.sp,
                         ),
                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,

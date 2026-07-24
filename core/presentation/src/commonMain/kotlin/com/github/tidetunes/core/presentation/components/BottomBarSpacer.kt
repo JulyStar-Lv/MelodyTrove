@@ -7,12 +7,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 
+@Composable
 fun getBottomBarSpace(
     isPlaying: Boolean,
     scaffoldPadding: PaddingValues,
 ): Dp {
-    var total = 60.dp + scaffoldPadding.calculateBottomPadding()
+    var total = TideTunesTokens.navigation.compactBarHeight + scaffoldPadding.calculateBottomPadding()
     if (isPlaying) {
         total += 124.dp
     }

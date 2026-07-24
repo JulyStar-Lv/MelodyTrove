@@ -10,7 +10,10 @@ import com.github.tidetunes.feature.library.presentation.LibraryRoot
 fun LibraryTabGraph(
     navController: NavHostController,
     onNavigateToLibraryFolderImport: () -> Unit = {},
-    onOpenNowPlaying: () -> Unit = {},
+    onNavigateToAlbum: (Long) -> Unit = {},
+    onNavigateToArtist: (Long) -> Unit = {},
+    onNavigateToPlaylist: (Long) -> Unit = {},
+    onNavigateToPlaylists: () -> Unit = {},
 ) {
     NavHost(
         navController = navController,
@@ -19,7 +22,10 @@ fun LibraryTabGraph(
         composable("library") {
             LibraryRoot(
                 onNavigateToLibraryFolderImport = onNavigateToLibraryFolderImport,
-                onOpenNowPlaying = onOpenNowPlaying,
+                onNavigateToAlbum = onNavigateToAlbum,
+                onNavigateToArtist = onNavigateToArtist,
+                onNavigateToPlaylist = onNavigateToPlaylist,
+                onNavigateToPlaylists = onNavigateToPlaylists,
             )
         }
     }

@@ -64,6 +64,22 @@ class SearchViewModelTest {
     }
 
     @Test
+    fun `open track event preserves playback metadata`() {
+        val track = SearchTrackItem(
+            id = 42,
+            title = "Song",
+            artist = "Artist",
+            durationMs = 240_000L,
+            sourceLabel = "Library",
+        )
+        val event = SearchEvent.OpenTrack(track)
+
+        assertEquals("Song", event.track.title)
+        assertEquals("Artist", event.track.artist)
+        assertEquals(42, event.track.id)
+    }
+
+    @Test
     fun `DownloadTrack action carries track`() {
         val track = SearchTrackItem(
             title = "Song",

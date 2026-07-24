@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import com.github.tidetunes.core.domain.model.LibraryTrackItem
 import com.github.tidetunes.core.domain.model.LibraryAlbumItem
 import com.github.tidetunes.core.domain.model.LibraryArtistItem
+import com.github.tidetunes.core.domain.model.PlaylistSummary
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 
@@ -12,6 +13,7 @@ data class LibraryState(
     val tracks: ImmutableList<LibraryTrackItem> = persistentListOf(),
     val albums: ImmutableList<LibraryAlbumItem> = persistentListOf(),
     val artists: ImmutableList<LibraryArtistItem> = persistentListOf(),
+    val playlists: ImmutableList<PlaylistSummary> = persistentListOf(),
 )
 
 sealed interface LibraryAction {
