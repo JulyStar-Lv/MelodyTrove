@@ -255,10 +255,11 @@ class LegacyPlaybackController(
     }
 
     private fun readPosition(): PlaybackPosition {
-        return PlaybackPosition(
-            positionMs = legacyController.getCurrentPosition().coerceAtLeast(0),
-            bufferedMs = legacyController.getBufferedPosition().coerceAtLeast(0),
-            durationMs = legacyController.getDuration().coerceAtLeast(0),
+        return legacyPlaybackPosition(
+            currentPositionMs = legacyController.getCurrentPosition(),
+            bufferedPositionMs = legacyController.getBufferedPosition(),
+            durationMs = legacyController.getDuration(),
+            pendingSeekPositionMs = legacyController.getPendingSeekPosition(),
         )
     }
 
@@ -306,6 +307,20 @@ class LegacyPlaybackController(
         base.addAll(currentIndex + 1, requestedNext)
         playerRepository.replacePlaybackQueue(base)
     }
+}
+
+internal fun legacyPlaybackPosition(
+    currentPositionMs: Long,
+    bufferedPositionMs: Long,
+    durationMs: Long,
+    pendingSeekPositionMs: Long?,
+): PlaybackPosition {
+    return PlaybackPosition(
+        positionMs = (pendingSeekPositionMs ?: currentPositionMs).coerceAtLeast(0),
+        bufferedMs = bufferedPositionMs.coerceAtLeast(0),
+        durationMs = durationMs.coerceAtLeast(0),
+        isSeeking = pendingSeekPositionMs != null,
+    )
 }
 
 internal fun legacyPlayerState(

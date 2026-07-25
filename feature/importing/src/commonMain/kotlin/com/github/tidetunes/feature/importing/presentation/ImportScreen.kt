@@ -196,18 +196,13 @@ private fun ImportEntry(
                 )
             }
             Box(modifier = Modifier.width(12.dp))
-            Box(
-                modifier = Modifier
-                    .size(16.dp)
-            ) {
-                if (canCheck) {
-                    TideCheckbox(
-                        checked = checked,
-                        onCheckedChange = {
-                            onClick()
-                        }
-                    )
-                }
+            if (canCheck) {
+                TideCheckbox(
+                    checked = checked,
+                    onCheckedChange = {
+                        onClick()
+                    },
+                )
             }
         }
     }

@@ -11,7 +11,9 @@ import com.github.tidetunes.database.TideTunesDatabase
 import com.github.tidetunes.database.TideTunesDatabaseConstructor
 import com.github.tidetunes.database.TrackEntity
 import com.github.tidetunes.database.TrackSourceRefEntity
-import com.github.tidetunes.source.storage.LegacyStorageLookup
+import com.github.tidetunes.core.domain.model.SourceAccountId
+import com.github.tidetunes.source.api.BuiltInSourceIds
+import com.github.tidetunes.source.api.legacyStorageTrackMediaId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
@@ -44,6 +46,14 @@ class RoomSearchRepositoryIntegrationTest {
         assertEquals(listOf(1L, 2L), results.tracks.map { it.id })
         assertEquals(listOf("Moon", "Moonlight Sonata"), results.tracks.map { it.title })
         assertEquals(listOf("Luna", "Beethoven"), results.tracks.map { it.artist })
+        assertEquals(
+            legacyStorageTrackMediaId(
+                sourceId = BuiltInSourceIds.WebDav,
+                accountId = SourceAccountId("storage:1"),
+                path = "/Music/moon.flac",
+            ),
+            results.tracks.first().mediaId,
+        )
     }
 
     @Test
@@ -111,7 +121,7 @@ class RoomSearchRepositoryIntegrationTest {
         return RoomSearchRepository(
             trackDao = database.trackDao(),
             trackFtsDao = database.trackFtsDao(),
-            storageLookup = LegacyStorageLookup { null },
+            trackSourceRefDao = database.trackSourceRefDao(),
         )
     }
 

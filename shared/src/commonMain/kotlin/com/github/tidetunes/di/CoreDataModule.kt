@@ -40,6 +40,11 @@ import com.github.tidetunes.plugin.runtime.PluginRuntimeSettings
 import com.github.tidetunes.plugin.runtime.PluginScriptBundleBuilder
 import com.github.tidetunes.singleton.Bridge
 import com.github.tidetunes.singleton.RoomLibraryStore
+import com.github.tidetunes.feature.home.data.RoomHomeHistoryRepository
+import com.github.tidetunes.feature.home.data.RoomHomeStatisticsRepository
+import com.github.tidetunes.feature.home.domain.HomeHistoryRepository
+import com.github.tidetunes.feature.home.domain.HomeStatisticsRepository
+
 import com.github.tidetunes.source.api.MetaSourceRegistry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -85,6 +90,9 @@ val coreDataModule = module {
     single { createCredentialStore() }
     single { Bridge(getAppDocumentDir(), getAppCacheDir(), get()) }
     single { RoomLibraryStore(get(), get(), get(), get(), get(), get(), get()) }
+    single<HomeHistoryRepository> { RoomHomeHistoryRepository(get(), get(), get()) }
+    single<HomeStatisticsRepository> { RoomHomeStatisticsRepository(get(), get(), get()) }
+
 
     single {
         PluginRuntimeSettings(

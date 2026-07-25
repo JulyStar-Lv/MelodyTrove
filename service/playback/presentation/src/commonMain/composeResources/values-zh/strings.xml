@@ -19,7 +19,13 @@
     <string name="player_more_options">更多选项</string>
     <string name="player_play">播放</string>
     <string name="player_pause">暂停</string>
+    <string name="player_previous_track">上一首</string>
     <string name="player_next_track">下一首</string>
+    <string name="player_repeat">重复播放</string>
+    <string name="player_list_repeat">列表循环</string>
+    <string name="player_shuffle">随机播放</string>
+    <string name="player_single_repeat">单曲循环</string>
+    <string name="player_queue">播放队列</string>
     <string name="player_close">关闭播放器</string>
     <string name="player_add_favorite">添加到收藏</string>
     <string name="player_remove_favorite">从收藏中移除</string>

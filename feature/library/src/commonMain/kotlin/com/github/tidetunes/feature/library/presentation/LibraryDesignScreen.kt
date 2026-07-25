@@ -267,7 +267,7 @@ private fun LibrarySidebar(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(32.dp)
+                        .heightIn(min = TideTunesTokens.adaptive.minimumTouchTarget)
                         .clip(RoundedCornerShape(10.dp))
                         .background(
                             if (isSelected) MiuixTheme.colorScheme.tertiaryContainer
@@ -338,7 +338,7 @@ private fun LibraryMobileTabs(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(44.dp)
+            .heightIn(min = TideTunesTokens.adaptive.minimumTouchTarget + 8.dp)
             .clip(RoundedCornerShape(TideTunesTokens.shapes.lg))
             .border(1.dp, MiuixTheme.colorScheme.outline, RoundedCornerShape(TideTunesTokens.shapes.lg))
             .background(MiuixTheme.colorScheme.surface)
@@ -419,7 +419,7 @@ private fun LibraryMorePanel(
                     Row(
                         modifier = Modifier
                             .weight(1f)
-                            .height(40.dp)
+                            .heightIn(min = TideTunesTokens.adaptive.minimumTouchTarget)
                             .clip(RoundedCornerShape(12.dp))
                             .background(
                                 if (isSelected) MiuixTheme.colorScheme.primary.copy(alpha = 0.1f)
@@ -813,7 +813,7 @@ private fun CategorySectionHeader(
 private fun ShuffleButton(onClick: () -> Unit) {
     Row(
         modifier = Modifier
-            .height(36.dp)
+            .height(TideTunesTokens.adaptive.minimumTouchTarget)
             .clip(RoundedCornerShape(TideTunesTokens.shapes.full))
             .background(MiuixTheme.colorScheme.surfaceContainerHigh)
             .clickable(onClick = onClick)
@@ -840,7 +840,7 @@ private fun ShuffleButton(onClick: () -> Unit) {
 private fun PlayAllButton(onClick: () -> Unit) {
     Row(
         modifier = Modifier
-            .height(36.dp)
+            .height(TideTunesTokens.adaptive.minimumTouchTarget)
             .clip(RoundedCornerShape(TideTunesTokens.shapes.full))
             .background(MiuixTheme.colorScheme.primary)
             .clickable(onClick = onClick)
@@ -867,7 +867,7 @@ private fun PlayAllButton(onClick: () -> Unit) {
 private fun NewPlaylistButton(onClick: () -> Unit) {
     Row(
         modifier = Modifier
-            .height(36.dp)
+            .height(TideTunesTokens.adaptive.minimumTouchTarget)
             .clip(RoundedCornerShape(TideTunesTokens.shapes.full))
             .background(MiuixTheme.colorScheme.primary)
             .clickable(onClick = onClick)
@@ -902,7 +902,7 @@ private fun SortDropdown(
     Box {
         Row(
             modifier = Modifier
-                .heightIn(min = 40.dp)
+                .heightIn(min = TideTunesTokens.adaptive.minimumTouchTarget)
                 .clip(RoundedCornerShape(14.dp))
                 .border(1.dp, MiuixTheme.colorScheme.outline, RoundedCornerShape(14.dp))
                 .background(MiuixTheme.colorScheme.surfaceContainer)
@@ -927,7 +927,7 @@ private fun SortDropdown(
         if (expanded) {
             Column(
                 modifier = Modifier
-                    .padding(top = 44.dp)
+                    .padding(top = TideTunesTokens.adaptive.minimumTouchTarget + 4.dp)
                     .clip(RoundedCornerShape(14.dp))
                     .background(MiuixTheme.colorScheme.surfaceContainerHighest)
                     .border(1.dp, MiuixTheme.colorScheme.outline, RoundedCornerShape(14.dp)),
@@ -940,6 +940,7 @@ private fun SortDropdown(
                         style = MiuixTheme.textStyles.footnote1,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier
+                            .heightIn(min = TideTunesTokens.adaptive.minimumTouchTarget)
                             .clickable {
                                 onChange(sort)
                                 expanded = false
@@ -1358,6 +1359,7 @@ private fun LibraryEmptyContent(
                 style = MiuixTheme.textStyles.body1,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier
+                    .heightIn(min = TideTunesTokens.adaptive.minimumTouchTarget)
                     .clip(RoundedCornerShape(TideTunesTokens.shapes.full))
                     .background(
                         Brush.linearGradient(

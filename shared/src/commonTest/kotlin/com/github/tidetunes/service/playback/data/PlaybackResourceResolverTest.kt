@@ -257,6 +257,10 @@ class PlaybackResourceResolverTest {
         override suspend fun playbackCandidates(trackId: Long): List<TrackSourcePlaybackCandidate> {
             return candidates.toList()
         }
+
+        override suspend fun playbackCandidatesForTracks(trackIds: List<Long>): List<TrackSourcePlaybackCandidate> {
+            return candidates.filter { candidate -> candidate.ref.trackId in trackIds }
+        }
     }
 
     private fun candidate(

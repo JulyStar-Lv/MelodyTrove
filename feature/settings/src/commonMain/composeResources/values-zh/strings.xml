@@ -322,6 +322,7 @@
     <string name="settings_feedback_password_required">请输入密码，或清空用户名以匿名访问</string>
     <string name="settings_feedback_scan_complete">扫描完成：%1$s，已扫描 %2$s，新增 %3$s，修改 %4$s，删除 %5$s，跳过 %6$s，元数据请求 %7$s，读取 %8$s，耗时 %9$s 毫秒</string>
     <string name="settings_feedback_scan_failed">扫描失败：%1$s</string>
+    <string name="settings_feedback_scan_already_active">该音源已有扫描任务正在进行</string>
     <string name="settings_feedback_cache_limit_failed">更新缓存上限失败：%1$s</string>
     <string name="settings_feedback_diagnostics_exported">诊断日志已导出到 %1$s</string>
     <string name="settings_feedback_diagnostics_failed">导出诊断日志失败：%1$s</string>

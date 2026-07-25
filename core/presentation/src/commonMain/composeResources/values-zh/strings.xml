@@ -106,4 +106,5 @@
     <string name="debug_trigger_kt_async_exception">触发 Kotlin 异步异常</string>
     <string name="log_title">日志</string>
     <string name="debug_trigger_rs_panic">触发 Rust panic！</string>
+    <string name="search_clear">清除搜索</string>
 </resources>

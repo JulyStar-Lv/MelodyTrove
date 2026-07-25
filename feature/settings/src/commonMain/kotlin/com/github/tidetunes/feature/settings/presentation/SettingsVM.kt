@@ -31,6 +31,7 @@ import com.github.tidetunes.core.domain.repository.SourceSettingsRepository
 import com.github.tidetunes.core.domain.repository.StorageRepository
 import com.github.tidetunes.core.domain.repository.StorageUsageRepository
 import com.github.tidetunes.core.domain.repository.ToastRepository
+import com.github.tidetunes.service.librarysync.domain.LibrarySyncAlreadyActiveException
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncController
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncFailure
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncRequest
@@ -694,7 +695,11 @@ class SettingsVM(
             }
             .onFailure { error ->
                 if (error is CancellationException) throw error
-                emitFeedback(Res.string.settings_feedback_scan_failed, error.userMessage())
+                if (error is LibrarySyncAlreadyActiveException) {
+                    emitFeedback(Res.string.settings_feedback_scan_already_active)
+                } else {
+                    emitFeedback(Res.string.settings_feedback_scan_failed, error.userMessage())
+                }
             }
     }
 

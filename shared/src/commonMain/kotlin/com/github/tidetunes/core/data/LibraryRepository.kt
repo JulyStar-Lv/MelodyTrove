@@ -8,8 +8,8 @@ import com.github.tidetunes.core.domain.repository.LibraryRepository
 import com.github.tidetunes.database.MetadataDao
 import com.github.tidetunes.database.TrackDao
 import com.github.tidetunes.database.TrackEntity
-import com.github.tidetunes.source.storage.LegacyStorageLookup
-import com.github.tidetunes.source.storage.toLegacyStorageTrackMediaIdOrNull
+import com.github.tidetunes.database.TrackSourceRefDao
+import com.github.tidetunes.source.storage.toSourceTrackMediaIdOrNull
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,7 +19,7 @@ class LibraryRepositoryImpl(
     private val scope: CoroutineScope,
     private val trackDao: TrackDao,
     private val metadataDao: MetadataDao,
-    private val storageLookup: LegacyStorageLookup,
+    private val trackSourceRefDao: TrackSourceRefDao,
 ) : LibraryRepository {
     private val _tracks = MutableStateFlow<List<LibraryTrackItem>>(emptyList())
     private val _albums = MutableStateFlow<List<LibraryAlbumItem>>(emptyList())
@@ -32,9 +32,19 @@ class LibraryRepositoryImpl(
     init {
         scope.launch {
             trackDao.observeAll().collect { entities ->
+                val mediaIds = if (entities.isEmpty()) {
+                    emptyMap()
+                } else {
+                    trackSourceRefDao
+                        .playbackCandidatesForTracks(entities.map(TrackEntity::id))
+                        .groupBy { candidate -> candidate.ref.trackId }
+                        .mapValues { (_, candidates) ->
+                            candidates.firstNotNullOfOrNull { candidate -> candidate.toSourceTrackMediaIdOrNull() }
+                        }
+                }
                 _tracks.value = entities.map { track ->
                     track.toLibraryTrackItem(
-                        mediaId = track.toLegacyStorageTrackMediaIdOrNull(storageLookup),
+                        mediaId = mediaIds[track.id],
                     )
                 }
             }

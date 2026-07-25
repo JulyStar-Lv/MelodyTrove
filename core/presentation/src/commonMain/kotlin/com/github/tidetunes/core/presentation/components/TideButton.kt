@@ -67,7 +67,7 @@ fun TideButton(
         enabled = enabled,
         cornerRadius = TideTunesTokens.shapes.full,
         minWidth = minWidth,
-        minHeight = minHeight,
+        minHeight = maxOf(minHeight, TideTunesTokens.adaptive.minimumTouchTarget),
         colors = colors ?: tideButtonColors(variant),
         insideMargin = insideMargin,
         content = content,

@@ -115,12 +115,19 @@ class DesktopPlayerController(
                 val leadMs = currentSettings.playbackAdvanced.crossfadeDurationMs
                     .toLong()
                     .coerceAtLeast(50L)
+                val nextMusic = playerRepository.nextMusic.value
                 if (
+                    nextMusic != null &&
                     position.positionMs >= (position.durationMs - leadMs).coerceAtLeast(0L) &&
                     autoAdvancedTrackId != currentId
                 ) {
                     autoAdvancedTrackId = currentId
                     playNext()
+                } else if (
+                    nextMusic == null &&
+                    position.positionMs >= position.durationMs
+                ) {
+                    playerRepository.setIsPlaying(false)
                 }
             }
         }

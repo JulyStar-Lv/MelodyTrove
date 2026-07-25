@@ -33,4 +33,5 @@ async-channel = { workspace = true }
 
 [dev-dependencies]
 dav-server = { version = "0.5.7", features = ["memfs"] }
+futures-executor = "0.3"
 hyper = { version = "0.14", features = ["full"] }

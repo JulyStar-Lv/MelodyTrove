@@ -540,6 +540,7 @@ private class FakeLibrarySyncController : LibrarySyncController {
     override suspend fun pause(scanId: String) = false
     override suspend fun cancel(scanId: String) = false
     override suspend fun cancelAll() = Unit
+    override suspend fun recoverInterruptedTasks() = 0
     override suspend fun resume(scanId: String): LibrarySyncResult? = null
     override suspend fun retry(scanId: String): LibrarySyncResult? = null
 }

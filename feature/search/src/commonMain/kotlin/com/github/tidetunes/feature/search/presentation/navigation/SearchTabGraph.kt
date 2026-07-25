@@ -16,7 +16,10 @@ fun SearchTabGraph(
         startDestination = "search",
     ) {
         composable("search") {
-            SearchRoot()
+            SearchRoot(
+                onNavigateToAlbum = { albumId -> },
+                onNavigateToArtist = { artistId -> },
+            )
         }
     }
 }

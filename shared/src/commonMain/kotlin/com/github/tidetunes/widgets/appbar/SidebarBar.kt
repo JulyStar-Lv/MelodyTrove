@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -21,6 +23,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -111,12 +120,14 @@ fun SidebarBar(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
             )
-            for (tab in HomeTab.entries) {
-                SidebarItem(
-                    tab = tab,
-                    selected = currentTab == tab,
-                    onClick = { onTabSelected(tab) },
-                )
+            Column(modifier = Modifier.selectableGroup()) {
+                for (tab in HomeTab.entries) {
+                    SidebarItem(
+                        tab = tab,
+                        selected = currentTab == tab,
+                        onClick = { onTabSelected(tab) },
+                    )
+                }
             }
             Spacer(modifier = Modifier.weight(1f))
             Row(
@@ -185,13 +196,23 @@ private fun SidebarItem(
             .height(TideTunesTokens.adaptive.minimumTouchTarget)
             .clip(itemShape)
             .background(backgroundBrush)
-            .clickable(onClick = onClick)
+            .selectable(
+                selected = selected,
+                role = Role.Tab,
+                onClick = onClick,
+            )
+            .clearAndSetSemantics {
+                contentDescription = tab.label
+                this.role = Role.Tab
+                this.selected = selected
+                onClick { onClick(); true }
+            }
             .padding(horizontal = 12.dp),
     ) {
         Icon(
             painter = painterResource(tab.painterRes),
             tint = contentColor,
-            contentDescription = tab.label,
+            contentDescription = null,
             modifier = Modifier.size(19.dp),
         )
         Spacer(modifier = Modifier.width(12.dp))

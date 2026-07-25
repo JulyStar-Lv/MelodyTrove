@@ -18,7 +18,13 @@
     <string name="player_more_options">More options</string>
     <string name="player_play">Play</string>
     <string name="player_pause">Pause</string>
+    <string name="player_previous_track">Previous track</string>
     <string name="player_next_track">Next track</string>
+    <string name="player_repeat">Repeat</string>
+    <string name="player_list_repeat">List repeat</string>
+    <string name="player_shuffle">Shuffle</string>
+    <string name="player_single_repeat">Single repeat</string>
+    <string name="player_queue">Queue view</string>
     <string name="player_close">Close player</string>
     <string name="player_add_favorite">Add to favorites</string>
     <string name="player_remove_favorite">Remove from favorites</string>

@@ -36,4 +36,26 @@ class InterpolatedPlaybackPositionTest {
             ),
         )
     }
+
+    @Test
+    fun snapsAfterBackwardSeek() {
+        assertEquals(
+            expected = 1_000.0,
+            actual = correctInterpolatedPlaybackPosition(
+                externalPositionMs = 1_000.0,
+                renderedPositionMs = 20_000.0,
+            ),
+        )
+    }
+
+    @Test
+    fun snapsLyricsScrollAfterSeekAcrossLines() {
+        assertEquals(true, shouldSnapLyricsScroll(previousIndex = 8, currentIndex = 21))
+        assertEquals(true, shouldSnapLyricsScroll(previousIndex = 21, currentIndex = 4))
+    }
+
+    @Test
+    fun keepsAnimationForNormalAdjacentLineChanges() {
+        assertEquals(false, shouldSnapLyricsScroll(previousIndex = 8, currentIndex = 9))
+    }
 }

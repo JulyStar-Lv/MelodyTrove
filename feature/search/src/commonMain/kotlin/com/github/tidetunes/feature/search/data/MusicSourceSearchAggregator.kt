@@ -1,5 +1,6 @@
 package com.github.tidetunes.feature.search.data
 
+import com.github.tidetunes.feature.search.domain.DEFAULT_SEARCH_ALBUM_ARTIST_LIMIT
 import com.github.tidetunes.feature.search.domain.DEFAULT_SEARCH_LIMIT
 import com.github.tidetunes.feature.search.domain.SearchAggregator
 import com.github.tidetunes.feature.search.domain.SearchRepository
@@ -18,10 +19,12 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.withTimeoutOrNull
 
 class MusicSourceSearchAggregator(
     private val localRepository: SearchRepository,
     private val sourceRegistry: MusicSourceRegistry,
+    private val sourceSearchTimeoutMillis: Long = DEFAULT_SOURCE_SEARCH_TIMEOUT_MILLIS,
 ) : SearchAggregator {
     override suspend fun suggestSources(
         query: String,
@@ -57,9 +60,15 @@ class MusicSourceSearchAggregator(
         )
         val tracks = dedupeSearchTracks(localResults.tracks + remoteResults.tracks)
             .take(limit)
+
+        val albums = localRepository.searchLocalAlbums(normalizedQuery, DEFAULT_SEARCH_ALBUM_ARTIST_LIMIT)
+        val artists = localRepository.searchLocalArtists(normalizedQuery, DEFAULT_SEARCH_ALBUM_ARTIST_LIMIT)
+
         return SearchResults(
             tracks = tracks,
             failedSources = localResults.failedSources + remoteResults.failedSources,
+            albums = albums,
+            artists = artists,
         )
     }
 
@@ -74,13 +83,31 @@ class MusicSourceSearchAggregator(
                 return@mapNotNull null
             }
             async {
-                source.searchAccount(
-                    account = account,
-                    query = query,
-                    limit = limit,
-                )
+                withTimeoutOrNull(sourceSearchTimeoutMillis.coerceAtLeast(1L)) {
+                    source.searchAccount(
+                        account = account,
+                        query = query,
+                        limit = limit,
+                    )
+                } ?: source.timeoutResult(account)
             }
         }.awaitAll().combine()
+    }
+
+    private fun MusicSource.timeoutResult(account: SearchSourceAccount): SearchResults {
+        val label = account.displayName?.takeIf { it.isNotBlank() }
+            ?: descriptor.displayName
+        return SearchResults(
+            tracks = emptyList(),
+            failedSources = listOf(
+                SearchSourceFailure(
+                    sourceId = descriptor.id,
+                    accountId = account.accountId,
+                    sourceLabel = label,
+                    reason = SearchSourceFailureReason.Timeout,
+                ),
+            ),
+        )
     }
 
     private suspend fun MusicSource.searchAccount(
@@ -178,3 +205,4 @@ private fun SourceSearchFailureReason.toSearchFailureReason(): SearchSourceFailu
 private fun Long?.orEmpty(): String = this?.toString().orEmpty()
 
 private const val DEDUPE_DURATION_BUCKET_MS = 1_000L
+internal const val DEFAULT_SOURCE_SEARCH_TIMEOUT_MILLIS = 8_000L

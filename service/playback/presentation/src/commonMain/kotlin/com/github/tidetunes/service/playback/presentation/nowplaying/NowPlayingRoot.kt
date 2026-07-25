@@ -31,7 +31,7 @@ fun NowPlayingRoot(
     val sleepModeState by sleepModeViewModel.state.collectAsState()
     KeepScreenOnEffect(enabled = settings.keepScreenOnInPlayer)
 
-    val currentDuration by playerViewModel.currentDuration.collectAsState()
+    val playbackPosition by playerViewModel.playbackPosition.collectAsState()
 
     LaunchedEffect(playerViewModel) {
         playerViewModel.nowPlayingEvents.collect { event ->
@@ -65,13 +65,23 @@ fun NowPlayingRoot(
             state = state,
             lyricDisplaySettings = settings.lyrics,
             playerInteractionSettings = settings.playerInteraction,
-            currentPositionMs = currentDuration.inWholeMilliseconds,
+            currentPositionMs = playbackPosition.positionMs,
+            isSeeking = playbackPosition.isSeeking,
             isSleepTimerEnabled = sleepModeState.enabled,
             progressContent = { trackDurationMs ->
                 NowPlayingProgressRoot(
                     trackDurationMs = trackDurationMs,
                     playerViewModel = playerViewModel,
                     playerInteractionSettings = settings.playerInteraction,
+                    onAction = ::onAction,
+                )
+            },
+            compactProgressContent = { trackDurationMs ->
+                NowPlayingProgressRoot(
+                    trackDurationMs = trackDurationMs,
+                    playerViewModel = playerViewModel,
+                    playerInteractionSettings = settings.playerInteraction,
+                    compact = true,
                     onAction = ::onAction,
                 )
             },
@@ -85,6 +95,7 @@ private fun NowPlayingProgressRoot(
     trackDurationMs: Long?,
     playerViewModel: PlayerVM,
     playerInteractionSettings: PlayerInteractionSettings,
+    compact: Boolean = false,
     onAction: (NowPlayingAction) -> Unit,
 ) {
     val currentDuration by playerViewModel.currentDuration.collectAsState()
@@ -100,5 +111,7 @@ private fun NowPlayingProgressRoot(
         trackDurationMs = trackDurationMs,
         playerInteractionSettings = playerInteractionSettings,
         onAction = onAction,
+        compact = compact,
+        immersive = true,
     )
 }

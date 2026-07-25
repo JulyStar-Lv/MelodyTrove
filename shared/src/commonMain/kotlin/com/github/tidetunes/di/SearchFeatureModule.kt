@@ -9,7 +9,7 @@ import org.koin.dsl.module
 
 val searchFeatureModule = module {
     includes(searchFeatureDiModule)
-    single { RoomSearchRepository(get(), get(), get()) }
+    single { RoomSearchRepository(get(), get(), get(), get()) }
     single<SearchRepository> { get<RoomSearchRepository>() }
     single<SearchSourceAccountProvider> { StorageSearchSourceAccountProvider(get()) }
 }

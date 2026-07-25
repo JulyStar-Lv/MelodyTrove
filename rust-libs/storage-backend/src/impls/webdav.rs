@@ -177,6 +177,13 @@ fn error_is_retryable(error: &StorageBackendError) -> bool {
     }
 }
 
+async fn sleep_on_runtime(delay: Duration) -> StorageBackendResult<()> {
+    tokio_runtime()
+        .spawn(async move { tokio::time::sleep(delay).await })
+        .await?;
+    Ok(())
+}
+
 impl Webdav {
     pub fn new(arg: BuildWebdavArg) -> Self {
         Self {
@@ -282,7 +289,7 @@ impl Webdav {
         depth: &'static str,
         body: String,
     ) -> StorageBackendResult<reqwest::Response> {
-        self.wait_for_request_cooldown().await;
+        self.wait_for_request_cooldown().await?;
         let client = self.build_client()?;
         let headers = self.build_base_header_map(method.clone(), &url);
         let task = tokio_runtime().spawn(async move {
@@ -337,7 +344,7 @@ impl Webdav {
                             retry_count,
                             "retrying WebDAV request after a transient response"
                         );
-                        tokio::time::sleep(delay).await;
+                        sleep_on_runtime(delay).await?;
                         continue;
                     }
                     if is_retryable_status(status) {
@@ -356,7 +363,7 @@ impl Webdav {
                         retry_count,
                         "retrying WebDAV request after a transport failure"
                     );
-                    tokio::time::sleep(delay).await;
+                    sleep_on_runtime(delay).await?;
                 }
                 Err(error) if error_is_retryable(&error) => {
                     return Err(StorageBackendError::RetryExhausted(error.to_string()));
@@ -366,7 +373,7 @@ impl Webdav {
         }
     }
 
-    async fn wait_for_request_cooldown(&self) {
+    async fn wait_for_request_cooldown(&self) -> StorageBackendResult<()> {
         let delay = self
             .request_cooldown
             .lock()
@@ -374,8 +381,9 @@ impl Webdav {
             .as_ref()
             .and_then(|deadline| deadline.checked_duration_since(Instant::now()));
         if let Some(delay) = delay {
-            tokio::time::sleep(delay).await;
+            sleep_on_runtime(delay).await?;
         }
+        Ok(())
     }
 
     fn extend_request_cooldown(&self, delay: Duration) {
@@ -1086,6 +1094,33 @@ mod test {
         .await;
 
         backend(server.addr()).list("/".to_string()).await.unwrap();
+
+        assert_eq!(requests.lock().unwrap().len(), 2);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn retries_429_without_caller_tokio_context() {
+        let (server, requests) = setup_recording_server(|index, _| {
+            if index == 0 {
+                Response::builder()
+                    .status(StatusCode::TOO_MANY_REQUESTS)
+                    .header(reqwest::header::RETRY_AFTER, "0")
+                    .body(Body::empty())
+                    .unwrap()
+            } else {
+                Response::builder()
+                    .status(StatusCode::MULTI_STATUS)
+                    .body(Body::from("<D:multistatus xmlns:D=\"DAV:\"/>"))
+                    .unwrap()
+            }
+        })
+        .await;
+
+        let addr = server.addr();
+        std::thread::spawn(move || futures_executor::block_on(backend(addr).list("/".to_string())))
+            .join()
+            .unwrap()
+            .unwrap();
 
         assert_eq!(requests.lock().unwrap().len(), 2);
     }

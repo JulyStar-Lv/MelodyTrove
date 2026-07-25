@@ -37,6 +37,7 @@ import tidetunes.service.playback.presentation.generated.resources.player_next_t
 import tidetunes.service.playback.presentation.generated.resources.player_nothing_playing
 import tidetunes.service.playback.presentation.generated.resources.player_pause
 import tidetunes.service.playback.presentation.generated.resources.player_play
+import tidetunes.service.playback.presentation.generated.resources.now_playing_title
 import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
@@ -160,6 +161,7 @@ private fun CompactMiniPlayer(
 
     TideCompactMiniPlayerBar(
         progress = progress,
+        accessibilityLabel = stringResource(Res.string.now_playing_title),
         onClick = onClick,
         artwork = {
             MusicCover(

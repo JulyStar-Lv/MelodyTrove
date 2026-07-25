@@ -634,6 +634,83 @@ interface TrackSourceRefDao {
         """
     )
     suspend fun playbackCandidates(trackId: Long): List<TrackSourcePlaybackCandidate>
+
+    @Query(
+        """
+        SELECT
+            ref.trackId AS ref_trackId,
+            ref.sourceItemId AS ref_sourceItemId,
+            ref.role AS ref_role,
+            ref.matchMethod AS ref_matchMethod,
+            ref.matchConfidence AS ref_matchConfidence,
+            ref.isPreferred AS ref_isPreferred,
+            ref.isAvailable AS ref_isAvailable,
+            ref.isDownloaded AS ref_isDownloaded,
+            ref.playable AS ref_playable,
+            ref.downloadable AS ref_downloadable,
+            ref.codec AS ref_codec,
+            ref.container AS ref_container,
+            ref.bitRate AS ref_bitRate,
+            ref.sampleRate AS ref_sampleRate,
+            ref.bitsPerSample AS ref_bitsPerSample,
+            ref.channels AS ref_channels,
+            ref.lossless AS ref_lossless,
+            ref.createdAt AS ref_createdAt,
+            ref.updatedAt AS ref_updatedAt,
+            item.id AS item_id,
+            item.sourceAccountId AS item_sourceAccountId,
+            item.libraryRootId AS item_libraryRootId,
+            item.itemType AS item_itemType,
+            item.providerItemId AS item_providerItemId,
+            item.parentProviderItemId AS item_parentProviderItemId,
+            item.canonicalPath AS item_canonicalPath,
+            item.displayPath AS item_displayPath,
+            item.displayName AS item_displayName,
+            item.mimeType AS item_mimeType,
+            item.sizeBytes AS item_sizeBytes,
+            item.etag AS item_etag,
+            item.revision AS item_revision,
+            item.createdAtRemote AS item_createdAtRemote,
+            item.modifiedAtRemote AS item_modifiedAtRemote,
+            item.contentHash AS item_contentHash,
+            item.audioFingerprint AS item_audioFingerprint,
+            item.isDeleted AS item_isDeleted,
+            item.firstSyncedAt AS item_firstSyncedAt,
+            item.lastSyncedAt AS item_lastSyncedAt,
+            item.lastSeenScanId AS item_lastSeenScanId,
+            account.id AS account_id,
+            account.providerType AS account_providerType,
+            account.displayName AS account_displayName,
+            account.endpoint AS account_endpoint,
+            account.externalAccountId AS account_externalAccountId,
+            account.credentialRef AS account_credentialRef,
+            account.priority AS account_priority,
+            account.enabled AS account_enabled,
+            account.createdAt AS account_createdAt,
+            account.updatedAt AS account_updatedAt,
+            account.rootPath AS account_rootPath
+        FROM track_source_ref ref
+        JOIN source_item item ON item.id = ref.sourceItemId
+        JOIN source_account account ON account.id = item.sourceAccountId
+        WHERE ref.trackId IN (:trackIds)
+          AND ref.playable = 1
+          AND ref.isAvailable = 1
+          AND item.isDeleted = 0
+          AND account.enabled = 1
+        ORDER BY
+          ref.trackId ASC,
+          ref.isDownloaded DESC,
+          CASE WHEN account.providerType = 'local' THEN 1 ELSE 0 END DESC,
+          ref.isPreferred DESC,
+          COALESCE(ref.lossless, 0) DESC,
+          COALESCE(ref.bitsPerSample, 0) DESC,
+          COALESCE(ref.sampleRate, 0) DESC,
+          COALESCE(ref.bitRate, 0) DESC,
+          account.priority DESC,
+          ref.updatedAt DESC
+        """
+    )
+    suspend fun playbackCandidatesForTracks(trackIds: List<Long>): List<TrackSourcePlaybackCandidate>
 }
 
 data class MetadataRefreshCandidate(

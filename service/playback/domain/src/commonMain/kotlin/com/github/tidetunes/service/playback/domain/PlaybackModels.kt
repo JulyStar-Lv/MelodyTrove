@@ -44,6 +44,7 @@ data class PlaybackPosition(
     val positionMs: Long = 0,
     val bufferedMs: Long = 0,
     val durationMs: Long = 0,
+    val isSeeking: Boolean = false,
 ) {
     companion object {
         val Zero = PlaybackPosition()

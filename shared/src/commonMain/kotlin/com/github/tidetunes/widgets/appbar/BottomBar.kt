@@ -11,26 +11,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.github.tidetunes.core.presentation.components.TideBottomNavigationBar
 import com.github.tidetunes.core.presentation.components.TideBottomNavigationItem
+import com.github.tidetunes.core.presentation.components.getBottomBarSpace
 import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import com.github.tidetunes.navigation.HomeTab
 import org.jetbrains.compose.resources.painterResource
 import top.yukonga.miuix.kmp.theme.MiuixTheme
-
-@Composable
-fun getBottomBarSpace(
-    isPlaying: Boolean,
-    scaffoldPadding: PaddingValues,
-): Dp {
-    var total = TideTunesTokens.navigation.compactBarHeight + scaffoldPadding.calculateBottomPadding()
-    if (isPlaying) {
-        total += 80.dp
-    }
-    return total
-}
 
 @Composable
 fun BottomBarSpacer(

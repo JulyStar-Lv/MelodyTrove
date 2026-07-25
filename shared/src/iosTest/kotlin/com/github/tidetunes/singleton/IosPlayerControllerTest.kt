@@ -50,8 +50,10 @@ import com.github.tidetunes.source.storage.LegacyStorageLookup
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import okio.FileSystem
@@ -69,6 +71,47 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 
 class IosPlayerControllerTest {
+    @Test
+    fun seekPublishesTargetUntilAvPlayerCompletes() = withHarness(
+        sourceResult = SourcePlaybackResult.Success(TEST_RESOURCE),
+        engine = RecordingIosPlaybackEngine(PlaybackEngineLoadResult.Ready),
+    ) { harness ->
+        harness.controller.play(MusicId(TRACK_ID), PlaylistId(PLAYLIST_ID))
+        awaitUntil { harness.playerRepository.playing.value }
+
+        harness.controller.seek(5_000UL)
+
+        assertEquals(5_000L, harness.controller.getCurrentPosition())
+        assertEquals(5_000L, harness.controller.getPendingSeekPosition())
+
+        harness.engine.positionMs = 5_120L
+        harness.engine.completeSeek()
+
+        assertEquals(null, harness.controller.getPendingSeekPosition())
+        assertEquals(5_120L, harness.controller.getCurrentPosition())
+    }
+
+    @Test
+    fun supersededSeekCompletionDoesNotClearLatestTarget() = withHarness(
+        sourceResult = SourcePlaybackResult.Success(TEST_RESOURCE),
+        engine = RecordingIosPlaybackEngine(PlaybackEngineLoadResult.Ready),
+    ) { harness ->
+        harness.controller.play(MusicId(TRACK_ID), PlaylistId(PLAYLIST_ID))
+        awaitUntil { harness.playerRepository.playing.value }
+
+        harness.controller.seek(5_000UL)
+        harness.controller.seek(30_000UL)
+        harness.engine.completeSeek(index = 0, finished = false)
+
+        assertEquals(30_000L, harness.controller.getPendingSeekPosition())
+
+        harness.engine.positionMs = 30_080L
+        harness.engine.completeSeek(index = 0)
+
+        assertEquals(null, harness.controller.getPendingSeekPosition())
+        assertEquals(30_080L, harness.controller.getCurrentPosition())
+    }
+
     @Test
     fun readyEngineStartsPlaybackAndReleasesResourceOnStop() = withHarness(
         sourceResult = SourcePlaybackResult.Success(TEST_RESOURCE),
@@ -136,6 +179,20 @@ class IosPlayerControllerTest {
         assertEquals(emptyList(), harness.playbackResolver.releasedUris)
         assertFalse(harness.playerRepository.playing.value)
         assertNull(harness.playerRepository.music.value)
+    }
+
+    @Test
+    fun naturalPlaybackCompletionClearsPlayingStateWhenQueueHasNoNextTrack() = withHarness(
+        sourceResult = SourcePlaybackResult.Success(TEST_RESOURCE),
+        engine = RecordingIosPlaybackEngine(PlaybackEngineLoadResult.Ready),
+    ) { harness ->
+        harness.controller.play(MusicId(TRACK_ID), PlaylistId(PLAYLIST_ID))
+        awaitUntil { harness.playerRepository.playing.value }
+
+        harness.engine.completePlayback()
+
+        awaitUntil { !harness.playerRepository.playing.value }
+        assertEquals(TRACK_ID, harness.playerRepository.music.value?.meta?.id?.value)
     }
 
     private fun withHarness(
@@ -384,8 +441,12 @@ private data class IosPlaybackHarness(
 private class RecordingIosPlaybackEngine(
     private val loadResult: PlaybackEngineLoadResult,
 ) : IosPlaybackEngine {
+    private val playbackCompletedChannel = Channel<Unit>(Channel.BUFFERED)
+    override val playbackCompleted = playbackCompletedChannel.receiveAsFlow()
     val loadedRequests = mutableListOf<PlaybackEngineLoadRequest>()
     val seekCalls = mutableListOf<Long>()
+    var positionMs = 1_000L
+    private val seekCompletionHandlers = mutableListOf<(Boolean) -> Unit>()
     var playCalls = 0
         private set
     var pauseCalls = 0
@@ -414,15 +475,28 @@ private class RecordingIosPlaybackEngine(
         seekCalls += positionMs
     }
 
+    override fun seekTo(positionMs: Long, completionHandler: (Boolean) -> Unit) {
+        seekCalls += positionMs
+        seekCompletionHandlers += completionHandler
+    }
+
     override fun readPosition(): PlaybackPosition {
         return PlaybackPosition(
-            positionMs = 1_000L,
+            positionMs = positionMs,
             bufferedMs = 2_000L,
             durationMs = 123_000L,
         )
     }
 
     override fun release() = Unit
+
+    fun completePlayback() {
+        playbackCompletedChannel.trySend(Unit)
+    }
+
+    fun completeSeek(index: Int = 0, finished: Boolean = true) {
+        seekCompletionHandlers.removeAt(index).invoke(finished)
+    }
 }
 
 private class RecordingMusicSource(
@@ -513,6 +587,10 @@ private object EmptyTrackSourceRefDao : TrackSourceRefDao {
     override suspend fun markUnavailableForDeletedSourceItems(libraryRootId: Long, now: Long) = Unit
 
     override suspend fun playbackCandidates(trackId: Long): List<TrackSourcePlaybackCandidate> {
+        return emptyList()
+    }
+
+    override suspend fun playbackCandidatesForTracks(trackIds: List<Long>): List<TrackSourcePlaybackCandidate> {
         return emptyList()
     }
 }

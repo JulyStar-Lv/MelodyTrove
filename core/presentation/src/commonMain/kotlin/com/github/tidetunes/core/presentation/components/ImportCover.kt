@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import tidetunes.core.presentation.generated.resources.Res
 import tidetunes.core.presentation.generated.resources.icon_plus
 import org.jetbrains.compose.resources.painterResource
@@ -40,7 +41,8 @@ fun ImportCover(
     if (artwork != null) {
         Box(
             modifier = Modifier
-                .size(90.dp)
+                .width(104.dp)
+                .height(90.dp)
         ) {
             Box(
                 modifier = Modifier
@@ -56,23 +58,28 @@ fun ImportCover(
             }
             Box(
                 modifier = Modifier
-                    .offset(70.dp)
-                    .clip(RoundedCornerShape(999.dp))
+                    .offset(56.dp)
+                    .size(TideTunesTokens.adaptive.minimumTouchTarget)
                     .clickable {
                         onRemove()
-                    }
-                    .background(MiuixTheme.colorScheme.error)
-                    .width(20.dp)
-                    .height(20.dp),
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 Box(
                     modifier = Modifier
+                        .offset(y = (-14).dp)
                         .clip(RoundedCornerShape(999.dp))
-                        .background(MiuixTheme.colorScheme.surface)
-                        .width(8.dp)
-                        .height(2.dp)
-                )
+                        .background(MiuixTheme.colorScheme.error)
+                        .size(20.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(MiuixTheme.colorScheme.surface)
+                            .size(width = 8.dp, height = 2.dp)
+                    )
+                }
             }
         }
     } else {

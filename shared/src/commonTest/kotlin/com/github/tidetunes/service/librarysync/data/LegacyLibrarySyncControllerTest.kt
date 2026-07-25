@@ -5,6 +5,7 @@ import com.github.tidetunes.core.domain.model.MetadataScanMode
 import com.github.tidetunes.domain.importing.RemoteLibraryImportResult
 import com.github.tidetunes.service.librarysync.domain.DEFAULT_LIBRARY_SYNC_BATCH_SIZE
 import com.github.tidetunes.service.librarysync.domain.DEFAULT_LIBRARY_SYNC_METADATA_CONCURRENCY
+import com.github.tidetunes.service.librarysync.domain.LibrarySyncAlreadyActiveException
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncFailure
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncRequest
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncScanRules
@@ -136,7 +137,7 @@ class LegacyLibrarySyncControllerTest {
             taskRepository = taskRepository,
         )
 
-        assertFailsWith<IllegalStateException> {
+        assertFailsWith<LibrarySyncAlreadyActiveException> {
             controller.syncFolder(request())
         }
         assertEquals(
@@ -182,6 +183,28 @@ class LegacyLibrarySyncControllerTest {
 
         assertEquals(setOf("running", "paused"), importer.cancelCalls.toSet())
         assertEquals(setOf("running", "paused"), taskRepository.markCancelledCalls.toSet())
+    }
+
+    @Test
+    fun startupRecoveryCancelsPersistedQueuedAndRunningTasksOnlyOnce() = runBlocking {
+        val importer = FakeLegacyLibrarySyncImporter(cancelResult = false)
+        val taskRepository = FakeLibrarySyncTaskRepository(
+            tasksById = mapOf(
+                "queued" to task(id = "queued", status = LibrarySyncStatus.Queued),
+                "running" to task(id = "running", status = LibrarySyncStatus.Running),
+                "paused" to task(id = "paused", status = LibrarySyncStatus.Paused),
+            ),
+        )
+        val controller = controller(
+            importer = importer,
+            storage = storage(id = 42, typ = StorageType.WEBDAV),
+            taskRepository = taskRepository,
+        )
+
+        assertEquals(2, controller.recoverInterruptedTasks())
+        assertEquals(0, controller.recoverInterruptedTasks())
+        assertEquals(setOf("queued", "running"), taskRepository.markCancelledCalls.toSet())
+        assertEquals(emptyList(), importer.cancelCalls)
     }
 
     @Test

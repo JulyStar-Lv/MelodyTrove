@@ -106,4 +106,5 @@
     <string name="debug_trigger_kt_async_exception">Trigger Kotlin Async Exception</string>
     <string name="log_title">Log</string>
     <string name="debug_trigger_rs_panic">Trigger Rust panic!</string>
+    <string name="search_clear">Clear search</string>
 </resources>

@@ -20,8 +20,8 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -30,19 +30,14 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -50,6 +45,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.github.tidetunes.core.lyrics.ui.reference.KaraokeLineText
+import com.github.tidetunes.core.lyrics.ui.reference.LyricsViewSpec
 import com.mocharealm.accompanist.lyrics.core.model.ISyncedLine
 import com.mocharealm.accompanist.lyrics.core.model.SyncedLyrics
 import com.mocharealm.accompanist.lyrics.core.model.karaoke.KaraokeLine
@@ -101,6 +98,9 @@ fun TideLyricsView(
     perspectiveEffectEnabled: Boolean = false,
     perspectiveAngleDegrees: Float = 25f,
     tapToSeekEnabled: Boolean = true,
+    verticalContentPaddingFraction: Float = 0.34f,
+    lineHorizontalPadding: Dp = 20.dp,
+    lineVerticalPadding: Dp = 6.dp,
 ) {
     val listState = rememberLazyListState()
     val renderPositionProvider = rememberInterpolatedPlaybackPositionProvider(
@@ -112,11 +112,17 @@ fun TideLyricsView(
             .coerceAtLeast(0)
             .coerceAtMost((lyrics.lines.size - 1).coerceAtLeast(0))
     }
+    var displayedIndex by remember(lyrics.lines) { mutableIntStateOf(-1) }
     val perspectiveCameraDistance = with(LocalDensity.current) { 18.dp.toPx() }
 
     LaunchedEffect(currentIndex, lyrics.lines.size) {
         if (lyrics.lines.isNotEmpty()) {
-            listState.animateScrollToItem(currentIndex)
+            if (shouldSnapLyricsScroll(displayedIndex, currentIndex)) {
+                listState.scrollToItem(currentIndex)
+            } else {
+                listState.animateScrollToItem(currentIndex)
+            }
+            displayedIndex = currentIndex
         }
     }
 
@@ -125,7 +131,7 @@ fun TideLyricsView(
             .clipToBounds()
             .fillMaxSize(),
     ) {
-        val verticalPadding = maxHeight * 0.34f
+        val verticalPadding = maxHeight * verticalContentPaddingFraction.coerceIn(0f, 0.5f)
         val perspectiveRotation = when (textAlign) {
             TextAlign.Right, TextAlign.End -> perspectiveAngleDegrees
             else -> -perspectiveAngleDegrees
@@ -158,7 +164,7 @@ fun TideLyricsView(
                 val isCurrent = index == currentIndex
                 LyricLineItem(
                     line = line,
-                    renderPositionProvider = renderPositionProvider.takeIf { isCurrent },
+                    renderPositionProvider = renderPositionProvider,
                     isCurrent = isCurrent,
                     distanceFromCurrent = distance,
                     activeColor = activeColor,
@@ -171,6 +177,8 @@ fun TideLyricsView(
                     wordLiftEnabled = wordLiftEnabled,
                     useBlurEffect = useBlurEffect,
                     tapToSeekEnabled = tapToSeekEnabled,
+                    horizontalPadding = lineHorizontalPadding,
+                    verticalPadding = lineVerticalPadding,
                     onClick = { onLineClick(line) },
                 )
             }
@@ -211,6 +219,8 @@ private fun LyricLineItem(
     wordLiftEnabled: Boolean,
     useBlurEffect: Boolean,
     tapToSeekEnabled: Boolean,
+    horizontalPadding: Dp,
+    verticalPadding: Dp,
     onClick: () -> Unit,
 ) {
     val scale by animateFloatAsState(
@@ -238,6 +248,11 @@ private fun LyricLineItem(
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
+                transformOrigin = when (textAlign) {
+                    TextAlign.End, TextAlign.Right -> TransformOrigin(1f, 0.5f)
+                    TextAlign.Center -> TransformOrigin.Center
+                    else -> TransformOrigin(0f, 0.5f)
+                }
                 this.alpha = alpha
                 renderEffect = if (blurRadius > 0f) {
                     BlurEffect(blurRadius, blurRadius, TileMode.Decal)
@@ -246,7 +261,7 @@ private fun LyricLineItem(
                 }
             }
             .then(if (tapToSeekEnabled) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(horizontal = 20.dp, vertical = 6.dp),
+            .padding(horizontal = horizontalPadding, vertical = verticalPadding),
     ) {
         KaraokeText(
             line = line,
@@ -256,6 +271,7 @@ private fun LyricLineItem(
             inactiveColor = inactiveColor,
             textStyle = if (isCurrent) activeTextStyle else inactiveTextStyle,
             textAlign = textAlign,
+            wordLiftEnabled = wordLiftEnabled,
         )
 
         val translation = line.translationOrNull()
@@ -285,6 +301,7 @@ private fun KaraokeText(
     inactiveColor: Color,
     textStyle: TextStyle,
     textAlign: TextAlign,
+    wordLiftEnabled: Boolean,
 ) {
     if (line !is KaraokeLine) {
         BasicText(
@@ -300,108 +317,66 @@ private fun KaraokeText(
         return
     }
 
-    val text = remember(line) { line.syllables.joinToString(separator = "") { it.content } }
-    var revealSegments by remember(line, textStyle) {
-        mutableStateOf<List<KaraokeRevealSegment>>(emptyList())
-    }
-    val revealPath = remember(line, textStyle) { Path() }
-    Box(modifier = Modifier.fillMaxWidth()) {
-        BasicText(
-            text = text,
-            modifier = Modifier.fillMaxWidth(),
-            style = textStyle.copy(color = inactiveColor, textAlign = textAlign),
-            maxLines = 4,
-            overflow = TextOverflow.Ellipsis,
-        )
-        if (renderPositionProvider != null) {
-            BasicText(
-                text = text,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clearAndSetSemantics { }
-                    .drawWithContent {
-                        revealPath.reset()
-                        revealPath.addRevealedSegments(
-                            segments = revealSegments,
-                            currentPositionMs = renderPositionProvider(),
-                        )
-                        clipPath(revealPath) {
-                            this@drawWithContent.drawContent()
-                        }
-                    },
-                style = textStyle.copy(color = activeColor, textAlign = textAlign),
-                maxLines = 4,
-                overflow = TextOverflow.Ellipsis,
-                onTextLayout = { layoutResult ->
-                    revealSegments = line.createRevealSegments(layoutResult)
-                },
+    val baseSpec = remember(textStyle, activeColor) {
+        LyricsViewSpec.default(
+            normalLineTextStyle = textStyle,
+            accompanimentLineTextStyle = textStyle,
+            phoneticTextStyle = textStyle,
+            textColor = activeColor,
+            blendMode = BlendMode.Plus,
+            showTranslation = false,
+            showPhonetic = false,
+        ).let { spec ->
+            spec.copy(
+                line = spec.line.copy(
+                    contentVerticalPadding = 0.dp,
+                    mainHorizontalPadding = 0.dp,
+                    accompanimentHorizontalPadding = 0.dp,
+                    contentSpacing = 0.dp,
+                ),
             )
         }
     }
+    val renderSpec = remember(baseSpec, wordLiftEnabled) {
+        if (wordLiftEnabled) {
+            baseSpec
+        } else {
+            baseSpec.copy(
+                textAnimation = baseSpec.textAnimation.copy(
+                    simpleLiftPx = 0f,
+                    advancedLiftPx = 0f,
+                    advancedShadowBlurPx = 0f,
+                    maxDip = 0.0,
+                    maxSwell = 0.0,
+                ),
+            )
+        }
+    }
+    val fallbackPositionProvider = remember(line, isCurrent) {
+        { if (isCurrent) line.start else Int.MIN_VALUE }
+    }
+
+    KaraokeLineText(
+        line = line,
+        currentTimeProvider = renderPositionProvider ?: fallbackPositionProvider,
+        renderTimeProvider = renderPositionProvider ?: fallbackPositionProvider,
+        forcedTextAlign = textAlign,
+        modifier = Modifier.fillMaxWidth(),
+        normalLineTextStyle = textStyle,
+        accompanimentLineTextStyle = textStyle,
+        phoneticTextStyle = textStyle,
+        activeColor = activeColor,
+        blendMode = BlendMode.Plus,
+        showTranslation = false,
+        showPhonetic = false,
+        spec = renderSpec,
+    )
 }
 
 private fun ISyncedLine.translationOrNull(): String? = when (this) {
     is KaraokeLine -> translation
     is SyncedLine -> translation
     else -> null
-}
-
-private data class KaraokeRevealSegment(
-    val bounds: Rect,
-    val startMs: Float,
-    val endMs: Float,
-)
-
-private fun KaraokeLine.createRevealSegments(
-    layoutResult: TextLayoutResult,
-): List<KaraokeRevealSegment> = buildList {
-    var textOffset = 0
-    syllables.forEach { syllable ->
-        val characterDurationMs = syllable.duration.toFloat() /
-            syllable.content.length.coerceAtLeast(1)
-        syllable.content.indices.forEach { characterIndex ->
-            val offset = textOffset + characterIndex
-            if (offset < layoutResult.layoutInput.text.length) {
-                val characterStartMs = syllable.start + characterDurationMs * characterIndex
-                add(
-                    KaraokeRevealSegment(
-                        bounds = layoutResult.getBoundingBox(offset),
-                        startMs = characterStartMs,
-                        endMs = characterStartMs + characterDurationMs,
-                    ),
-                )
-            }
-        }
-        textOffset += syllable.content.length
-    }
-}
-
-private fun Path.addRevealedSegments(
-    segments: List<KaraokeRevealSegment>,
-    currentPositionMs: Int,
-) {
-    segments.forEach { segment ->
-        val progress = when {
-            currentPositionMs >= segment.endMs -> 1f
-            currentPositionMs <= segment.startMs -> 0f
-            segment.endMs <= segment.startMs -> 1f
-            else -> (currentPositionMs - segment.startMs) / (segment.endMs - segment.startMs)
-        }
-        if (progress <= 0f) return@forEach
-        val bounds = segment.bounds
-        addRect(
-            if (progress >= 1f) {
-                bounds
-            } else {
-                Rect(
-                    left = bounds.left,
-                    top = bounds.top,
-                    right = bounds.left + bounds.width * progress,
-                    bottom = bounds.bottom,
-                )
-            },
-        )
-    }
 }
 
 @Composable
@@ -468,4 +443,11 @@ internal fun correctInterpolatedPlaybackPosition(
         abs(errorMs) <= jitterToleranceMs -> renderedPositionMs
         else -> renderedPositionMs + errorMs * correctionFraction
     }
+}
+
+internal fun shouldSnapLyricsScroll(
+    previousIndex: Int,
+    currentIndex: Int,
+): Boolean {
+    return previousIndex < 0 || abs(currentIndex - previousIndex) > 1
 }

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -47,6 +48,7 @@ import com.github.tidetunes.core.presentation.components.TideIconButtonColors
 import com.github.tidetunes.core.presentation.components.TideIconButtonSize
 import com.github.tidetunes.core.presentation.components.TideIconButtonVariant
 import com.github.tidetunes.core.presentation.media.ArtworkImage
+import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import com.github.tidetunes.service.playback.domain.RepeatMode
 import com.github.tidetunes.service.playback.presentation.nowplaying.NowPlayingAction
 import com.github.tidetunes.service.playback.presentation.nowplaying.NowPlayingProgressPanel
@@ -434,6 +436,7 @@ private fun QueueSectionHeader(
                 color = Color.White.copy(alpha = 0.70f),
                 style = MiuixTheme.textStyles.body2.copy(fontSize = 15.sp),
                 modifier = Modifier
+                    .heightIn(min = TideTunesTokens.adaptive.minimumTouchTarget)
                     .clip(RoundedCornerShape(12.dp))
                     .clickable(onClick = onTrailingClick)
                     .padding(horizontal = 8.dp, vertical = 10.dp),

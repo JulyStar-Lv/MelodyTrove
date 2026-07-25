@@ -3,7 +3,6 @@ package com.github.tidetunes.feature.home.presentation
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -21,8 +20,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -215,6 +215,14 @@ fun HomeDesignScreen(
                                 onOpen = { onAction(HomeAction.NavigateToLibrary) },
                             )
                         }
+                    }
+                }
+                if (state.statistics != null) {
+                    item {
+                        HomeStatisticsCard(
+                            statistics = state.statistics,
+                            compact = compact,
+                        )
                     }
                 }
             }
@@ -584,14 +592,13 @@ private fun PlaylistRow(
     showMeta: Boolean,
     onClick: () -> Unit,
 ) {
-    Row(
+    LazyRow(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = TideTunesTokens.adaptive.minimumTouchTarget)
-            .horizontalScroll(rememberScrollState()),
+            .heightIn(min = TideTunesTokens.adaptive.minimumTouchTarget),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        playlists.forEach { playlist ->
+        items(playlists) { playlist ->
             PlaylistCard(
                 playlist = playlist,
                 width = cardWidth,
@@ -724,13 +731,11 @@ private fun AlbumRow(
     cardWidth: Dp,
     onClick: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
+    LazyRow(
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        albums.forEach { album ->
+        items(albums) { album ->
             Column(
                 modifier = Modifier
                     .width(cardWidth)
@@ -782,13 +787,11 @@ private fun ArtistRow(
     size: Dp,
     onOpen: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
+    LazyRow(
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        artists.forEach { artist ->
+        items(artists) { artist ->
             Column(
                 modifier = Modifier
                     .width(size)
@@ -854,9 +857,88 @@ private fun ArtworkTile(track: HomeRecentTrack, size: Dp) {
     }
 }
 
+
+@Composable
+private fun HomeStatisticsCard(
+    statistics: com.github.tidetunes.feature.home.domain.HomeStatistics,
+    compact: Boolean,
+) {
+    val shape = RoundedCornerShape(20.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(MiuixTheme.colorScheme.surfaceContainerHigh)
+            .padding(20.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Icon(
+                    painter = painterResource(Res.drawable.icon_headphones),
+                    contentDescription = null,
+                    tint = MiuixTheme.colorScheme.primary,
+                    modifier = Modifier.size(22.dp),
+                )
+                Text(
+                    text = "Your Listening",
+                    color = MiuixTheme.colorScheme.onBackground,
+                    style = MiuixTheme.textStyles.title3,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+            ) {
+                StatItem(
+                    label = "Tracks played",
+                    value = statistics.totalTracksEverPlayed.toString(),
+                )
+                StatItem(
+                    label = "Today",
+                    value = statistics.tracksPlayedToday.toString(),
+                )
+                StatItem(
+                    label = "Total time",
+                    value = formatListeningDuration(statistics.totalListeningDurationMs),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatItem(label: String, value: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            text = value,
+            color = MiuixTheme.colorScheme.onBackground,
+            style = MiuixTheme.textStyles.title2,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = label,
+            color = MiuixTheme.colorScheme.onBackgroundVariant,
+            style = MiuixTheme.textStyles.footnote1,
+        )
+    }
+}
+
+private fun formatListeningDuration(totalMs: Long): String {
+    val totalMinutes = (totalMs / 60_000L).coerceAtLeast(0L)
+    val hours = totalMinutes / 60L
+    val minutes = totalMinutes % 60L
+    return if (hours > 0L) hours.toString() + "h " + minutes.toString() + "m" else minutes.toString() + "m"
+}
 private val HomeState.isEmpty: Boolean
-    get() = featuredAlbums.isEmpty() &&
-        recentlyAddedAlbums.isEmpty() &&
-        artists.isEmpty() &&
-        pinnedPlaylists.isEmpty() &&
-        recentTracks.isEmpty()
+    get() {
+        val hasContent = featuredAlbums.isNotEmpty() ||
+            recentlyAddedAlbums.isNotEmpty() ||
+            artists.isNotEmpty() ||
+            pinnedPlaylists.isNotEmpty() ||
+            recentTracks.isNotEmpty()
+        return !hasContent && statistics == null
+    }

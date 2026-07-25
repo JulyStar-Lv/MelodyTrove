@@ -4,6 +4,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 import com.github.tidetunes.core.domain.model.MediaId
 import com.github.tidetunes.core.presentation.components.QualityBadgeType
+import com.github.tidetunes.feature.home.domain.HomeStatistics
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 
@@ -14,6 +15,7 @@ data class HomeState(
     val artists: ImmutableList<HomeArtist> = persistentListOf(),
     val pinnedPlaylists: ImmutableList<HomePlaylist> = persistentListOf(),
     val recentTracks: ImmutableList<HomeRecentTrack> = persistentListOf(),
+    val statistics: HomeStatistics? = null,
 )
 
 @Immutable

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -711,6 +712,7 @@ internal fun SettingsActionRow(
                         style = MiuixTheme.textStyles.footnote1,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier
+                            .heightIn(min = TideTunesTokens.adaptive.minimumTouchTarget)
                             .clip(RoundedCornerShape(12.dp))
                             .background(MiuixTheme.colorScheme.error)
                             .clickable { onConfirm() }
@@ -722,6 +724,7 @@ internal fun SettingsActionRow(
                         style = MiuixTheme.textStyles.footnote1,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier
+                            .heightIn(min = TideTunesTokens.adaptive.minimumTouchTarget)
                             .clip(RoundedCornerShape(12.dp))
                             .background(MiuixTheme.colorScheme.surfaceContainerHigh)
                             .clickable { onStateChange(SettingsActionState.Idle) }
@@ -746,6 +749,7 @@ internal fun SettingsActionRow(
                 style = MiuixTheme.textStyles.footnote1,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier
+                    .heightIn(min = TideTunesTokens.adaptive.minimumTouchTarget)
                     .clip(RoundedCornerShape(12.dp))
                     .background(MiuixTheme.colorScheme.surfaceContainerHigh)
                     .clickable { onStateChange(SettingsActionState.Confirm) }

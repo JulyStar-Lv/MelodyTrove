@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -33,6 +35,13 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -110,8 +119,7 @@ fun TideMiniPlayerBar(
             .height(tokens.player.miniBarHeight)
             .shadow(tokens.elevation.popup, shape, clip = false)
             .then(glassModifier)
-            .border(1.dp, MiuixTheme.colorScheme.outline.copy(alpha = 0.42f), shape)
-            .clickable(onClick = onClick),
+            .border(1.dp, MiuixTheme.colorScheme.outline.copy(alpha = 0.42f), shape),
     ) {
         Box(
             modifier = Modifier
@@ -139,31 +147,42 @@ fun TideMiniPlayerBar(
             horizontalArrangement = Arrangement.Start,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            artwork()
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(
+            Row(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxHeight(),
-                verticalArrangement = Arrangement.Center,
+                    .fillMaxHeight()
+                    .clickable(role = Role.Button, onClick = onClick)
+                    .clearAndSetSemantics {
+                        contentDescription = "$title, $subtitle"
+                        this.role = Role.Button
+                        onClick { onClick(); true }
+                    },
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
+                artwork()
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    text = title.ifBlank { "TideTunes" },
-                    style = MiuixTheme.textStyles.body1,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MiuixTheme.colorScheme.onSurface,
-                    overflow = TextOverflow.Ellipsis,
-                    maxLines = 1,
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = subtitle.ifBlank { "Ready to play" },
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    style = MiuixTheme.textStyles.footnote1,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Text(
+                        modifier = Modifier.fillMaxWidth(),
+                        text = title.ifBlank { "TideTunes" },
+                        style = MiuixTheme.textStyles.body1,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MiuixTheme.colorScheme.onSurface,
+                        overflow = TextOverflow.Ellipsis,
+                        maxLines = 1,
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = subtitle.ifBlank { "Ready to play" },
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        style = MiuixTheme.textStyles.footnote1,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
             Spacer(modifier = Modifier.width(6.dp))
             Row(
@@ -182,6 +201,7 @@ fun TideMiniPlayerBar(
 @Composable
 fun TideCompactMiniPlayerBar(
     progress: Float,
+    accessibilityLabel: String,
     onClick: () -> Unit,
     artwork: @Composable () -> Unit,
     modifier: Modifier = Modifier,
@@ -221,7 +241,8 @@ fun TideCompactMiniPlayerBar(
             .shadow(tokens.elevation.card, shape, clip = false)
             .then(glassModifier)
             .border(1.dp, MiuixTheme.colorScheme.outline.copy(alpha = 0.60f), shape)
-            .clickable(onClick = onClick),
+            .semantics { contentDescription = accessibilityLabel }
+            .clickable(role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Box(
@@ -328,7 +349,11 @@ fun TideBottomNavigationBar(
             )
         }
 
-        Row(modifier = Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .selectableGroup(),
+        ) {
             items.forEachIndexed { index, item ->
                 val isSelected = selected == index
                 val tint = if (isSelected) {
@@ -342,14 +367,24 @@ fun TideBottomNavigationBar(
                         .weight(1f)
                         .fillMaxHeight()
                         .clip(RoundedCornerShape(shapes.lg))
-                        .clickable { onItemSelected(index) },
+                        .selectable(
+                            selected = isSelected,
+                            role = Role.Tab,
+                            onClick = { onItemSelected(index) },
+                        )
+                        .clearAndSetSemantics {
+                            contentDescription = item.contentDescription ?: item.label
+                            this.role = Role.Tab
+                            this.selected = isSelected
+                            onClick { onItemSelected(index); true }
+                        },
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                 ) {
                     Icon(
                         painter = item.painter,
                         tint = tint,
-                        contentDescription = item.contentDescription,
+                        contentDescription = null,
                         modifier = Modifier.size(navigation.compactIconSize),
                     )
                     Spacer(modifier = Modifier.height(2.dp))

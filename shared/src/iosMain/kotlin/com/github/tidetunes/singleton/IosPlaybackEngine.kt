@@ -8,15 +8,32 @@ import com.github.tidetunes.service.playback.domain.PlaybackEngineLoadResult
 import com.github.tidetunes.service.playback.domain.PlaybackEngineUnsupportedReason
 import com.github.tidetunes.service.playback.domain.PlaybackPosition
 import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import platform.AVFoundation.*
 import platform.CoreMedia.*
 import platform.Foundation.*
 
-internal interface IosPlaybackEngine : PlaybackEngine
+internal interface IosPlaybackEngine : PlaybackEngine {
+    val playbackCompleted: Flow<Unit>
+    fun seekTo(positionMs: Long, completionHandler: (Boolean) -> Unit)
+}
 
 @OptIn(ExperimentalForeignApi::class)
 internal class AvPlayerIosPlaybackEngine : IosPlaybackEngine {
     private val player = AVPlayer()
+    private val _playbackCompleted = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    override val playbackCompleted = _playbackCompleted.asSharedFlow()
+    private val playbackCompletedObserver = NSNotificationCenter.defaultCenter.addObserverForName(
+        name = AVPlayerItemDidPlayToEndTimeNotification,
+        `object` = null,
+        queue = NSOperationQueue.mainQueue,
+    ) { notification ->
+        if (notification?.`object` == player.currentItem) {
+            _playbackCompleted.tryEmit(Unit)
+        }
+    }
 
     override fun load(request: PlaybackEngineLoadRequest): PlaybackEngineLoadResult {
         val resource = request.resource
@@ -48,7 +65,16 @@ internal class AvPlayerIosPlaybackEngine : IosPlaybackEngine {
     }
 
     override fun seekTo(positionMs: Long) {
-        player.seekToTime(CMTimeMake(value = positionMs.coerceAtLeast(0), timescale = 1_000))
+        seekTo(positionMs) { }
+    }
+
+    override fun seekTo(positionMs: Long, completionHandler: (Boolean) -> Unit) {
+        player.seekToTime(
+            time = CMTimeMake(value = positionMs.coerceAtLeast(0), timescale = 1_000),
+            toleranceBefore = CMTimeMake(value = 0, timescale = 1),
+            toleranceAfter = CMTimeMake(value = 0, timescale = 1),
+            completionHandler = completionHandler,
+        )
     }
 
     override fun readPosition(): PlaybackPosition {
@@ -64,6 +90,7 @@ internal class AvPlayerIosPlaybackEngine : IosPlaybackEngine {
 
     override fun release() {
         stop()
+        NSNotificationCenter.defaultCenter.removeObserver(playbackCompletedObserver)
     }
 
     private fun secondsToMillis(seconds: Double): Long {

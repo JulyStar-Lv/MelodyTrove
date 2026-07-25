@@ -479,6 +479,10 @@ private object EmptyTrackSourceRefDao : TrackSourceRefDao {
     override suspend fun playbackCandidates(trackId: Long): List<TrackSourcePlaybackCandidate> {
         return emptyList()
     }
+
+    override suspend fun playbackCandidatesForTracks(trackIds: List<Long>): List<TrackSourcePlaybackCandidate> {
+        return emptyList()
+    }
 }
 
 private const val STORAGE_ID = 2L

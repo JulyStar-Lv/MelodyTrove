@@ -1,6 +1,7 @@
 package com.github.tidetunes.service.playback.data
 
 import com.github.tidetunes.core.domain.model.Artwork
+import com.github.tidetunes.service.playback.domain.PlaybackPosition
 import com.github.tidetunes.service.playback.domain.PlaybackStatus
 import com.github.tidetunes.service.playback.domain.RepeatMode
 import kotlin.test.Test
@@ -19,6 +20,41 @@ import uniffi.tidetunes_backend.StorageId
 import kotlin.time.Duration.Companion.milliseconds
 
 class LegacyPlaybackControllerTest {
+    @Test
+    fun pendingSeekPublishesTargetAndMarksPositionAsSeeking() {
+        assertEquals(
+            PlaybackPosition(
+                positionMs = 45_000L,
+                bufferedMs = 32_000L,
+                durationMs = 180_000L,
+                isSeeking = true,
+            ),
+            legacyPlaybackPosition(
+                currentPositionMs = 12_000L,
+                bufferedPositionMs = 32_000L,
+                durationMs = 180_000L,
+                pendingSeekPositionMs = 45_000L,
+            ),
+        )
+    }
+
+    @Test
+    fun completedSeekUsesActualPlayerPosition() {
+        assertEquals(
+            PlaybackPosition(
+                positionMs = 45_120L,
+                bufferedMs = 61_000L,
+                durationMs = 180_000L,
+            ),
+            legacyPlaybackPosition(
+                currentPositionMs = 45_120L,
+                bufferedPositionMs = 61_000L,
+                durationMs = 180_000L,
+                pendingSeekPositionMs = null,
+            ),
+        )
+    }
+
     @Test
     fun mapsLegacyStateToSeparatedPlayerState() {
         val state = legacyPlayerState(

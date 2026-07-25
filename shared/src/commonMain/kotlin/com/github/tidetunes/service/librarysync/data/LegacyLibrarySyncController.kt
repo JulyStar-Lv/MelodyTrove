@@ -3,11 +3,13 @@ package com.github.tidetunes.service.librarysync.data
 import com.github.tidetunes.domain.importing.RemoteLibraryImportCoordinator
 import com.github.tidetunes.domain.importing.RemoteLibraryImportResult
 import com.github.tidetunes.core.domain.model.MetadataScanMode
+import com.github.tidetunes.service.librarysync.domain.LibrarySyncAlreadyActiveException
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncController
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncFailure
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncRequest
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncResult
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncScanRules
+import com.github.tidetunes.service.librarysync.domain.LibrarySyncStatus
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncTask
 import com.github.tidetunes.service.librarysync.domain.LibrarySyncTaskRepository
 import com.github.tidetunes.source.storage.toLegacyStorageIdOrNull
@@ -25,6 +27,8 @@ internal class LegacyLibrarySyncController(
     private val taskRepository: LibrarySyncTaskRepository,
 ) : LibrarySyncController {
     private val startMutex = Mutex()
+    private val recoveryMutex = Mutex()
+    private var interruptedTasksRecovered = false
 
     override val recentTasks: Flow<List<LibrarySyncTask>> =
         taskRepository.observeRecentTasks()
@@ -49,13 +53,13 @@ internal class LegacyLibrarySyncController(
                 ?: error("Unsupported source account ${request.accountId.value}")
             val storage = storageProvider.storage(storageId)
                 ?: error("Selected storage is no longer available")
-            check(
-                !taskRepository.hasActiveTask(
+            if (
+                taskRepository.hasActiveTask(
                     accountId = request.accountId,
                     excludingTaskId = activeTaskExclusion,
                 )
             ) {
-                "A library sync is already active for ${request.accountId.value}"
+                throw LibrarySyncAlreadyActiveException(request.accountId)
             }
 
             when (storage.typ) {
@@ -123,6 +127,22 @@ internal class LegacyLibrarySyncController(
         taskRepository.observeActiveTasks().first().forEach { task ->
             cancel(task.id)
         }
+    }
+
+    override suspend fun recoverInterruptedTasks(): Int = recoveryMutex.withLock {
+        if (interruptedTasksRecovered) return@withLock 0
+
+        var recoveredCount = 0
+        taskRepository.observeActiveTasks().first()
+            .filter { task ->
+                task.status == LibrarySyncStatus.Queued ||
+                    task.status == LibrarySyncStatus.Running
+            }
+            .forEach { task ->
+                if (taskRepository.markCancelled(task.id)) recoveredCount++
+            }
+        interruptedTasksRecovered = true
+        recoveredCount
     }
 
     override suspend fun resume(scanId: String): LibrarySyncResult? {

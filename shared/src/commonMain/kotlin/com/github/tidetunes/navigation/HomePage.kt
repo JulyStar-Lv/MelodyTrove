@@ -11,10 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -28,18 +25,20 @@ import com.github.tidetunes.core.presentation.layout.WindowSizeClass
 import com.github.tidetunes.core.presentation.layout.rememberWindowSizeClass
 import com.github.tidetunes.core.presentation.navigation.MusicGraph
 import com.github.tidetunes.core.presentation.components.TideGlassScene
+import com.github.tidetunes.core.presentation.components.getBottomBarSpace
 import com.github.tidetunes.feature.importing.presentation.navigation.RouteImportType
 import com.github.tidetunes.service.playback.presentation.shell.PlaybackMiniPlayerHost
 import com.github.tidetunes.widgets.appbar.BottomBar
 import com.github.tidetunes.widgets.appbar.NavigationRailBar
 import com.github.tidetunes.widgets.appbar.SidebarBar
-import com.github.tidetunes.widgets.appbar.getBottomBarSpace
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
 @Composable
 fun HomePage(
     scaffoldPadding: PaddingValues,
+    currentTab: HomeTab,
+    onTabSelected: (HomeTab) -> Unit,
 ) {
     val settingsRepository = koinInject<SettingsRepository>()
     val settings by settingsRepository.settings.collectAsState(AppSettings.Default)
@@ -69,11 +68,10 @@ fun HomePage(
     val onNavigateToPlaylists = {
         globalNavController.navigate(MusicGraph.Playlists)
     }
-    var currentTab by remember { mutableStateOf(HomeTab.HOME) }
     val miniPlayerContent: @Composable () -> Unit = {
         PlaybackMiniPlayerHost(
             onOpenNowPlaying = onOpenNowPlaying,
-            onBrowseLibrary = { currentTab = HomeTab.LIBRARY },
+            onBrowseLibrary = { onTabSelected(HomeTab.LIBRARY) },
         )
     }
 
@@ -95,8 +93,8 @@ fun HomePage(
                 settingsNavController = settingsNavController,
                 scaffoldPadding = scaffoldPadding,
                 onNavigateToDownloads = onNavigateToDownloads,
-                onNavigateToLibrary = { currentTab = HomeTab.LIBRARY },
-                onNavigateToSearch = { currentTab = HomeTab.SEARCH },
+                onNavigateToLibrary = { onTabSelected(HomeTab.LIBRARY) },
+                onNavigateToSearch = { onTabSelected(HomeTab.SEARCH) },
                 onNavigateToLibraryFolderImport = onNavigateToLibraryFolderImport,
                 onNavigateToAlbum = onNavigateToAlbum,
                 onNavigateToArtist = onNavigateToArtist,
@@ -116,7 +114,7 @@ fun HomePage(
                 }
                 BottomBar(
                     currentTab = currentTab,
-                    onTabSelected = { currentTab = it },
+                    onTabSelected = onTabSelected,
                     miniPlayerContent = miniPlayerContent,
                     showMiniPlayer = showHomeChrome,
                     showChrome = showHomeChrome,
@@ -128,11 +126,11 @@ fun HomePage(
                 Row(modifier = Modifier.fillMaxSize()) {
                     NavigationRailBar(
                         currentTab = currentTab,
-                        onTabSelected = { currentTab = it },
+                        onTabSelected = onTabSelected,
                         modifier = Modifier.fillMaxHeight(),
                         windowSizeClass = windowSizeClass,
                     )
-                    HomeMainPane(
+                    RootContentPane(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight(),
@@ -148,7 +146,7 @@ fun HomePage(
                 Row(modifier = Modifier.fillMaxSize()) {
                     SidebarBar(
                         currentTab = currentTab,
-                        onTabSelected = { currentTab = it },
+                        onTabSelected = onTabSelected,
                         isDark = settings.themeMode != AppThemeMode.Light,
                         onToggleTheme = {
                             themeScope.launch {
@@ -164,7 +162,7 @@ fun HomePage(
                         modifier = Modifier.fillMaxHeight(),
                         windowSizeClass = windowSizeClass,
                     )
-                    HomeMainPane(
+                    RootContentPane(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight(),
@@ -181,7 +179,7 @@ fun HomePage(
 }
 
 @Composable
-private fun HomeMainPane(
+internal fun RootContentPane(
     showMiniPlayer: Boolean,
     miniPlayerContent: @Composable () -> Unit,
     modifier: Modifier = Modifier,

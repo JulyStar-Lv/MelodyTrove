@@ -8,8 +8,14 @@ import androidx.navigation.compose.composable
 
 fun NavGraphBuilder.homeGraph(
     scaffoldPadding: PaddingValues,
+    currentTab: HomeTab,
+    onTabSelected: (HomeTab) -> Unit,
 ) {
     composable<MusicGraph.Home> {
-        HomePage(scaffoldPadding = scaffoldPadding)
+        HomePage(
+            scaffoldPadding = scaffoldPadding,
+            currentTab = currentTab,
+            onTabSelected = onTabSelected,
+        )
     }
 }

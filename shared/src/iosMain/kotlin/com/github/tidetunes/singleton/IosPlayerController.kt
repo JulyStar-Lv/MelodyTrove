@@ -49,6 +49,8 @@ class IosPlayerController internal constructor(
     private var playbackJob: Job? = null
     private var playbackResource: PlaybackResource? = null
     private var pendingNetworkRecovery: Pair<MusicId, PlaylistId>? = null
+    private var pendingSeekPositionMs: Long? = null
+    private var seekGeneration = 0L
 
     override val sleepState = sleep.asStateFlow()
 
@@ -79,6 +81,18 @@ class IosPlayerController internal constructor(
     init {
         scope.launch {
             playerRepository.pauseRequest.collect { pause() }
+        }
+        scope.launch {
+            playbackEngine.playbackCompleted.collect {
+                if (!playerRepository.playing.value) return@collect
+                val next = playerRepository.onCompleteMusic.value
+                val playlist = playerRepository.playlist.value
+                if (next != null && playlist != null) {
+                    play(next.meta.id, playlist.abstr.meta.id)
+                } else {
+                    playerRepository.setIsPlaying(false)
+                }
+            }
         }
         scope.launch {
             playlistRepository.preRemovePlaylistEvent.collect { id ->
@@ -118,11 +132,14 @@ class IosPlayerController internal constructor(
         }
     }
 
-    override fun getCurrentPosition(): Long = playbackEngine.readPosition().positionMs
+    override fun getCurrentPosition(): Long =
+        pendingSeekPositionMs ?: playbackEngine.readPosition().positionMs
 
     override fun getBufferedPosition(): Long = playbackEngine.readPosition().bufferedMs
 
     override fun getDuration(): Long = playbackEngine.readPosition().durationMs
+
+    override fun getPendingSeekPosition(): Long? = pendingSeekPositionMs
 
     override fun play(id: MusicId, playlistId: PlaylistId) {
         if (
@@ -133,6 +150,7 @@ class IosPlayerController internal constructor(
             return
         }
 
+        clearPendingSeek()
         playbackJob?.cancel()
         playbackJob = scope.launch(mainDispatcher) {
             playerRepository.setIsLoading(true)
@@ -208,6 +226,7 @@ class IosPlayerController internal constructor(
     override fun stop() {
         playbackJob?.cancel()
         playbackJob = null
+        clearPendingSeek()
         playbackEngine.stop()
         releasePlaybackResourceAsync()
         playerRepository.setIsPlaying(false)
@@ -231,7 +250,14 @@ class IosPlayerController internal constructor(
     }
 
     override fun seek(ms: ULong) {
-        playbackEngine.seekTo(ms.coerceAtMost(Long.MAX_VALUE.toULong()).toLong())
+        val targetPositionMs = ms.coerceAtMost(Long.MAX_VALUE.toULong()).toLong()
+        val generation = ++seekGeneration
+        pendingSeekPositionMs = targetPositionMs
+        playbackEngine.seekTo(targetPositionMs) {
+            if (generation != seekGeneration) return@seekTo
+            pendingSeekPositionMs = null
+            playerRepository.notifyDurationChanged()
+        }
     }
 
     override fun scheduleSleep(newExpiredMs: Long) {
@@ -252,6 +278,11 @@ class IosPlayerController internal constructor(
         sleepJob?.cancel()
         sleepJob = null
         sleep.update { it.copy(enabled = false, expiredMs = 0L) }
+    }
+
+    private fun clearPendingSeek() {
+        seekGeneration += 1
+        pendingSeekPositionMs = null
     }
 
     private suspend fun releasePlaybackResource() {

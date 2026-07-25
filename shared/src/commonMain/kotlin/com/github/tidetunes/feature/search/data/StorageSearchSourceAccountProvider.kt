@@ -15,11 +15,14 @@ class StorageSearchSourceAccountProvider(
 }
 
 internal fun List<StorageAccountInfo>.toSearchSourceAccounts(): List<SearchSourceAccount> {
-    return mapNotNull { storage ->
-        SearchSourceAccount(
-            sourceId = storage.sourceId,
-            accountId = storage.accountId,
-            displayName = storage.title,
-        )
-    }
+    return asSequence()
+        .filter(StorageAccountInfo::enabled)
+        .mapNotNull { storage ->
+            SearchSourceAccount(
+                sourceId = storage.sourceId,
+                accountId = storage.accountId,
+                displayName = storage.title,
+            )
+        }
+        .toList()
 }

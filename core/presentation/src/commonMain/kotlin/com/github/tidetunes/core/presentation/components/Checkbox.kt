@@ -46,25 +46,31 @@ fun TideCheckbox(
 
     Box(
         modifier = modifier
-            .size(20.dp)
-            .clip(shape)
-            .background(bgColor)
-            .border(1.dp, borderColor, shape)
+            .size(TideTunesTokens.adaptive.minimumTouchTarget)
             .toggleable(
                 value = checked,
                 enabled = enabled,
                 role = Role.Checkbox,
                 onValueChange = onCheckedChange,
             ),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.Center,
     ) {
-        if (checked) {
-            Icon(
-                painter = painterResource(Res.drawable.icon_yes),
-                tint = iconTint,
-                contentDescription = null,
-                modifier = Modifier.size(11.dp)
-            )
+        Box(
+            modifier = Modifier
+                .size(20.dp)
+                .clip(shape)
+                .background(bgColor)
+                .border(1.dp, borderColor, shape),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (checked) {
+                Icon(
+                    painter = painterResource(Res.drawable.icon_yes),
+                    tint = iconTint,
+                    contentDescription = null,
+                    modifier = Modifier.size(11.dp),
+                )
+            }
         }
     }
 }

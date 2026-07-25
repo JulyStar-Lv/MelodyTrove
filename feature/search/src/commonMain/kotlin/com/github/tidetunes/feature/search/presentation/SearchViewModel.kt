@@ -6,6 +6,8 @@ import com.github.tidetunes.feature.search.domain.SearchHistoryRepository
 import com.github.tidetunes.feature.search.domain.SearchLibraryUseCase
 import com.github.tidetunes.feature.search.domain.SearchSourceAccountProvider
 import com.github.tidetunes.feature.search.domain.SearchSuggestionsUseCase
+import com.github.tidetunes.feature.search.domain.SearchAlbumItem
+import com.github.tidetunes.feature.search.domain.SearchArtistItem
 import com.github.tidetunes.feature.search.domain.SearchTrackItem
 import com.github.tidetunes.feature.search.domain.mergeSearchSuggestions
 import com.github.tidetunes.service.download.domain.DownloadRequest
@@ -63,6 +65,8 @@ class SearchViewModel(
             SearchAction.ClearHistory -> clearHistory()
             is SearchAction.SelectSuggestion -> selectSuggestion(action.query)
             is SearchAction.OpenTrack -> openTrack(action.track)
+            is SearchAction.OpenAlbum -> openAlbum(action.album)
+            is SearchAction.OpenArtist -> openArtist(action.artist)
             is SearchAction.DownloadTrack -> downloadTrack(action.track)
         }
     }
@@ -75,6 +79,8 @@ class SearchViewModel(
                 query = query,
                 loadState = if (trimmed.isBlank()) SearchLoadState.Idle else SearchLoadState.Typing,
                 tracks = if (trimmed.isBlank()) emptyList<SearchTrackItem>().toPersistentList() else current.tracks,
+                albums = if (trimmed.isBlank()) emptyList<SearchAlbumItem>().toPersistentList() else current.albums,
+                artists = if (trimmed.isBlank()) emptyList<SearchArtistItem>().toPersistentList() else current.artists,
                 suggestions = mergeSearchSuggestions(
                     query = trimmed,
                     history = current.history,
@@ -111,6 +117,8 @@ class SearchViewModel(
                 query = "",
                 loadState = SearchLoadState.Idle,
                 tracks = emptyList<SearchTrackItem>().toPersistentList(),
+                albums = emptyList<SearchAlbumItem>().toPersistentList(),
+                artists = emptyList<SearchArtistItem>().toPersistentList(),
                 suggestions = current.history,
                 failedSourceCount = 0,
             )
@@ -140,15 +148,30 @@ class SearchViewModel(
     }
 
     private fun openTrack(track: SearchTrackItem) {
-        val mediaId = track.mediaId
-        if (mediaId == null) {
+        if (!track.isPlayableFromSearch()) {
             coroutineScope.launch {
-                _events.send(SearchEvent.ShowMessage("Local library playback is not wired to Search yet."))
+                _events.send(
+                    SearchEvent.ShowMessage(
+                        "Add this source result to your library before playing it.",
+                    ),
+                )
             }
             return
         }
         coroutineScope.launch {
             _events.send(SearchEvent.OpenTrack(track))
+        }
+    }
+
+    private fun openAlbum(album: SearchAlbumItem) {
+        coroutineScope.launch {
+            _events.send(SearchEvent.NavigateToAlbum(album.id))
+        }
+    }
+
+    private fun openArtist(artist: SearchArtistItem) {
+        coroutineScope.launch {
+            _events.send(SearchEvent.NavigateToArtist(artist.id))
         }
     }
 
@@ -203,6 +226,8 @@ class SearchViewModel(
                 current.copy(
                     loadState = SearchLoadState.Error,
                     tracks = emptyList<SearchTrackItem>().toPersistentList(),
+                    albums = emptyList<SearchAlbumItem>().toPersistentList(),
+                    artists = emptyList<SearchArtistItem>().toPersistentList(),
                     failedSourceCount = 1,
                 )
             }
@@ -214,10 +239,14 @@ class SearchViewModel(
             current.copy(
                 loadState = when {
                     results.tracks.isNotEmpty() -> SearchLoadState.Results
+                    results.albums.isNotEmpty() -> SearchLoadState.Results
+                    results.artists.isNotEmpty() -> SearchLoadState.Results
                     results.failedSources.isNotEmpty() -> SearchLoadState.Error
                     else -> SearchLoadState.Empty
                 },
                 tracks = results.tracks.toPersistentList(),
+                albums = results.albums.toPersistentList(),
+                artists = results.artists.toPersistentList(),
                 failedSourceCount = results.failedSources.size,
             )
         }
@@ -252,5 +281,12 @@ class SearchViewModel(
         }
     }
 }
+
+/**
+ * The current [PlaybackController] starts playback from the legacy library playlist.
+ * A source-only search result still has a real [mediaId] for download, but cannot be
+ * sent to that controller until it has been added to the library and received a track id.
+ */
+internal fun SearchTrackItem.isPlayableFromSearch(): Boolean = id != null
 
 const val SEARCH_DEBOUNCE_MS = 300L

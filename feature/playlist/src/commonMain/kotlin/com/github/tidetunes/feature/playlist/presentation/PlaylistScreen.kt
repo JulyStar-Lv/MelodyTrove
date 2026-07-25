@@ -138,7 +138,7 @@ private fun PlaylistContent(
                     }
                 }
             }
-            item { BottomBarSpacer(hasCurrentMusic = currentPlayingTrackId != null, scaffoldPadding = scaffoldPadding) }
+            item { BottomBarSpacer(showMiniPlayer = true, scaffoldPadding = scaffoldPadding) }
         }
     }
 }

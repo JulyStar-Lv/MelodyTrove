@@ -6,25 +6,24 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 
 @Composable
 fun getBottomBarSpace(
-    isPlaying: Boolean,
+    showMiniPlayer: Boolean,
     scaffoldPadding: PaddingValues,
 ): Dp {
     var total = TideTunesTokens.navigation.compactBarHeight + scaffoldPadding.calculateBottomPadding()
-    if (isPlaying) {
-        total += 124.dp
+    if (showMiniPlayer) {
+        total += TideTunesTokens.player.compactMiniBarHeight + TideTunesTokens.spacing.xs
     }
     return total
 }
 
 @Composable
 fun BottomBarSpacer(
-    hasCurrentMusic: Boolean,
+    showMiniPlayer: Boolean,
     scaffoldPadding: PaddingValues,
 ) {
-    Box(modifier = Modifier.height(getBottomBarSpace(hasCurrentMusic, scaffoldPadding)))
+    Box(modifier = Modifier.height(getBottomBarSpace(showMiniPlayer, scaffoldPadding)))
 }

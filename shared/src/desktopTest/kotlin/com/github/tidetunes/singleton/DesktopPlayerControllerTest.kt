@@ -141,6 +141,20 @@ class DesktopPlayerControllerTest {
     }
 
     @Test
+    fun naturalPlaybackCompletionClearsPlayingStateWhenQueueHasNoNextTrack() = withHarness(
+        sourceResult = SourcePlaybackResult.Success(TEST_RESOURCE),
+        engine = RecordingDesktopPlaybackEngine(PlaybackEngineLoadResult.Ready),
+    ) { harness ->
+        harness.controller.play(MusicId(TRACK_ID), PlaylistId(PLAYLIST_ID))
+        awaitUntil { harness.playerRepository.playing.value }
+
+        harness.engine.positionMs = harness.engine.durationMs
+
+        awaitUntil { !harness.playerRepository.playing.value }
+        assertEquals(TRACK_ID, harness.playerRepository.music.value?.meta?.id?.value)
+    }
+
+    @Test
     fun refreshCurrentMetadataPublishesUpdatedTitleAndLyricsBeforeReturning() = withHarness(
         sourceResult = SourcePlaybackResult.Success(TEST_RESOURCE),
         engine = RecordingDesktopPlaybackEngine(PlaybackEngineLoadResult.Ready),
@@ -431,6 +445,8 @@ private class RecordingDesktopPlaybackEngine(
         private set
     var stopCalls = 0
         private set
+    var positionMs = 1_000L
+    val durationMs = 123_000L
 
     override fun load(request: PlaybackEngineLoadRequest): PlaybackEngineLoadResult {
         loadedRequests += request
@@ -455,9 +471,9 @@ private class RecordingDesktopPlaybackEngine(
 
     override fun readPosition(): PlaybackPosition {
         return PlaybackPosition(
-            positionMs = 1_000L,
+            positionMs = positionMs,
             bufferedMs = 2_000L,
-            durationMs = 123_000L,
+            durationMs = durationMs,
         )
     }
 
@@ -547,6 +563,10 @@ private object EmptyTrackSourceRefDao : TrackSourceRefDao {
     override suspend fun markUnavailableForDeletedSourceItems(libraryRootId: Long, now: Long) = Unit
 
     override suspend fun playbackCandidates(trackId: Long): List<TrackSourcePlaybackCandidate> {
+        return emptyList()
+    }
+
+    override suspend fun playbackCandidatesForTracks(trackIds: List<Long>): List<TrackSourcePlaybackCandidate> {
         return emptyList()
     }
 }

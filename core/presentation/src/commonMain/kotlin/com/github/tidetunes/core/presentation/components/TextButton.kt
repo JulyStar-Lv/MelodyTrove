@@ -6,6 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.basic.TextButtonColors
@@ -66,6 +67,7 @@ fun TideTextButton(
     colors: TextButtonColors? = null,
 ) {
     val buttonColors = colors ?: tideTextButtonColors(variant)
+    val visualMinHeight = if (size == TideTextButtonSize.Small) 28.dp else 36.dp
 
     TextButton(
         modifier = modifier.padding(0.dp),
@@ -74,7 +76,7 @@ fun TideTextButton(
         enabled = enabled,
         text = text,
         insideMargin = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-        minHeight = if (size == TideTextButtonSize.Small) 28.dp else 36.dp,
+        minHeight = maxOf(visualMinHeight, TideTunesTokens.adaptive.minimumTouchTarget),
         minWidth = 0.dp,
     )
 }

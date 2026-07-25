@@ -388,6 +388,17 @@ data class PlaylistSummaryRow(
     val durationMs: Long?,
 )
 
+
+data class AlbumSearchRow(
+    @Embedded val album: AlbumEntity,
+    val trackCount: Long,
+)
+
+data class ArtistSearchRow(
+    @Embedded val artist: ArtistEntity,
+    val trackCount: Long,
+)
+
 data class PlaylistTrackRow(
     val playlistId: Long,
     val trackId: Long,
@@ -585,6 +596,66 @@ interface MetadataDao {
         """
     )
     suspend fun listArtistsWithTracks(limit: Int): List<ArtistEntity>
+
+    @Query(
+        """
+        SELECT DISTINCT a.*, COUNT(t.id) AS trackCount
+        FROM album a
+        JOIN track t ON t.albumId = a.id
+        WHERE a.name LIKE :containsQuery ESCAPE '\'
+          AND EXISTS (
+              SELECT 1 FROM track_source_ref ref
+              WHERE ref.trackId = t.id
+                AND ref.isAvailable = 1
+          )
+        GROUP BY a.id
+        ORDER BY
+          CASE
+              WHEN a.name = :query THEN 0
+              WHEN a.name LIKE :prefixQuery ESCAPE '\' THEN 1
+              ELSE 2
+          END,
+          a.name COLLATE NOCASE
+        LIMIT :limit
+        """
+    )
+    suspend fun searchAlbums(
+        query: String,
+        prefixQuery: String,
+        containsQuery: String,
+        limit: Int,
+    ): List<AlbumSearchRow>
+
+    @Query(
+        """
+        SELECT DISTINCT ar.*, COUNT(t.id) AS trackCount
+        FROM artist ar
+        JOIN track_artist ta ON ta.artistId = ar.id
+        JOIN track t ON t.id = ta.trackId
+        WHERE ar.name LIKE :containsQuery ESCAPE '\'
+          AND EXISTS (
+              SELECT 1 FROM track_source_ref ref
+              WHERE ref.trackId = t.id
+                AND ref.isAvailable = 1
+          )
+        GROUP BY ar.id
+        ORDER BY
+          CASE
+              WHEN ar.name = :query THEN 0
+              WHEN ar.name LIKE :prefixQuery ESCAPE '\' THEN 1
+              ELSE 2
+          END,
+          ar.name COLLATE NOCASE
+        LIMIT :limit
+        """
+    )
+    suspend fun searchArtists(
+        query: String,
+        prefixQuery: String,
+        containsQuery: String,
+        limit: Int,
+    ): List<ArtistSearchRow>
+
 
     @Query(
         """

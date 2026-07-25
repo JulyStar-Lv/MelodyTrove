@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,7 +36,8 @@ data class TideContextMenuItem(
 fun TideContextMenu(
     expanded: Boolean,
     onDismissRequest: () -> Unit,
-    items: List<TideContextMenuItem>
+    items: List<TideContextMenuItem>,
+    compact: Boolean = false,
 ) {
     val scope = rememberCoroutineScope()
 
@@ -51,14 +53,17 @@ fun TideContextMenu(
             modifier = Modifier
                 .clip(RoundedCornerShape(TideTunesTokens.shapes.sm))
                 .background(MiuixTheme.colorScheme.surfaceContainer)
-                .widthIn(min = 180.dp)
-                .padding(vertical = 6.dp),
+                .then(if (compact) Modifier.widthIn(min = 168.dp, max = 168.dp) else Modifier.widthIn(min = 180.dp))
+                .padding(vertical = if (compact) 4.dp else 6.dp),
         ) {
             for (item in items) {
                 val label = stringResource(item.label)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(
+                            min = if (compact) 36.dp else TideTunesTokens.adaptive.minimumTouchTarget,
+                        )
                         .clickable {
                             scope.launch {
                                 delay(160)
@@ -66,12 +71,21 @@ fun TideContextMenu(
                             }
                             item.onClick()
                         }
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                        .padding(
+                            horizontal = if (compact) 12.dp else 16.dp,
+                            vertical = if (compact) 4.dp else 10.dp,
+                        ),
                 ) {
-                    Text(
-                        text = label,
-                        color = if (!item.isError) Color.Unspecified else MiuixTheme.colorScheme.error,
-                    )
+                    val color = if (!item.isError) Color.Unspecified else MiuixTheme.colorScheme.error
+                    if (compact) {
+                        Text(
+                            text = label,
+                            color = color,
+                            style = MiuixTheme.textStyles.body2,
+                        )
+                    } else {
+                        Text(text = label, color = color)
+                    }
                 }
             }
         }

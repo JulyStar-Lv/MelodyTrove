@@ -48,6 +48,8 @@ import com.github.tidetunes.core.presentation.components.TideStickyGlassActionBa
 import com.github.tidetunes.core.presentation.theme.TideTunesBrand
 import com.github.tidetunes.core.presentation.theme.TideTunesFontFamilies
 import com.github.tidetunes.core.presentation.theme.TideTunesTokens
+import com.github.tidetunes.feature.search.domain.SearchAlbumItem
+import com.github.tidetunes.feature.search.domain.SearchArtistItem
 import com.github.tidetunes.feature.search.domain.SearchTrackItem
 import kotlin.time.Duration.Companion.milliseconds
 import org.jetbrains.compose.resources.painterResource
@@ -165,7 +167,7 @@ fun SearchDesignScreen(
                 }
                 SearchLoadState.Results -> {
                     item {
-                        SearchResultsSummary(trackCount = state.tracks.size)
+                        SearchResultsSummary(trackCount = state.tracks.size, albumCount = state.albums.size, artistCount = state.artists.size)
                     }
                     item {
                         SearchResultSectionHeader("Songs", state.tracks.size)
@@ -179,6 +181,34 @@ fun SearchDesignScreen(
                             track = track,
                             onOpen = { onAction(SearchAction.OpenTrack(track)) },
                         )
+                    }
+                    if (state.albums.isNotEmpty()) {
+                        item {
+                            SearchResultSectionHeader("Albums", state.albums.size)
+                        }
+                        items(
+                            items = state.albums,
+                            key = { album -> "search-album-${album.id}" },
+                        ) { album ->
+                            SearchAlbumResultRow(
+                                album = album,
+                                onClick = { onAction(SearchAction.OpenAlbum(album)) },
+                            )
+                        }
+                    }
+                    if (state.artists.isNotEmpty()) {
+                        item {
+                            SearchResultSectionHeader("Artists", state.artists.size)
+                        }
+                        items(
+                            items = state.artists,
+                            key = { artist -> "search-artist-${artist.id}" },
+                        ) { artist ->
+                            SearchArtistResultRow(
+                                artist = artist,
+                                onClick = { onAction(SearchAction.OpenArtist(artist)) },
+                            )
+                        }
                     }
                 }
                 SearchLoadState.Idle,
@@ -258,6 +288,7 @@ private fun SearchQueryChips(
                     style = MiuixTheme.textStyles.body2,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier
+                        .heightIn(min = TideTunesTokens.adaptive.minimumTouchTarget)
                         .clip(RoundedCornerShape(10.dp))
                         .clickable(onClick = onClear)
                         .padding(horizontal = 6.dp, vertical = 6.dp),
@@ -302,7 +333,11 @@ private fun SearchChip(
 }
 
 @Composable
-private fun SearchResultsSummary(trackCount: Int) {
+private fun SearchResultsSummary(
+    trackCount: Int,
+    albumCount: Int = 0,
+    artistCount: Int = 0,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(
             text = "Search Results",
@@ -310,8 +345,13 @@ private fun SearchResultsSummary(trackCount: Int) {
             style = MiuixTheme.textStyles.title2,
             fontWeight = FontWeight.SemiBold,
         )
+        val parts = buildList {
+            if (trackCount > 0) add("$trackCount ${if (trackCount == 1) "song" else "songs"}")
+            if (albumCount > 0) add("$albumCount ${if (albumCount == 1) "album" else "albums"}")
+            if (artistCount > 0) add("$artistCount ${if (artistCount == 1) "artist" else "artists"}")
+        }
         Text(
-            text = "$trackCount ${if (trackCount == 1) "match" else "matches"}",
+            text = parts.joinToString(" · ").ifEmpty { "No matches" },
             color = MiuixTheme.colorScheme.onBackgroundVariant,
             style = MiuixTheme.textStyles.footnote1,
         )
@@ -420,6 +460,122 @@ private fun SearchResultRow(
 }
 
 @Composable
+
+private fun SearchAlbumResultRow(
+    album: SearchAlbumItem,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(
+                    Brush.linearGradient(
+                        listOf(TideTunesBrand.SupportBlue, TideTunesBrand.SupportGreen),
+                    ),
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(Res.drawable.icon_music_note),
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.82f),
+                modifier = Modifier.size(16.dp),
+            )
+        }
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = album.name,
+                color = MiuixTheme.colorScheme.onBackground,
+                style = MiuixTheme.textStyles.body1,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (album.artist != null) {
+                Text(
+                    text = album.artist,
+                    color = MiuixTheme.colorScheme.onBackgroundVariant,
+                    style = MiuixTheme.textStyles.footnote1,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        Text(
+            text = "Album",
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            style = MiuixTheme.textStyles.footnote1,
+        )
+    }
+}
+
+@Composable
+private fun SearchArtistResultRow(
+    artist: SearchArtistItem,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(
+                    Brush.linearGradient(
+                        listOf(TideTunesBrand.SupportOrange, TideTunesBrand.Primary),
+                    ),
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = artist.name.take(1).uppercase(),
+                color = Color.White,
+                style = MiuixTheme.textStyles.body1,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = artist.name,
+                color = MiuixTheme.colorScheme.onBackground,
+                style = MiuixTheme.textStyles.body1,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Text(
+            text = "Artist",
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            style = MiuixTheme.textStyles.footnote1,
+        )
+    }
+}
+
+@Composable
 private fun SearchStatus(
     title: String,
     message: String,
@@ -476,6 +632,7 @@ private fun SearchStatus(
                     style = MiuixTheme.textStyles.body2,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier
+                        .heightIn(min = TideTunesTokens.adaptive.minimumTouchTarget)
                         .clip(RoundedCornerShape(12.dp))
                         .clickable(onClick = onAction)
                         .padding(8.dp),

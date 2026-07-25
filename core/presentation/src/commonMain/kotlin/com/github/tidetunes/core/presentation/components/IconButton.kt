@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.github.tidetunes.core.presentation.theme.TideTunesBrand
+import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -115,6 +116,7 @@ fun TideIconButton(
     enabled: Boolean = true,
 ) {
     val buttonSize = tideIconButtonSizeToDp(size)
+    val touchTargetSize = maxOf(buttonSize, TideTunesTokens.adaptive.minimumTouchTarget)
     val isFilled = variant == TideIconButtonVariant.Primary || variant == TideIconButtonVariant.ErrorFilled
     val iconSize = tideIconButtonIconSizeToDp(size)
     val buttonBg = tideIconButtonBackground(
@@ -132,9 +134,7 @@ fun TideIconButton(
 
     Box(
         modifier = modifier
-            .size(buttonSize)
-            .clip(RoundedCornerShape(999.dp))
-            .background(buttonBg)
+            .size(touchTargetSize)
             .clickable(
                 enabled = enabled,
                 onClick = {
@@ -143,12 +143,20 @@ fun TideIconButton(
             ),
         contentAlignment = Alignment.Center
     ) {
-        Icon(
-            painter = painter,
-            contentDescription = contentDescription,
-            modifier = Modifier.size(iconSize),
-            tint = iconTint,
-        )
+        Box(
+            modifier = Modifier
+                .size(buttonSize)
+                .clip(RoundedCornerShape(999.dp))
+                .background(buttonBg),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painter,
+                contentDescription = contentDescription,
+                modifier = Modifier.size(iconSize),
+                tint = iconTint,
+            )
+        }
     }
 }
 
@@ -163,6 +171,8 @@ fun TidePlayerControlButton(
     contentDescription: String? = null,
 ) {
     val isPrimary = variant == TidePlayerControlVariant.Primary
+    val buttonSize = tidePlayerControlButtonSize(size, variant)
+    val touchTargetSize = maxOf(buttonSize, TideTunesTokens.adaptive.minimumTouchTarget)
     val background = when (variant) {
         TidePlayerControlVariant.Ghost -> Brush.linearGradient(
             listOf(Color.Transparent, Color.Transparent),
@@ -195,21 +205,27 @@ fun TidePlayerControlButton(
 
     Box(
         modifier = modifier
-            .size(tidePlayerControlButtonSize(size, variant))
-            .clip(RoundedCornerShape(999.dp))
-            .background(background, alpha = backgroundAlpha)
+            .size(touchTargetSize)
             .clickable(
                 enabled = enabled,
                 onClick = onClick,
             ),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            painter = painter,
-            contentDescription = contentDescription,
-            tint = iconTint,
-            modifier = Modifier.size(tidePlayerControlIconSize(size, variant)),
-        )
+        Box(
+            modifier = Modifier
+                .size(buttonSize)
+                .clip(RoundedCornerShape(999.dp))
+                .background(background, alpha = backgroundAlpha),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painter,
+                contentDescription = contentDescription,
+                tint = iconTint,
+                modifier = Modifier.size(tidePlayerControlIconSize(size, variant)),
+            )
+        }
     }
 }
 

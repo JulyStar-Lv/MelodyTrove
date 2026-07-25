@@ -16,6 +16,7 @@ import com.github.tidetunes.service.playback.domain.NowPlayingRepository
 import com.github.tidetunes.service.playback.domain.PlayableItem
 import com.github.tidetunes.service.playback.domain.PlaybackController
 import com.github.tidetunes.service.playback.domain.PlaybackStatus
+import com.github.tidetunes.service.playback.domain.PlayerState
 import com.github.tidetunes.service.playback.domain.RepeatMode
 import com.github.tidetunes.service.playback.presentation.nowplaying.NowPlayingAction
 import com.github.tidetunes.service.playback.presentation.nowplaying.NowPlayingEvent
@@ -118,10 +119,12 @@ class PlayerVM constructor(
         }
         viewModelScope.launch {
             playbackState.collect { state ->
-                _nowPlayingState.value = _nowPlayingState.value.copy(
-                    currentTrack = _nowPlayingState.value.currentTrack?.copy(
-                        artist = state.currentItem?.artist?.takeIf { it.isNotBlank() },
-                    ),
+                val currentState = _nowPlayingState.value
+                val playbackArtist = state.currentItem?.artist?.takeIf { it.isNotBlank() }
+                _nowPlayingState.value = currentState.copy(
+                    currentTrack = currentState.currentTrack?.let { track ->
+                        playbackArtist?.let { artist -> track.copy(artist = artist) } ?: track
+                    },
                     controls = state.toNowPlayingControlsState(),
                 )
             }
@@ -196,7 +199,9 @@ class PlayerVM constructor(
     }
 
     fun changePlayModeToNext() {
-        playbackController.setRepeatMode(playbackState.value.repeatMode.next())
+        val nextMode = playbackState.value.nextPlaybackMode()
+        playbackController.setShuffle(nextMode.shuffleEnabled)
+        playbackController.setRepeatMode(nextMode.repeatMode)
     }
 
     fun removeLyric() {
@@ -267,10 +272,16 @@ private fun ULong.toPlaybackPositionMs(): Long {
     return if (this > max) Long.MAX_VALUE else toLong()
 }
 
-private fun RepeatMode.next(): RepeatMode {
-    return when (this) {
-        RepeatMode.Off -> RepeatMode.One
-        RepeatMode.One -> RepeatMode.All
-        RepeatMode.All -> RepeatMode.Off
+internal data class PlaybackModeSelection(
+    val repeatMode: RepeatMode,
+    val shuffleEnabled: Boolean,
+)
+
+internal fun PlayerState.nextPlaybackMode(): PlaybackModeSelection {
+    return when {
+        shuffleEnabled -> PlaybackModeSelection(RepeatMode.One, shuffleEnabled = false)
+        repeatMode == RepeatMode.One -> PlaybackModeSelection(RepeatMode.All, shuffleEnabled = false)
+        repeatMode == RepeatMode.All -> PlaybackModeSelection(RepeatMode.All, shuffleEnabled = true)
+        else -> PlaybackModeSelection(RepeatMode.All, shuffleEnabled = false)
     }
 }

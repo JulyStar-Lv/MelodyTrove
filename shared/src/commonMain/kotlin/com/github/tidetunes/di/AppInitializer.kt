@@ -11,6 +11,7 @@ import com.github.tidetunes.core.data.settings.AutoScanCoordinator
 import com.github.tidetunes.core.domain.repository.SettingsMigration
 import com.github.tidetunes.core.domain.repository.SettingsRepository
 import com.github.tidetunes.platform.applyAppLanguageMode
+import com.github.tidetunes.service.librarysync.domain.LibrarySyncController
 import kotlinx.coroutines.flow.first
 
 /**
@@ -35,6 +36,7 @@ object AppInitializer {
         scope.launch {
             koin.get<SettingsMigration>().migrate()
             applyAppLanguageMode(koin.get<SettingsRepository>().settings.first().languageMode)
+            koin.get<LibrarySyncController>().recoverInterruptedTasks()
             koin.get<PlayerRepository>().reload()
             koin.get<StorageRepositoryImpl>().reload()
             koin.get<PlaylistRepositoryImpl>().reload()

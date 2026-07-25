@@ -5,11 +5,13 @@ import androidx.lifecycle.viewModelScope
 import androidx.compose.ui.graphics.Color
 import com.github.tidetunes.core.domain.model.LibraryAlbumItem
 import com.github.tidetunes.core.domain.model.LibraryArtistItem
-import com.github.tidetunes.core.domain.model.LibraryTrackItem
 import com.github.tidetunes.core.domain.model.PlaylistSummary
 import com.github.tidetunes.core.domain.repository.LibraryRepository
 import com.github.tidetunes.core.domain.repository.PlaylistRepository
 import com.github.tidetunes.core.presentation.theme.TideTunesBrand
+import com.github.tidetunes.feature.home.domain.HistoryPlayItem
+import com.github.tidetunes.feature.home.domain.HomeHistoryRepository
+import com.github.tidetunes.feature.home.domain.HomeStatisticsRepository
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentList
@@ -22,25 +24,39 @@ import kotlinx.coroutines.flow.stateIn
 class HomeViewModel(
     libraryRepository: LibraryRepository,
     playlistRepository: PlaylistRepository,
+    historyRepository: HomeHistoryRepository,
+    statisticsRepository: HomeStatisticsRepository,
 ) : ViewModel() {
     private val _events = Channel<HomeEvent>(Channel.BUFFERED)
 
     val state = combine(
-        libraryRepository.tracks,
-        libraryRepository.albums,
-        libraryRepository.artists,
-        playlistRepository.playlistSummaries,
-    ) { tracks, albums, artists, playlists ->
+        combine(
+            libraryRepository.albums,
+            libraryRepository.artists,
+            playlistRepository.playlistSummaries,
+        ) { albums, artists, playlists ->
+            Triple(albums, artists, playlists)
+        },
+        combine(
+            historyRepository.recentPlays,
+            statisticsRepository.statistics,
+        ) { history, stats ->
+            Pair(history, stats)
+        },
+    ) { libraryData, pair ->
+        val (albums, artists, playlists) = libraryData
+        val (historyTracks, stats) = pair
         HomeState(
             featuredAlbums = albums.map { it.toHomeAlbum() }.toPersistentList(),
             recentlyAddedAlbums = albums.map { it.toHomeAlbum() }.toPersistentList(),
             artists = artists.map { it.toHomeArtist() }.toPersistentList(),
             pinnedPlaylists = playlists.map { it.toHomePlaylist() }.toPersistentList(),
-            recentTracks = tracks.map { it.toHomeTrack() }.toPersistentList(),
+            recentTracks = historyTracks.map { it.toHomeRecentTrack() }.toPersistentList(),
+            statistics = stats,
         )
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
+        started = SharingStarted.Lazily,
         initialValue = HomeState(),
     )
     val events = _events.receiveAsFlow()
@@ -57,14 +73,14 @@ class HomeViewModel(
     }
 }
 
-private fun LibraryTrackItem.toHomeTrack(): HomeRecentTrack = HomeRecentTrack(
-    id = id,
+private fun HistoryPlayItem.toHomeRecentTrack(): HomeRecentTrack = HomeRecentTrack(
+    id = trackId,
     mediaId = mediaId,
     durationMs = durationMs,
     title = title,
     subtitle = artist.orEmpty(),
-    artworkIndex = indexFor(id),
-    color = homeGradient(id).first(),
+    artworkIndex = artworkIndex,
+    color = homeGradient(trackId).first(),
 )
 
 private fun LibraryAlbumItem.toHomeAlbum(): HomeFeaturedAlbum = HomeFeaturedAlbum(

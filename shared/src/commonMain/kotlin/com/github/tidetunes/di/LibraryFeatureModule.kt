@@ -1,38 +1,50 @@
 package com.github.tidetunes.di
 
-import com.github.tidetunes.core.data.media.LegacyArtworkRepository
-import com.github.tidetunes.core.domain.repository.ArtworkRepository
-import com.github.tidetunes.core.presentation.media.ArtworkImageLoader
-import com.github.tidetunes.core.data.media.RepositoryArtworkImageLoader
-import com.github.tidetunes.core.data.media.AssetRepository
-import com.github.tidetunes.core.domain.repository.LibraryRepository
-import com.github.tidetunes.core.domain.repository.BrowseRepository
+import com.github.tidetunes.core.data.AlbumDetailRepositoryImpl
+import com.github.tidetunes.core.data.ArtistDetailRepositoryImpl
 import com.github.tidetunes.core.data.BrowseRepositoryImpl
-import com.github.tidetunes.core.data.LibraryRepositoryImpl
+import com.github.tidetunes.core.data.media.LegacyArtworkRepository
 import com.github.tidetunes.core.data.LegacyEditPlaylistGateway
+import com.github.tidetunes.core.data.LibraryRepositoryImpl
+import com.github.tidetunes.core.data.LyricsRepositoryImpl
 import com.github.tidetunes.core.data.PlaylistImportTargetImpl
 import com.github.tidetunes.core.data.PlaylistRepositoryImpl
-import com.github.tidetunes.source.api.PlaylistImportTarget
+import com.github.tidetunes.core.data.media.RepositoryArtworkImageLoader
+import com.github.tidetunes.core.data.media.AssetRepository
+import com.github.tidetunes.core.data.StubDownloadCollectionRepository
+import com.github.tidetunes.core.data.StubFavoritesRepository
+import com.github.tidetunes.core.data.StubFolderRepository
+import com.github.tidetunes.core.data.StubGenreRepository
+import com.github.tidetunes.core.data.StubHistoryRepository
+import com.github.tidetunes.core.data.StubLosslessRepository
+import com.github.tidetunes.core.data.TrackBrowserRepositoryImpl
+import com.github.tidetunes.core.domain.repository.AlbumDetailRepository
+import com.github.tidetunes.core.domain.repository.ArtistDetailRepository
+import com.github.tidetunes.core.domain.repository.ArtworkRepository
+import com.github.tidetunes.core.domain.repository.BrowseRepository
+import com.github.tidetunes.core.domain.repository.DownloadCollectionRepository
+import com.github.tidetunes.core.domain.repository.FavoritesRepository
+import com.github.tidetunes.core.domain.repository.FolderRepository
+import com.github.tidetunes.core.domain.repository.GenreRepository
+import com.github.tidetunes.core.domain.repository.HistoryRepository
+import com.github.tidetunes.core.domain.repository.LibraryRepository
+import com.github.tidetunes.core.domain.repository.LosslessRepository
+import com.github.tidetunes.core.domain.repository.LyricsRepository
 import com.github.tidetunes.core.domain.repository.PlaylistRepository
+import com.github.tidetunes.core.domain.repository.TrackBrowserRepository
+import com.github.tidetunes.core.presentation.media.ArtworkImageLoader
+import com.github.tidetunes.feature.album.di.albumFeatureDiModule
+import com.github.tidetunes.feature.artist.di.artistFeatureDiModule
+import com.github.tidetunes.feature.browse.di.browseFeatureDiModule
+import com.github.tidetunes.feature.library.di.libraryFeatureDiModule
+import com.github.tidetunes.feature.lyrics.di.lyricsFeatureDiModule
+import com.github.tidetunes.feature.playlist.di.playlistsFeatureDiModule
 import com.github.tidetunes.feature.playlist.domain.EditPlaylistGateway
 import com.github.tidetunes.feature.queue.di.queueFeatureModule
-import com.github.tidetunes.core.data.TrackBrowserRepositoryImpl
-import com.github.tidetunes.core.domain.repository.TrackBrowserRepository
-import com.github.tidetunes.feature.browse.di.browseFeatureDiModule
 import com.github.tidetunes.feature.radio.di.radioFeatureDiModule
 import com.github.tidetunes.feature.recentlyadded.di.recentlyAddedFeatureDiModule
 import com.github.tidetunes.feature.recentlyplayed.di.recentlyPlayedFeatureDiModule
-import com.github.tidetunes.feature.library.di.libraryFeatureDiModule
-import com.github.tidetunes.core.data.AlbumDetailRepositoryImpl
-import com.github.tidetunes.core.data.ArtistDetailRepositoryImpl
-import com.github.tidetunes.core.data.LyricsRepositoryImpl
-import com.github.tidetunes.core.domain.repository.AlbumDetailRepository
-import com.github.tidetunes.core.domain.repository.ArtistDetailRepository
-import com.github.tidetunes.core.domain.repository.LyricsRepository
-import com.github.tidetunes.feature.album.di.albumFeatureDiModule
-import com.github.tidetunes.feature.artist.di.artistFeatureDiModule
-import com.github.tidetunes.feature.lyrics.di.lyricsFeatureDiModule
-import com.github.tidetunes.feature.playlist.di.playlistsFeatureDiModule
+import com.github.tidetunes.source.api.PlaylistImportTarget
 import org.koin.dsl.module
 
 val libraryFeatureModule = module {
@@ -54,6 +66,14 @@ val libraryFeatureModule = module {
     single<PlaylistRepository> { get<PlaylistRepositoryImpl>() }
     single<EditPlaylistGateway> { LegacyEditPlaylistGateway(get(), get()) }
     single<PlaylistImportTarget> { PlaylistImportTargetImpl(get()) }
+
+    // Per-category library repositories (stub implementations)
+    single<GenreRepository> { StubGenreRepository() }
+    single<FolderRepository> { StubFolderRepository() }
+    single<FavoritesRepository> { StubFavoritesRepository() }
+    single<HistoryRepository> { StubHistoryRepository() }
+    single<LosslessRepository> { StubLosslessRepository() }
+    single<DownloadCollectionRepository> { StubDownloadCollectionRepository() }
 
     includes(playlistsFeatureDiModule)
     includes(libraryFeatureDiModule)

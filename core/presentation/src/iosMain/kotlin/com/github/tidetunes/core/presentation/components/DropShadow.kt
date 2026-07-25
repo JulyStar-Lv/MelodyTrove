@@ -1,6 +1,5 @@
 package com.github.tidetunes.core.presentation.components
 
-import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -19,5 +18,5 @@ actual fun Modifier.dropShadow(
         clip = false,
         ambientColor = color,
         spotColor = color,
-    ).offset(offsetX, offsetY)
+    )
 )

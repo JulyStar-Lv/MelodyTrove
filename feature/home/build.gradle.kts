@@ -34,6 +34,8 @@ kotlin {
             implementation(libs.koin.compose.viewmodel)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.collections.immutable)
+            implementation(libs.kotlinx.serialization.json)
+            implementation(libs.androidx.datastore.preferences)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))

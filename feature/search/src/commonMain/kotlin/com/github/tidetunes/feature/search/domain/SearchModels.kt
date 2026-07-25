@@ -18,11 +18,28 @@ data class SearchTrackItem(
 data class SearchResults(
     val tracks: List<SearchTrackItem>,
     val failedSources: List<SearchSourceFailure> = emptyList(),
+    val albums: List<SearchAlbumItem> = emptyList(),
+    val artists: List<SearchArtistItem> = emptyList(),
 ) {
     companion object {
-        val Empty = SearchResults(tracks = emptyList())
+        val Empty = SearchResults(
+            tracks = emptyList(),
+            albums = emptyList(),
+            artists = emptyList(),
+        )
     }
 }
+
+data class SearchAlbumItem(
+    val id: Long,
+    val name: String,
+    val artist: String? = null,
+)
+
+data class SearchArtistItem(
+    val id: Long,
+    val name: String,
+)
 
 data class SearchSourceAccount(
     val sourceId: SourceId,
@@ -56,6 +73,16 @@ interface SearchRepository {
         query: String,
         limit: Int = DEFAULT_SEARCH_SUGGESTION_LIMIT,
     ): List<String>
+
+    suspend fun searchLocalAlbums(
+        query: String,
+        limit: Int = DEFAULT_SEARCH_ALBUM_ARTIST_LIMIT,
+    ): List<SearchAlbumItem>
+
+    suspend fun searchLocalArtists(
+        query: String,
+        limit: Int = DEFAULT_SEARCH_ALBUM_ARTIST_LIMIT,
+    ): List<SearchArtistItem>
 }
 
 interface SearchAggregator {
@@ -166,3 +193,5 @@ const val DEFAULT_SEARCH_LIMIT = 50
 const val DEFAULT_SEARCH_SUGGESTION_LIMIT = 10
 const val LOCAL_LIBRARY_SOURCE_LABEL = "Library"
 const val MAX_SEARCH_HISTORY_SIZE = 10
+const val DEFAULT_SEARCH_ALBUM_ARTIST_LIMIT = 5
+

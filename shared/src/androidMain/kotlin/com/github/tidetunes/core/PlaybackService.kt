@@ -169,6 +169,7 @@ class PlaybackService : MediaSessionService() {
 
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_ENDED) {
+                    playerRepository.setIsPlaying(false)
                     playOnComplete()
                 } else if (playbackState == Player.STATE_READY) {
                     playerRepository.setIsLoading(false)

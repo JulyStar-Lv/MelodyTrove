@@ -123,7 +123,7 @@ private fun TideLineTabs(
                         onClick = { onSelectedIndexChange(index) },
                         modifier = Modifier
                             .weight(1f)
-                            .height(44.dp),
+                            .height(TideTunesTokens.adaptive.minimumTouchTarget),
                     )
                 }
             }
@@ -185,7 +185,7 @@ private fun TideSegmentedTabs(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(44.dp)
+            .height(TideTunesTokens.adaptive.minimumTouchTarget + 8.dp)
             .clip(shape)
             .background(MiuixTheme.colorScheme.surfaceContainerHigh)
             .border(1.dp, MiuixTheme.colorScheme.outline, shape)
@@ -256,7 +256,7 @@ private fun TidePillTabItem(
 
     Box(
         modifier = Modifier
-            .heightIn(min = 36.dp)
+            .heightIn(min = TideTunesTokens.adaptive.minimumTouchTarget)
             .widthIn(min = 48.dp)
             .clip(shape)
             .background(containerColor)

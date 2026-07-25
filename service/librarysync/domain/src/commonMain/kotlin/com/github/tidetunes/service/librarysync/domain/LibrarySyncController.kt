@@ -16,9 +16,14 @@ interface LibrarySyncController {
     suspend fun pause(scanId: String): Boolean
     suspend fun cancel(scanId: String): Boolean
     suspend fun cancelAll()
+    suspend fun recoverInterruptedTasks(): Int
     suspend fun resume(scanId: String): LibrarySyncResult?
     suspend fun retry(scanId: String): LibrarySyncResult?
 }
+
+class LibrarySyncAlreadyActiveException(
+    val accountId: SourceAccountId,
+) : IllegalStateException("A library sync is already active for this source")
 
 interface LibrarySyncTaskRepository {
     fun observeRecentTasks(limit: Int = DEFAULT_LIBRARY_SYNC_TASK_LIMIT): Flow<List<LibrarySyncTask>>
