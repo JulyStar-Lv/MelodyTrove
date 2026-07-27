@@ -3,6 +3,7 @@ package com.github.tidetunes.feature.onboarding.presentation
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +35,7 @@ import com.github.tidetunes.core.presentation.components.TideCardSurface
 import com.github.tidetunes.core.presentation.components.TideTextButton
 import com.github.tidetunes.core.presentation.components.TideTextButtonSize
 import com.github.tidetunes.core.presentation.components.TideTextButtonVariant
+import com.github.tidetunes.core.presentation.components.tideTunesAppIconPainter
 import com.github.tidetunes.core.presentation.theme.TideTunesBrand
 import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import top.yukonga.miuix.kmp.basic.Text
@@ -184,28 +186,13 @@ fun OnboardingScreen(
 
 @Composable
 private fun CoverLogo() {
-    Box(
+    Image(
+        painter = tideTunesAppIconPainter(),
+        contentDescription = "TideTunes",
         modifier = Modifier
             .size(92.dp)
-            .clip(RoundedCornerShape(28.dp))
-            .background(
-                Brush.linearGradient(
-                    listOf(
-                        TideTunesBrand.Primary,
-                        TideTunesBrand.Secondary,
-                    ),
-                ),
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = "♪",
-            color = Color.White,
-            style = MiuixTheme.textStyles.title1,
-            fontWeight = FontWeight.Black,
-            textAlign = TextAlign.Center,
-        )
-    }
+            .clip(RoundedCornerShape(28.dp)),
+    )
 }
 
 @Composable

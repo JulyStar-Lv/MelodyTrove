@@ -2,17 +2,10 @@ package com.github.tidetunes.source.storage
 
 import com.github.tidetunes.core.domain.model.MediaId
 import com.github.tidetunes.core.domain.model.SourceId
-import com.github.tidetunes.database.TrackEntity
 import com.github.tidetunes.source.api.BuiltInSourceIds
 import com.github.tidetunes.source.api.legacyStorageTrackMediaId
 import uniffi.tidetunes_backend.StorageId
 import uniffi.tidetunes_backend.StorageType
-
-suspend fun TrackEntity.toLegacyStorageTrackMediaIdOrNull(
-    storageLookup: LegacyStorageLookup,
-): MediaId? {
-    return null
-}
 
 suspend fun legacyStorageTrackMediaIdOrNull(
     storageLookup: LegacyStorageLookup,
@@ -34,5 +27,6 @@ fun StorageType.toBuiltInSourceId(): SourceId {
         StorageType.LOCAL -> BuiltInSourceIds.Local
         StorageType.WEBDAV -> BuiltInSourceIds.WebDav
         StorageType.ONE_DRIVE -> BuiltInSourceIds.OneDrive
+        StorageType.SMB -> BuiltInSourceIds.Smb
     }
 }

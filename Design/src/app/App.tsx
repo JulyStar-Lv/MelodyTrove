@@ -412,7 +412,7 @@ function AlbumCard({ album, size="md", action="play", onClick }: { album:Album; 
   );
 }
 
-function ArtistCard({ artist, onClick }: { artist:Artist; onClick?:()=>void }) {
+function ArtistCard({ artist, onClick, showFollowers=true }: { artist:Artist; onClick?:()=>void; showFollowers?:boolean }) {
   return (
     <motion.button type="button" disabled={!onClick} whileTap={onClick?{scale:0.97}:undefined} transition={{type:"spring",stiffness:400,damping:30}}
       onPointerDown={preventMouseFocus}
@@ -423,7 +423,7 @@ function ArtistCard({ artist, onClick }: { artist:Artist; onClick?:()=>void }) {
         <div className="absolute inset-0 rounded-full bg-black/0 group-hover:bg-black/10 transition-colors"/>
       </div>
       <p className="text-sm font-semibold text-foreground truncate">{artist.name}</p>
-      <p className="text-xs text-muted-foreground mt-0.5">{artist.followers}</p>
+      {showFollowers&&<p className="text-xs text-muted-foreground mt-0.5">{artist.followers}</p>}
     </motion.button>
   );
 }
@@ -1309,8 +1309,13 @@ function ManageWebDavSourceDialog({ source, existingNames, onClose, onSave, onDe
   );
 }
 
-function StickyPageHeader({ title, subtitle, className }: {
-  title:string; subtitle?:string; className?:string;
+function StickyPageHeader({ title, subtitle, className, onBack, backLabel="Back", showTitleOnCollapse=false }: {
+  title:string;
+  subtitle?:string;
+  className?:string;
+  onBack?:()=>void;
+  backLabel?:string;
+  showTitleOnCollapse?:boolean;
 }) {
   const headerRef = useRef<HTMLElement>(null);
   const [collapseProgress,setCollapseProgress] = useState(0);
@@ -1326,19 +1331,24 @@ function StickyPageHeader({ title, subtitle, className }: {
   },[title]);
 
   const progress = reduceMotion ? (collapseProgress>=1?1:0) : collapseProgress;
-  const expandedHeight = subtitle?112:96;
-  const collapsedHeight = subtitle?72:58;
+  const detailHeader = Boolean(onBack&&showTitleOnCollapse);
+  const expandedHeight = detailHeader?56:subtitle?112:96;
+  const collapsedHeight = detailHeader?56:subtitle?72:58;
   const height = expandedHeight-(expandedHeight-collapsedHeight)*progress;
-  const titleSize = 32-8*progress;
+  const titleSize = detailHeader?20:32-8*progress;
 
   return (
     <header ref={headerRef} className={cn(
-      "sticky top-0 z-30 border-b border-border/60 bg-background/90 backdrop-blur-xl supports-[backdrop-filter]:bg-background/80",
+      "sticky top-0 z-30 border-b border-border/60 bg-background",
       className,
     )} style={{ height, paddingTop:0, paddingBottom:0, borderColor:`color-mix(in srgb,var(--border) ${Math.round(progress*60)}%,transparent)` }}>
       <div className="relative h-full">
-        <div className="absolute inset-x-0 bottom-3 min-w-0">
-          <h1 className="font-bold text-foreground truncate" style={{ fontSize:titleSize, lineHeight:`${titleSize+6}px` }}>{title}</h1>
+        {onBack&&<button type="button" aria-label={backLabel} onPointerDown={preventMouseFocus} onClick={onBack}
+          className="absolute left-4 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/40">
+          <ArrowLeft className="h-5 w-5"/>
+        </button>}
+        <div className={cn("absolute min-w-0",detailHeader?"inset-y-0 left-14 right-14 flex items-center":"inset-x-0 bottom-3")}>
+          <h1 className="font-bold text-foreground truncate" style={{ fontSize:titleSize, lineHeight:`${titleSize+6}px`,opacity:detailHeader?progress:1 }}>{title}</h1>
           {subtitle&&<p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
         </div>
       </div>
@@ -1497,29 +1507,53 @@ function useIsDesktop() {
   return desktop;
 }
 
-function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, progress, onSeek, volume, onVolume }: {
+function FullPlayer({ song, isPlaying, onPlay, onPlayPause, onNext, onPrev, onClose, progress, onSeek, volume, onVolume }: {
   song:Song; isPlaying:boolean; onPlayPause:()=>void; onNext:()=>void; onPrev:()=>void;
-  onClose:()=>void; progress:number; onSeek:(v:number)=>void; volume:number; onVolume:(v:number)=>void;
+  onPlay:(song:Song)=>void; onClose:()=>void; progress:number; onSeek:(v:number)=>void; volume:number; onVolume:(v:number)=>void;
 }) {
   const [liked, setLiked]        = useState(song.liked);
-  const [activeTab, setActiveTab] = useState<"lyrics"|"queue">("lyrics");
-  const [mobileView, setMobileView] = useState<"player"|"lyrics"|"queue">("player");
-  const [mobileBaseView, setMobileBaseView] = useState<"player"|"lyrics">("player");
+  const [mobileView, setMobileView] = useState<"player"|"lyrics">("player");
+  const [queueOpen, setQueueOpen] = useState(false);
+  const [queueTracks, setQueueTracks] = useState<Song[]>(()=>[song,...SONGS.filter(item=>item.id!==song.id)]);
   const [sleepTimer, setSleepTimer] = useState(false);
   const [repeat, setRepeat]      = useState(false);
-  const [historyVisible, setHistoryVisible] = useState(true);
   const wide = usePlayerWide();
   const landscape = usePlayerLandscape();
   const lyricsScrollRef = useRef<HTMLDivElement>(null);
   const activeLyricRef  = useRef<HTMLDivElement>(null);
+  const queueLocateRef = useRef<HTMLButtonElement>(null);
+  const queueClearRef = useRef<HTMLButtonElement>(null);
+  const queueRowRefs = useRef<Map<number,HTMLDivElement>>(new Map());
+  const queueTriggerRef = useRef<HTMLButtonElement>(null);
   const reduceMotion = useReducedMotion();
 
-  const showMobileView = (nextView:"player"|"lyrics"|"queue") => {
-    if (nextView!=="queue") setMobileBaseView(nextView);
-    setMobileView(nextView);
+  useEffect(() => { setLiked(song.liked); }, [song.id]);
+
+  useEffect(() => {
+    if (!queueOpen) return;
+    const handleKeyDown = (event:KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setQueueOpen(false);
+        window.requestAnimationFrame(() => queueTriggerRef.current?.focus());
+      }
+    };
+    window.addEventListener("keydown",handleKeyDown);
+    (queueTracks.length?queueLocateRef.current:queueClearRef.current)?.focus();
+    return () => window.removeEventListener("keydown",handleKeyDown);
+  },[queueOpen,queueTracks.length]);
+
+  const closeQueue = () => {
+    setQueueOpen(false);
+    window.requestAnimationFrame(() => queueTriggerRef.current?.focus());
   };
 
-  useEffect(() => { setLiked(song.liked); }, [song.id]);
+  const currentQueueTrackAvailable = queueTracks.some(item=>item.id===song.id);
+  const locateCurrentQueueTrack = () => {
+    queueRowRefs.current.get(song.id)?.scrollIntoView({
+      behavior:reduceMotion?"auto":"smooth",
+      block:"center",
+    });
+  };
 
   const currentSec  = Math.round(progress * SONG_DURATION / 100);
   const elapsed     = `${Math.floor(currentSec/60)}:${String(currentSec%60).padStart(2,"0")}`;
@@ -1532,7 +1566,7 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
   const previewTranslation = LYRIC_TRANSLATIONS[previewLine.time];
   // Auto-scroll active lyric to vertical center (respects prefers-reduced-motion)
   useEffect(() => {
-    if ((wide && activeTab !== "lyrics") || (!wide && mobileView !== "lyrics")) return;
+    if (!wide && mobileView !== "lyrics") return;
     const el = activeLyricRef.current;
     const container = lyricsScrollRef.current;
     if (!el || !container) return;
@@ -1541,7 +1575,7 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
     const lyricRect = el.getBoundingClientRect();
     const top = container.scrollTop + lyricRect.top - containerRect.top - container.clientHeight/2 + lyricRect.height/2;
     container.scrollTo({ top: Math.max(0, top), behavior: reducedMotion ? "instant" : "smooth" });
-  }, [activeIdx, activeTab, mobileView, wide]);
+  }, [activeIdx, mobileView, wide]);
 
   // ── Background: artwork-derived blur fill ─────────────────────
   const Backdrop = () => (
@@ -1558,30 +1592,6 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
         className="absolute inset-0"
         style={{ background:"linear-gradient(180deg,rgba(8,6,14,0.28) 0%,rgba(8,6,14,0.46) 52%,rgba(8,6,14,0.72) 100%)" }}
       />
-    </div>
-  );
-
-  // ── Custom 4px progress track ─────────────────────────────────
-  const ProgressTrack = ({ wide: isWide }: { wide?: boolean }) => (
-    <div className="w-full">
-      <div className="group relative h-5 flex items-center cursor-pointer">
-        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1 rounded-full"
-          style={{ background:"rgba(255,255,255,0.18)" }}>
-          <div className="absolute inset-y-0 left-0 rounded-full transition-all"
-            style={{ width:`${progress}%`, background: isWide ? "rgba(255,255,255,0.90)" : song.gradient[0] }}/>
-        </div>
-        {/* Thumb — visible on hover and drag */}
-        <div className="absolute top-1/2 -translate-y-1/2 w-[13px] h-[13px] rounded-full bg-white shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none"
-          style={{ left:`calc(${progress}% - 6.5px)` }}/>
-        <input type="range" min={0} max={100} value={progress}
-          onChange={e => onSeek(Number(e.target.value))}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-          aria-label="Seek"/>
-      </div>
-      <div className="flex justify-between mt-1.5">
-        <span className="text-[11px] font-mono tabular-nums" style={{ color:"rgba(255,255,255,0.40)" }}>{elapsed}</span>
-        <span className="text-[11px] font-mono tabular-nums" style={{ color:"rgba(255,255,255,0.40)" }}>{remaining}</span>
-      </div>
     </div>
   );
 
@@ -1683,153 +1693,30 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
     );
   };
 
-  // ── Tabs block (wide + compact share, padded = wide) ──────────
-  const tabs = ["lyrics","queue"] as const;
-
-  const TabsContent = ({ padded }: { padded?: boolean }) => (
-    <div className="flex flex-col flex-1 min-h-0">
-      {/* Tab bar */}
-      {!padded && (
-      <div className={cn("flex items-center shrink-0 gap-1",padded?"mb-2 self-start rounded-full border p-1":"border-b")}
-        style={{ borderColor:"rgba(255,255,255,0.09)",background:padded?"rgba(255,255,255,0.055)":undefined }}>
-        {tabs.map(t => (
-          <button type="button" key={t} onClick={() => setActiveTab(t)} aria-pressed={activeTab===t}
-            className={cn("relative px-5 text-sm font-semibold transition-all duration-200",padded?"h-9 rounded-full":"h-10")}
-            style={{ color:activeTab===t?"white":"rgba(255,255,255,0.40)",background:padded&&activeTab===t?"rgba(255,255,255,0.12)":undefined }}>
-            {t==="lyrics"?"歌词":t==="queue"?"队列":t}
-            {activeTab===t && !padded && (
-              <motion.div layoutId="fp-tab"
-                className="absolute bottom-0 left-3 right-3 h-[2px] rounded-t-full"
-                style={{ background:"var(--tide-pink)" }}/>
-            )}
-          </button>
-        ))}
+  const LyricsContent = () => (
+    <div ref={lyricsScrollRef}
+      className="min-h-0 flex-1 overflow-y-auto hide-scrollbar"
+      style={{
+        maskImage:"linear-gradient(to bottom,transparent 0%,black 12%,black 88%,transparent 100%)",
+        WebkitMaskImage:"linear-gradient(to bottom,transparent 0%,black 12%,black 88%,transparent 100%)",
+      }}>
+      <div style={{ height:"35vh" }}/>
+      <div style={{ maxWidth:680, margin:"0 auto", padding:"0 28px" }}>
+        {LYRICS.map((line, index) => {
+          const dist = Math.abs(index-activeIdx);
+          return (
+            <div key={line.time} ref={index===activeIdx?activeLyricRef:undefined}>
+              <button type="button" onClick={() => onSeek(line.time/SONG_DURATION*100)}
+                aria-current={index===activeIdx?"true":undefined}
+                className="block w-full rounded-xl px-3 py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-white/35"
+                style={{ ...lyricStyle(dist),marginBottom:18,cursor:"pointer" }}>
+                {line.text}
+              </button>
+            </div>
+          );
+        })}
+        <div style={{ height:"35vh" }}/>
       </div>
-      )}
-
-      {/* ── Lyrics ── */}
-      {activeTab==="lyrics" && (() => {
-        if (padded) {
-          // Wide: center-aligned with progressive blur, vertically scrollable, centered active line
-          return (
-            <div ref={lyricsScrollRef}
-              className="flex-1 overflow-y-auto hide-scrollbar"
-              style={{
-                maskImage:"linear-gradient(to bottom,transparent 0%,black 12%,black 88%,transparent 100%)",
-                WebkitMaskImage:"linear-gradient(to bottom,transparent 0%,black 12%,black 88%,transparent 100%)",
-              }}>
-              {/* Top spacer lets first line reach center */}
-              <div style={{ height:"35vh" }}/>
-              <div style={{ maxWidth:680, margin:"0 auto", padding:"0 28px" }}>
-                {LYRICS.map((line, i) => {
-                  const dist = Math.abs(i - activeIdx);
-                  return (
-                    <div key={i} ref={i===activeIdx ? activeLyricRef : undefined}>
-                      <button type="button" onClick={() => onSeek(line.time/SONG_DURATION*100)}
-                        aria-current={i===activeIdx?"true":undefined}
-                        className="block w-full rounded-xl px-3 py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-white/35"
-                        style={{
-                        ...lyricStyle(dist),
-                        marginBottom: 18,
-                        cursor:"pointer",
-                      }}>{line.text}</button>
-                    </div>
-                  );
-                })}
-                {/* Bottom spacer lets last line reach center */}
-                <div style={{ height:"35vh" }}/>
-              </div>
-            </div>
-          );
-        } else {
-          // Compact: full scrolling list with edge fade
-          return (
-            <div ref={lyricsScrollRef}
-              className="flex-1 overflow-y-auto hide-scrollbar px-1"
-              style={{
-                maskImage:"linear-gradient(to bottom,transparent 0%,black 10%,black 90%,transparent 100%)",
-                WebkitMaskImage:"linear-gradient(to bottom,transparent 0%,black 10%,black 90%,transparent 100%)",
-              }}>
-              <div className="py-4">
-                {LYRICS.map((line, i) => {
-                  const isActive   = i === activeIdx;
-                  const isPast     = i < activeIdx;
-                  const newSection = i===0 || line.section !== LYRICS[i-1].section;
-                  return (
-                    <div key={i} ref={isActive ? activeLyricRef : undefined}>
-                      {newSection && (
-                        <p className={cn("font-mono text-[9px] uppercase tracking-[0.14em] select-none mb-1",
-                          i===0?"mt-0":"mt-6","text-white/20")}>{line.section}</p>
-                      )}
-                      <p className={cn("leading-[1.5] transition-all duration-300 mb-[6px]",
-                        isActive  ? "text-[16px] font-semibold text-white"
-                        : isPast  ? "text-[13px] text-white/28"
-                                  : "text-[13px] text-white/48"
-                      )}>
-                        {isActive && <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary mr-2 mb-0.5 align-middle"/>}
-                        {line.text}
-                      </p>
-                    </div>
-                  );
-                })}
-                <div className="h-8"/>
-              </div>
-            </div>
-          );
-        }
-      })()}
-
-      {/* ── Queue ── */}
-      {activeTab==="queue" && (
-        <div className={cn("flex-1 overflow-y-auto hide-scrollbar space-y-0.5", padded ? "py-3 px-1" : "py-2")}>
-          <p className="text-[11px] px-2 mb-3 font-medium" style={{ color:"rgba(255,255,255,0.35)" }}>接下来 — {SONGS.length} 首</p>
-          {SONGS.map(s => (
-            <div key={s.id}
-              className="flex items-center gap-3 px-2 py-2.5 rounded-xl transition-colors cursor-pointer"
-              style={{ background: s.id===song.id ? "rgba(255,255,255,0.09)" : undefined }}>
-              <CoverArt src={cover(s.id)} gradient={s.gradient} className="w-10 h-10 rounded-[10px] shrink-0">
-                {s.id===song.id && (
-                  <div className="absolute inset-0 rounded-[10px] flex items-center justify-center"
-                    style={{ background:"rgba(0,0,0,0.40)" }}>
-                    <div className="flex items-end gap-0.5 h-3">{[1,2,3].map(i=>(
-                      <motion.div key={i} className="w-0.5 bg-white rounded-full"
-                        animate={{ height:["30%","100%","50%"] }}
-                        transition={{ duration:0.7, repeat:Infinity, delay:i*0.15 }}/>
-                    ))}</div>
-                  </div>
-                )}
-              </CoverArt>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate"
-                  style={{ color: s.id===song.id ? "var(--tide-pink)" : "rgba(255,255,255,0.80)" }}>{s.title}</p>
-                <p className="text-xs truncate" style={{ color:"rgba(255,255,255,0.35)" }}>{s.artist}</p>
-              </div>
-              <span className="text-[11px] font-mono shrink-0" style={{ color:"rgba(255,255,255,0.35)" }}>{s.duration}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-    </div>
-  );
-
-  const MobileTransport = ({ compact=false }: { compact?:boolean }) => (
-    <div className={cn("mx-auto flex w-full items-center justify-around",compact?"max-w-[286px]":"max-w-[320px]")}>
-      <motion.button type="button" aria-label="Previous track" whileTap={{ scale:0.90 }} onPointerDown={preventMouseFocus} onClick={onPrev}
-        className="flex h-14 w-14 items-center justify-center rounded-full text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/40">
-        <SkipBack style={{ width:compact?30:36,height:compact?30:36,fill:"currentColor" }}/>
-      </motion.button>
-      <motion.button type="button" aria-label={isPlaying?"Pause":"Play"} whileTap={{ scale:0.92 }} onPointerDown={preventMouseFocus} onClick={onPlayPause}
-        className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-white/[0.16] text-white shadow-[0_10px_34px_rgba(0,0,0,0.18)] outline-none backdrop-blur-lg focus-visible:ring-2 focus-visible:ring-white/45">
-        {isPlaying
-          ? <Pause style={{ width:compact?32:38,height:compact?32:38,fill:"currentColor" }}/>
-          : <Play style={{ width:compact?34:40,height:compact?34:40,fill:"currentColor",marginLeft:3 }}/>
-        }
-      </motion.button>
-      <motion.button type="button" aria-label="Next track" whileTap={{ scale:0.90 }} onPointerDown={preventMouseFocus} onClick={onNext}
-        className="flex h-14 w-14 items-center justify-center rounded-full text-white outline-none transition-colors hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-white/40">
-        <SkipForward style={{ width:compact?30:36,height:compact?30:36,fill:"currentColor" }}/>
-      </motion.button>
     </div>
   );
 
@@ -1850,7 +1737,7 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
     </div>
   );
 
-  const MobileHeroTransport = ({ compact=false, desktop=false }: { compact?:boolean; desktop?:boolean }) => (
+  const MobileHeroTransport = ({ compact=false }: { compact?:boolean }) => (
     <div className={cn("grid grid-cols-5 items-center justify-items-center",compact?"h-[62px]":"mt-1 h-[84px]")}>
       <motion.button type="button" aria-label="Repeat" aria-pressed={repeat} whileTap={{ scale:0.90 }} onPointerDown={preventMouseFocus} onClick={() => setRepeat(!repeat)}
         className={cn("flex items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-white/40",compact?"h-11 w-11":"h-14 w-14")}
@@ -1872,7 +1759,8 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
         className={cn("flex items-center justify-center rounded-full text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40",compact?"h-11 w-11":"h-14 w-14")}>
         <SkipForward className={cn("fill-current",compact?"h-7 w-7":"h-[30px] w-[30px]")}/>
       </motion.button>
-      <motion.button type="button" aria-label="Queue view" aria-pressed={desktop?activeTab==="queue":mobileView==="queue"} whileTap={{ scale:0.90 }} onPointerDown={preventMouseFocus} onClick={() => desktop?setActiveTab(activeTab==="queue"?"lyrics":"queue"):showMobileView("queue")}
+      <motion.button ref={queueTriggerRef} type="button" aria-label="Open play queue" aria-haspopup="dialog" aria-expanded={queueOpen}
+        whileTap={{ scale:0.90 }} onPointerDown={preventMouseFocus} onClick={() => setQueueOpen(true)}
         className={cn("flex items-center justify-center rounded-full text-white/72 outline-none focus-visible:ring-2 focus-visible:ring-white/40",compact?"h-11 w-11":"h-14 w-14")}>
         <ListMusic className={compact?"h-[22px] w-[22px]":"h-[25px] w-[25px]"}/>
       </motion.button>
@@ -1896,20 +1784,64 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
     </div>
   );
 
-  const MobileQueueRow = ({ item, current=false }: { item:Song; current?:boolean }) => (
-    <button type="button" onClick={current?undefined:onNext}
-      className="flex w-full items-center gap-3 px-5 py-2.5 text-left outline-none transition-colors hover:bg-white/[0.07] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/35"
-      style={{ background:current?"rgba(10,7,18,0.20)":undefined }}>
-      <CoverArt src={cover(item.id)} gradient={item.gradient} className="h-12 w-12 shrink-0 rounded-[11px] shadow-md"/>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[16px] font-medium text-white">{item.title}</span>
-        <span className="mt-0.5 block truncate text-[13px]" style={{ color:"rgba(255,255,255,0.46)" }}>{item.artist}</span>
-      </span>
-      {!current&&(
-        <GripVertical style={{ width:22,height:22,color:"rgba(255,255,255,0.28)" }}/>
-      )}
-    </button>
-  );
+  const QueueDialog = () => {
+    const sideDialog = wide||landscape;
+
+    return (
+      <AnimatePresence>
+        {queueOpen&&(
+          <motion.div className="dark fixed inset-0 z-[360]" role="presentation"
+            initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }} transition={{ duration:0.18 }}>
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onClick={closeQueue}/>
+            <motion.section role="dialog" aria-modal="true" aria-labelledby="queue-dialog-title"
+              initial={reduceMotion?{opacity:0}:sideDialog?{x:"100%"}:{y:"100%"}}
+              animate={reduceMotion?{opacity:1}:sideDialog?{x:0}:{y:0}}
+              exit={reduceMotion?{opacity:0}:sideDialog?{x:"100%"}:{y:"100%"}}
+              transition={reduceMotion?{duration:0.12}:{type:"spring",stiffness:360,damping:38,mass:0.9}}
+              className={cn(
+                "absolute flex flex-col overflow-hidden bg-card text-foreground shadow-2xl",
+                sideDialog
+                  ? "inset-y-0 right-0 w-[min(480px,100vw)] border-l border-border"
+                  : "bottom-0 left-1/2 h-[min(76vh,720px)] w-full max-w-[680px] -translate-x-1/2 rounded-t-[28px] border-t border-border",
+              )}>
+              {!sideDialog&&<div aria-hidden="true" className="mx-auto mt-3 h-1.5 w-12 shrink-0 rounded-full bg-muted-foreground/30"/>}
+              <header className="flex shrink-0 items-center gap-3 border-b border-border px-5 pb-4 pt-5">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-primary/12 text-primary">
+                  <ListMusic className="h-5 w-5"/>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h2 id="queue-dialog-title" className="truncate text-[20px] font-bold leading-6">当前播放列表({queueTracks.length})</h2>
+                </div>
+                <button ref={queueLocateRef} type="button" aria-label="定位当前歌曲" title="定位当前歌曲" disabled={!currentQueueTrackAvailable}
+                  onPointerDown={preventMouseFocus} onClick={locateCurrentQueueTrack}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground outline-none transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-35 focus-visible:ring-2 focus-visible:ring-primary/40">
+                  <LocateFixed className="h-5 w-5"/>
+                </button>
+                <button ref={queueClearRef} type="button" aria-label="清空播放列表" title="清空播放列表"
+                  onPointerDown={preventMouseFocus} onClick={()=>setQueueTracks([])}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground outline-none transition-colors hover:bg-destructive/12 hover:text-destructive focus-visible:ring-2 focus-visible:ring-primary/40">
+                  <Trash2 className="h-5 w-5"/>
+                </button>
+              </header>
+              <div className="hide-scrollbar min-h-0 flex-1 overflow-y-auto px-2 pb-[max(16px,env(safe-area-inset-bottom))] pt-2">
+                {queueTracks.length ? queueTracks.map((item,index)=><div key={item.id} ref={element=>{
+                  if (element) queueRowRefs.current.set(item.id,element);
+                  else queueRowRefs.current.delete(item.id);
+                }}>
+                  <PlaylistTrackRow song={item} trackNumber={index+1} active={isPlaying&&item.id===song.id} onPlay={onPlay}/>
+                </div>) : (
+                  <div className="flex min-h-52 flex-col items-center justify-center px-6 text-center">
+                    <ListMusic className="h-9 w-9 text-muted-foreground/45"/>
+                    <p className="mt-3 text-sm font-medium text-muted-foreground">播放列表为空</p>
+                  </div>
+                )}
+              </div>
+            </motion.section>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    );
+  };
 
   // ══════════════════════════════════════════════════════════════
   // WIDE LAYOUT (≥860×520) — Apple Music–style 42/58 grid
@@ -1950,7 +1882,7 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
                   <MoreVertical className="h-6 w-6"/>
                 </button>
               </div>
-              <button type="button" aria-label="Open lyrics" onClick={() => showMobileView("lyrics")}
+              <button type="button" aria-label="Open lyrics" onClick={() => setMobileView("lyrics")}
                 className="mt-2 min-h-0 flex-1 overflow-hidden rounded-2xl px-2 pb-2 pt-0 text-left outline-none focus-visible:ring-2 focus-visible:ring-white/35">
                 <LyricsPreview density="landscape"/>
               </button>
@@ -1989,19 +1921,9 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
             </motion.div>
           )}
 
-          {mobileView==="queue"&&(
-            <motion.div key="landscape-queue" initial={{ opacity:0,x:12 }} animate={{ opacity:1,x:0 }} exit={{ opacity:0,x:12 }}
-              transition={{ duration:0.18,ease:"easeOut" }} className="flex min-h-0 flex-1 flex-col">
-              <div className="flex h-10 shrink-0 items-center px-2 pb-1">
-                <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-white/36">Queue</p>
-              </div>
-              <div className="hide-scrollbar min-h-0 flex-1 overflow-y-auto">
-                {SONGS.map((item,index)=><MobileQueueRow key={item.id} item={item} current={index===0}/>) }
-              </div>
-            </motion.div>
-          )}
         </AnimatePresence>
       </section>
+      <QueueDialog/>
     </motion.div>
   );
 
@@ -2073,7 +1995,7 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
 
           {/* Transport */}
           <div className="mx-auto w-full max-w-[420px] shrink-0">
-            <MobileHeroTransport desktop/>
+            <MobileHeroTransport/>
           </div>
         </div>
 
@@ -2081,11 +2003,12 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
         <div className="hidden shrink-0 self-stretch my-8"
           style={{ width:1, background:"rgba(255,255,255,0.07)" }}/>
 
-        {/* Right 58%: tabs + lyrics / queue / eq */}
+        {/* Right 58%: synced lyrics */}
         <div className="flex min-w-0 flex-col overflow-hidden p-[clamp(14px,2vw,24px)]">
-          <TabsContent padded/>
+          <LyricsContent/>
         </div>
       </div>
+      <QueueDialog/>
     </motion.div>
   );
 
@@ -2099,12 +2022,12 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
       <Backdrop/>
       <MobileStatusBar inverse/>
       <AnimatePresence initial={false}>
-        {(mobileView==="player" || (mobileView==="queue" && mobileBaseView==="player"))&&(
+        {mobileView==="player"&&(
           <motion.div key="mobile-player"
             initial={{ opacity:0,x:-12 }}
-            animate={mobileView==="queue" && !reduceMotion ? { opacity:0.82,x:0,scale:0.985 } : { opacity:1,x:0,scale:1 }}
+            animate={{ opacity:1,x:0,scale:1 }}
             exit={{ opacity:0,x:-12 }}
-            transition={mobileView==="queue" && !reduceMotion ? { type:"spring",stiffness:360,damping:36,mass:0.85 } : { duration:0.2,ease:"easeOut" }}
+            transition={{ duration:0.2,ease:"easeOut" }}
             className="absolute inset-0 z-10 h-full w-full overflow-hidden transform-gpu will-change-transform">
             <div className="relative z-10 flex h-full flex-col" style={{ paddingTop:"max(90px,calc(env(safe-area-inset-top) + 56px))",paddingBottom:"max(44px,calc(env(safe-area-inset-bottom) + 28px))" }}>
               <div
@@ -2130,7 +2053,7 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
                   </button>
                 </div>
 
-                <button type="button" aria-label="Open lyrics" onClick={() => showMobileView("lyrics")}
+                <button type="button" aria-label="Open lyrics" onClick={() => setMobileView("lyrics")}
                   className="mt-5 w-full shrink-0 overflow-visible rounded-2xl px-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-white/35">
                   <LyricsPreview density="mobile"/>
                 </button>
@@ -2145,12 +2068,12 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
           </motion.div>
         )}
 
-        {(mobileView==="lyrics" || (mobileView==="queue" && mobileBaseView==="lyrics"))&&(
+        {mobileView==="lyrics"&&(
           <motion.div key="mobile-lyrics"
             initial={{ opacity:0,x:16 }}
-            animate={mobileView==="queue" && !reduceMotion ? { opacity:0.82,x:0,scale:0.985 } : { opacity:1,x:0,scale:1 }}
+            animate={{ opacity:1,x:0,scale:1 }}
             exit={{ opacity:0,x:16 }}
-            transition={mobileView==="queue" && !reduceMotion ? { type:"spring",stiffness:360,damping:36,mass:0.85 } : { duration:0.2,ease:"easeOut" }}
+            transition={{ duration:0.2,ease:"easeOut" }}
             className="absolute inset-0 z-10 flex h-full w-full flex-col transform-gpu will-change-transform">
             <MobileTrackHeader/>
             <div ref={lyricsScrollRef} className="hide-scrollbar min-h-0 flex-1 overflow-y-auto px-5 pb-[38px]"
@@ -2182,39 +2105,7 @@ function FullPlayer({ song, isPlaying, onPlayPause, onNext, onPrev, onClose, pro
 
       </AnimatePresence>
 
-      <AnimatePresence initial={false}>
-        {mobileView==="queue"&&(
-          <motion.div key="mobile-queue"
-            initial={reduceMotion ? { opacity:0 } : { opacity:0,y:48,scale:0.99 }}
-            animate={{ opacity:1,y:0,scale:1 }}
-            exit={reduceMotion ? { opacity:0 } : { opacity:0,y:48,scale:0.99 }}
-            transition={reduceMotion ? { duration:0.12 } : { type:"spring",stiffness:360,damping:36,mass:0.85 }}
-            className="absolute inset-0 z-20 flex h-full w-full flex-col bg-[rgba(12,10,20,0.92)] backdrop-blur-2xl transform-gpu will-change-transform">
-            <MobileTrackHeader/>
-            <div className="hide-scrollbar min-h-0 flex-1 overflow-y-auto">
-              <div className="flex items-center justify-between px-5 pb-2 pt-2">
-                <p className="text-[21px] font-bold text-white">历史记录</p>
-                {historyVisible&&<button type="button" onClick={() => setHistoryVisible(false)} className="h-10 px-2 text-[15px] text-white/70 outline-none focus-visible:ring-2 focus-visible:ring-white/35">清除</button>}
-              </div>
-              {historyVisible
-                ? <MobileQueueRow item={song} current/>
-                : <p className="px-5 py-4 text-[14px] text-white/40">暂无播放历史</p>
-              }
-
-              <div className="px-5 pb-2 pt-4">
-                <p className="text-[21px] font-bold text-white">继续播放</p>
-                <p className="mt-1 truncate text-[14px] text-white/42">来自 {song.album}</p>
-              </div>
-              {SONGS.filter(item=>item.id!==song.id).map(item=><MobileQueueRow key={item.id} item={item}/>)}
-            </div>
-
-            <div className="shrink-0 px-5 pt-2" style={{ paddingBottom:"max(42px,calc(env(safe-area-inset-bottom) + 28px))" }}>
-              <ProgressTrack/>
-              <div className="mt-1"><MobileTransport compact/></div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <QueueDialog/>
       <MobileHomeIndicator inverse/>
     </motion.div>
   );
@@ -2294,7 +2185,8 @@ function OverflowMarquee({ text }: { text:string }) {
 }
 
 function DailyPicksHero({ onPlay, currentSong }: { onPlay:(s:Song)=>void; currentSong:Song|null }) {
-  const currentTrackTitle = currentSong?.title??"No track";
+  const [fallbackSong] = useState(() => SONGS[Math.floor(Math.random()*SONGS.length)]);
+  const currentTrackTitle = currentSong?.title??fallbackSong.title;
   const nowPlayingLabel = `Now Playing: ${currentTrackTitle}`;
   return (
     <div className="mx-4 lg:mx-0 mt-5 relative rounded-[22px] overflow-hidden"
@@ -2318,10 +2210,9 @@ function DailyPicksHero({ onPlay, currentSong }: { onPlay:(s:Song)=>void; curren
           <OverflowMarquee text={nowPlayingLabel}/>
         </div>
         <motion.button type="button" whileTap={{ scale:0.95 }} onPointerDown={preventMouseFocus} onClick={() => onPlay(SONGS[0])}
-          className="self-start flex items-center gap-1.5 pl-3 pr-4 h-8 rounded-full text-[13px] font-semibold text-white outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-          style={{ background:"rgba(255,91,138,0.88)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)" }}>
-          <Play style={{ width:13, height:13, fill:"white" }}/>
-          Play
+          aria-label="Play Daily Picks"
+          className="self-start flex h-12 w-12 items-center justify-center text-primary outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+          <Play className="h-8 w-8 fill-none" strokeWidth={2.25}/>
         </motion.button>
       </div>
 
@@ -2524,7 +2415,7 @@ function ListeningPage({ onBack, onPlay }: { onBack:()=>void; onPlay:(song:Song)
 
   return (
     <div ref={pageRef} className="mx-auto w-full px-4 pb-10 pt-0 lg:max-w-[1180px] lg:px-8">
-      <div className="sticky top-0 z-30 -mx-4 mb-3 flex h-[60px] items-center gap-2 border-b border-border/60 bg-background/90 px-4 backdrop-blur-xl lg:hidden">
+      <div className="sticky top-0 z-30 -mx-4 mb-3 flex h-[60px] items-center gap-2 border-b border-border/60 bg-background px-4 lg:hidden">
         <button type="button" onClick={onBack} aria-label="Back to Home"
           className="flex h-10 w-10 items-center justify-center rounded-full text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/40">
           <ArrowLeft className="h-5 w-5"/>
@@ -2653,13 +2544,14 @@ function ListeningPage({ onBack, onPlay }: { onBack:()=>void; onPlay:(song:Song)
   );
 }
 
-function HomePage({ onPlay, currentSong, isPlaying, pinnedPlaylists, onOpenLibrary, onOpenPlaylist, onOpenArtist, onOpenListening }: {
+function HomePage({ onPlay, currentSong, isPlaying, pinnedPlaylists, onOpenLibrary, onOpenPlaylist, onOpenAlbum, onOpenArtist, onOpenListening }: {
   onPlay:(s:Song)=>void;
   currentSong:Song|null;
   isPlaying:boolean;
   pinnedPlaylists:Playlist[];
   onOpenLibrary:(tab:LibTab)=>void;
   onOpenPlaylist:(playlist:Playlist)=>void;
+  onOpenAlbum:(album:Album)=>void;
   onOpenArtist:(artist:Artist)=>void;
   onOpenListening:()=>void;
 }) {
@@ -2736,9 +2628,9 @@ function HomePage({ onPlay, currentSong, isPlaying, pinnedPlaylists, onOpenLibra
           </div>
         </div>
 
-        {/* 6. Recently Added */}
+        {/* 6. New Songs */}
         <div className="mt-7">
-          <div className="px-4"><HomeSectionHeader title="Recently Added" icon={<Sparkles className="h-4 w-4"/>} onClick={()=>onOpenLibrary("recently-added")}/></div>
+          <div className="px-4"><HomeSectionHeader title="New Songs" icon={<Sparkles className="h-4 w-4"/>} onClick={()=>onOpenLibrary("recently-added")}/></div>
           <div className="mt-3 flex gap-4 px-4 overflow-x-auto hide-scrollbar pb-1">
             {ALBUMS.slice(2,8).map(album=>(
               <AlbumCard key={album.id} album={album} size="sm" onClick={()=>onPlay(SONGS[album.id-1]||SONGS[0])}/>
@@ -2746,11 +2638,21 @@ function HomePage({ onPlay, currentSong, isPlaying, pinnedPlaylists, onOpenLibra
           </div>
         </div>
 
-        {/* 7. Recommended Artists */}
+        {/* 7. Suggested Albums */}
+        <div className="mt-7">
+          <div className="px-4"><HomeSectionHeader title="Suggested Albums" icon={<Disc3 className="h-4 w-4"/>} onClick={()=>onOpenLibrary("albums")}/></div>
+          <div className="mt-3 flex gap-4 px-4 overflow-x-auto hide-scrollbar pb-1">
+            {ALBUMS.slice(0,6).map(album=>(
+              <AlbumCard key={album.id} album={album} size="md" action="open" onClick={()=>onOpenAlbum(album)}/>
+            ))}
+          </div>
+        </div>
+
+        {/* 8. Recommended Artists */}
         <div className="mt-7">
           <div className="px-4"><HomeSectionHeader title="Recommended Artists" icon={<Mic2 className="h-4 w-4"/>} onClick={()=>onOpenLibrary("artists")}/></div>
           <div className="mt-3 flex gap-4 px-4 overflow-x-auto hide-scrollbar pb-1">
-            {ARTISTS.map(artist=><ArtistCard key={artist.id} artist={artist} onClick={()=>onOpenArtist(artist)}/>)}
+            {ARTISTS.map(artist=><ArtistCard key={artist.id} artist={artist} showFollowers={false} onClick={()=>onOpenArtist(artist)}/>)}
           </div>
         </div>
       </div>
@@ -2773,10 +2675,12 @@ function HomePage({ onPlay, currentSong, isPlaying, pinnedPlaylists, onOpenLibra
       <div className="mb-6"><HomeSectionHeader title="Recently Played" icon={<Clock className="h-4 w-4"/>} onClick={()=>onOpenLibrary("recently-played")}/>
         <div className="space-y-1">{SONGS.slice(0,6).map(s=><MusicCard key={s.id} song={s} onPlay={onPlay}
           isPlaying={isPlaying&&currentSong?.id===s.id} highlightPlaying={false} showDuration={false} coverClassName="rounded-[14px]"/>)}</div></div>
-      <div className="mb-6"><HomeSectionHeader title="Recently Added" icon={<Sparkles className="h-4 w-4"/>} onClick={()=>onOpenLibrary("recently-added")}/>
+      <div className="mb-6"><HomeSectionHeader title="New Songs" icon={<Sparkles className="h-4 w-4"/>} onClick={()=>onOpenLibrary("recently-added")}/>
         <div className="flex gap-4 overflow-x-auto pb-2 hide-scrollbar">{ALBUMS.slice(2,8).map(a=><AlbumCard key={a.id} album={a} size="sm" onClick={()=>onPlay(SONGS[a.id-1]||SONGS[0])}/>)}</div></div>
+      <div className="mb-6"><HomeSectionHeader title="Suggested Albums" icon={<Disc3 className="h-4 w-4"/>} onClick={()=>onOpenLibrary("albums")}/>
+        <div className="flex gap-4 overflow-x-auto pb-2 hide-scrollbar">{ALBUMS.slice(0,6).map(a=><AlbumCard key={a.id} album={a} size="md" action="open" onClick={()=>onOpenAlbum(a)}/>)}</div></div>
       <div className="mb-6"><HomeSectionHeader title="Recommended Artists" icon={<Mic2 className="h-4 w-4"/>} onClick={()=>onOpenLibrary("artists")}/>
-        <div className="flex gap-4 overflow-x-auto pb-2 hide-scrollbar">{ARTISTS.map(a=><ArtistCard key={a.id} artist={a} onClick={()=>onOpenArtist(a)}/>)}</div></div>
+        <div className="flex gap-4 overflow-x-auto pb-2 hide-scrollbar">{ARTISTS.map(a=><ArtistCard key={a.id} artist={a} showFollowers={false} onClick={()=>onOpenArtist(a)}/>)}</div></div>
     </div>
   );
 }
@@ -2937,7 +2841,7 @@ const PRIMARY_LIB_TABS: {id:LibTab;label:string}[] = [
 const LIB_TAB_LABELS: Record<LibTab,string> = {
   songs:"Songs", albums:"Albums", artists:"Artists", genres:"Genres", folders:"Folders",
   playlists:"Playlists", favorites:"Favorites", downloads:"Downloads", history:"History",
-  "recently-added":"Recently Added", "recently-played":"Recently Played", lossless:"Lossless",
+  "recently-added":"New Songs", "recently-played":"Recently Played", lossless:"Lossless",
   "hi-res":"Hi-Res",
 };
 
@@ -3610,9 +3514,25 @@ function LibraryPage({ onPlay, onOpenPlaylist, onOpenAlbum, onOpenArtist, pinned
 type SettingsSub = "appearance"|"playback"|"lyrics"|"sources"|"plugins"|"network-cache"|"storage"|"about";
 type SettingsGroup = "personalization"|"playback"|"library-data"|"app-info";
 type SettingsActionState = "idle"|"confirm"|"busy"|"success"|"error";
+type ThemeMode = "system"|"light"|"dark";
 
-function SettingsPage() {
-  const [sub, setSub] = useState<SettingsSub|null>(null);
+const SETTINGS_SUB_LABELS: Record<SettingsSub,string> = {
+  appearance:"Appearance & language",
+  playback:"Playback",
+  lyrics:"Lyrics",
+  sources:"Library & sources",
+  plugins:"Metadata plugins",
+  "network-cache":"Network & cache",
+  storage:"Storage & data",
+  about:"About",
+};
+
+function SettingsPage({ sub, onSubChange, themeMode, onThemeModeChange }: {
+  sub:SettingsSub|null;
+  onSubChange:(sub:SettingsSub|null)=>void;
+  themeMode:ThemeMode;
+  onThemeModeChange:(mode:ThemeMode)=>void;
+}) {
   const [activeGroup, setActiveGroup] = useState<SettingsGroup>("personalization");
   const [searchQ, setSearchQ] = useState("");
   const isDesktop = useIsDesktop();
@@ -3624,7 +3544,6 @@ function SettingsPage() {
     else settingsRootRef.current?.closest("main")?.scrollTo({top:0});
   },[sub,activeGroup,isDesktop]);
 
-  const [themeMode, setThemeMode] = useState("system");
   const [dynamicColor, setDynamicColor] = useState(true);
   const [appLanguage, setAppLanguage] = useState("system");
   const [audioFocus, setAudioFocus] = useState("pause");
@@ -3696,17 +3615,6 @@ function SettingsPage() {
     setEditingSourceId(null);
   }
 
-  const LABELS: Record<SettingsSub,string> = {
-    appearance:"Appearance & language",
-    playback:"Playback",
-    lyrics:"Lyrics",
-    sources:"Library & sources",
-    plugins:"Metadata plugins",
-    "network-cache":"Network & cache",
-    storage:"Storage & data",
-    about:"About",
-  };
-
   const SUMMARIES: Record<SettingsSub,string> = {
     appearance:"Theme, dynamic color, and app language",
     playback:"Audio focus, queue behavior, ReplayGain, and DSP",
@@ -3755,7 +3663,7 @@ function SettingsPage() {
 
   function openSub(id: SettingsSub) {
     setActiveGroup(groupFor(id));
-    setSub(id);
+    onSubChange(id);
     setSearchQ("");
   }
 
@@ -3955,7 +3863,7 @@ function SettingsPage() {
         className="w-full flex items-center gap-3 px-4 min-h-[66px] text-left hover:bg-muted/40 transition-colors group focus-visible:ring-2 focus-visible:ring-primary/40 outline-none">
         <div className="w-10 h-10 rounded-[14px] bg-muted flex items-center justify-center shrink-0 text-muted-foreground group-hover:text-foreground transition-colors">{icon}</div>
         <div className="flex-1 min-w-0 py-3.5">
-          <p className="text-[15px] font-semibold text-foreground leading-tight">{LABELS[id]}</p>
+          <p className="text-[15px] font-semibold text-foreground leading-tight">{SETTINGS_SUB_LABELS[id]}</p>
           <p className="text-[12px] text-muted-foreground mt-1 truncate">{SUMMARIES[id]}</p>
         </div>
         <ChevronRight className="w-4 h-4 text-muted-foreground/50 shrink-0"/>
@@ -3965,7 +3873,7 @@ function SettingsPage() {
 
   const search = searchQ.trim().toLowerCase();
   const searchResults = search
-    ? ALL_ITEMS.filter(item=>`${LABELS[item.id]} ${SUMMARIES[item.id]} ${SEARCH_TERMS[item.id]}`.toLowerCase().includes(search))
+    ? ALL_ITEMS.filter(item=>`${SETTINGS_SUB_LABELS[item.id]} ${SUMMARIES[item.id]} ${SEARCH_TERMS[item.id]}`.toLowerCase().includes(search))
     : [];
 
   function SearchBox() {
@@ -4009,7 +3917,7 @@ function SettingsPage() {
     if (id==="appearance") return (
       <div className="pb-8">
         <SettingsCard title="Theme">
-          <SelectRow label="Theme" subtitle="Choose how TideTunes follows system appearance" value={themeMode} onChange={setThemeMode}
+          <SelectRow label="Theme" subtitle="Choose how TideTunes follows system appearance" value={themeMode} onChange={value=>onThemeModeChange(value as ThemeMode)}
             options={[{v:"system",l:"System"},{v:"light",l:"Light"},{v:"dark",l:"Dark"}]}/>
         </SettingsCard>
         <SettingsCard title="Color">
@@ -4220,14 +4128,11 @@ function SettingsPage() {
     );
   }
 
-  function MobileSubHeader({ id }: { id:SettingsSub }) {
+  function MobileSubHeading({ id }: { id:SettingsSub }) {
     return (
-      <div className="flex items-center gap-3 mb-5">
-        <button type="button" aria-label="Back to Settings" onClick={()=>setSub(null)}
-          className="w-10 h-10 rounded-[14px] bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/40 outline-none">
-          <ChevronLeft className="w-5 h-5"/>
-        </button>
-        <div className="min-w-0"><h1 className="text-[22px] font-bold text-foreground truncate">{LABELS[id]}</h1><p className="text-[12px] text-muted-foreground mt-0.5 truncate">{SUMMARIES[id]}</p></div>
+      <div className="mb-6 min-w-0">
+        <h1 className="text-[28px] font-bold tracking-[-0.02em] text-foreground truncate">{SETTINGS_SUB_LABELS[id]}</h1>
+        <p className="text-[12px] text-muted-foreground mt-1 truncate">{SUMMARIES[id]}</p>
       </div>
     );
   }
@@ -4237,12 +4142,12 @@ function SettingsPage() {
       <>
         <div ref={settingsRootRef} className="flex h-full overflow-hidden">
           <nav aria-label="Settings categories" className="w-[190px] shrink-0 border-r border-border overflow-y-auto py-5 px-2.5 h-full">
-            <button type="button" onClick={()=>setSub(null)} className="w-full text-left px-3 mb-4 outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-xl">
+            <button type="button" onClick={()=>onSubChange(null)} className="w-full text-left px-3 mb-4 outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-xl">
               <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Settings</p>
               <p className="text-[12px] text-muted-foreground mt-1">TideTunes 0.3.0</p>
             </button>
             <div className="space-y-1">
-              {GROUPS.map(group=><button type="button" key={group.id} onClick={()=>{setActiveGroup(group.id);setSub(null);setSearchQ("");}}
+              {GROUPS.map(group=><button type="button" key={group.id} onClick={()=>{setActiveGroup(group.id);onSubChange(null);setSearchQ("");}}
                 className={cn("w-full text-left px-3 py-2.5 rounded-xl transition-all focus-visible:ring-2 focus-visible:ring-primary/40 outline-none",
                   activeGroup===group.id&&sub===null?"bg-primary/10 text-primary":"text-muted-foreground hover:text-foreground hover:bg-muted/60")}>
                 <span className="block text-[13px] font-semibold">{group.label}</span>
@@ -4251,7 +4156,7 @@ function SettingsPage() {
             </div>
           </nav>
           <main ref={settingsDetailRef} className="mx-auto w-full max-w-[800px] flex-1 overflow-y-auto px-8 pt-3 pb-24">
-            <StickyPageHeader title={sub?LABELS[sub]:"Settings"} subtitle={sub?SUMMARIES[sub]:GROUPS.find(group=>group.id===activeGroup)?.description} className="-mx-8 px-8 mb-4"/>
+            <StickyPageHeader title={sub?SETTINGS_SUB_LABELS[sub]:"Settings"} subtitle={sub?SUMMARIES[sub]:GROUPS.find(group=>group.id===activeGroup)?.description} className="-mx-8 px-8 mb-4"/>
             {sub?<DetailContent id={sub}/>:<HomeContent group={activeGroup}/>}
           </main>
         </div>
@@ -4264,7 +4169,7 @@ function SettingsPage() {
   return (
     <>
       <div ref={settingsRootRef} className="mx-auto w-full max-w-[800px] px-4 pt-5 pb-8">
-        {sub?<><MobileSubHeader id={sub}/><DetailContent id={sub}/></>:<HomeContent/>}
+        {sub?<><MobileSubHeading id={sub}/><DetailContent id={sub}/></>:<HomeContent/>}
       </div>
       <AddWebDavSourceDialog open={addSourceOpen} existingNames={sources.map(source=>source.name)} onClose={()=>setAddSourceOpen(false)} onAdd={addWebDavSource}/>
       <ManageWebDavSourceDialog source={editingSource} existingNames={sources.map(source=>source.name)} onClose={()=>setEditingSourceId(null)} onSave={saveWebDavSource} onDelete={deleteWebDavSource}/>
@@ -5323,8 +5228,12 @@ function BottomNav({ page, onPage }: { page:Page; onPage:(p:Page)=>void }) {
 // ROOT APP
 // ─────────────────────────────────────────────────────────────
 export default function App() {
-  const [isDark,setIsDark] = useState(true);
+  const [themeMode,setThemeMode] = useState<ThemeMode>("dark");
+  const [systemIsDark,setSystemIsDark] = useState(() =>
+    typeof window === "undefined" || window.matchMedia("(prefers-color-scheme: dark)").matches,
+  );
   const [page,setPage] = useState<Page>("home");
+  const [settingsSub,setSettingsSub] = useState<SettingsSub|null>(null);
   const [dsSection,setDsSection] = useState<DSSection>("cover");
   const [currentSong,setCurrentSong] = useState<Song|null>(SONGS[0]);
   const [isPlaying,setIsPlaying] = useState(false);
@@ -5342,7 +5251,17 @@ export default function App() {
   const [artistReturnPage,setArtistReturnPage] = useState<Page>("library");
   const mainScrollRef = useRef<HTMLElement>(null);
 
-  useEffect(()=>{ mainScrollRef.current?.scrollTo({top:0}); },[page]);
+  useEffect(()=>{
+    mainScrollRef.current?.scrollTo({top:0});
+    if (page!=="settings") setSettingsSub(null);
+  },[page]);
+
+  useEffect(()=>{
+    const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    const updateSystemTheme = () => setSystemIsDark(mediaQuery.matches);
+    mediaQuery.addEventListener("change",updateSystemTheme);
+    return () => mediaQuery.removeEventListener("change",updateSystemTheme);
+  },[]);
 
   const handlePlay = (song:Song) => { setCurrentSong(song); setIsPlaying(true); setSongIdx(SONGS.findIndex(s=>s.id===song.id)); };
   const handleNext = () => { const n=(songIdx+1)%SONGS.length; setSongIdx(n); setCurrentSong(SONGS[n]); setIsPlaying(true); };
@@ -5375,13 +5294,15 @@ export default function App() {
   const dsTitles: Record<DSSection,string> = {
     cover:"Design System",foundation:"Foundation",tokens:"Tokens",components:"Components",patterns:"Patterns",compose:"Compose",
   };
+  const settingsDetailTitle = page==="settings"&&settingsSub?SETTINGS_SUB_LABELS[settingsSub]:undefined;
+  const isDark = themeMode==="system"?systemIsDark:themeMode==="dark";
 
   return (
     <div className={cn("flex h-screen w-screen overflow-hidden",isDark?"dark":"")}>
       <div className="relative flex h-full w-full bg-background text-foreground overflow-hidden">
         <MobileStatusBar/>
         <MobileLandscapeHomeIndicator/>
-        <Sidebar page={page} onPage={setPage} dsSection={dsSection} onDsSection={setDsSection} isDark={isDark} onToggleDark={()=>setIsDark(!isDark)}/>
+        <Sidebar page={page} onPage={setPage} dsSection={dsSection} onDsSection={setDsSection} isDark={isDark} onToggleDark={()=>setThemeMode(isDark?"light":"dark")}/>
 
         <div className="flex h-full min-w-0 flex-1 flex-col overflow-hidden max-lg:landscape:pb-[18px] max-lg:landscape:pr-16 landscape:flex-row">
           <div className="order-first flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden landscape:order-last">
@@ -5391,11 +5312,15 @@ export default function App() {
             <main ref={mainScrollRef} className="mt-[59px] flex-1 overflow-y-auto lg:mt-0 landscape:mt-0">
               {page !== "home" && page !== "playlist" && page !== "album" && page !== "artist" && page !== "listening" && (
                 <StickyPageHeader
-                  title={page==="design-system"?dsTitles[dsSection]:mobilePageTitle[page]||"TideTunes"}
-                  subtitle={page==="design-system"?"TideTunes DS · v3.0":undefined}
+                  title={settingsDetailTitle??(page==="design-system"?dsTitles[dsSection]:mobilePageTitle[page]||"TideTunes")}
+                  subtitle={settingsDetailTitle?undefined:page==="design-system"?"TideTunes DS · v3.0":undefined}
+                  onBack={settingsDetailTitle?()=>setSettingsSub(null):undefined}
+                  backLabel="Back to Settings"
+                  showTitleOnCollapse={Boolean(settingsDetailTitle)}
                   className={cn(
-                    "lg:hidden pt-5 pb-3",
-                    page==="library"?"px-6":"px-5",
+                    "lg:hidden",
+                    !settingsDetailTitle&&"pt-5 pb-3",
+                    settingsDetailTitle?"px-0":page==="library"?"px-6":"px-5",
                     page==="search"&&"before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:z-10 before:h-px before:bg-background before:content-['']",
                   )}
                 />
@@ -5412,7 +5337,7 @@ export default function App() {
               )}
               <AnimatePresence mode="wait">
                 <motion.div key={page==="design-system"?`ds-${dsSection}`:page==="playlist"?`playlist-${selectedPlaylist?.id}`:page==="album"?`album-${selectedAlbum?.id}`:page==="artist"?`artist-${selectedArtist?.id}`:page} initial={{opacity:0,y:8}} animate={{opacity:1,y:0}} exit={{opacity:0,y:-8}} transition={{duration:0.18,ease:"easeOut"}} className="min-h-full">
-                  {page==="home"&&<HomePage onPlay={handlePlay} currentSong={currentSong} isPlaying={isPlaying} pinnedPlaylists={pinnedPlaylists} onOpenLibrary={handleOpenLibrary} onOpenPlaylist={handleOpenPlaylist} onOpenArtist={handleOpenArtist} onOpenListening={()=>setPage("listening")}/>}
+                  {page==="home"&&<HomePage onPlay={handlePlay} currentSong={currentSong} isPlaying={isPlaying} pinnedPlaylists={pinnedPlaylists} onOpenLibrary={handleOpenLibrary} onOpenPlaylist={handleOpenPlaylist} onOpenAlbum={handleOpenAlbum} onOpenArtist={handleOpenArtist} onOpenListening={()=>setPage("listening")}/>}
                   {page==="search"&&<SearchPage onPlay={handlePlay}/>}
                   {page==="library"&&<LibraryPage onPlay={handlePlay} onOpenPlaylist={handleOpenPlaylist} onOpenAlbum={handleOpenAlbum} onOpenArtist={handleOpenArtist}
                     pinnedPlaylistIds={pinnedPlaylists.map(playlist=>playlist.id)} onTogglePlaylistPin={handleTogglePlaylistPin}
@@ -5421,7 +5346,7 @@ export default function App() {
                   {page==="album"&&selectedAlbum&&<AlbumDetailPage album={selectedAlbum} currentSong={currentSong} isPlaying={isPlaying} onBack={()=>setPage(albumReturnPage)} onPlay={handlePlay}/>}
                   {page==="artist"&&selectedArtist&&<ArtistDetailPage artist={selectedArtist} currentSong={currentSong} isPlaying={isPlaying} onBack={()=>setPage(artistReturnPage)} onPlay={handlePlay} onOpenAlbum={handleOpenAlbum}/>}
                   {page==="listening"&&<ListeningPage onBack={()=>setPage("home")} onPlay={handlePlay}/>}
-                  {page==="settings"&&<SettingsPage/>}
+                  {page==="settings"&&<SettingsPage sub={settingsSub} onSubChange={setSettingsSub} themeMode={themeMode} onThemeModeChange={setThemeMode}/>}
                   {page==="design-system"&&dsSection==="cover"&&<DSCover/>}
                   {page==="design-system"&&dsSection==="foundation"&&<DSFoundation/>}
                   {page==="design-system"&&dsSection==="tokens"&&<DSTokens/>}
@@ -5447,7 +5372,7 @@ export default function App() {
 
       {/* Full Player */}
       <AnimatePresence>
-        {playerOpen&&currentSong&&<FullPlayer song={currentSong} isPlaying={isPlaying} onPlayPause={()=>setIsPlaying(!isPlaying)} onNext={handleNext} onPrev={handlePrev} onClose={()=>setPlayerOpen(false)} progress={progress} onSeek={setProgress} volume={volume} onVolume={setVolume}/>}
+        {playerOpen&&currentSong&&<FullPlayer song={currentSong} isPlaying={isPlaying} onPlay={handlePlay} onPlayPause={()=>setIsPlaying(!isPlaying)} onNext={handleNext} onPrev={handlePrev} onClose={()=>setPlayerOpen(false)} progress={progress} onSeek={setProgress} volume={volume} onVolume={setVolume}/>}
       </AnimatePresence>
     </div>
   );

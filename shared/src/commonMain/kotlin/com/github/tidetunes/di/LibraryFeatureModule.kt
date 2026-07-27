@@ -12,7 +12,7 @@ import com.github.tidetunes.core.data.PlaylistRepositoryImpl
 import com.github.tidetunes.core.data.media.RepositoryArtworkImageLoader
 import com.github.tidetunes.core.data.media.AssetRepository
 import com.github.tidetunes.core.data.StubDownloadCollectionRepository
-import com.github.tidetunes.core.data.StubFavoritesRepository
+import com.github.tidetunes.core.data.DataStoreFavoritesRepository
 import com.github.tidetunes.core.data.StubFolderRepository
 import com.github.tidetunes.core.data.StubGenreRepository
 import com.github.tidetunes.core.data.StubHistoryRepository
@@ -70,7 +70,7 @@ val libraryFeatureModule = module {
     // Per-category library repositories (stub implementations)
     single<GenreRepository> { StubGenreRepository() }
     single<FolderRepository> { StubFolderRepository() }
-    single<FavoritesRepository> { StubFavoritesRepository() }
+    single<FavoritesRepository> { DataStoreFavoritesRepository(get(), get()) }
     single<HistoryRepository> { StubHistoryRepository() }
     single<LosslessRepository> { StubLosslessRepository() }
     single<DownloadCollectionRepository> { StubDownloadCollectionRepository() }

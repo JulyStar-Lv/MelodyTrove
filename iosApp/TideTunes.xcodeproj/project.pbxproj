@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		0DD477BB487FEE937A32AEA3 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8D93DEF8091CE3FA728EC5C7 /* Foundation.framework */; };
+		A4BD5D06B6B24FC7A6941D21 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = CF7B6821B6104C25AD71BC44 /* Assets.xcassets */; };
 		E1C19BC5CE65ECF6BA05E941 /* TideTunesApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0A2467DD17240BE8E5B6DD0B /* TideTunesApp.swift */; };
 /* End PBXBuildFile section */
 
@@ -16,6 +17,7 @@
 		0A2467DD17240BE8E5B6DD0B /* TideTunesApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TideTunesApp.swift; sourceTree = "<group>"; };
 		32A2A90CC074CCE4A70B4E03 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		8D93DEF8091CE3FA728EC5C7 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS14.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		CF7B6821B6104C25AD71BC44 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -35,6 +37,7 @@
 			children = (
 				0A2467DD17240BE8E5B6DD0B /* TideTunesApp.swift */,
 				32A2A90CC074CCE4A70B4E03 /* Info.plist */,
+				CF7B6821B6104C25AD71BC44 /* Assets.xcassets */,
 			);
 			name = TideTunes;
 			sourceTree = "<group>";
@@ -125,6 +128,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A4BD5D06B6B24FC7A6941D21 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -76,6 +76,26 @@ class RoomSearchRepositoryIntegrationTest {
     }
 
     @Test
+    fun searchLocalLibraryBuildsPlayableSmbMediaId() = withDatabase { database ->
+        val folderId = seedStorageAndFolder(database, providerType = ProviderTypes.Smb)
+        database.trackDao().upsertAll(
+            listOf(track(id = 1, title = "SMB Moon")),
+        )
+        seedSourceRef(database, trackId = 1, rootId = folderId, path = "/音乐/SMB Moon.flac")
+
+        val result = repository(database).searchLocalLibrary("SMB Moon").tracks.single()
+
+        assertEquals(
+            legacyStorageTrackMediaId(
+                sourceId = BuiltInSourceIds.Smb,
+                accountId = SourceAccountId("storage:1"),
+                path = "/音乐/SMB Moon.flac",
+            ),
+            result.mediaId,
+        )
+    }
+
+    @Test
     fun suggestLocalLibraryUsesTrackFieldsAndSkipsDeletedRemoteFiles() = withDatabase { database ->
         val folderId = seedStorageAndFolder(database)
         database.trackDao().upsertAll(
@@ -122,14 +142,18 @@ class RoomSearchRepositoryIntegrationTest {
             trackDao = database.trackDao(),
             trackFtsDao = database.trackFtsDao(),
             trackSourceRefDao = database.trackSourceRefDao(),
+            metadataDao = database.metadataDao(),
         )
     }
 
-    private suspend fun seedStorageAndFolder(database: TideTunesDatabase): Long {
+    private suspend fun seedStorageAndFolder(
+        database: TideTunesDatabase,
+        providerType: String = ProviderTypes.WebDav,
+    ): Long {
         database.sourceAccountDao().upsert(
             SourceAccountEntity(
                 id = 1,
-                providerType = ProviderTypes.WebDav,
+                providerType = providerType,
                 displayName = "Test",
                 endpoint = "https://example.invalid/dav",
                 externalAccountId = null,

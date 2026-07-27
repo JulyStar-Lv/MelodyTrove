@@ -19,6 +19,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.github.tidetunes.core.presentation.components.TideCardSurface
 import com.github.tidetunes.core.presentation.components.TideEmptyState
+import com.github.tidetunes.core.presentation.components.LocalTideBottomContentInset
 import com.github.tidetunes.core.presentation.components.TideIconBadge
 import com.github.tidetunes.core.presentation.components.TideIconBadgeVariant
 import com.github.tidetunes.core.presentation.components.TideLinearProgressIndicator
@@ -47,6 +48,7 @@ fun DownloadsScreen(
     modifier: Modifier = Modifier,
 ) {
     val spacing = TideTunesTokens.spacing
+    val bottomContentInset = LocalTideBottomContentInset.current
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val horizontalPadding = if (maxWidth < 600.dp) spacing.pageCompact else spacing.pageExpanded
 
@@ -72,6 +74,7 @@ fun DownloadsScreen(
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(bottom = spacing.xl + bottomContentInset),
             ) {
                 itemsIndexed(state.tasks, key = { index, task -> task.lazyListKey(index) }) { _, task ->
                     DownloadTaskRow(task = task, onAction = onAction)

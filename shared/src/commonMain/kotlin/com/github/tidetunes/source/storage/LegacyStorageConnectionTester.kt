@@ -27,6 +27,21 @@ internal fun StorageConnectionTestResult.toSourceAuthResult(): SourceAuthResult 
         StorageConnectionTestResult.UNAUTHORIZED -> {
             SourceAuthResult.Failure(SourceAuthFailureReason.Unauthorized)
         }
+        StorageConnectionTestResult.PERMISSION_DENIED -> {
+            SourceAuthResult.Failure(SourceAuthFailureReason.PermissionDenied)
+        }
+        StorageConnectionTestResult.NOT_FOUND -> {
+            SourceAuthResult.Failure(SourceAuthFailureReason.NotFound)
+        }
+        StorageConnectionTestResult.INVALID_ADDRESS -> {
+            SourceAuthResult.Failure(SourceAuthFailureReason.InvalidAddress)
+        }
+        StorageConnectionTestResult.UNAVAILABLE -> {
+            SourceAuthResult.Failure(SourceAuthFailureReason.Unavailable)
+        }
+        StorageConnectionTestResult.UNSUPPORTED -> {
+            SourceAuthResult.Failure(SourceAuthFailureReason.UnsupportedSecurityPolicy)
+        }
         StorageConnectionTestResult.NONE,
         StorageConnectionTestResult.TESTING -> {
             SourceAuthResult.Failure(SourceAuthFailureReason.Unavailable)

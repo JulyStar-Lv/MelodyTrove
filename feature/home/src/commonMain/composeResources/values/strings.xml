@@ -10,6 +10,9 @@
     <string name="home_recently_added">Recently Added</string>
     <string name="home_recommended_artists">Recommended Artists</string>
     <string name="home_daily_picks">Daily Picks</string>
+    <string name="home_now_playing_label">Now Playing</string>
+    <string name="home_new_songs">New Songs</string>
+    <string name="home_suggested_albums">Suggested Albums</string>
     <string name="home_play">Play</string>
     <string name="home_save">Save</string>
     <string name="home_now_playing">Now Playing: %1$s</string>

@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import com.github.tidetunes.core.domain.model.Artwork
 import com.github.tidetunes.core.presentation.components.TideCardSurface
 import com.github.tidetunes.core.presentation.components.TideDetailHeaderSurface
+import com.github.tidetunes.core.presentation.components.LocalTideBottomContentInset
 import com.github.tidetunes.core.presentation.components.TideSectionHeader
 import com.github.tidetunes.core.presentation.components.TideStatusCard
 import com.github.tidetunes.core.presentation.components.TideTrackNumberBadge
@@ -49,6 +50,7 @@ fun ArtistScreen(
     onAction: (ArtistAction) -> Unit,
 ) {
     val spacing = TideTunesTokens.spacing
+    val bottomContentInset = LocalTideBottomContentInset.current
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val horizontalPadding = if (maxWidth < 600.dp) spacing.pageCompact else spacing.pageExpanded
 
@@ -77,7 +79,7 @@ fun ArtistScreen(
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
-                        contentPadding = PaddingValues(bottom = spacing.xl),
+                        contentPadding = PaddingValues(bottom = spacing.xl + bottomContentInset),
                     ) {
                         item {
                             ArtistHeader(

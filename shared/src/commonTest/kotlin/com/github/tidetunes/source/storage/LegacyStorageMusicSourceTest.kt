@@ -27,6 +27,7 @@ import com.github.tidetunes.source.api.WebDavSourceConfiguration
 import com.github.tidetunes.source.api.legacyStorageTrackMediaId
 import com.github.tidetunes.source.local.LocalMusicSource
 import com.github.tidetunes.source.onedrive.OneDriveMusicSource
+import com.github.tidetunes.source.smb.SmbMusicSource
 import com.github.tidetunes.source.webdav.WebDavMusicSource
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
@@ -170,9 +171,19 @@ class LegacyStorageMusicSourceTest {
             directoryLister,
             unusedPlaybackResolver(),
         ).list(accountId, "Albums")
+        SmbMusicSource(
+            unusedConnectionTester(),
+            directoryLister,
+            unusedPlaybackResolver(),
+        ).list(accountId, "/Share")
 
         assertEquals(
-            listOf(LegacyStorageKind.Local, LegacyStorageKind.WebDav, LegacyStorageKind.OneDrive),
+            listOf(
+                LegacyStorageKind.Local,
+                LegacyStorageKind.WebDav,
+                LegacyStorageKind.OneDrive,
+                LegacyStorageKind.Smb,
+            ),
             captured,
         )
     }
@@ -205,6 +216,12 @@ class LegacyStorageMusicSourceTest {
                 unusedPlaybackResolver(),
                 searchProvider,
             ),
+            SmbMusicSource(
+                unusedConnectionTester(),
+                unusedDirectoryLister(),
+                unusedPlaybackResolver(),
+                searchProvider,
+            ),
         )
 
         sources.forEach { source ->
@@ -219,6 +236,7 @@ class LegacyStorageMusicSourceTest {
                 LegacyStorageKind.Local to BuiltInSourceIds.Local.value,
                 LegacyStorageKind.WebDav to BuiltInSourceIds.WebDav.value,
                 LegacyStorageKind.OneDrive to BuiltInSourceIds.OneDrive.value,
+                LegacyStorageKind.Smb to BuiltInSourceIds.Smb.value,
             ),
             captured,
         )
@@ -268,12 +286,20 @@ class LegacyStorageMusicSourceTest {
         ).resolvePlayback(
             legacyStorageTrackMediaId(BuiltInSourceIds.OneDrive, accountId, "/Cloud/OneDrive.m4a")
         )
+        SmbMusicSource(
+            unusedConnectionTester(),
+            unusedDirectoryLister(),
+            playbackResolver,
+        ).resolvePlayback(
+            legacyStorageTrackMediaId(BuiltInSourceIds.Smb, accountId, "/NAS/SMB.flac")
+        )
 
         assertEquals(
             listOf(
                 Triple(accountId, "/Local.flac", LegacyStorageKind.Local),
                 Triple(accountId, "/Music/WebDAV.mp3", LegacyStorageKind.WebDav),
                 Triple(accountId, "/Cloud/OneDrive.m4a", LegacyStorageKind.OneDrive),
+                Triple(accountId, "/NAS/SMB.flac", LegacyStorageKind.Smb),
             ),
             captured,
         )

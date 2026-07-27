@@ -6,6 +6,7 @@ import android.app.Service
 import android.content.Intent
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import com.github.tidetunes.shared.R
 import com.github.tidetunes.singleton.Bridge
 import org.koin.android.ext.android.inject
 import uniffi.tidetunes_backend.tidetunesLog
@@ -24,6 +25,7 @@ class KeepBackendService : Service() {
         val notification = NotificationCompat.Builder(this, _channelId)
             .setContentTitle("TideTunes Backend")
             .setContentText("TideTunes Backend Service is running")
+            .setSmallIcon(R.drawable.media3_notification_small_icon)
             .setOngoing(true)
             .build();
 

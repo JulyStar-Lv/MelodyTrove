@@ -1,6 +1,7 @@
 package com.github.tidetunes.widgets.appbar
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -28,6 +29,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.github.tidetunes.core.presentation.layout.WindowSizeClass
+import com.github.tidetunes.core.presentation.components.tideTunesAppIconPainter
 import com.github.tidetunes.core.presentation.theme.TideTunesBrand
 import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import com.github.tidetunes.navigation.HomeTab
@@ -56,25 +58,14 @@ fun NavigationRailBar(
             .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.96f)),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(
+        Image(
+            painter = tideTunesAppIconPainter(),
+            contentDescription = "TideTunes",
             modifier = Modifier
                 .padding(top = 18.dp, bottom = 22.dp)
                 .size(38.dp)
-                .background(
-                    brush = Brush.linearGradient(
-                        listOf(TideTunesBrand.Primary, TideTunesBrand.Secondary),
-                    ),
-                    shape = RoundedCornerShape(shapes.sm),
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(HomeTab.LIBRARY.painterRes),
-                contentDescription = "TideTunes",
-                tint = Color.White,
-                modifier = Modifier.size(20.dp),
-            )
-        }
+                .clip(RoundedCornerShape(shapes.sm)),
+        )
         Column(
             modifier = Modifier
                 .weight(1f)

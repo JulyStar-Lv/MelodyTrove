@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import java.io.ByteArrayInputStream
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.Test
@@ -111,6 +112,105 @@ class DesktopCoroutineDownloadSchedulerTest {
         val failed = awaitTask(repository, task.id, DownloadStatus.Failed)
         assertTrue(failed.errorMessage!!.contains("Unavailable"))
         assertFalse(File(tempDir, "downloads").exists())
+    }
+
+    @Test
+    fun resumeUsesPartFileOffsetWithoutRedownloadingPrefix() = runBlocking {
+        val tempDir = Files.createTempDirectory("tidetunes-download-resume-test").toFile()
+        val downloadDir = File(tempDir, "downloads").apply { mkdirs() }
+        File(downloadDir, "download-1.flac.part").writeBytes(byteArrayOf(1, 2))
+        val repository = FakeDownloadTaskRepository()
+        val task = task().copy(downloadedBytes = 2, totalBytes = 4)
+        repository.upsertTask(task)
+        var openedOffset: Long? = null
+        val scheduler = DesktopCoroutineDownloadScheduler(
+            repository = repository,
+            sourceRegistry = MusicSourceRegistry(
+                listOf(
+                    FakeMusicSource(
+                        result = SourcePlaybackResult.Success(
+                            PlaybackResource(
+                                uri = "http://127.0.0.1/download.flac",
+                                mimeType = "audio/flac",
+                            )
+                        )
+                    )
+                )
+            ),
+            legacyStoragePlaybackResolver = RecordingLegacyStoragePlaybackResolver(),
+            scope = this,
+            downloadDirectoryProvider = { downloadDir },
+            resourceOpener = object : DesktopDownloadResourceOpener {
+                override fun open(
+                    resource: PlaybackResource,
+                    offset: Long,
+                ): OpenedDesktopDownloadResource {
+                    openedOffset = offset
+                    return OpenedDesktopDownloadResource(
+                        input = ByteArrayInputStream(byteArrayOf(3, 4)),
+                        totalBytes = 4,
+                    )
+                }
+            },
+            maxConcurrentTasks = 1,
+            nowEpochMs = { 40 },
+        )
+
+        scheduler.schedule(task)
+
+        val completed = awaitTask(repository, task.id, DownloadStatus.Completed)
+        assertEquals(2L, openedOffset)
+        assertEquals(listOf<Byte>(1, 2, 3, 4), File(completed.localPath!!).readBytes().toList())
+        assertEquals(4, completed.downloadedBytes)
+    }
+
+    @Test
+    fun resumeRejectsChangedRemoteSizeAndRemovesStalePartFile() = runBlocking {
+        val tempDir = Files.createTempDirectory("tidetunes-download-size-change-test").toFile()
+        val downloadDir = File(tempDir, "downloads").apply { mkdirs() }
+        val partFile = File(downloadDir, "download-1.flac.part").apply {
+            writeBytes(byteArrayOf(1, 2))
+        }
+        val repository = FakeDownloadTaskRepository()
+        val task = task().copy(downloadedBytes = 2, totalBytes = 4)
+        repository.upsertTask(task)
+        val scheduler = DesktopCoroutineDownloadScheduler(
+            repository = repository,
+            sourceRegistry = MusicSourceRegistry(
+                listOf(
+                    FakeMusicSource(
+                        result = SourcePlaybackResult.Success(
+                            PlaybackResource(
+                                uri = "http://127.0.0.1/download.flac",
+                                mimeType = "audio/flac",
+                            )
+                        )
+                    )
+                )
+            ),
+            legacyStoragePlaybackResolver = RecordingLegacyStoragePlaybackResolver(),
+            scope = this,
+            downloadDirectoryProvider = { downloadDir },
+            resourceOpener = object : DesktopDownloadResourceOpener {
+                override fun open(
+                    resource: PlaybackResource,
+                    offset: Long,
+                ): OpenedDesktopDownloadResource {
+                    return OpenedDesktopDownloadResource(
+                        input = ByteArrayInputStream(byteArrayOf(3, 4, 5)),
+                        totalBytes = 5,
+                    )
+                }
+            },
+            maxConcurrentTasks = 1,
+            nowEpochMs = { 50 },
+        )
+
+        scheduler.schedule(task)
+
+        val failed = awaitTask(repository, task.id, DownloadStatus.Failed)
+        assertTrue(failed.errorMessage!!.contains("size changed"))
+        assertFalse(partFile.exists())
     }
 
     private suspend fun awaitTask(

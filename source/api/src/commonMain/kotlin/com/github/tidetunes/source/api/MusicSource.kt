@@ -65,6 +65,29 @@ class OneDriveSourceConfiguration(
     val refreshToken: String,
 ) : SourceConfiguration
 
+data class SmbSourceConfiguration(
+    override val accountId: SourceAccountId? = null,
+    override val alias: String,
+    val host: String,
+    val port: Int = 445,
+    val share: String,
+    val rootPath: String = "",
+    val domain: String? = null,
+    val username: String = "",
+    val password: String = "",
+    val isGuest: Boolean = false,
+    val requireSigning: Boolean = false,
+    val requireEncryption: Boolean = false,
+) : SourceConfiguration {
+    override fun toString(): String {
+        return "SmbSourceConfiguration(" +
+            "accountId=$accountId, alias=$alias, host=$host, port=$port, share=$share, " +
+            "rootPath=$rootPath, domain=$domain, username=$username, password=<redacted>, " +
+            "isGuest=$isGuest, requireSigning=$requireSigning, " +
+            "requireEncryption=$requireEncryption)"
+    }
+}
+
 data class LocalSourceConfiguration(
     override val accountId: SourceAccountId? = null,
     override val alias: String = "Local",
@@ -120,6 +143,10 @@ sealed interface SourceAuthResult {
 enum class SourceAuthFailureReason {
     Timeout,
     Unauthorized,
+    PermissionDenied,
+    NotFound,
+    InvalidAddress,
+    UnsupportedSecurityPolicy,
     UnsupportedConfiguration,
     Unavailable,
     Unknown,
@@ -210,6 +237,10 @@ sealed interface SourceListResult {
 enum class SourceListFailureReason {
     Unauthorized,
     Timeout,
+    PermissionDenied,
+    NotFound,
+    InvalidAddress,
+    UnsupportedSecurityPolicy,
     UnsupportedAccount,
     Unavailable,
     Unknown,
@@ -233,6 +264,7 @@ object BuiltInSourceIds {
     val Local = SourceId("local")
     val WebDav = SourceId("webdav")
     val OneDrive = SourceId("onedrive")
+    val Smb = SourceId("smb")
     val Navidrome = SourceId("navidrome")
     val OpenSubsonic = SourceId("open_subsonic")
     val Emby = SourceId("emby")

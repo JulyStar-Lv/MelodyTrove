@@ -24,6 +24,7 @@ data class SourceAccountEntity(
     val createdAt: Long,
     val updatedAt: Long,
     val rootPath: String? = null,
+    val providerConfig: String? = null,
 )
 
 @Entity(

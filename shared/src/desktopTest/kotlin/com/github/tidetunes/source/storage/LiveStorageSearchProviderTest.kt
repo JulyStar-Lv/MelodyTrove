@@ -85,6 +85,42 @@ class LiveStorageSearchProviderTest {
     }
 
     @Test
+    fun supportsCompleteRemoteAudioSetAndRejectsVideoMp4() = runBlocking {
+        val provider = providerWithFiles(1L, mapOf(
+            "/" to listOf(
+                entry(isDir = false, name = "album.ape", path = "/album.ape"),
+                entry(isDir = false, name = "album.wv", path = "/album.wv"),
+                entry(isDir = false, name = "album.aiff", path = "/album.aiff"),
+                entry(
+                    isDir = false,
+                    name = "album.mp4",
+                    path = "/album.mp4",
+                    mimeType = "audio/mp4",
+                ),
+                entry(
+                    isDir = false,
+                    name = "video.mp4",
+                    path = "/video.mp4",
+                    mimeType = "video/mp4",
+                ),
+            ),
+        ))
+
+        val result = provider.search(
+            accountId = SourceAccountId("storage:1"),
+            query = ".",
+            limit = 10,
+            expectedStorageKind = LegacyStorageKind.Local,
+            sourceId = BuiltInSourceIds.Local,
+        )
+
+        assertEquals(
+            listOf("album.ape", "album.wv", "album.aiff", "album.mp4"),
+            (result as SourceSearchResult.Success).items.map { it.title },
+        )
+    }
+
+    @Test
     fun skipsHiddenDirectories() = runBlocking {
         val provider = providerWithFiles(1L, mapOf(
             "/" to listOf(
@@ -171,7 +207,12 @@ class LiveStorageSearchProviderTest {
         return LiveStorageSearchProvider(directoryLister, storageLookup)
     }
 
-    private fun entry(isDir: Boolean, name: String, path: String): StorageEntry {
+    private fun entry(
+        isDir: Boolean,
+        name: String,
+        path: String,
+        mimeType: String? = null,
+    ): StorageEntry {
         return StorageEntry(
             storageId = StorageId(1L),
             name = name,
@@ -180,7 +221,7 @@ class LiveStorageSearchProviderTest {
             isDir = isDir,
             remoteId = name,
             parentRemoteId = null,
-            mimeType = null,
+            mimeType = mimeType,
             etag = null,
             ctag = null,
             createdAt = null,

@@ -612,7 +612,8 @@ interface TrackSourceRefDao {
             account.enabled AS account_enabled,
             account.createdAt AS account_createdAt,
             account.updatedAt AS account_updatedAt,
-            account.rootPath AS account_rootPath
+            account.rootPath AS account_rootPath,
+            account.providerConfig AS account_providerConfig
         FROM track_source_ref ref
         JOIN source_item item ON item.id = ref.sourceItemId
         JOIN source_account account ON account.id = item.sourceAccountId
@@ -688,7 +689,8 @@ interface TrackSourceRefDao {
             account.enabled AS account_enabled,
             account.createdAt AS account_createdAt,
             account.updatedAt AS account_updatedAt,
-            account.rootPath AS account_rootPath
+            account.rootPath AS account_rootPath,
+            account.providerConfig AS account_providerConfig
         FROM track_source_ref ref
         JOIN source_item item ON item.id = ref.sourceItemId
         JOIN source_account account ON account.id = item.sourceAccountId

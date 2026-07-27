@@ -1,11 +1,14 @@
 package com.github.tidetunes.core.presentation.components
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -114,6 +117,7 @@ fun TideIconButton(
     contentDescription: String? = null,
     colors: TideIconButtonColors? = null,
     enabled: Boolean = true,
+    showClickIndication: Boolean = true,
 ) {
     val buttonSize = tideIconButtonSizeToDp(size)
     val touchTargetSize = maxOf(buttonSize, TideTunesTokens.adaptive.minimumTouchTarget)
@@ -131,11 +135,18 @@ fun TideIconButton(
         enabled = enabled,
         isFilled = isFilled,
     )
+    val interactionSource = remember { MutableInteractionSource() }
 
     Box(
         modifier = modifier
             .size(touchTargetSize)
             .clickable(
+                interactionSource = interactionSource,
+                indication = if (showClickIndication) {
+                    LocalIndication.current
+                } else {
+                    null
+                },
                 enabled = enabled,
                 onClick = {
                     onClick()
@@ -169,6 +180,7 @@ fun TidePlayerControlButton(
     size: TidePlayerControlSize = TidePlayerControlSize.Mini,
     variant: TidePlayerControlVariant = TidePlayerControlVariant.Secondary,
     contentDescription: String? = null,
+    showClickIndication: Boolean = true,
 ) {
     val isPrimary = variant == TidePlayerControlVariant.Primary
     val buttonSize = tidePlayerControlButtonSize(size, variant)
@@ -202,11 +214,18 @@ fun TidePlayerControlButton(
         variant == TidePlayerControlVariant.Ghost -> MiuixTheme.colorScheme.onSurface
         else -> MiuixTheme.colorScheme.onSecondaryContainer
     }
+    val interactionSource = remember { MutableInteractionSource() }
 
     Box(
         modifier = modifier
             .size(touchTargetSize)
             .clickable(
+                interactionSource = interactionSource,
+                indication = if (showClickIndication) {
+                    LocalIndication.current
+                } else {
+                    null
+                },
                 enabled = enabled,
                 onClick = onClick,
             ),

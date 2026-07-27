@@ -3,7 +3,7 @@ use std::{
     net::{Ipv4Addr, SocketAddrV4, TcpListener},
     num::NonZeroUsize,
     sync::{
-        atomic::{AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
         Arc, Mutex,
     },
 };
@@ -70,7 +70,14 @@ impl Drop for PlaybackSession {
 impl PlaybackSession {
     fn close_internal(&self) {
         if let Some(shutdown) = self.shutdown.lock().unwrap().take() {
+            self.source.active.store(false, Ordering::Release);
             let _ = shutdown.send(());
+            let source = self.source.clone();
+            std::mem::drop(tidetunes_async_runtime::tokio_runtime().spawn(async move {
+                if source.backend.release(source.path.clone()).await.is_err() {
+                    tracing::debug!("failed to release playback source reader");
+                }
+            }));
         }
     }
 }
@@ -81,6 +88,7 @@ struct PlaybackSource {
     total_size: u64,
     content_type: String,
     token: String,
+    active: AtomicBool,
     cache: Mutex<LruCache<u64, Bytes>>,
     remote_requests: AtomicU64,
     remote_bytes: AtomicU64,
@@ -151,6 +159,7 @@ pub async fn start_playback_gateway(
         total_size: probe.total_size,
         content_type,
         token: token.clone(),
+        active: AtomicBool::new(true),
         cache: Mutex::new(LruCache::new(NonZeroUsize::new(CACHE_BLOCKS).unwrap())),
         remote_requests: AtomicU64::new(1),
         remote_bytes: AtomicU64::new(probe.bytes.len() as u64),
@@ -228,7 +237,7 @@ async fn head_media(
     Path((token, _file_name)): Path<(String, String)>,
     State(source): State<Arc<PlaybackSource>>,
 ) -> Response {
-    if token != source.token {
+    if token != source.token || !source.active.load(Ordering::Acquire) {
         return StatusCode::NOT_FOUND.into_response();
     }
     response_with_headers(
@@ -245,7 +254,7 @@ async fn get_media(
     State(source): State<Arc<PlaybackSource>>,
     headers: HeaderMap,
 ) -> Response {
-    if token != source.token {
+    if token != source.token || !source.active.load(Ordering::Acquire) {
         return StatusCode::NOT_FOUND.into_response();
     }
     let resolved = resolve_range(
@@ -417,7 +426,100 @@ fn is_generic_content_type(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tidetunes_storage_backend::LocalBackend;
+    use futures_util::future::BoxFuture;
+    use tidetunes_storage_backend::{
+        Entry, LocalBackend, RangeResponse, StorageBackendError, StorageBackendResult, StreamFile,
+    };
+
+    #[derive(Default)]
+    struct SizeChangingBackend {
+        range_calls: AtomicU64,
+        released: AtomicBool,
+    }
+
+    #[derive(Default)]
+    struct ReleaseCountingBackend {
+        released: AtomicU64,
+    }
+
+    impl StorageBackend for SizeChangingBackend {
+        fn list(&self, _dir: String) -> BoxFuture<'_, StorageBackendResult<Vec<Entry>>> {
+            Box::pin(async { Ok(Vec::new()) })
+        }
+
+        fn get(
+            &self,
+            _path: String,
+            _byte_offset: u64,
+        ) -> BoxFuture<'_, StorageBackendResult<StreamFile>> {
+            Box::pin(async {
+                Err(StorageBackendError::UnsupportedFeature(
+                    "streaming is not used by this test".to_string(),
+                ))
+            })
+        }
+
+        fn get_range_response(
+            &self,
+            _path: String,
+            range: ByteRange,
+        ) -> BoxFuture<'_, StorageBackendResult<RangeResponse>> {
+            let total_size = if self.range_calls.fetch_add(1, Ordering::SeqCst) == 0 {
+                10
+            } else {
+                11
+            };
+            Box::pin(async move {
+                Ok(RangeResponse {
+                    bytes: Bytes::from(vec![b'x'; range.len() as usize]),
+                    total_size,
+                    content_type: Some("audio/flac".to_string()),
+                })
+            })
+        }
+
+        fn release(&self, _path: String) -> BoxFuture<'_, StorageBackendResult<()>> {
+            self.released.store(true, Ordering::SeqCst);
+            Box::pin(async { Ok(()) })
+        }
+    }
+
+    impl StorageBackend for ReleaseCountingBackend {
+        fn list(&self, _dir: String) -> BoxFuture<'_, StorageBackendResult<Vec<Entry>>> {
+            Box::pin(async { Ok(Vec::new()) })
+        }
+
+        fn get(
+            &self,
+            _path: String,
+            _byte_offset: u64,
+        ) -> BoxFuture<'_, StorageBackendResult<StreamFile>> {
+            Box::pin(async {
+                Err(StorageBackendError::UnsupportedFeature(
+                    "streaming is not used by this test".to_string(),
+                ))
+            })
+        }
+
+        fn get_range_response(
+            &self,
+            _path: String,
+            range: ByteRange,
+        ) -> BoxFuture<'_, StorageBackendResult<RangeResponse>> {
+            Box::pin(async move {
+                Ok(RangeResponse {
+                    bytes: Bytes::from(vec![b'x'; range.len() as usize]),
+                    total_size: 10,
+                    content_type: Some("audio/flac".to_string()),
+                })
+            })
+        }
+
+        fn release(&self, _path: String) -> BoxFuture<'_, StorageBackendResult<()>> {
+            self.released.fetch_add(1, Ordering::SeqCst);
+            Box::pin(async { Ok(()) })
+        }
+    }
 
     #[test]
     fn parses_http_ranges() {
@@ -441,12 +543,16 @@ mod tests {
         .unwrap();
 
         assert!(session.url().ends_with("/stream.flac"));
-        let client = reqwest::Client::new();
+        let client = reqwest::Client::builder().no_proxy().build().unwrap();
         let head = client.head(session.url()).send().await.unwrap();
         assert_eq!(head.status(), StatusCode::OK);
         assert_eq!(head.headers()[CONTENT_LENGTH], "10");
         assert_eq!(head.headers()[CONTENT_TYPE], "audio/flac");
         assert_eq!(head.headers()[ACCEPT_RANGES], "bytes");
+
+        let full = client.get(session.url()).send().await.unwrap();
+        assert_eq!(full.status(), StatusCode::OK);
+        assert_eq!(full.bytes().await.unwrap().as_ref(), b"0123456789");
 
         let response = client
             .get(session.url())
@@ -467,6 +573,21 @@ mod tests {
         assert_eq!(suffix.status(), StatusCode::PARTIAL_CONTENT);
         assert_eq!(suffix.bytes().await.unwrap().as_ref(), b"789");
 
+        let forward_seek = client
+            .get(session.url())
+            .header(RANGE, "bytes=7-8")
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(forward_seek.bytes().await.unwrap().as_ref(), b"78");
+        let backward_seek = client
+            .get(session.url())
+            .header(RANGE, "bytes=1-2")
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(backward_seek.bytes().await.unwrap().as_ref(), b"12");
+
         let invalid = client
             .get(session.url())
             .header(RANGE, "bytes=10-")
@@ -477,7 +598,67 @@ mod tests {
         assert_eq!(invalid.headers()[CONTENT_RANGE], "bytes */10");
         assert_eq!(session.stats().remote_requests, 2);
 
+        let url = session.url();
         session.shutdown();
+        assert!(!session.source.active.load(Ordering::Acquire));
+        let direct = get_media(
+            Path((session.source.token.clone(), "stream.flac".to_string())),
+            State(session.source.clone()),
+            HeaderMap::new(),
+        )
+        .await;
+        assert_eq!(direct.status(), StatusCode::NOT_FOUND);
+        let stopped = match tokio::time::timeout(
+            std::time::Duration::from_millis(500),
+            client.get(&url).send(),
+        )
+        .await
+        {
+            Err(_) | Ok(Err(_)) => true,
+            Ok(Ok(response)) => !response.status().is_success(),
+        };
+        assert!(stopped, "playback URL remained available after shutdown");
         std::fs::remove_file(path).unwrap();
+    }
+
+    #[tokio::test]
+    async fn reports_remote_size_changes_and_releases_the_source() {
+        let backend = Arc::new(SizeChangingBackend::default());
+        let session = start_playback_gateway(backend.clone(), "/changed.flac".to_string())
+            .await
+            .unwrap();
+
+        let error = session.source.block(0).await.unwrap_err();
+        assert!(error.contains("remote size changed from 10 to 11"));
+
+        session.shutdown();
+        tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            while !backend.released.load(Ordering::SeqCst) {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("playback source reader was not released");
+    }
+
+    #[tokio::test]
+    async fn rapid_session_switching_releases_every_source_reader() {
+        const SESSION_COUNT: u64 = 12;
+        let backend = Arc::new(ReleaseCountingBackend::default());
+
+        for index in 0..SESSION_COUNT {
+            let session = start_playback_gateway(backend.clone(), format!("/track-{index}.flac"))
+                .await
+                .unwrap();
+            session.shutdown();
+        }
+
+        tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            while backend.released.load(Ordering::SeqCst) != SESSION_COUNT {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("rapid playback switching left source readers unreleased");
     }
 }

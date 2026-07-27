@@ -129,7 +129,8 @@ class SettingsVM(
         val sourceAccounts = storageAccounts
             .filter { account ->
                 account.sourceId == BuiltInSourceIds.Local ||
-                    account.sourceId == BuiltInSourceIds.WebDav
+                    account.sourceId == BuiltInSourceIds.WebDav ||
+                    account.sourceId == BuiltInSourceIds.Smb
             }
             .map(StorageAccountInfo::toSettingsItem)
         val scanTasks = values[8] as List<LibrarySyncTask>
@@ -575,6 +576,15 @@ class SettingsVM(
                         SourceConnectionTestStatus.Error -> textProvider.get(
                             Res.string.settings_feedback_connection_check
                         )
+                        SourceConnectionTestStatus.Unauthorized,
+                        SourceConnectionTestStatus.Timeout,
+                        SourceConnectionTestStatus.PermissionDenied,
+                        SourceConnectionTestStatus.NotFound,
+                        SourceConnectionTestStatus.InvalidAddress,
+                        SourceConnectionTestStatus.Unavailable,
+                        SourceConnectionTestStatus.UnsupportedSecurityPolicy -> textProvider.get(
+                            Res.string.settings_feedback_connection_check
+                        )
                         SourceConnectionTestStatus.Testing -> textProvider.get(
                             Res.string.settings_feedback_connection_testing
                         )
@@ -858,6 +868,7 @@ private fun StorageAccountInfo.toSettingsItem(): SourceAccountSettingsItem {
             BuiltInSourceIds.Local -> "Local"
             BuiltInSourceIds.WebDav -> "WebDAV"
             BuiltInSourceIds.OneDrive -> "OneDrive"
+            BuiltInSourceIds.Smb -> "SMB"
             BuiltInSourceIds.Navidrome -> "Navidrome"
             BuiltInSourceIds.OpenSubsonic -> "OpenSubsonic"
             BuiltInSourceIds.Emby -> "Emby"

@@ -108,6 +108,7 @@ impl ByteRange {
 enum StreamFileInner {
     Response(reqwest::Response),
     Total(bytes::Bytes),
+    Channel(async_channel::Receiver<StorageBackendResult<Bytes>>),
 }
 
 pub struct StreamFile {
@@ -136,6 +137,22 @@ pub enum StorageBackendError {
     QuickXMLDeError(#[from] quick_xml::DeError),
     #[error("invalid byte range {start}-{end_inclusive}")]
     InvalidRange { start: u64, end_inclusive: u64 },
+    #[error("authentication failed")]
+    AuthenticationFailed,
+    #[error("permission denied")]
+    PermissionDenied,
+    #[error("remote item not found")]
+    NotFound,
+    #[error("remote operation timed out")]
+    Timeout,
+    #[error("remote connection was lost")]
+    ConnectionLost,
+    #[error("invalid storage path: {0}")]
+    InvalidPath(String),
+    #[error("storage protocol error: {0}")]
+    ProtocolError(String),
+    #[error("unsupported storage feature: {0}")]
+    UnsupportedFeature(String),
     #[error("server ignored byte range request and returned HTTP {status}")]
     RangeNotSupported { status: u16 },
     #[error("invalid Content-Range header: {0}")]
@@ -166,25 +183,60 @@ pub type StorageBackendResult<T> = std::result::Result<T, StorageBackendError>;
 
 impl StorageBackendError {
     pub fn is_timeout(&self) -> bool {
-        if let StorageBackendError::RequestFail(e) = self {
-            return e.is_timeout();
+        match self {
+            StorageBackendError::Timeout => true,
+            StorageBackendError::RequestFail(error) => error.is_timeout(),
+            StorageBackendError::TokioIO(error) => error.kind() == ErrorKind::TimedOut,
+            _ => false,
         }
-        false
     }
 
     pub fn is_unauthorized(&self) -> bool {
-        if let StorageBackendError::RequestFail(e) = self {
-            return e.status() == Some(StatusCode::UNAUTHORIZED);
+        match self {
+            StorageBackendError::AuthenticationFailed => true,
+            StorageBackendError::RequestFail(error) => {
+                error.status() == Some(StatusCode::UNAUTHORIZED)
+            }
+            _ => false,
         }
-        false
     }
 
     pub fn is_not_found(&self) -> bool {
         match self {
+            StorageBackendError::NotFound => true,
             StorageBackendError::RequestFail(e) => e.status() == Some(StatusCode::NOT_FOUND),
             StorageBackendError::TokioIO(e) => e.kind() == ErrorKind::NotFound,
             _ => false,
         }
+    }
+
+    pub fn is_permission_denied(&self) -> bool {
+        matches!(self, StorageBackendError::PermissionDenied)
+            || matches!(
+                self,
+                StorageBackendError::TokioIO(error)
+                    if error.kind() == ErrorKind::PermissionDenied
+            )
+            || matches!(
+                self,
+                StorageBackendError::RequestFail(error)
+                    if error.status() == Some(StatusCode::FORBIDDEN)
+            )
+    }
+
+    pub fn is_invalid_path(&self) -> bool {
+        matches!(
+            self,
+            StorageBackendError::InvalidPath(_) | StorageBackendError::UrlParseError(_)
+        )
+    }
+
+    pub fn is_connection_lost(&self) -> bool {
+        matches!(self, StorageBackendError::ConnectionLost)
+    }
+
+    pub fn is_unsupported(&self) -> bool {
+        matches!(self, StorageBackendError::UnsupportedFeature(_))
     }
 
     pub fn is_delta_resync_required(&self) -> bool {
@@ -193,6 +245,7 @@ impl StorageBackendError {
 
     pub fn is_retryable(&self) -> bool {
         match self {
+            StorageBackendError::Timeout | StorageBackendError::ConnectionLost => true,
             StorageBackendError::RequestFail(error) => {
                 error.is_timeout()
                     || error.is_connect()
@@ -229,6 +282,9 @@ pub trait StorageBackend: Send + Sync {
     ) -> BoxFuture<'_, StorageBackendResult<RangeResponse>>;
     fn get_range(&self, p: String, range: ByteRange) -> BoxFuture<'_, StorageBackendResult<Bytes>> {
         Box::pin(async move { Ok(self.get_range_response(p, range).await?.bytes) })
+    }
+    fn release(&self, _p: String) -> BoxFuture<'_, StorageBackendResult<()>> {
+        Box::pin(async { Ok(()) })
     }
     fn delta(
         &self,
@@ -349,8 +405,24 @@ impl StreamFile {
             byte_offset: byte_offset.min(total as u64),
         }
     }
+    pub fn new_from_channel(
+        receiver: async_channel::Receiver<StorageBackendResult<Bytes>>,
+        total: Option<usize>,
+        content_type: Option<String>,
+        name: String,
+        byte_offset: u64,
+    ) -> Self {
+        Self {
+            inner: StreamFileInner::Channel(receiver),
+            total,
+            content_type,
+            name,
+            byte_offset,
+        }
+    }
     pub fn size(&self) -> Option<usize> {
-        self.total.map(|total| total - self.byte_offset as usize)
+        self.total
+            .map(|total| total.saturating_sub(self.byte_offset as usize))
     }
     pub fn content_type(&self) -> Option<&str> {
         self.content_type.as_deref()
@@ -360,6 +432,10 @@ impl StreamFile {
     }
 
     pub fn into_rx(self) -> async_channel::Receiver<StorageBackendResult<Bytes>> {
+        if let StreamFileInner::Channel(receiver) = self.inner {
+            return receiver;
+        }
+
         let (tx, rx) = async_channel::bounded::<StorageBackendResult<Bytes>>(10);
 
         std::mem::drop(tokio_runtime().spawn(async move {
@@ -389,6 +465,7 @@ impl StreamFile {
                             tx.send(Ok(buf)).await?;
                         }
                     }
+                    StreamFileInner::Channel(_) => unreachable!("channel stream returned above"),
                 }
 
                 Ok(())
@@ -414,6 +491,13 @@ impl StreamFile {
         let buf = match self.inner {
             StreamFileInner::Response(response) => response.bytes().await?,
             StreamFileInner::Total(buf) => buf,
+            StreamFileInner::Channel(receiver) => {
+                let mut buf = bytes::BytesMut::new();
+                while let Ok(chunk) = receiver.recv().await {
+                    buf.extend_from_slice(&chunk?);
+                }
+                return Ok(buf.freeze());
+            }
         };
 
         let offset = (self.byte_offset as usize).min(buf.len());
@@ -428,7 +512,12 @@ impl StreamFile {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_content_range, parse_remote_timestamp, ByteRange, StorageBackendError};
+    use bytes::Bytes;
+
+    use super::{
+        parse_content_range, parse_remote_timestamp, ByteRange, StorageBackendError,
+        StorageBackendResult, StreamFile,
+    };
 
     #[test]
     fn validates_byte_ranges() {
@@ -457,5 +546,27 @@ mod tests {
         assert_eq!(webdav, graph);
         assert!(webdav.is_some());
         assert_eq!(parse_remote_timestamp("not a timestamp"), None);
+    }
+
+    #[tokio::test]
+    async fn channel_stream_observes_consumer_cancellation() {
+        let (sender, receiver) = async_channel::bounded::<StorageBackendResult<Bytes>>(1);
+        let stream =
+            StreamFile::new_from_channel(receiver, Some(1), None, "stream.bin".to_string(), 0);
+        drop(stream.into_rx());
+
+        assert!(sender.send(Ok(Bytes::from_static(b"x"))).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn channel_stream_does_not_apply_remote_offset_twice() {
+        let (sender, receiver) = async_channel::bounded::<StorageBackendResult<Bytes>>(1);
+        sender.send(Ok(Bytes::from_static(b"cdef"))).await.unwrap();
+        sender.close();
+        let stream =
+            StreamFile::new_from_channel(receiver, Some(6), None, "stream.bin".to_string(), 2);
+
+        assert_eq!(stream.size(), Some(4));
+        assert_eq!(stream.bytes().await.unwrap(), Bytes::from_static(b"cdef"));
     }
 }

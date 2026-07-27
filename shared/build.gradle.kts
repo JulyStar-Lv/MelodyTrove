@@ -88,6 +88,7 @@ kotlin {
             implementation(project(":source:local"))
             implementation(project(":source:webdav"))
             implementation(project(":source:onedrive"))
+            implementation(project(":source:smb"))
             implementation(project(":source:server"))
             implementation(project(":service:playback:domain"))
             implementation(project(":service:playback:presentation"))

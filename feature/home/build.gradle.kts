@@ -27,6 +27,7 @@ kotlin {
             implementation(project(":service:playback:domain"))
             implementation(libs.runtime)
             implementation(libs.foundation)
+            implementation(libs.backdrop)
             implementation(libs.components.resources)
             implementation(libs.miuix.ui)
             implementation(libs.koin.core)

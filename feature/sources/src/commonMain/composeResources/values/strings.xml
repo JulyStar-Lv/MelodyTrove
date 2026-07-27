@@ -19,6 +19,27 @@
     <string name="storage_edit_onedrive_should_auth">Should connect your account</string>
     <string name="storage_edit_password">PASSWORD</string>
     <string name="storage_edit_username">USERNAME</string>
+    <string name="storage_edit_smb_server">SERVER</string>
+    <string name="storage_edit_smb_port">PORT</string>
+    <string name="storage_edit_smb_share">SHARE</string>
+    <string name="storage_edit_smb_root">ROOT PATH</string>
+    <string name="storage_edit_smb_domain">DOMAIN OR WORKGROUP</string>
+    <string name="storage_edit_smb_guest">GUEST ACCESS</string>
+    <string name="storage_edit_smb_signing">REQUIRE SIGNING</string>
+    <string name="storage_edit_smb_encryption">REQUIRE ENCRYPTION</string>
+    <string name="storage_edit_smb_share_required">Share cannot be empty</string>
+    <string name="storage_edit_smb_port_invalid">Port must be between 1 and 65535</string>
+    <string name="storage_test_testing">Testing connection…</string>
+    <string name="storage_test_success">Connection successful</string>
+    <string name="storage_test_unauthorized">Username or password is incorrect</string>
+    <string name="storage_test_timeout">Connection timed out</string>
+    <string name="storage_test_permission">Access to this share was denied</string>
+    <string name="storage_test_not_found">Share or root path was not found</string>
+    <string name="storage_test_invalid_address">Server address or SMB path is invalid</string>
+    <string name="storage_test_unavailable">Server is unavailable</string>
+    <string name="storage_test_unsupported">The server does not support the required SMB security policy</string>
+    <string name="storage_test_error">Connection failed</string>
     <string name="storage_remove_desc_count">$$B__E_MCNT$$ musics will be removed.</string>
     <string name="storage_remove_desc_main">Are you sure to remove storage “$$B__E_TITLE$$”?</string>
+    <string name="storage_remove_desc_downloads">Library references are removed. Existing offline files and download history stay in Downloads until you remove them there.</string>
 </resources>

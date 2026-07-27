@@ -1,9 +1,9 @@
 # TideTunes Room KMP Schema
 
-Date: 2026-07-03
+Date: 2026-07-27
 
 The shared Room database is `tidetunes.db`. Android, iOS, and Desktop use
-platform-specific builders with bundled SQLite. Schema versions 1 through 7 are
+platform-specific builders with bundled SQLite. Schema versions 1 through 17 are
 exported under
 `shared/schemas/com.github.tidetunes.database.TideTunesDatabase/`.
 
@@ -27,7 +27,7 @@ exported under
 
 | Table | Purpose | Important constraints |
 | --- | --- | --- |
-| `source_account` | Local, WebDAV, OneDrive, and future provider account metadata | Provider type, display name, endpoint/account hints, credential reference only |
+| `source_account` | Local, WebDAV, OneDrive, SMB, and future provider account metadata | Provider type, display name, non-secret endpoint/configuration, credential reference only |
 | `library_root` | User-selected import roots and root-level sync state | Unique source-account/provider-root and source-account/path identities |
 | `source_item` | Provider inventory item identity and file facts | Unique source-account/provider-item and source-account/path identities; deletion and scan markers |
 | `source_item_property` | Extensible provider-specific item attributes | Key/value rows scoped to one source item |
@@ -51,12 +51,12 @@ exported under
 
 ### `source_account`
 
-用途：保存一个音乐来源账号或来源入口的非敏感元数据，例如本地、WebDAV、OneDrive。真实密码和 token 只通过 `credentialRef` 指向安全凭据存储。
+用途：保存一个音乐来源账号或来源入口的非敏感元数据，例如本地、WebDAV、OneDrive、SMB。真实密码和 token 只通过 `credentialRef` 指向安全凭据存储。
 
 | 字段 | 含义 |
 | --- | --- |
 | `id` | 来源账号主键；Rust/UniFFI 侧的 `StorageId` 与这里保持一致。 |
-| `providerType` | 来源类型，如 `local`、`webdav`、`onedrive`。 |
+| `providerType` | 来源类型，如 `local`、`webdav`、`onedrive`、`smb`。 |
 | `displayName` | UI 中展示的来源名称。 |
 | `endpoint` | WebDAV 地址、本地路径或其他非敏感连接端点。 |
 | `externalAccountId` | 第三方来源的外部账号、drive 或 provider ID；没有则为空。 |
@@ -65,6 +65,8 @@ exported under
 | `enabled` | 来源是否启用；禁用后不会作为可播放候选。 |
 | `createdAt` | 来源账号首次创建时间。 |
 | `updatedAt` | 来源账号最近更新时间。 |
+| `rootPath` | 账号级默认根路径；具体导入范围仍由 `library_root` 表示。 |
+| `providerConfig` | Provider 的非敏感 JSON 配置。SMB 在这里保存端口、share、协议根目录、Domain/Workgroup、签名和加密开关；禁止保存用户名密码。 |
 
 ### `library_root`
 
@@ -582,3 +584,9 @@ user playlist data as part of source disappearance.
   historical jobs compatible with Full scanning and the existing scan rules.
 - `MIGRATION_14_15` adds plugin provenance and file-reset locking columns to
   `track`; existing rows default to unlocked `FILE` metadata.
+- `MIGRATION_15_16` adds stable lyric source kinds and the per-track/source-kind
+  uniqueness rule.
+- `MIGRATION_16_17` adds nullable `source_account.providerConfig`. Existing
+  accounts migrate with `NULL`; SMB accounts use it only for non-secret
+  structured connection settings, while credentials remain behind
+  `credentialRef`.

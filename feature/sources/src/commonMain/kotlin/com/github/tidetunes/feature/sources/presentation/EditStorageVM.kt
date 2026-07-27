@@ -30,9 +30,16 @@ data class Validated(
     val aliasEmpty: Boolean = false,
     val usernameEmpty: Boolean = false,
     val passwordEmpty: Boolean = false,
+    val smbShareEmpty: Boolean = false,
+    val smbPortInvalid: Boolean = false,
 ) {
     fun valid(): Boolean {
-        return !addrEmpty && !aliasEmpty && !usernameEmpty && !passwordEmpty
+        return !addrEmpty &&
+            !aliasEmpty &&
+            !usernameEmpty &&
+            !passwordEmpty &&
+            !smbShareEmpty &&
+            !smbPortInvalid
     }
 }
 
@@ -198,6 +205,44 @@ class EditStorageVM constructor(
             is SourceEditorAction.OneDriveAliasChanged -> updateDraft { draft ->
                 draft.copy(alias = action.value)
             }
+            is SourceEditorAction.SmbAliasChanged -> updateDraft { draft ->
+                draft.copy(alias = action.value)
+            }
+            is SourceEditorAction.SmbHostChanged -> updateDraft { draft ->
+                draft.copy(smbHost = action.value)
+            }
+            is SourceEditorAction.SmbPortChanged -> updateDraft { draft ->
+                draft.copy(smbPort = action.value.toIntOrNull() ?: 0)
+            }
+            is SourceEditorAction.SmbShareChanged -> updateDraft { draft ->
+                draft.copy(smbShare = action.value)
+            }
+            is SourceEditorAction.SmbRootPathChanged -> updateDraft { draft ->
+                draft.copy(smbRootPath = action.value)
+            }
+            is SourceEditorAction.SmbDomainChanged -> updateDraft { draft ->
+                draft.copy(smbDomain = action.value)
+            }
+            is SourceEditorAction.SmbUsernameChanged -> updateDraft { draft ->
+                draft.copy(username = action.value)
+            }
+            is SourceEditorAction.SmbPasswordChanged -> updateDraft { draft ->
+                draft.copy(secret = action.value)
+            }
+            is SourceEditorAction.SmbGuestChanged -> updateDraft { draft ->
+                draft.copy(
+                    isAnonymous = action.value,
+                    username = if (action.value) "" else draft.username,
+                    secret = if (action.value) "" else draft.secret,
+                    smbDomain = if (action.value) "" else draft.smbDomain,
+                )
+            }
+            is SourceEditorAction.SmbSigningChanged -> updateDraft { draft ->
+                draft.copy(smbRequireSigning = action.value)
+            }
+            is SourceEditorAction.SmbEncryptionChanged -> updateDraft { draft ->
+                draft.copy(smbRequireEncryption = action.value)
+            }
             SourceEditorAction.ConnectOneDrive -> connectOneDrive()
             SourceEditorAction.DisconnectOneDrive -> disconnectOneDrive()
             is SourceEditorAction.SelectOneDriveDrive -> selectOneDriveDrive(action.driveId)
@@ -240,7 +285,11 @@ class EditStorageVM constructor(
     private fun validate(): Boolean {
         val draft = _draft.value
         _validated.value = Validated(
-            addrEmpty = draft.address.isBlank(),
+            addrEmpty = if (draft.storageType == SourceEditorType.Smb) {
+                draft.smbHost.isBlank()
+            } else {
+                draft.address.isBlank()
+            },
             aliasEmpty = if (draft.storageType == SourceEditorType.WebDav) {
                 false
             } else {
@@ -248,6 +297,7 @@ class EditStorageVM constructor(
             },
             usernameEmpty = when (draft.storageType) {
                 SourceEditorType.WebDav -> !draft.isAnonymous && draft.username.isBlank()
+                SourceEditorType.Smb -> !draft.isAnonymous && draft.username.isBlank()
                 SourceEditorType.Navidrome,
                 SourceEditorType.OpenSubsonic,
                 SourceEditorType.Emby -> draft.username.isBlank()
@@ -255,11 +305,18 @@ class EditStorageVM constructor(
             },
             passwordEmpty = when (draft.storageType) {
                 SourceEditorType.WebDav -> !draft.isAnonymous && draft.secret.isBlank()
+                SourceEditorType.Smb -> {
+                    !draft.isAnonymous && draft.id == null && draft.secret.isBlank()
+                }
                 SourceEditorType.Navidrome,
                 SourceEditorType.OpenSubsonic,
                 SourceEditorType.Emby -> draft.id == null && draft.secret.isBlank()
                 SourceEditorType.OneDrive -> draft.secret.isBlank()
             },
+            smbShareEmpty = draft.storageType == SourceEditorType.Smb &&
+                draft.smbShare.isBlank(),
+            smbPortInvalid = draft.storageType == SourceEditorType.Smb &&
+                draft.smbPort !in 1..65535,
         )
         return _validated.value.valid()
     }
@@ -313,7 +370,8 @@ class EditStorageVM constructor(
             viewModelScope.launch {
                 toastRepository.emitToast("Importing library folder...")
                 val metadataScanMode = settingsRepository.settings.first().metadataScanModeFor(
-                    isWebDav = _draft.value.storageType == SourceEditorType.WebDav,
+                    isWebDav = _draft.value.storageType == SourceEditorType.WebDav ||
+                        _draft.value.storageType == SourceEditorType.Smb,
                 )
                 val result = runCatching {
                     librarySyncController.syncFolder(
@@ -427,5 +485,7 @@ private fun Validated.toSourceEditorValidation(): SourceEditorValidation {
         aliasEmpty = aliasEmpty,
         usernameEmpty = usernameEmpty,
         passwordEmpty = passwordEmpty,
+        smbShareEmpty = smbShareEmpty,
+        smbPortInvalid = smbPortInvalid,
     )
 }

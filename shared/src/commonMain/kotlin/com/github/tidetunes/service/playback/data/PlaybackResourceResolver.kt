@@ -69,11 +69,13 @@ private fun StorageType.toBuiltInSourceId() = when (this) {
     StorageType.LOCAL -> BuiltInSourceIds.Local
     StorageType.WEBDAV -> BuiltInSourceIds.WebDav
     StorageType.ONE_DRIVE -> BuiltInSourceIds.OneDrive
+    StorageType.SMB -> BuiltInSourceIds.Smb
 }
 
 private fun String.toBuiltInSourceId() = when (this) {
     ProviderTypes.Local -> BuiltInSourceIds.Local
     ProviderTypes.WebDav -> BuiltInSourceIds.WebDav
     ProviderTypes.OneDrive -> BuiltInSourceIds.OneDrive
+    ProviderTypes.Smb -> BuiltInSourceIds.Smb
     else -> BuiltInSourceIds.WebDav
 }

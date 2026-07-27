@@ -37,6 +37,34 @@ import kotlin.test.assertTrue
 
 class RoomLibraryIntegrationTest {
     @Test
+    fun migrationSixteenToSeventeenAddsProviderConfiguration() {
+        val connection = BundledSQLiteDriver().open(":memory:")
+        try {
+            connection.execute(
+                """
+                CREATE TABLE source_account (
+                    id INTEGER NOT NULL PRIMARY KEY,
+                    providerType TEXT NOT NULL
+                )
+                """.trimIndent()
+            )
+            connection.execute("INSERT INTO source_account VALUES (7, 'smb')")
+
+            MIGRATION_16_17.migrate(connection)
+
+            assertTrue("providerConfig" in columns(connection, "source_account"))
+            connection.prepare(
+                "SELECT providerConfig FROM source_account WHERE id = 7"
+            ).use { statement ->
+                assertTrue(statement.step())
+                assertTrue(statement.isNull(0))
+            }
+        } finally {
+            connection.close()
+        }
+    }
+
+    @Test
     fun migrationFourteenToFifteenAddsMetadataResetState() {
         val connection = BundledSQLiteDriver().open(":memory:")
         try {

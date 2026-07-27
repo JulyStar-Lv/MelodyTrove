@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -34,6 +35,8 @@ import com.github.tidetunes.core.presentation.components.TideChevron
 import com.github.tidetunes.core.presentation.components.TideChevronDirection
 import com.github.tidetunes.core.presentation.components.TideSearchBar
 import com.github.tidetunes.core.presentation.components.TideGlassScene
+import com.github.tidetunes.core.presentation.components.LocalTideBottomContentInset
+import com.github.tidetunes.core.presentation.components.TideSettingsGroup
 import com.github.tidetunes.core.presentation.components.TideStickyGlassActionBar
 import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import org.jetbrains.compose.resources.DrawableResource
@@ -84,6 +87,7 @@ fun SettingsScreen(
         }
     }
     val pageTitleAlpha = (1f - actionBarProgress / 0.70f).coerceIn(0f, 1f)
+    val bottomContentInset = LocalTideBottomContentInset.current
 
     TideGlassScene(modifier = Modifier.fillMaxSize()) {
         Box(
@@ -95,7 +99,12 @@ fun SettingsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(scrollState)
-                    .padding(horizontal = TideTunesTokens.spacing.pageCompact, vertical = 16.dp),
+                    .padding(
+                        start = TideTunesTokens.spacing.pageCompact,
+                        top = 16.dp,
+                        end = TideTunesTokens.spacing.pageCompact,
+                        bottom = 16.dp + bottomContentInset,
+                    ),
                 verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
         // Page title
@@ -258,25 +267,9 @@ fun SettingsScreen(
 @Composable
 private fun SettingsSectionCard(
     title: String,
-    content: @Composable () -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = title.uppercase(),
-            color = MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.7f),
-            style = MiuixTheme.textStyles.footnote2,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(horizontal = 4.dp),
-        )
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(MiuixTheme.colorScheme.surfaceContainer),
-        ) {
-            content()
-        }
-    }
+    TideSettingsGroup(title = title, content = content)
 }
 
 // ── Nav Row ──

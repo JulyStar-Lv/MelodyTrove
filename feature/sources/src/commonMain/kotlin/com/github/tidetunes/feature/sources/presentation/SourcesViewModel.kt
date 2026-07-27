@@ -81,6 +81,7 @@ private fun SourceId.toSourceTypeLabel(): String {
     return when (this) {
         BuiltInSourceIds.WebDav -> "WebDAV"
         BuiltInSourceIds.OneDrive -> "OneDrive"
+        BuiltInSourceIds.Smb -> "SMB"
         BuiltInSourceIds.Local -> "Local"
         BuiltInSourceIds.Navidrome -> "Navidrome"
         BuiltInSourceIds.OpenSubsonic -> "OpenSubsonic"

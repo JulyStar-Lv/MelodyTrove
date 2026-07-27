@@ -1,6 +1,5 @@
 package com.github.tidetunes.source.storage
 
-import com.github.tidetunes.database.TrackEntity
 import com.github.tidetunes.source.api.BuiltInSourceIds
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
@@ -12,22 +11,12 @@ import uniffi.tidetunes_backend.StorageType
 
 class LegacyStorageTrackMappingTest {
     @Test
-    fun roomTrackNoLongerCarriesLegacyStorageMediaId() = runBlocking {
-        val mediaId = track().toLegacyStorageTrackMediaIdOrNull(
-            LegacyStorageLookup { storageId ->
-                storage(id = storageId.value, typ = StorageType.WEBDAV)
-            }
-        )
-
-        assertNull(mediaId)
-    }
-
-    @Test
     fun mapsRawSourceFieldsToEachBuiltInLegacyStorageMediaId() = runBlocking {
         val cases = listOf(
             StorageType.LOCAL to BuiltInSourceIds.Local,
             StorageType.WEBDAV to BuiltInSourceIds.WebDav,
             StorageType.ONE_DRIVE to BuiltInSourceIds.OneDrive,
+            StorageType.SMB to BuiltInSourceIds.Smb,
         )
 
         cases.forEach { (storageType, sourceId) ->
@@ -50,9 +39,6 @@ class LegacyStorageTrackMappingTest {
     @Test
     fun missingSourceFieldsDoNotCreateMediaId() = runBlocking {
         assertNull(
-            track().toLegacyStorageTrackMediaIdOrNull(LegacyStorageLookup { null })
-        )
-        assertNull(
             legacyStorageTrackMediaIdOrNull(
                 storageLookup = LegacyStorageLookup { null },
                 sourceStorageId = 2,
@@ -72,34 +58,6 @@ class LegacyStorageTrackMappingTest {
         password = "",
         isAnonymous = true,
         typ = typ,
-        musicCount = 0u,
-    )
-
-    private fun track() = TrackEntity(
-        id = 99,
-        title = "Song",
-        sortTitle = null,
-        albumId = null,
-        albumArtist = null,
-        composer = null,
-        comment = null,
-        grouping = null,
-        durationMs = 123_000,
-        discNumber = null,
-        discTotal = null,
-        trackNumber = null,
-        trackTotal = null,
-        year = null,
-        date = null,
-        sampleRate = null,
-        bitRate = null,
-        bitsPerSample = null,
-        channels = null,
-        channelLayout = null,
-        codec = null,
-        container = null,
-        lossless = null,
-        createdAt = 1,
-        updatedAt = 2,
-    )
+            musicCount = 0u,
+        )
 }

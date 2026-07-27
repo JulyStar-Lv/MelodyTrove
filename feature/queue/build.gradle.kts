@@ -22,18 +22,16 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation(project(":core:domain"))
             implementation(project(":core:presentation"))
             implementation(project(":service:playback:domain"))
-            implementation(project(":service:playback:presentation"))
             implementation(compose.runtime)
             implementation(compose.foundation)
+            implementation(compose.animation)
             implementation(libs.miuix.ui)
             implementation(libs.components.resources)
             implementation(libs.koin.core)
             implementation(libs.koin.compose)
             implementation(libs.koin.compose.viewmodel)
-            implementation(libs.androidx.navigation.compose)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.collections.immutable)
         }

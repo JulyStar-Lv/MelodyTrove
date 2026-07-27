@@ -1,9 +1,41 @@
 # TideTunes test report
 
-Last updated: 2026-07-16
+Last updated: 2026-07-27
 
 This report tracks verified migration gates. Secrets used for live WebDAV
 checks were provided at runtime and are not stored in this repository.
+
+## SMB music source validation (2026-07-27)
+
+The SMB v1 implementation uses one pure-Rust SMB2/3 backend on Android, iOS,
+and Desktop. The verified local gates cover source configuration, Room schema
+v17 migration, credential redaction, browse/search/import mapping, Range
+playback and seek behavior, bounded streaming/cancellation, download resume,
+reader release, retry limits, and cross-target compilation.
+
+| Command | Actual result |
+| --- | --- |
+| `cargo fmt --manifest-path rust-libs/Cargo.toml --all -- --check` | Passed |
+| `cargo clippy --manifest-path rust-libs/Cargo.toml --workspace --all-targets -- -D warnings` | Passed |
+| `cargo test --manifest-path rust-libs/Cargo.toml --workspace` | Passed; 117 Rust unit tests and all doc tests, with 4 Samba-dependent integration tests intentionally ignored in the normal workspace run |
+| `./gradlew :source:smb:desktopTest --console=plain` | Passed; 5 SMB source adapter tests |
+| `./gradlew :shared:desktopTest --console=plain` | Passed from the staged-index snapshot; 212 Desktop tests, 1 skipped, 0 failures, including SMB persistence, migration, global-search playback IDs, changed-size download resume rejection, account deletion, and playback resolution |
+| `./gradlew :shared:compileDebugKotlinAndroid --console=plain` | Passed; shared Android and `source:smb` compilation |
+| `./gradlew :shared:compileKotlinIosSimulatorArm64 --console=plain` | Passed; Kotlin/Native, Rust, UniFFI, and `source:smb` iOS Simulator compilation |
+| `./scripts/check-smb-cross-targets.sh all` | Passed; `tidetunes-storage-backend` compiled for `aarch64-linux-android`, `x86_64-linux-android`, `aarch64-apple-ios`, and `aarch64-apple-ios-sim` |
+| `cargo check --manifest-path rust-libs/Cargo.toml --package tidetunes-storage-backend --target x86_64-pc-windows-msvc` | Not completed locally; `ring` requires Windows SDK/MSVC C headers that are unavailable on the macOS host, so Windows client compilation remains unverified rather than being inferred |
+| Ruby Psych parse of `.github/workflows/build-validation.yml` | Passed; workflow YAML syntax is valid |
+
+The local machine had no Docker runtime or accessible NAS, so the ignored
+Samba integration tests were not labeled locally passed. The GitHub Actions
+workflow provisions an isolated Samba 4 server with an ephemeral random
+password and runs authenticated, Guest, Unicode path, bounded large-file
+streaming, offset resume, random Range, concurrent Range, changed-size reader
+invalidation, missing-file, permission-denied, and explicit reader-release
+checks. A successful hosted CI run is required before recording Samba 4 as
+Tested. Windows file sharing,
+Synology DSM, QNAP QTS, OpenMediaVault, and TrueNAS remain expected-compatible
+but unverified on real devices.
 
 ## Metadata plugin apply and file reset validation (2026-07-16)
 

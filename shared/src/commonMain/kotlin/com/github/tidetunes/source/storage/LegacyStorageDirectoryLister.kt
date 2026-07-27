@@ -26,6 +26,7 @@ internal fun LegacyStorageKind.toStorageType(): StorageType {
         LegacyStorageKind.Local -> StorageType.LOCAL
         LegacyStorageKind.WebDav -> StorageType.WEBDAV
         LegacyStorageKind.OneDrive -> StorageType.ONE_DRIVE
+        LegacyStorageKind.Smb -> StorageType.SMB
     }
 }
 
@@ -45,6 +46,21 @@ internal fun ListStorageEntryChildrenResp.toSourceListResult(
         }
         ListStorageEntryChildrenResp.Timeout -> {
             SourceListResult.Failure(SourceListFailureReason.Timeout)
+        }
+        ListStorageEntryChildrenResp.PermissionDenied -> {
+            SourceListResult.Failure(SourceListFailureReason.PermissionDenied)
+        }
+        ListStorageEntryChildrenResp.NotFound -> {
+            SourceListResult.Failure(SourceListFailureReason.NotFound)
+        }
+        ListStorageEntryChildrenResp.InvalidAddress -> {
+            SourceListResult.Failure(SourceListFailureReason.InvalidAddress)
+        }
+        ListStorageEntryChildrenResp.Unavailable -> {
+            SourceListResult.Failure(SourceListFailureReason.Unavailable)
+        }
+        ListStorageEntryChildrenResp.Unsupported -> {
+            SourceListResult.Failure(SourceListFailureReason.UnsupportedSecurityPolicy)
         }
         ListStorageEntryChildrenResp.Unknown -> {
             SourceListResult.Failure(SourceListFailureReason.Unknown)
@@ -75,6 +91,11 @@ private fun StorageEntry.sourceNodeType(): SourceNodeType {
 
     val lowerPath = path.lowercase()
     return when {
+        mimeType
+            ?.substringBefore(';')
+            ?.trim()
+            ?.lowercase()
+            ?.startsWith("video/") == true -> SourceNodeType.Other
         MUSIC_EXTENSIONS.any { extension -> lowerPath.endsWith(extension) } -> SourceNodeType.Track
         IMAGE_EXTENSIONS.any { extension -> lowerPath.endsWith(extension) } -> SourceNodeType.Image
         LYRIC_EXTENSIONS.any { extension -> lowerPath.endsWith(extension) } -> SourceNodeType.Lyric
@@ -91,6 +112,11 @@ private val MUSIC_EXTENSIONS = arrayOf(
     ".oga",
     ".opus",
     ".m4a",
+    ".mp4",
+    ".ape",
+    ".wv",
+    ".aif",
+    ".aiff",
 )
 private val IMAGE_EXTENSIONS = arrayOf(".jpg", ".jpeg", ".png")
 private val LYRIC_EXTENSIONS = arrayOf(".lrc")

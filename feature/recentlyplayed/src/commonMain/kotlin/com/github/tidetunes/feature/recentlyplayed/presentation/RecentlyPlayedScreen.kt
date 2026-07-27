@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.github.tidetunes.core.presentation.components.TideCardSurface
+import com.github.tidetunes.core.presentation.components.LocalTideBottomContentInset
 import com.github.tidetunes.core.presentation.components.TidePageHeader
 import com.github.tidetunes.core.presentation.components.TideStatusCard
 import com.github.tidetunes.core.presentation.components.TideTextButton
@@ -34,6 +35,7 @@ fun RecentlyPlayedScreen(
     onAction: (RecentlyPlayedAction) -> Unit,
 ) {
     val spacing = TideTunesTokens.spacing
+    val bottomContentInset = LocalTideBottomContentInset.current
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val horizontalPadding = if (maxWidth < 600.dp) spacing.pageCompact else spacing.pageExpanded
 
@@ -60,7 +62,7 @@ fun RecentlyPlayedScreen(
                 else -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(bottom = spacing.xl),
+                    contentPadding = PaddingValues(bottom = spacing.xl + bottomContentInset),
                 ) {
                     itemsIndexed(state.tracks, key = { index, track -> track.lazyListKey(index) }) { _, track ->
                         RecentlyPlayedTrackRow(track = track, onPlay = { onAction(RecentlyPlayedAction.PlayTrack(track.id)) }, onDownload = { if (track.canDownload) onAction(RecentlyPlayedAction.DownloadTrack(track)) })

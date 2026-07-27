@@ -161,6 +161,11 @@ pub enum StorageConnectionTestResult {
     Success,
     Unauthorized,
     Timeout,
+    PermissionDenied,
+    NotFound,
+    InvalidAddress,
+    Unavailable,
+    Unsupported,
     OtherError,
 }
 
@@ -225,6 +230,11 @@ pub enum ListStorageEntryChildrenResp {
     Ok(Vec<StorageEntry>),
     AuthenticationFailed,
     Timeout,
+    PermissionDenied,
+    NotFound,
+    InvalidAddress,
+    Unavailable,
+    Unsupported,
     Unknown,
 }
 
@@ -232,9 +242,14 @@ impl ListStorageEntryChildrenResp {
     pub fn is_error(&self) -> bool {
         match self {
             ListStorageEntryChildrenResp::Ok(_) => false,
-            ListStorageEntryChildrenResp::AuthenticationFailed => false,
-            ListStorageEntryChildrenResp::Timeout => false,
-            ListStorageEntryChildrenResp::Unknown => false,
+            ListStorageEntryChildrenResp::AuthenticationFailed
+            | ListStorageEntryChildrenResp::Timeout
+            | ListStorageEntryChildrenResp::PermissionDenied
+            | ListStorageEntryChildrenResp::NotFound
+            | ListStorageEntryChildrenResp::InvalidAddress
+            | ListStorageEntryChildrenResp::Unavailable
+            | ListStorageEntryChildrenResp::Unsupported
+            | ListStorageEntryChildrenResp::Unknown => true,
         }
     }
 }

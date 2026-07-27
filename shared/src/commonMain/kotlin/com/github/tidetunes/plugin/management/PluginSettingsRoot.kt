@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import com.github.tidetunes.core.presentation.components.AppSwitch
 import com.github.tidetunes.core.presentation.components.AppTextField
 import com.github.tidetunes.core.presentation.components.ConfirmDialog
+import com.github.tidetunes.core.presentation.components.LocalTideBottomContentInset
 import com.github.tidetunes.core.presentation.components.TideChevron
 import com.github.tidetunes.core.presentation.components.TideChevronDirection
 import com.github.tidetunes.core.presentation.components.TidePreferenceRow
@@ -63,6 +64,7 @@ fun PluginSettingsRoot(
     manager: PluginManager = koinInject(),
 ) {
     val plugins by manager.plugins().collectAsState(initial = emptyList())
+    val bottomContentInset = LocalTideBottomContentInset.current
     val scope = rememberCoroutineScope()
     val configValues = remember { mutableStateMapOf<String, Map<String, String>>() }
     var status by remember { mutableStateOf<String?>(null) }
@@ -162,7 +164,12 @@ fun PluginSettingsRoot(
             modifier = Modifier
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = TideTunesTokens.spacing.pageCompact, vertical = 8.dp),
+                .padding(
+                    start = TideTunesTokens.spacing.pageCompact,
+                    top = 8.dp,
+                    end = TideTunesTokens.spacing.pageCompact,
+                    bottom = 8.dp + bottomContentInset,
+                ),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             TideSettingsGroup(title = "Import") {

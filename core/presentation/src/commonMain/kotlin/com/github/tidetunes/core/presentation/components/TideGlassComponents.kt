@@ -12,16 +12,18 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.kyant.backdrop.Backdrop
-import com.kyant.backdrop.drawBackdrop
-import com.kyant.backdrop.effects.blur
-import com.kyant.backdrop.effects.colorControls
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 private val LocalTideBackdrop = staticCompositionLocalOf<Backdrop?> { null }
+
+val LocalTideBottomContentInset = staticCompositionLocalOf { 0.dp }
 
 /**
  * Provides the safe, opaque fallback for glass components.
@@ -43,7 +45,37 @@ fun TideGlassScene(
 }
 
 /**
- * A compact ActionBar that fades in with the page scroll position and samples [TideGlassScene].
+ * Records [backdropContent] without any glass consumers, then lets [overlayContent] sample it.
+ * Keeping the overlay outside the recorded layer avoids recursive backdrop rendering.
+ */
+@Composable
+fun TideGlassOverlayScene(
+    modifier: Modifier = Modifier,
+    contentBottomInset: Dp = 0.dp,
+    backdropContent: @Composable BoxScope.() -> Unit,
+    overlayContent: @Composable BoxScope.() -> Unit,
+) {
+    val backdrop = rememberLayerBackdrop()
+
+    CompositionLocalProvider(LocalTideBottomContentInset provides contentBottomInset) {
+        Box(modifier = modifier) {
+            CompositionLocalProvider(LocalTideBackdrop provides null) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .layerBackdrop(backdrop),
+                    content = backdropContent,
+                )
+            }
+            CompositionLocalProvider(LocalTideBackdrop provides backdrop) {
+                overlayContent()
+            }
+        }
+    }
+}
+
+/**
+ * A compact, opaque ActionBar that fades in with the page scroll position.
  */
 @Composable
 fun TideStickyGlassActionBar(
@@ -55,32 +87,12 @@ fun TideStickyGlassActionBar(
     val fraction = collapseFraction.coerceIn(0f, 1f)
     val adaptive = TideTunesTokens.adaptive
     val titleFraction = ((fraction - 0.72f) / 0.28f).coerceIn(0f, 1f)
-    val backdrop = LocalTideBackdrop.current
-    val surface = MiuixTheme.colorScheme.surfaceContainer
-    val glassModifier = if (backdrop != null) {
-        Modifier.drawBackdrop(
-            backdrop = backdrop,
-            shape = { RectangleShape },
-            effects = {
-                colorControls(saturation = 1.1f)
-                blur(18.dp.toPx() * fraction)
-            },
-            highlight = { null },
-            shadow = { null },
-            onDrawSurface = {
-                drawRect(surface.copy(alpha = 0.82f))
-            },
-        )
-    } else {
-        Modifier.background(surface.copy(alpha = 0.94f))
-    }
-
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(adaptive.compactHeaderHeight)
             .alpha(fraction)
-            .then(glassModifier),
+            .background(MiuixTheme.colorScheme.background),
         contentAlignment = Alignment.Center,
     ) {
         TidePageHeader(
@@ -96,3 +108,12 @@ fun TideStickyGlassActionBar(
 
 @Composable
 internal fun currentTideBackdrop(): Backdrop? = LocalTideBackdrop.current
+
+@Composable
+fun tideGlassSurfaceAlpha(): Float {
+    return if (MiuixTheme.colorScheme.background.luminance() < 0.5f) {
+        0.24f
+    } else {
+        0.52f
+    }
+}

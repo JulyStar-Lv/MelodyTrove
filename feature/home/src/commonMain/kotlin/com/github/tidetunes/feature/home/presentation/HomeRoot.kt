@@ -24,6 +24,7 @@ fun HomeRoot(
 ) {
     val state by viewModel.state.collectAsState()
     val playbackController = koinInject<PlaybackController>()
+    val playbackState by playbackController.state.collectAsState()
     val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(viewModel) {
@@ -40,19 +41,43 @@ fun HomeRoot(
     HomeDesignScreen(
         scaffoldPadding = scaffoldPadding,
         state = state,
+        currentMiniPlayerTitle = playbackState.currentItem?.title?.takeIf { it.isNotBlank() },
         onAction = { action ->
-            if (action is HomeAction.PlayTrack) {
-                val startIndex = state.recentTracks.indexOfFirst { it.id == action.trackId }
-                if (startIndex >= 0) {
-                    coroutineScope.launch {
-                        playbackController.play(
-                            items = state.recentTracks.map { it.toPlayableItem() },
-                            startIndex = startIndex,
-                        )
+            when (action) {
+                HomeAction.PlayDailyPicks -> {
+                    val dailyPicks = state.dailyPickTracks.shuffled()
+                    if (dailyPicks.isNotEmpty()) {
+                        coroutineScope.launch {
+                            playbackController.play(
+                                items = dailyPicks.map { it.toPlayableItem() },
+                                startIndex = 0,
+                            )
+                        }
                     }
                 }
-            } else {
-                viewModel.onAction(action)
+                is HomeAction.PlayTrack -> {
+                    val startIndex = state.recentTracks.indexOfFirst { it.id == action.trackId }
+                    if (startIndex >= 0) {
+                        coroutineScope.launch {
+                            playbackController.play(
+                                items = state.recentTracks.map { it.toPlayableItem() },
+                                startIndex = startIndex,
+                            )
+                        }
+                    }
+                }
+                is HomeAction.PlayLibraryTrack -> {
+                    val startIndex = state.dailyPickTracks.indexOfFirst { it.id == action.trackId }
+                    if (startIndex >= 0) {
+                        coroutineScope.launch {
+                            playbackController.play(
+                                items = state.dailyPickTracks.map { it.toPlayableItem() },
+                                startIndex = startIndex,
+                            )
+                        }
+                    }
+                }
+                else -> viewModel.onAction(action)
             }
         },
     )

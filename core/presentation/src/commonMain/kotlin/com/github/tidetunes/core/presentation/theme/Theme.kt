@@ -11,6 +11,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.github.tidetunes.core.presentation.platform.SystemBarsEffect
 import top.yukonga.miuix.kmp.theme.ColorSchemeMode
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import top.yukonga.miuix.kmp.theme.ThemeController
@@ -48,6 +49,7 @@ fun TideTunesTheme(
         )
     }
     val textStyles = tideTunesTextStyles()
+    SystemBarsEffect(isDarkTheme = effectiveDarkTheme)
 
     MiuixTheme(
         controller = controller,

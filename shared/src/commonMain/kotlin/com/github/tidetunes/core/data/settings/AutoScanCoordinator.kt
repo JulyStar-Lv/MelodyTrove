@@ -53,7 +53,8 @@ class AutoScanCoordinator(
                             selectedFolderDisplayPath = root.displayName,
                             scanRules = rules,
                             metadataScanMode = settings.metadataScanModeFor(
-                                account.providerType == ProviderTypes.WebDav,
+                                account.providerType == ProviderTypes.WebDav ||
+                                    account.providerType == ProviderTypes.Smb,
                             ),
                         )
                     )

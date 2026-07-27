@@ -21,8 +21,8 @@ class QueueStateTest {
     @Test
     fun `populated state preserves item data`() {
         val items = persistentListOf(
-            QueueItemUi(index = 0, title = "Track 1", artist = "Artist A", durationMs = 240_000, isCurrent = true),
-            QueueItemUi(index = 1, title = "Track 2", artist = null, durationMs = null, isCurrent = false),
+            QueueItemUi(index = 0, title = "Track 1", artist = "Artist A", isCurrent = true),
+            QueueItemUi(index = 1, title = "Track 2", artist = null, isCurrent = false),
         )
         val state = QueueState(items = items, currentIndex = 0, isPlaying = true)
 
@@ -41,21 +41,8 @@ class QueueStateTest {
     }
 
     @Test
-    fun `remove item action carries index`() {
-        val action = QueueAction.RemoveItem(2)
-        assertEquals(2, action.index)
-    }
-
-    @Test
-    fun `move item action carries from and to`() {
-        val action = QueueAction.MoveItem(from = 1, to = 4)
-        assertEquals(1, action.from)
-        assertEquals(4, action.to)
-    }
-
-    @Test
     fun `row keys stay unique when queue indices repeat`() {
-        val item = QueueItemUi(index = 3, title = "T", artist = null, durationMs = null, isCurrent = false)
+        val item = QueueItemUi(index = 3, title = "T", artist = null, isCurrent = false)
 
         assertNotEquals(item.lazyListKey(0), item.copy(title = "T2").lazyListKey(1))
     }

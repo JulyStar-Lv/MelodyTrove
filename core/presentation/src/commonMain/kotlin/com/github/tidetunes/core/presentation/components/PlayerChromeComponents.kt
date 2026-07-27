@@ -5,11 +5,13 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -28,11 +30,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.semantics.Role
@@ -51,7 +53,7 @@ import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.blur
 import com.kyant.backdrop.effects.colorControls
 import com.kyant.backdrop.effects.lens
-import com.github.tidetunes.core.presentation.theme.TideTunesBrand
+import com.kyant.backdrop.highlight.Highlight
 import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
@@ -65,6 +67,7 @@ fun TideGradientPlayButton(
     enabled: Boolean = true,
     size: TidePlayerControlSize = TidePlayerControlSize.Mini,
     contentDescription: String? = null,
+    showClickIndication: Boolean = true,
 ) {
     TidePlayerControlButton(
         painter = painter,
@@ -74,6 +77,7 @@ fun TideGradientPlayButton(
         size = size,
         variant = TidePlayerControlVariant.Primary,
         contentDescription = contentDescription,
+        showClickIndication = showClickIndication,
     )
 }
 
@@ -91,55 +95,45 @@ fun TideMiniPlayerBar(
     val shape = RoundedCornerShape(22.dp)
     val backdrop = currentTideBackdrop()
     val surface = MiuixTheme.colorScheme.surfaceContainer
+    val glassSurfaceAlpha = tideGlassSurfaceAlpha()
+    val clickInteractionSource = remember { MutableInteractionSource() }
     val glassModifier = if (backdrop != null) {
         Modifier.drawBackdrop(
             backdrop = backdrop,
             shape = { shape },
             effects = {
-                colorControls(saturation = 1.18f)
-                blur(16.dp.toPx())
+                colorControls(contrast = 1.04f, saturation = 1.10f)
+                blur(18.dp.toPx())
                 lens(
-                    refractionHeight = 12.dp.toPx(),
-                    refractionAmount = 18.dp.toPx(),
+                    refractionHeight = 8.dp.toPx(),
+                    refractionAmount = 14.dp.toPx(),
                     depthEffect = true,
                 )
             },
+            highlight = {
+                Highlight(
+                    width = 0.25.dp,
+                    blurRadius = 0.5.dp,
+                    alpha = 0.78f,
+                )
+            },
             shadow = { null },
-            onDrawSurface = { drawRect(surface.copy(alpha = 0.50f)) },
+            onDrawSurface = { drawRect(surface.copy(alpha = glassSurfaceAlpha)) },
         )
     } else {
         Modifier
             .clip(shape)
             .background(surface.copy(alpha = 0.90f))
     }
-
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(tokens.player.miniBarHeight)
             .shadow(tokens.elevation.popup, shape, clip = false)
+            .clip(shape)
             .then(glassModifier)
-            .border(1.dp, MiuixTheme.colorScheme.outline.copy(alpha = 0.42f), shape),
+            .border(0.5.dp, MiuixTheme.colorScheme.onSurface.copy(alpha = 0.10f), shape),
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(
-                            TideTunesBrand.Primary.copy(alpha = 0.12f),
-                            Color.Transparent,
-                            TideTunesBrand.Secondary.copy(alpha = 0.10f),
-                        ),
-                    ),
-                ),
-        )
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(Color.White.copy(alpha = 0.12f)),
-        )
         Row(
             modifier = Modifier
                 .fillMaxSize()
@@ -151,7 +145,12 @@ fun TideMiniPlayerBar(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .clickable(role = Role.Button, onClick = onClick)
+                    .clickable(
+                        interactionSource = clickInteractionSource,
+                        indication = null,
+                        role = Role.Button,
+                        onClick = onClick,
+                    )
                     .clearAndSetSemantics {
                         contentDescription = "$title, $subtitle"
                         this.role = Role.Button
@@ -177,7 +176,7 @@ fun TideMiniPlayerBar(
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = subtitle.ifBlank { "Ready to play" },
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        color = MiuixTheme.colorScheme.onSurface,
                         style = MiuixTheme.textStyles.footnote1,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -199,6 +198,127 @@ fun TideMiniPlayerBar(
 }
 
 @Composable
+fun TideExpandedMiniPlayerBar(
+    title: String,
+    subtitle: String,
+    progress: Float,
+    onClick: () -> Unit,
+    artwork: @Composable () -> Unit,
+    actions: @Composable RowScope.() -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val tokens = TideTunesTokens
+    val shape = RoundedCornerShape(22.dp)
+    val backdrop = currentTideBackdrop()
+    val surface = MiuixTheme.colorScheme.surfaceContainer
+    val glassSurfaceAlpha = tideGlassSurfaceAlpha()
+    val clickInteractionSource = remember { MutableInteractionSource() }
+    val glassModifier = if (backdrop != null) {
+        Modifier.drawBackdrop(
+            backdrop = backdrop,
+            shape = { shape },
+            effects = {
+                colorControls(contrast = 1.04f, saturation = 1.10f)
+                blur(18.dp.toPx())
+                lens(
+                    refractionHeight = 8.dp.toPx(),
+                    refractionAmount = 14.dp.toPx(),
+                    depthEffect = true,
+                )
+            },
+            highlight = {
+                Highlight(
+                    width = 0.25.dp,
+                    blurRadius = 0.5.dp,
+                    alpha = 0.78f,
+                )
+            },
+            shadow = { null },
+            onDrawSurface = { drawRect(surface.copy(alpha = glassSurfaceAlpha)) },
+        )
+    } else {
+        Modifier
+            .clip(shape)
+            .background(surface.copy(alpha = 0.90f))
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(tokens.player.miniBarHeight)
+            .shadow(tokens.elevation.popup, shape, clip = false)
+            .clip(shape)
+            .then(glassModifier)
+            .border(0.5.dp, MiuixTheme.colorScheme.onSurface.copy(alpha = 0.10f), shape),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clickable(
+                        interactionSource = clickInteractionSource,
+                        indication = null,
+                        role = Role.Button,
+                        onClick = onClick,
+                    )
+                    .clearAndSetSemantics {
+                        contentDescription = "$title, $subtitle"
+                        this.role = Role.Button
+                        onClick { onClick(); true }
+                    },
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(bottom = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    artwork()
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        Text(
+                            modifier = Modifier.fillMaxWidth(),
+                            text = title.ifBlank { "TideTunes" },
+                            style = MiuixTheme.textStyles.body1,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MiuixTheme.colorScheme.onSurface,
+                            overflow = TextOverflow.Ellipsis,
+                            maxLines = 1,
+                        )
+                        Text(
+                            modifier = Modifier.fillMaxWidth(),
+                            text = subtitle,
+                            color = MiuixTheme.colorScheme.onSurface,
+                            style = MiuixTheme.textStyles.footnote1,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+            Row(
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+                content = actions,
+            )
+        }
+        TideMiniPlayerProgress(
+            progress = progress,
+            modifier = Modifier.align(Alignment.BottomStart),
+        )
+    }
+}
+
+@Composable
 fun TideCompactMiniPlayerBar(
     progress: Float,
     accessibilityLabel: String,
@@ -208,24 +328,34 @@ fun TideCompactMiniPlayerBar(
     overlayControls: @Composable BoxScope.() -> Unit,
 ) {
     val tokens = TideTunesTokens
-    val shape = RoundedCornerShape(tokens.shapes.lg)
+    val cornerRadius = tokens.shapes.lg
+    val shape = RoundedCornerShape(cornerRadius)
     val backdrop = currentTideBackdrop()
     val surface = MiuixTheme.colorScheme.surfaceContainer
+    val glassSurfaceAlpha = tideGlassSurfaceAlpha()
+    val clickInteractionSource = remember { MutableInteractionSource() }
     val glassModifier = if (backdrop != null) {
         Modifier.drawBackdrop(
             backdrop = backdrop,
             shape = { shape },
             effects = {
-                colorControls(saturation = 1.16f)
+                colorControls(contrast = 1.04f, saturation = 1.10f)
                 blur(14.dp.toPx())
                 lens(
-                    refractionHeight = 10.dp.toPx(),
-                    refractionAmount = 14.dp.toPx(),
+                    refractionHeight = 7.dp.toPx(),
+                    refractionAmount = 12.dp.toPx(),
                     depthEffect = true,
                 )
             },
+            highlight = {
+                Highlight(
+                    width = 0.25.dp,
+                    blurRadius = 0.5.dp,
+                    alpha = 0.78f,
+                )
+            },
             shadow = { null },
-            onDrawSurface = { drawRect(surface.copy(alpha = 0.52f)) },
+            onDrawSurface = { drawRect(surface.copy(alpha = glassSurfaceAlpha)) },
         )
     } else {
         Modifier
@@ -239,25 +369,18 @@ fun TideCompactMiniPlayerBar(
             .height(tokens.player.compactMiniBarHeight)
             .padding(horizontal = 8.dp, vertical = 8.dp)
             .shadow(tokens.elevation.card, shape, clip = false)
+            .clip(shape)
             .then(glassModifier)
-            .border(1.dp, MiuixTheme.colorScheme.outline.copy(alpha = 0.60f), shape)
+            .border(0.5.dp, MiuixTheme.colorScheme.onSurface.copy(alpha = 0.10f), shape)
             .semantics { contentDescription = accessibilityLabel }
-            .clickable(role = Role.Button, onClick = onClick),
+            .clickable(
+                interactionSource = clickInteractionSource,
+                indication = null,
+                role = Role.Button,
+                onClick = onClick,
+            ),
         contentAlignment = Alignment.Center,
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(
-                            TideTunesBrand.Primary.copy(alpha = 0.10f),
-                            Color.Transparent,
-                            TideTunesBrand.Secondary.copy(alpha = 0.08f),
-                        ),
-                    ),
-                ),
-        )
         artwork()
         overlayControls()
         TideMiniPlayerProgress(
@@ -282,16 +405,54 @@ fun TideMiniPlayerProgress(
             modifier = Modifier
                 .fillMaxWidth(progress.coerceIn(0f, 1f))
                 .height(2.dp)
-                .background(
-                    Brush.linearGradient(
-                        listOf(
-                            TideTunesBrand.Primary,
-                            TideTunesBrand.Secondary,
-                        ),
-                    ),
-                ),
+                .background(MiuixTheme.colorScheme.primary),
         )
     }
+}
+
+@Composable
+fun TideBottomNavigationGlassSurface(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val shape = RoundedCornerShape(0.dp)
+    val backdrop = currentTideBackdrop()
+    val surface = MiuixTheme.colorScheme.surfaceContainer
+    val glassSurfaceAlpha = tideGlassSurfaceAlpha()
+    val glassModifier = if (backdrop != null) {
+        Modifier.drawBackdrop(
+            backdrop = backdrop,
+            shape = { shape },
+            effects = {
+                colorControls(contrast = 1.04f, saturation = 1.10f)
+                blur(18.dp.toPx())
+                lens(
+                    refractionHeight = 8.dp.toPx(),
+                    refractionAmount = 14.dp.toPx(),
+                    depthEffect = true,
+                )
+            },
+            highlight = {
+                Highlight(
+                    width = 0.25.dp,
+                    blurRadius = 0.5.dp,
+                    alpha = 0.78f,
+                )
+            },
+            shadow = { null },
+            onDrawSurface = { drawRect(surface.copy(alpha = glassSurfaceAlpha)) },
+        )
+    } else {
+        Modifier.background(surface.copy(alpha = 0.90f))
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .then(glassModifier),
+        content = content,
+    )
 }
 
 @Immutable

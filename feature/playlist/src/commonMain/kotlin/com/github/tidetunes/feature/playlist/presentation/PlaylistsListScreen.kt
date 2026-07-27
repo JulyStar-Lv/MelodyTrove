@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -33,6 +34,7 @@ import com.github.tidetunes.core.presentation.components.TideFab
 import com.github.tidetunes.core.presentation.components.TideIconButton
 import com.github.tidetunes.core.presentation.components.TideIconButtonSize
 import com.github.tidetunes.core.presentation.components.TideIconButtonVariant
+import com.github.tidetunes.core.presentation.components.LocalTideBottomContentInset
 import com.github.tidetunes.core.presentation.components.TidePageHeader
 import com.github.tidetunes.core.presentation.media.ArtworkImage
 import com.github.tidetunes.core.presentation.theme.TideTunesTokens
@@ -151,6 +153,7 @@ private fun GridPlaylists(
     mode: PlaylistsListMode,
     onAction: (PlaylistsListAction) -> Unit,
 ) {
+    val bottomContentInset = LocalTideBottomContentInset.current
     val lazyGridState = rememberLazyGridState()
     val reorderableLazyListState = rememberReorderableLazyGridState(
         lazyGridState = lazyGridState,
@@ -164,6 +167,7 @@ private fun GridPlaylists(
         columns = GridCells.FixedSize(172.dp),
         horizontalArrangement = Arrangement.Center,
         state = lazyGridState,
+        contentPadding = PaddingValues(bottom = 12.dp + bottomContentInset),
     ) {
         itemsIndexed(playlists, key = { index, playlist -> playlist.lazyListKey(index) }) { index, playlist ->
             ReorderableItem(reorderableLazyListState, key = playlist.lazyListKey(index)) { _ ->

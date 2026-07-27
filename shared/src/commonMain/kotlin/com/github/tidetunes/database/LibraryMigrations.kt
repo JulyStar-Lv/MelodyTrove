@@ -711,3 +711,11 @@ val MIGRATION_15_16 = object : Migration(15, 16) {
         }
     }
 }
+
+val MIGRATION_16_17 = object : Migration(16, 17) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.prepare(
+            "ALTER TABLE source_account ADD COLUMN providerConfig TEXT"
+        ).use { statement -> statement.step() }
+    }
+}

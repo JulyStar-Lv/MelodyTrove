@@ -38,9 +38,6 @@ sealed interface MusicGraph {
     data class Lyrics(val id: Long) : MusicGraph
 
     @Serializable
-    data object Queue : MusicGraph
-
-    @Serializable
     data object RecentlyAdded : MusicGraph
 
     @Serializable

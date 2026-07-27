@@ -275,7 +275,7 @@ async fn run_directory_scan(
                                 retry_count: 0,
                             });
                         }
-                    } else if is_supported_music_path(&entry.path) {
+                    } else if is_supported_music_entry(&entry) {
                         let sent = tokio::select! {
                             sent = sender.send(ScanMessage::Entry(entry)) => sent.is_ok(),
                             _ = cancel_notify.notified() => false,
@@ -346,10 +346,19 @@ pub(crate) fn storage_entry(storage_id: StorageId, entry: Entry) -> StorageEntry
 pub(crate) fn is_supported_music_path(path: &str) -> bool {
     let lower_path = path.to_ascii_lowercase();
     [
-        ".mp3", ".flac", ".m4a", ".mp4", ".aac", ".ogg", ".oga", ".opus", ".wav", ".aif", ".aiff",
+        ".mp3", ".flac", ".m4a", ".mp4", ".aac", ".ogg", ".oga", ".opus", ".wav", ".ape", ".wv",
+        ".aif", ".aiff",
     ]
     .iter()
     .any(|suffix| lower_path.ends_with(suffix))
+}
+
+fn is_supported_music_entry(entry: &Entry) -> bool {
+    !entry
+        .mime_type
+        .as_deref()
+        .is_some_and(|mime_type| mime_type.trim().to_ascii_lowercase().starts_with("video/"))
+        && is_supported_music_path(&entry.path)
 }
 
 #[cfg(test)]
@@ -1059,5 +1068,19 @@ mod tests {
             created_at: None,
             modified_at: None,
         }
+    }
+
+    #[test]
+    fn scan_excludes_video_mp4_and_keeps_audio_mp4() {
+        let mut video = entry("/Photos/clip.mp4", false);
+        video.mime_type = Some("video/mp4".to_string());
+        assert!(!is_supported_music_entry(&video));
+
+        let mut audio = entry("/Music/track.mp4", false);
+        audio.mime_type = Some("audio/mp4".to_string());
+        assert!(is_supported_music_entry(&audio));
+
+        let unknown = entry("/Music/legacy.mp4", false);
+        assert!(is_supported_music_entry(&unknown));
     }
 }

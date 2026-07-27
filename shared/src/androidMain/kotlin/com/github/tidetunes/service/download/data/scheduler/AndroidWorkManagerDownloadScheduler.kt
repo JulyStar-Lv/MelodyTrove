@@ -29,6 +29,7 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import java.io.Closeable
 import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
 import java.net.HttpURLConnection
@@ -124,24 +125,38 @@ internal class AndroidDownloadWorker(
         task: DownloadTask,
         resource: PlaybackResource,
     ) {
-        openResource(resource).use { opened ->
-            val targetFile = targetFileFor(task, resource)
-            val targetDirectory = requireNotNull(targetFile.parentFile)
-            val partFile = File(targetDirectory, "${targetFile.name}.part")
-            targetDirectory.mkdirs()
+        val targetFile = targetFileFor(task, resource)
+        val targetDirectory = requireNotNull(targetFile.parentFile)
+        val partFile = File(targetDirectory, "${targetFile.name}.part")
+        targetDirectory.mkdirs()
+        if (task.downloadedBytes == 0L) {
+            partFile.delete()
+        }
+        val resumeOffset = partFile.length()
 
+        openResource(resource, resumeOffset).use { opened ->
             val totalBytes = opened.totalBytes
+            if (
+                resumeOffset > 0 &&
+                task.totalBytes != null &&
+                totalBytes != null &&
+                task.totalBytes != totalBytes
+            ) {
+                partFile.delete()
+                throw IOException("Remote file size changed; retry the download")
+            }
             updateStatus(task.id, DownloadStatus.Downloading) { current ->
                 current.copy(
-                    totalBytes = normalizedTotalBytes(totalBytes, current.downloadedBytes),
+                    downloadedBytes = resumeOffset,
+                    totalBytes = normalizedTotalBytes(totalBytes, resumeOffset),
                     mimeType = resource.mimeType ?: current.mimeType,
                 )
             } ?: return
 
-            var downloadedBytes = 0L
-            var lastPersistedBytes = 0L
+            var downloadedBytes = resumeOffset
+            var lastPersistedBytes = resumeOffset
             try {
-                partFile.outputStream().use { output ->
+                FileOutputStream(partFile, true).use { output ->
                     val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
                     while (true) {
                         currentCoroutineContext().ensureActive()
@@ -160,7 +175,16 @@ internal class AndroidDownloadWorker(
                     }
                 }
             } catch (e: CancellationException) {
-                partFile.delete()
+                val current = repository.getTask(task.id)
+                if (current?.status == DownloadStatus.Cancelled) {
+                    partFile.delete()
+                } else {
+                    persistPartialProgress(
+                        id = task.id,
+                        downloadedBytes = downloadedBytes,
+                        totalBytes = totalBytes,
+                    )
+                }
                 throw e
             }
 
@@ -182,18 +206,22 @@ internal class AndroidDownloadWorker(
         }
     }
 
-    private fun openResource(resource: PlaybackResource): OpenedAndroidDownloadResource {
+    private fun openResource(
+        resource: PlaybackResource,
+        offset: Long,
+    ): OpenedAndroidDownloadResource {
+        require(offset >= 0) { "Download offset cannot be negative" }
         val uri = parseUri(resource.uri)
         return when (uri?.scheme?.lowercase()) {
             "http",
-            "https" -> openHttp(uri, resource)
-            "content" -> openContent(Uri.parse(resource.uri))
-            "file" -> openFile(File(uri))
+            "https" -> openHttp(uri, resource, offset)
+            "content" -> openContent(Uri.parse(resource.uri), offset)
+            "file" -> openFile(File(uri), offset)
             null,
-            "" -> openFile(File(resource.uri))
+            "" -> openFile(File(resource.uri), offset)
             else -> {
                 if (resource.isLocal) {
-                    openFile(File(resource.uri))
+                    openFile(File(resource.uri), offset)
                 } else {
                     throw IOException("Unsupported download URI scheme: ${uri.scheme}")
                 }
@@ -204,6 +232,7 @@ internal class AndroidDownloadWorker(
     private fun openHttp(
         uri: URI,
         resource: PlaybackResource,
+        offset: Long,
     ): OpenedAndroidDownloadResource {
         val connection = uri.toURL().openConnection() as HttpURLConnection
         connection.connectTimeout = 15_000
@@ -211,34 +240,52 @@ internal class AndroidDownloadWorker(
         resource.headers.forEach { (key, value) ->
             connection.setRequestProperty(key, value)
         }
+        if (offset > 0) {
+            connection.setRequestProperty("Range", "bytes=$offset-")
+        }
         connection.connect()
-        if (connection.responseCode !in 200..299) {
+        if (
+            connection.responseCode !in 200..299 ||
+            (offset > 0 && connection.responseCode != HttpURLConnection.HTTP_PARTIAL)
+        ) {
             val responseCode = connection.responseCode
             connection.disconnect()
             throw IOException("HTTP download failed with status $responseCode")
         }
         return OpenedAndroidDownloadResource(
             input = connection.inputStream,
-            totalBytes = connection.contentLengthLong.takeIf { it >= 0 },
+            totalBytes = connection.totalResponseBytes(offset),
             closeAction = { connection.disconnect() },
         )
     }
 
-    private fun openContent(uri: Uri): OpenedAndroidDownloadResource {
+    private fun openContent(
+        uri: Uri,
+        offset: Long,
+    ): OpenedAndroidDownloadResource {
         val input = applicationContext.contentResolver.openInputStream(uri)
             ?: throw IOException("Unable to open content URI")
+        input.skipFully(offset)
         return OpenedAndroidDownloadResource(
             input = input,
             totalBytes = null,
         )
     }
 
-    private fun openFile(file: File): OpenedAndroidDownloadResource {
+    private fun openFile(
+        file: File,
+        offset: Long,
+    ): OpenedAndroidDownloadResource {
         if (!file.isFile) {
             throw IOException("Download source file does not exist")
         }
+        if (offset > file.length()) {
+            throw IOException("Download offset exceeds source file size")
+        }
+        val input = file.inputStream()
+        input.skipFully(offset)
         return OpenedAndroidDownloadResource(
-            input = file.inputStream(),
+            input = input,
             totalBytes = file.length(),
         )
     }
@@ -250,6 +297,22 @@ internal class AndroidDownloadWorker(
     ) {
         val current = repository.getTask(id) ?: return
         if (current.status != DownloadStatus.Downloading) return
+        repository.updateTask(
+            current.copy(
+                downloadedBytes = downloadedBytes,
+                totalBytes = normalizedTotalBytes(totalBytes, downloadedBytes),
+                updatedAtEpochMs = nowEpochMs(),
+            )
+        )
+    }
+
+    private suspend fun persistPartialProgress(
+        id: DownloadTaskId,
+        downloadedBytes: Long,
+        totalBytes: Long?,
+    ) {
+        val current = repository.getTask(id) ?: return
+        if (current.status !in setOf(DownloadStatus.Downloading, DownloadStatus.Paused)) return
         repository.updateTask(
             current.copy(
                 downloadedBytes = downloadedBytes,
@@ -313,6 +376,29 @@ private class OpenedAndroidDownloadResource(
             input.close()
         } finally {
             closeAction()
+        }
+    }
+}
+
+private fun HttpURLConnection.totalResponseBytes(offset: Long): Long? {
+    val contentRangeTotal = getHeaderField("Content-Range")
+        ?.substringAfterLast('/', missingDelimiterValue = "")
+        ?.toLongOrNull()
+    return contentRangeTotal
+        ?: contentLengthLong.takeIf { it >= 0 }?.let { length -> length + offset }
+}
+
+private fun InputStream.skipFully(offset: Long) {
+    var remaining = offset
+    while (remaining > 0) {
+        val skipped = skip(remaining)
+        if (skipped <= 0) {
+            if (read() < 0) {
+                throw IOException("Download offset exceeds source size")
+            }
+            remaining -= 1
+        } else {
+            remaining -= skipped
         }
     }
 }

@@ -45,7 +45,6 @@ fun SourceSettingsSection(
     onAction: (SettingsAction) -> Unit,
 ) {
     val settings = state.settings
-    var metadataScanModeDialogOpen by remember { mutableStateOf(false) }
     var customDurationDialogOpen by remember { mutableStateOf(false) }
     var customDurationInputSeconds by remember { mutableStateOf("") }
     var editingMetadataField by remember { mutableStateOf<MetadataField?>(null) }
@@ -141,25 +140,19 @@ fun SourceSettingsSection(
         }
 
         SettingsSection(title = stringResource(Res.string.settings_scan_section)) {
-            SettingsChoiceRow(
-                title = stringResource(Res.string.settings_auto_scan),
-                summary = stringResource(Res.string.settings_auto_scan_off),
-                selected = settings.autoScanMode == AutoScanMode.Off,
-                onClick = { onAction(SettingsAction.SetAutoScanMode(AutoScanMode.Off)) },
-            )
-            SettingsChoiceRow(
-                title = stringResource(Res.string.settings_auto_scan),
-                summary = stringResource(Res.string.settings_auto_scan_startup),
-                selected = settings.autoScanMode == AutoScanMode.OnStartup,
-                onClick = { onAction(SettingsAction.SetAutoScanMode(AutoScanMode.OnStartup)) },
+            val autoScanModes = if (state.capabilities.backgroundScanSupported) {
+                AutoScanMode.entries.toList()
+            } else {
+                listOf(AutoScanMode.Off, AutoScanMode.OnStartup)
+            }
+            SettingsSelectRow(
+                label = stringResource(Res.string.settings_auto_scan),
+                selected = settings.autoScanMode,
+                options = autoScanModes,
+                optionLabel = { mode -> stringResource(mode.titleResource()) },
+                onSelect = { onAction(SettingsAction.SetAutoScanMode(it)) },
             )
             if (state.capabilities.backgroundScanSupported) {
-                SettingsChoiceRow(
-                    title = stringResource(Res.string.settings_auto_scan),
-                    summary = stringResource(Res.string.settings_auto_scan_periodic),
-                    selected = settings.autoScanMode == AutoScanMode.Periodic,
-                    onClick = { onAction(SettingsAction.SetAutoScanMode(AutoScanMode.Periodic)) },
-                )
                 SettingsSwitchRow(
                     title = stringResource(Res.string.settings_background_scan),
                     summary = stringResource(Res.string.settings_background_scan_summary),
@@ -181,71 +174,36 @@ fun SourceSettingsSection(
                 checked = settings.scanSubdirectories,
                 onCheckedChange = { onAction(SettingsAction.SetScanSubdirectories(it)) },
             )
-            SettingsInfoRow(
-                title = stringResource(Res.string.settings_metadata_scan),
-                value = settings.webDavMetadataScanMode.summary(),
-                onClick = { metadataScanModeDialogOpen = true },
+            SettingsSelectRow(
+                label = stringResource(Res.string.settings_metadata_scan),
+                subtitle = settings.webDavMetadataScanMode.description(),
+                selected = settings.webDavMetadataScanMode,
+                options = MetadataScanMode.entries.toList(),
+                optionLabel = { mode -> mode.title() },
+                onSelect = { onAction(SettingsAction.SetWebDavMetadataScanMode(it)) },
             )
-            listOf(0L, 15_000L, 30_000L, 60_000L).forEach { durationMs ->
-                SettingsChoiceRow(
-                    title = stringResource(Res.string.settings_min_duration),
-                    summary = if (durationMs == 0L) {
-                        stringResource(Res.string.settings_min_duration_off)
-                    } else {
-                        stringResource(Res.string.settings_seconds, durationMs / 1_000L)
-                    },
-                    selected = settings.minimumAudioDurationMs == durationMs,
-                    onClick = {
-                        onAction(SettingsAction.SetMinimumAudioDurationMs(durationMs))
-                    },
-                )
-            }
-            SettingsChoiceRow(
-                title = stringResource(Res.string.settings_min_duration_custom),
-                summary = stringResource(
-                    Res.string.settings_min_duration_custom_summary,
-                    settings.minimumAudioDurationMs / 1_000L,
-                ),
-                selected = settings.minimumAudioDurationMs !in MINIMUM_DURATION_PRESETS_MS,
-                onClick = {
+            MinimumDurationSelectRow(
+                selectedDurationMs = settings.minimumAudioDurationMs,
+                onSelectDuration = { onAction(SettingsAction.SetMinimumAudioDurationMs(it)) },
+                onSelectCustom = {
                     customDurationInputSeconds =
                         (settings.minimumAudioDurationMs / 1_000L).toString()
                     customDurationDialogOpen = true
                 },
             )
-            SettingsChoiceRow(
-                title = stringResource(Res.string.settings_missing_file),
-                summary = stringResource(Res.string.settings_missing_mark_summary),
-                selected = settings.missingFilePolicy == MissingFilePolicy.MarkUnavailable,
-                onClick = {
-                    onAction(SettingsAction.SetMissingFilePolicy(MissingFilePolicy.MarkUnavailable))
-                },
+            SettingsSelectRow(
+                label = stringResource(Res.string.settings_missing_file),
+                selected = settings.missingFilePolicy,
+                options = MissingFilePolicy.entries.toList(),
+                optionLabel = { policy -> stringResource(policy.summaryResource()) },
+                onSelect = { onAction(SettingsAction.SetMissingFilePolicy(it)) },
             )
-            SettingsChoiceRow(
-                title = stringResource(Res.string.settings_missing_file),
-                summary = stringResource(Res.string.settings_missing_remove_summary),
-                selected = settings.missingFilePolicy == MissingFilePolicy.RemoveOnScan,
-                onClick = {
-                    onAction(SettingsAction.SetMissingFilePolicy(MissingFilePolicy.RemoveOnScan))
-                },
-            )
-            SettingsChoiceRow(
-                title = stringResource(Res.string.settings_duplicate_policy),
-                summary = stringResource(Res.string.settings_duplicate_separate_summary),
-                selected = settings.duplicateTrackPolicy == DuplicateTrackPolicy.SeparateBySource,
-                onClick = {
-                    onAction(
-                        SettingsAction.SetDuplicateTrackPolicy(DuplicateTrackPolicy.SeparateBySource)
-                    )
-                },
-            )
-            SettingsChoiceRow(
-                title = stringResource(Res.string.settings_duplicate_policy),
-                summary = stringResource(Res.string.settings_duplicate_keep_all_summary),
-                selected = settings.duplicateTrackPolicy == DuplicateTrackPolicy.KeepAll,
-                onClick = {
-                    onAction(SettingsAction.SetDuplicateTrackPolicy(DuplicateTrackPolicy.KeepAll))
-                },
+            SettingsSelectRow(
+                label = stringResource(Res.string.settings_duplicate_policy),
+                selected = settings.duplicateTrackPolicy,
+                options = DuplicateTrackPolicy.entries.toList(),
+                optionLabel = { policy -> stringResource(policy.summaryResource()) },
+                onSelect = { onAction(SettingsAction.SetDuplicateTrackPolicy(it)) },
             )
         }
 
@@ -382,15 +340,6 @@ fun SourceSettingsSection(
         }
     }
 
-    MetadataScanModeDialog(
-        show = metadataScanModeDialogOpen,
-        selectedMode = settings.webDavMetadataScanMode,
-        onSelect = { mode ->
-            onAction(SettingsAction.SetWebDavMetadataScanMode(mode))
-            metadataScanModeDialogOpen = false
-        },
-        onDismiss = { metadataScanModeDialogOpen = false },
-    )
     SettingsInputDialog(
         show = customDurationDialogOpen,
         title = stringResource(Res.string.settings_min_duration_custom_title),
@@ -472,33 +421,6 @@ fun SourceSettingsSection(
 }
 
 @Composable
-private fun MetadataScanModeDialog(
-    show: Boolean,
-    selectedMode: MetadataScanMode,
-    onSelect: (MetadataScanMode) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    TideDialog(show = show, onDismiss = onDismiss) {
-        Column {
-            Text(
-                text = stringResource(Res.string.settings_metadata_scan),
-                style = MiuixTheme.textStyles.title3,
-                color = MiuixTheme.colorScheme.onSurface,
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            MetadataScanMode.entries.forEach { mode ->
-                SettingsChoiceRow(
-                    title = mode.title(),
-                    summary = mode.description(),
-                    selected = selectedMode == mode,
-                    onClick = { onSelect(mode) },
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun MetadataScanMode.title(): String = when (this) {
     MetadataScanMode.Fast -> stringResource(Res.string.settings_metadata_scan_fast)
     MetadataScanMode.Standard -> stringResource(Res.string.settings_metadata_scan_standard)
@@ -510,13 +432,6 @@ private fun MetadataScanMode.description(): String = when (this) {
     MetadataScanMode.Fast -> stringResource(Res.string.settings_metadata_scan_fast_description)
     MetadataScanMode.Standard -> stringResource(Res.string.settings_metadata_scan_standard_description)
     MetadataScanMode.Full -> stringResource(Res.string.settings_metadata_scan_full_description)
-}
-
-@Composable
-private fun MetadataScanMode.summary(): String = when (this) {
-    MetadataScanMode.Fast -> stringResource(Res.string.settings_metadata_scan_fast_summary)
-    MetadataScanMode.Standard -> stringResource(Res.string.settings_metadata_scan_standard_summary)
-    MetadataScanMode.Full -> stringResource(Res.string.settings_metadata_scan_full_summary)
 }
 
 @Composable
@@ -787,7 +702,62 @@ private fun SourceAccountSettingsItem.lastScanSummary(): String {
     return stringResource(Res.string.settings_source_last_scan_summary, status, timestamp)
 }
 
-private val MINIMUM_DURATION_PRESETS_MS = setOf(0L, 15_000L, 30_000L, 60_000L)
+@Composable
+private fun MinimumDurationSelectRow(
+    selectedDurationMs: Long,
+    onSelectDuration: (Long) -> Unit,
+    onSelectCustom: () -> Unit,
+) {
+    val selectedPreset = selectedDurationMs.takeIf { it in MINIMUM_DURATION_PRESETS_MS }
+    SettingsSelectRow(
+        label = stringResource(Res.string.settings_min_duration),
+        selectedValue = selectedPreset?.toString() ?: CUSTOM_DURATION_VALUE,
+        selectedLabel = if (selectedPreset == null) {
+            stringResource(Res.string.settings_min_duration_custom)
+        } else {
+            selectedPreset.durationLabel()
+        },
+        options = MINIMUM_DURATION_PRESETS_MS.map { durationMs ->
+            SettingsSelectOption(value = durationMs.toString(), label = durationMs.durationLabel())
+        } + SettingsSelectOption(
+            value = CUSTOM_DURATION_VALUE,
+            label = stringResource(Res.string.settings_min_duration_custom),
+        ),
+        onSelect = { value ->
+            if (value == CUSTOM_DURATION_VALUE) {
+                onSelectCustom()
+            } else {
+                value.toLongOrNull()?.let(onSelectDuration)
+            }
+        },
+    )
+}
+
+@Composable
+private fun Long.durationLabel(): String = if (this == 0L) {
+    stringResource(Res.string.settings_min_duration_off)
+} else {
+    stringResource(Res.string.settings_seconds, this / 1_000L)
+}
+
+private fun AutoScanMode.titleResource() = when (this) {
+    AutoScanMode.Off -> Res.string.settings_auto_scan_off
+    AutoScanMode.OnStartup -> Res.string.settings_auto_scan_startup
+    AutoScanMode.Periodic -> Res.string.settings_auto_scan_periodic
+}
+
+private fun MissingFilePolicy.summaryResource() = when (this) {
+    MissingFilePolicy.MarkUnavailable -> Res.string.settings_missing_mark_summary
+    MissingFilePolicy.RemoveOnScan -> Res.string.settings_missing_remove_summary
+}
+
+private fun DuplicateTrackPolicy.summaryResource() = when (this) {
+    DuplicateTrackPolicy.SeparateBySource -> Res.string.settings_duplicate_separate_summary
+    DuplicateTrackPolicy.KeepAll -> Res.string.settings_duplicate_keep_all_summary
+}
+
+private val MINIMUM_DURATION_PRESETS_MS = listOf(0L, 15_000L, 30_000L, 60_000L)
+private const val CUSTOM_DURATION_VALUE = "custom"
 
 private enum class MetadataField(val multiline: Boolean) {
     ArtistSeparators(false),

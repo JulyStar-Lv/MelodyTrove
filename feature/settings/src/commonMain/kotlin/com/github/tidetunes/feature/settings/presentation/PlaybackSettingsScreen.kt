@@ -29,23 +29,12 @@ fun PlaybackSettingsSection(
     SettingsPageLayout(title = stringResource(Res.string.settings_playback_title), onBack = onBack) {
         if (capabilities.audioFocusSupported) {
             SettingsSection(title = stringResource(Res.string.settings_audio_focus_section)) {
-                SettingsChoiceRow(
-                    title = stringResource(Res.string.settings_audio_focus_pause),
-                    summary = stringResource(Res.string.settings_audio_focus_pause_summary),
-                    selected = settings.audioFocusMode == AudioFocusMode.Pause,
-                    onClick = { onAction(SettingsAction.SetAudioFocusMode(AudioFocusMode.Pause)) },
-                )
-                SettingsChoiceRow(
-                    title = stringResource(Res.string.settings_audio_focus_duck),
-                    summary = stringResource(Res.string.settings_audio_focus_duck_summary),
-                    selected = settings.audioFocusMode == AudioFocusMode.Duck,
-                    onClick = { onAction(SettingsAction.SetAudioFocusMode(AudioFocusMode.Duck)) },
-                )
-                SettingsChoiceRow(
-                    title = stringResource(Res.string.settings_audio_focus_mix),
-                    summary = stringResource(Res.string.settings_audio_focus_mix_summary),
-                    selected = settings.audioFocusMode == AudioFocusMode.Mix,
-                    onClick = { onAction(SettingsAction.SetAudioFocusMode(AudioFocusMode.Mix)) },
+                SettingsSelectRow(
+                    label = stringResource(Res.string.settings_audio_focus_section),
+                    selected = settings.audioFocusMode,
+                    options = AudioFocusMode.entries.toList(),
+                    optionLabel = { mode -> stringResource(mode.titleResource()) },
+                    onSelect = { onAction(SettingsAction.SetAudioFocusMode(it)) },
                 )
             }
         }
@@ -104,62 +93,58 @@ fun PlaybackSettingsSection(
                     )
                 },
             )
-            StartupPlaybackMode.entries.forEach { mode ->
-                SettingsChoiceRow(
-                    title = stringResource(mode.titleResource()),
-                    summary = stringResource(Res.string.settings_startup_playback),
-                    selected = settings.playbackAdvanced.startupPlaybackMode == mode,
-                    onClick = {
-                        onAction(
-                            SettingsAction.SetPlaybackAdvancedSettings(
-                                settings.playbackAdvanced.copy(startupPlaybackMode = mode)
-                            )
+            SettingsSelectRow(
+                label = stringResource(Res.string.settings_startup_playback),
+                selected = settings.playbackAdvanced.startupPlaybackMode,
+                options = StartupPlaybackMode.entries.toList(),
+                optionLabel = { mode -> stringResource(mode.titleResource()) },
+                onSelect = { mode ->
+                    onAction(
+                        SettingsAction.SetPlaybackAdvancedSettings(
+                            settings.playbackAdvanced.copy(startupPlaybackMode = mode)
                         )
-                    },
-                )
-            }
-            PreviousButtonBehavior.entries.forEach { behavior ->
-                SettingsChoiceRow(
-                    title = stringResource(behavior.titleResource()),
-                    summary = stringResource(Res.string.settings_previous_button_behavior),
-                    selected = settings.playbackAdvanced.previousButtonBehavior == behavior,
-                    onClick = {
-                        onAction(
-                            SettingsAction.SetPlaybackAdvancedSettings(
-                                settings.playbackAdvanced.copy(previousButtonBehavior = behavior)
-                            )
+                    )
+                },
+            )
+            SettingsSelectRow(
+                label = stringResource(Res.string.settings_previous_button_behavior),
+                selected = settings.playbackAdvanced.previousButtonBehavior,
+                options = PreviousButtonBehavior.entries.toList(),
+                optionLabel = { behavior -> stringResource(behavior.titleResource()) },
+                onSelect = { behavior ->
+                    onAction(
+                        SettingsAction.SetPlaybackAdvancedSettings(
+                            settings.playbackAdvanced.copy(previousButtonBehavior = behavior)
                         )
-                    },
-                )
-            }
-            PlayNextMode.entries.forEach { mode ->
-                SettingsChoiceRow(
-                    title = stringResource(mode.titleResource()),
-                    summary = stringResource(Res.string.settings_play_next_mode),
-                    selected = settings.playbackAdvanced.playNextMode == mode,
-                    onClick = {
-                        onAction(
-                            SettingsAction.SetPlaybackAdvancedSettings(
-                                settings.playbackAdvanced.copy(playNextMode = mode)
-                            )
+                    )
+                },
+            )
+            SettingsSelectRow(
+                label = stringResource(Res.string.settings_play_next_mode),
+                selected = settings.playbackAdvanced.playNextMode,
+                options = PlayNextMode.entries.toList(),
+                optionLabel = { mode -> stringResource(mode.titleResource()) },
+                onSelect = { mode ->
+                    onAction(
+                        SettingsAction.SetPlaybackAdvancedSettings(
+                            settings.playbackAdvanced.copy(playNextMode = mode)
                         )
-                    },
-                )
-            }
-            ShuffleStrategy.entries.forEach { strategy ->
-                SettingsChoiceRow(
-                    title = stringResource(strategy.titleResource()),
-                    summary = stringResource(Res.string.settings_shuffle_strategy),
-                    selected = settings.playbackAdvanced.shuffleStrategy == strategy,
-                    onClick = {
-                        onAction(
-                            SettingsAction.SetPlaybackAdvancedSettings(
-                                settings.playbackAdvanced.copy(shuffleStrategy = strategy)
-                            )
+                    )
+                },
+            )
+            SettingsSelectRow(
+                label = stringResource(Res.string.settings_shuffle_strategy),
+                selected = settings.playbackAdvanced.shuffleStrategy,
+                options = ShuffleStrategy.entries.toList(),
+                optionLabel = { strategy -> stringResource(strategy.titleResource()) },
+                onSelect = { strategy ->
+                    onAction(
+                        SettingsAction.SetPlaybackAdvancedSettings(
+                            settings.playbackAdvanced.copy(shuffleStrategy = strategy)
                         )
-                    },
-                )
-            }
+                    )
+                },
+            )
         }
 
         if (capabilities.crossfadeSupported || capabilities.replayGainSupported) {
@@ -184,20 +169,19 @@ fun PlaybackSettingsSection(
                     )
                 }
                 if (capabilities.replayGainSupported) {
-                    ReplayGainMode.entries.forEach { mode ->
-                        SettingsChoiceRow(
-                            title = stringResource(mode.titleResource()),
-                            summary = stringResource(Res.string.settings_replay_gain),
-                            selected = settings.playbackAdvanced.replayGainMode == mode,
-                            onClick = {
-                                onAction(
-                                    SettingsAction.SetPlaybackAdvancedSettings(
-                                        settings.playbackAdvanced.copy(replayGainMode = mode)
-                                    )
+                    SettingsSelectRow(
+                        label = stringResource(Res.string.settings_replay_gain),
+                        selected = settings.playbackAdvanced.replayGainMode,
+                        options = ReplayGainMode.entries.toList(),
+                        optionLabel = { mode -> stringResource(mode.titleResource()) },
+                        onSelect = { mode ->
+                            onAction(
+                                SettingsAction.SetPlaybackAdvancedSettings(
+                                    settings.playbackAdvanced.copy(replayGainMode = mode)
                                 )
-                            },
-                        )
-                    }
+                            )
+                        },
+                    )
                     SettingsSliderRow(
                         title = stringResource(Res.string.settings_replay_gain_preamp),
                         value = settings.playbackAdvanced.replayGainPreampTenthsDb,
@@ -284,34 +268,32 @@ fun PlaybackSettingsSection(
                 )
             }
             if (capabilities.externalEditorSupported) {
-                MetadataEditorApp.entries.forEach { editor ->
-                    SettingsChoiceRow(
-                        title = stringResource(editor.titleResource()),
-                        summary = stringResource(Res.string.settings_metadata_editor),
-                        selected = interaction.metadataEditor == editor,
-                        onClick = {
-                            onAction(
-                                SettingsAction.SetPlayerInteractionSettings(
-                                    interaction.copy(metadataEditor = editor)
-                                )
+                SettingsSelectRow(
+                    label = stringResource(Res.string.settings_metadata_editor),
+                    selected = interaction.metadataEditor,
+                    options = MetadataEditorApp.entries.toList(),
+                    optionLabel = { editor -> stringResource(editor.titleResource()) },
+                    onSelect = { editor ->
+                        onAction(
+                            SettingsAction.SetPlayerInteractionSettings(
+                                interaction.copy(metadataEditor = editor)
                             )
-                        },
-                    )
-                }
-                LyricTimingEditorApp.entries.forEach { editor ->
-                    SettingsChoiceRow(
-                        title = stringResource(editor.titleResource()),
-                        summary = stringResource(Res.string.settings_lyric_timing_editor),
-                        selected = interaction.lyricTimingEditor == editor,
-                        onClick = {
-                            onAction(
-                                SettingsAction.SetPlayerInteractionSettings(
-                                    interaction.copy(lyricTimingEditor = editor)
-                                )
+                        )
+                    },
+                )
+                SettingsSelectRow(
+                    label = stringResource(Res.string.settings_lyric_timing_editor),
+                    selected = interaction.lyricTimingEditor,
+                    options = LyricTimingEditorApp.entries.toList(),
+                    optionLabel = { editor -> stringResource(editor.titleResource()) },
+                    onSelect = { editor ->
+                        onAction(
+                            SettingsAction.SetPlayerInteractionSettings(
+                                interaction.copy(lyricTimingEditor = editor)
                             )
-                        },
-                    )
-                }
+                        )
+                    },
+                )
             }
         }
 
@@ -420,19 +402,18 @@ private fun AudioEffectsSettingsSection(
                 )
             },
         )
-        ReverbPreset.entries.forEach { preset ->
-            SettingsChoiceRow(
-                title = stringResource(preset.titleResource()),
-                summary = stringResource(Res.string.settings_reverb),
-                selected = effects.reverbPreset == preset,
-                enabled = effects.enabled,
-                onClick = {
-                    onAction(
-                        SettingsAction.SetAudioEffectSettings(effects.copy(reverbPreset = preset))
-                    )
-                },
-            )
-        }
+        SettingsSelectRow(
+            label = stringResource(Res.string.settings_reverb),
+            selected = effects.reverbPreset,
+            options = ReverbPreset.entries.toList(),
+            optionLabel = { preset -> stringResource(preset.titleResource()) },
+            enabled = effects.enabled,
+            onSelect = { preset ->
+                onAction(
+                    SettingsAction.SetAudioEffectSettings(effects.copy(reverbPreset = preset))
+                )
+            },
+        )
     }
 }
 
@@ -441,6 +422,12 @@ private val EQ_BAND_LABELS = listOf("31 Hz", "62 Hz", "125 Hz", "250 Hz", "500 H
 private fun Int.formatTenthsDb(): String {
     val sign = if (this > 0) "+" else ""
     return "$sign${this / 10}.${kotlin.math.abs(this % 10)} dB"
+}
+
+private fun AudioFocusMode.titleResource() = when (this) {
+    AudioFocusMode.Pause -> Res.string.settings_audio_focus_pause
+    AudioFocusMode.Duck -> Res.string.settings_audio_focus_duck
+    AudioFocusMode.Mix -> Res.string.settings_audio_focus_mix
 }
 
 private fun StartupPlaybackMode.titleResource() = when (this) {

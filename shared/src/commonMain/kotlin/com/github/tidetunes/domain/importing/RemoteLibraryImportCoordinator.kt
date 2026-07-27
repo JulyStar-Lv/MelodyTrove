@@ -1891,7 +1891,7 @@ internal fun requiresOneDriveResync(items: List<OneDriveDeltaItem>): Boolean {
 }
 
 internal fun OneDriveDeltaItem.isSupportedMusicFile(): Boolean {
-    if (isDir || deleted) return false
+    if (isDir || deleted || mimeType.isVideoMimeType()) return false
     val fileName = name ?: path?.substringAfterLast('/') ?: return false
     val extension = fileName.substringAfterLast('.', missingDelimiterValue = "").lowercase()
     return extension in supportedMusicExtensions
@@ -2543,7 +2543,7 @@ private fun SourceItemEntity.hasSameSourceRevision(entry: StorageEntry): Boolean
 }
 
 internal fun isSupportedMusicEntry(entry: StorageEntry): Boolean {
-    if (entry.isDir) return false
+    if (entry.isDir || entry.mimeType.isVideoMimeType()) return false
     return isSupportedMusicPath(entry.name.ifBlank { entry.path })
 }
 
@@ -2552,6 +2552,14 @@ internal fun isSupportedMusicPath(path: String): Boolean {
         .substringAfterLast('.', missingDelimiterValue = "")
         .lowercase()
     return extension in supportedMusicExtensions
+}
+
+private fun String?.isVideoMimeType(): Boolean {
+    return this
+        ?.substringBefore(';')
+        ?.trim()
+        ?.lowercase()
+        ?.startsWith("video/") == true
 }
 
 private fun escapeLikePattern(value: String): String {
@@ -2719,6 +2727,8 @@ private val supportedMusicExtensions = setOf(
     "oga",
     "opus",
     "wav",
+    "ape",
+    "wv",
     "aif",
     "aiff",
 )

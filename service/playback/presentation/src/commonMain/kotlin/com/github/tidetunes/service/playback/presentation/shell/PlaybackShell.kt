@@ -31,12 +31,14 @@ fun rememberHasPlaybackItem(
 fun PlaybackMiniPlayerHost(
     onOpenNowPlaying: () -> Unit,
     onBrowseLibrary: () -> Unit,
+    onOpenQueue: () -> Unit,
     playerVM: PlayerVM = koinViewModel(),
 ) {
     val playbackState by playerVM.playbackState.collectAsState()
     if (playbackState.currentItem != null) {
         MiniPlayer(
             onOpenNowPlaying = onOpenNowPlaying,
+            onOpenQueue = onOpenQueue,
             playerVM = playerVM,
         )
     } else {

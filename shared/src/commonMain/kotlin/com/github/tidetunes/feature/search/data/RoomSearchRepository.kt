@@ -5,19 +5,19 @@ import com.github.tidetunes.database.TrackDao
 import com.github.tidetunes.database.TrackEntity
 import com.github.tidetunes.database.MetadataDao
 import com.github.tidetunes.database.TrackFtsDao
+import com.github.tidetunes.database.TrackSourceRefDao
 import com.github.tidetunes.feature.search.domain.LOCAL_LIBRARY_SOURCE_LABEL
 import com.github.tidetunes.feature.search.domain.SearchRepository
 import com.github.tidetunes.feature.search.domain.SearchResults
 import com.github.tidetunes.feature.search.domain.SearchAlbumItem
 import com.github.tidetunes.feature.search.domain.SearchArtistItem
 import com.github.tidetunes.feature.search.domain.SearchTrackItem
-import com.github.tidetunes.source.storage.LegacyStorageLookup
-import com.github.tidetunes.source.storage.toLegacyStorageTrackMediaIdOrNull
+import com.github.tidetunes.source.storage.toSourceTrackMediaIdOrNull
 
 class RoomSearchRepository(
     private val trackDao: TrackDao,
     private val trackFtsDao: TrackFtsDao,
-    private val storageLookup: LegacyStorageLookup,
+    private val trackSourceRefDao: TrackSourceRefDao,
     private val metadataDao: MetadataDao,
 ) : SearchRepository {
     override suspend fun searchLocalLibrary(
@@ -37,10 +37,17 @@ class RoomSearchRepository(
             null
         } ?: likeBasedSearch(normalizedQuery, limit)
 
+        val playbackCandidates = if (tracks.isEmpty()) {
+            emptyMap()
+        } else {
+            trackSourceRefDao.playbackCandidatesForTracks(tracks.map(TrackEntity::id))
+                .distinctBy { candidate -> candidate.ref.trackId }
+                .associateBy { candidate -> candidate.ref.trackId }
+        }
         return SearchResults(
             tracks = tracks.map { track ->
                 track.toSearchTrackItem(
-                    mediaId = track.toLegacyStorageTrackMediaIdOrNull(storageLookup),
+                    mediaId = playbackCandidates[track.id]?.toSourceTrackMediaIdOrNull(),
                 )
             }
         )

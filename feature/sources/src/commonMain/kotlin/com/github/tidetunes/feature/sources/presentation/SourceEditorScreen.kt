@@ -37,6 +37,7 @@ import com.github.tidetunes.core.presentation.components.ConfirmDialog
 import com.github.tidetunes.core.presentation.components.FormSwitch
 import com.github.tidetunes.core.presentation.components.FormText
 import com.github.tidetunes.core.presentation.components.FormWidget
+import com.github.tidetunes.core.presentation.components.LocalTideBottomContentInset
 import com.github.tidetunes.core.presentation.components.TideCardSurface
 import com.github.tidetunes.core.presentation.components.TideIconButton
 import com.github.tidetunes.core.presentation.components.TideIconButtonColors
@@ -73,8 +74,29 @@ import tidetunes.feature.sources.generated.resources.storage_edit_onedrive_drive
 import tidetunes.feature.sources.generated.resources.storage_edit_onedrive_should_auth
 import tidetunes.feature.sources.generated.resources.storage_edit_password
 import tidetunes.feature.sources.generated.resources.storage_edit_username
+import tidetunes.feature.sources.generated.resources.storage_edit_smb_domain
+import tidetunes.feature.sources.generated.resources.storage_edit_smb_encryption
+import tidetunes.feature.sources.generated.resources.storage_edit_smb_guest
+import tidetunes.feature.sources.generated.resources.storage_edit_smb_port
+import tidetunes.feature.sources.generated.resources.storage_edit_smb_port_invalid
+import tidetunes.feature.sources.generated.resources.storage_edit_smb_root
+import tidetunes.feature.sources.generated.resources.storage_edit_smb_server
+import tidetunes.feature.sources.generated.resources.storage_edit_smb_share
+import tidetunes.feature.sources.generated.resources.storage_edit_smb_share_required
+import tidetunes.feature.sources.generated.resources.storage_edit_smb_signing
 import tidetunes.feature.sources.generated.resources.storage_remove_desc_count
+import tidetunes.feature.sources.generated.resources.storage_remove_desc_downloads
 import tidetunes.feature.sources.generated.resources.storage_remove_desc_main
+import tidetunes.feature.sources.generated.resources.storage_test_error
+import tidetunes.feature.sources.generated.resources.storage_test_invalid_address
+import tidetunes.feature.sources.generated.resources.storage_test_not_found
+import tidetunes.feature.sources.generated.resources.storage_test_permission
+import tidetunes.feature.sources.generated.resources.storage_test_success
+import tidetunes.feature.sources.generated.resources.storage_test_testing
+import tidetunes.feature.sources.generated.resources.storage_test_timeout
+import tidetunes.feature.sources.generated.resources.storage_test_unauthorized
+import tidetunes.feature.sources.generated.resources.storage_test_unavailable
+import tidetunes.feature.sources.generated.resources.storage_test_unsupported
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -125,6 +147,11 @@ private fun RemoveDialog(
         )
         Text(
             text = countDesc,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            style = MiuixTheme.textStyles.footnote1,
+        )
+        Text(
+            text = stringResource(Res.string.storage_remove_desc_downloads),
             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             style = MiuixTheme.textStyles.footnote1,
         )
@@ -287,6 +314,110 @@ private fun RemoteServerConfig(
 }
 
 @Composable
+private fun SmbConfig(
+    state: SmbSourceEditorState,
+    validation: SourceEditorValidation,
+    onAction: (SourceEditorAction) -> Unit,
+) {
+    var password by remember { mutableStateOf("") }
+
+    FormSwitch(
+        label = stringResource(Res.string.storage_edit_smb_guest),
+        value = state.isGuest,
+        onChange = { isGuest ->
+            if (isGuest) password = ""
+            onAction(SourceEditorAction.SmbGuestChanged(isGuest))
+        },
+    )
+    FormText(
+        label = stringResource(Res.string.storage_edit_alias),
+        value = state.alias,
+        onChange = { onAction(SourceEditorAction.SmbAliasChanged(it)) },
+        error = if (validation.aliasEmpty) {
+            Res.string.storage_edit_onedrive_alias_not_empty
+        } else {
+            null
+        },
+    )
+    FormText(
+        label = stringResource(Res.string.storage_edit_smb_server),
+        value = state.host,
+        onChange = { onAction(SourceEditorAction.SmbHostChanged(it)) },
+        error = if (validation.addressEmpty) {
+            Res.string.storage_edit_form_address
+        } else {
+            null
+        },
+    )
+    FormText(
+        label = stringResource(Res.string.storage_edit_smb_port),
+        value = state.port,
+        onChange = { onAction(SourceEditorAction.SmbPortChanged(it)) },
+        error = if (validation.smbPortInvalid) {
+            Res.string.storage_edit_smb_port_invalid
+        } else {
+            null
+        },
+    )
+    FormText(
+        label = stringResource(Res.string.storage_edit_smb_share),
+        value = state.share,
+        onChange = { onAction(SourceEditorAction.SmbShareChanged(it)) },
+        error = if (validation.smbShareEmpty) {
+            Res.string.storage_edit_smb_share_required
+        } else {
+            null
+        },
+    )
+    FormText(
+        label = stringResource(Res.string.storage_edit_smb_root),
+        value = state.rootPath,
+        onChange = { onAction(SourceEditorAction.SmbRootPathChanged(it)) },
+    )
+    if (!state.isGuest) {
+        FormText(
+            label = stringResource(Res.string.storage_edit_username),
+            value = state.username,
+            onChange = { onAction(SourceEditorAction.SmbUsernameChanged(it)) },
+            error = if (validation.usernameEmpty) {
+                Res.string.storage_edit_form_username
+            } else {
+                null
+            },
+        )
+        FormText(
+            label = stringResource(Res.string.storage_edit_password),
+            value = password,
+            isPassword = true,
+            onChange = {
+                password = it
+                onAction(SourceEditorAction.SmbPasswordChanged(it))
+            },
+            error = if (validation.passwordEmpty) {
+                Res.string.storage_edit_form_password
+            } else {
+                null
+            },
+        )
+        FormText(
+            label = stringResource(Res.string.storage_edit_smb_domain),
+            value = state.domain,
+            onChange = { onAction(SourceEditorAction.SmbDomainChanged(it)) },
+        )
+    }
+    FormSwitch(
+        label = stringResource(Res.string.storage_edit_smb_signing),
+        value = state.requireSigning,
+        onChange = { onAction(SourceEditorAction.SmbSigningChanged(it)) },
+    )
+    FormSwitch(
+        label = stringResource(Res.string.storage_edit_smb_encryption),
+        value = state.requireEncryption,
+        onChange = { onAction(SourceEditorAction.SmbEncryptionChanged(it)) },
+    )
+}
+
+@Composable
 private fun OneDriveConfig(
     state: OneDriveSourceEditorState,
     validation: SourceEditorValidation,
@@ -386,6 +517,7 @@ fun SourceEditorScreen(
     val storageType = state.storageType
     val spacing = TideTunesTokens.spacing
     val shapes = TideTunesTokens.shapes
+    val bottomContentInset = LocalTideBottomContentInset.current
 
     val testingColors = when (state.testStatus) {
         SourceConnectionTestStatus.None -> null
@@ -397,10 +529,32 @@ fun SourceEditorScreen(
             buttonBg = Color.Transparent,
             iconTint = MiuixTheme.colorScheme.primary,
         )
+        SourceConnectionTestStatus.Unauthorized,
+        SourceConnectionTestStatus.Timeout,
+        SourceConnectionTestStatus.PermissionDenied,
+        SourceConnectionTestStatus.NotFound,
+        SourceConnectionTestStatus.InvalidAddress,
+        SourceConnectionTestStatus.Unavailable,
+        SourceConnectionTestStatus.UnsupportedSecurityPolicy,
         SourceConnectionTestStatus.Error -> TideIconButtonColors(
             buttonBg = Color.Transparent,
             iconTint = MiuixTheme.colorScheme.error,
         )
+    }
+    val testStatusText = when (state.testStatus) {
+        SourceConnectionTestStatus.None -> null
+        SourceConnectionTestStatus.Testing -> stringResource(Res.string.storage_test_testing)
+        SourceConnectionTestStatus.Success -> stringResource(Res.string.storage_test_success)
+        SourceConnectionTestStatus.Unauthorized -> stringResource(Res.string.storage_test_unauthorized)
+        SourceConnectionTestStatus.Timeout -> stringResource(Res.string.storage_test_timeout)
+        SourceConnectionTestStatus.PermissionDenied -> stringResource(Res.string.storage_test_permission)
+        SourceConnectionTestStatus.NotFound -> stringResource(Res.string.storage_test_not_found)
+        SourceConnectionTestStatus.InvalidAddress -> stringResource(Res.string.storage_test_invalid_address)
+        SourceConnectionTestStatus.Unavailable -> stringResource(Res.string.storage_test_unavailable)
+        SourceConnectionTestStatus.UnsupportedSecurityPolicy -> {
+            stringResource(Res.string.storage_test_unsupported)
+        }
+        SourceConnectionTestStatus.Error -> stringResource(Res.string.storage_test_error)
     }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -484,7 +638,12 @@ fun SourceEditorScreen(
                     modifier = Modifier
                         .verticalScroll(rememberScrollState())
                         .imePadding()
-                        .padding(horizontal = horizontalPadding, vertical = 12.dp),
+                        .padding(
+                            start = horizontalPadding,
+                            top = 12.dp,
+                            end = horizontalPadding,
+                            bottom = 12.dp + bottomContentInset,
+                        ),
                 ) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -501,6 +660,13 @@ fun SourceEditorScreen(
                             isActive = storageType == SourceEditorType.OneDrive,
                             onSelect = {
                                 onAction(SourceEditorAction.ChangeType(SourceEditorType.OneDrive))
+                            },
+                        )
+                        StorageBlock(
+                            title = "SMB",
+                            isActive = storageType == SourceEditorType.Smb,
+                            onSelect = {
+                                onAction(SourceEditorAction.ChangeType(SourceEditorType.Smb))
                             },
                         )
                     }
@@ -545,6 +711,13 @@ fun SourceEditorScreen(
                                     onAction = onAction,
                                 )
                             }
+                            if (storageType == SourceEditorType.Smb) {
+                                SmbConfig(
+                                    state = state.smb,
+                                    validation = state.validation,
+                                    onAction = onAction,
+                                )
+                            }
                             if (
                                 storageType == SourceEditorType.Navidrome ||
                                 storageType == SourceEditorType.OpenSubsonic ||
@@ -558,7 +731,8 @@ fun SourceEditorScreen(
                             }
                             if (!state.isCreated && (
                                 storageType == SourceEditorType.WebDav ||
-                                storageType == SourceEditorType.OneDrive
+                                storageType == SourceEditorType.OneDrive ||
+                                storageType == SourceEditorType.Smb
                             )) {
                                 FormWidget(
                                     label = stringResource(Res.string.storage_edit_import_library_label),
@@ -572,6 +746,19 @@ fun SourceEditorScreen(
                                         },
                                     )
                                 }
+                            }
+                            if (testStatusText != null) {
+                                Text(
+                                    text = testStatusText,
+                                    color = if (
+                                        state.testStatus == SourceConnectionTestStatus.Success
+                                    ) {
+                                        MiuixTheme.colorScheme.primary
+                                    } else {
+                                        MiuixTheme.colorScheme.onSurfaceVariantSummary
+                                    },
+                                    style = MiuixTheme.textStyles.footnote1,
+                                )
                             }
                         }
                     }

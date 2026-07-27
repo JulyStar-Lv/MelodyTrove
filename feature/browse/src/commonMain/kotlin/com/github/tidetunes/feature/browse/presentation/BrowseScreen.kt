@@ -26,6 +26,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.github.tidetunes.core.presentation.components.TideCardSurface
 import com.github.tidetunes.core.presentation.components.TideChipSection
+import com.github.tidetunes.core.presentation.components.LocalTideBottomContentInset
 import com.github.tidetunes.core.presentation.components.TidePageHeader
 import com.github.tidetunes.core.presentation.components.TideSectionHeader
 import com.github.tidetunes.core.presentation.components.TideSectionHeaderMetadataTone
@@ -71,7 +72,12 @@ internal fun BrowseArtistItem.lazyListKey(index: Int): String = "browse-artist-$
 
 @Composable
 private fun BrowseContent(state: BrowseState, onAction: (BrowseAction) -> Unit, modifier: Modifier = Modifier) {
-    LazyColumn(modifier = modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(18.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
+    val bottomContentInset = LocalTideBottomContentInset.current
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
+        contentPadding = PaddingValues(bottom = 24.dp + bottomContentInset),
+    ) {
         if (state.albums.isNotEmpty()) {
             item { BrowseSectionTitle(title = "Albums", count = state.albums.size) }
             item {
