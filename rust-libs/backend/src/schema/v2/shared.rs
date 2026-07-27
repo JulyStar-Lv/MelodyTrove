@@ -95,6 +95,7 @@ pub enum StorageType {
     #[default]
     Webdav,
     OneDrive,
+    Smb,
 }
 
 #[derive(
@@ -120,3 +121,44 @@ pub enum PlayMode {
 
 #[derive(Debug, Clone, Copy, bitcode::Encode, bitcode::Decode)]
 pub struct MusicDuration(pub Duration);
+
+#[cfg(test)]
+mod tests {
+    use super::StorageType;
+
+    #[derive(bitcode::Encode)]
+    enum LegacyStorageType {
+        Local,
+        Webdav,
+        OneDrive,
+    }
+
+    #[test]
+    fn decodes_storage_type_values_written_before_smb_was_added() {
+        let cases = [
+            (LegacyStorageType::Local, StorageType::Local),
+            (LegacyStorageType::Webdav, StorageType::Webdav),
+            (LegacyStorageType::OneDrive, StorageType::OneDrive),
+        ];
+        for (legacy, expected) in cases {
+            let encoded = bitcode::encode(&legacy);
+            assert_eq!(bitcode::decode::<StorageType>(&encoded).unwrap(), expected);
+        }
+    }
+
+    #[test]
+    fn deserializes_legacy_storage_type_json_names() {
+        assert_eq!(
+            serde_json::from_str::<StorageType>(r#""Local""#).unwrap(),
+            StorageType::Local
+        );
+        assert_eq!(
+            serde_json::from_str::<StorageType>(r#""Webdav""#).unwrap(),
+            StorageType::Webdav
+        );
+        assert_eq!(
+            serde_json::from_str::<StorageType>(r#""OneDrive""#).unwrap(),
+            StorageType::OneDrive
+        );
+    }
+}

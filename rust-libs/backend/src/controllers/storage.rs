@@ -12,7 +12,8 @@ use crate::{
         WebDavSyncItem, WebDavSyncPage, WebDavSyncPageResult, WebDavSyncRequest,
     },
     services::{
-        build_storage_backend, build_storage_backend_by_arg, storage_entry, RemoteMusicScanSession,
+        build_storage_backend, build_storage_backend_by_arg, release_cached_storage_backend,
+        storage_entry, RemoteMusicScanSession,
     },
     ArgUpsertStorage, Backend,
 };
@@ -176,15 +177,50 @@ pub async fn ct_test_storage(
     match res {
         Ok(_) => Ok(StorageConnectionTestResult::Success),
         Err(e) => {
-            tracing::warn!("ct_test_storage, {e:?}");
+            tracing::warn!(kind = ?storage_error_kind(&e), "storage connection test failed");
             if e.is_unauthorized() {
                 Ok(StorageConnectionTestResult::Unauthorized)
             } else if e.is_timeout() {
                 Ok(StorageConnectionTestResult::Timeout)
+            } else if e.is_permission_denied() {
+                Ok(StorageConnectionTestResult::PermissionDenied)
+            } else if e.is_not_found() {
+                Ok(StorageConnectionTestResult::NotFound)
+            } else if e.is_invalid_path() {
+                Ok(StorageConnectionTestResult::InvalidAddress)
+            } else if e.is_connection_lost() {
+                Ok(StorageConnectionTestResult::Unavailable)
+            } else if e.is_unsupported() {
+                Ok(StorageConnectionTestResult::Unsupported)
             } else {
                 Ok(StorageConnectionTestResult::OtherError)
             }
         }
+    }
+}
+
+#[uniffi::export]
+pub fn ct_release_storage_backend(storage_id: crate::schema::StorageId) {
+    release_cached_storage_backend(storage_id);
+}
+
+fn storage_error_kind(error: &tidetunes_storage_backend::StorageBackendError) -> &'static str {
+    if error.is_unauthorized() {
+        "authentication"
+    } else if error.is_timeout() {
+        "timeout"
+    } else if error.is_permission_denied() {
+        "permission"
+    } else if error.is_not_found() {
+        "not_found"
+    } else if error.is_invalid_path() {
+        "invalid_path"
+    } else if error.is_connection_lost() {
+        "connection"
+    } else if error.is_unsupported() {
+        "unsupported"
+    } else {
+        "other"
     }
 }
 
@@ -207,14 +243,11 @@ pub async fn ct_list_storage_entry_children(
             Ok(ListStorageEntryChildrenResp::Ok(entries))
         }
         Err(e) => {
-            tracing::warn!("ct_list_storage_entry_children, {e:?}");
-            if e.is_unauthorized() {
-                Ok(ListStorageEntryChildrenResp::AuthenticationFailed)
-            } else if e.is_timeout() {
-                Ok(ListStorageEntryChildrenResp::Timeout)
-            } else {
-                Ok(ListStorageEntryChildrenResp::Unknown)
-            }
+            tracing::warn!(
+                kind = ?storage_error_kind(&e),
+                "storage directory listing failed"
+            );
+            Ok(list_error_response(&e))
         }
     }
 }
@@ -232,17 +265,14 @@ pub async fn ct_scan_storage_music_folder(
         let batch = match session.next_batch(1_000).await {
             Ok(batch) => batch,
             Err(BError::RemoteStorageError(error)) => {
-                tracing::warn!("ct_scan_storage_music_folder, {error:?}");
-                return if error.is_unauthorized() {
-                    Ok(ListStorageEntryChildrenResp::AuthenticationFailed)
-                } else if error.is_timeout() {
-                    Ok(ListStorageEntryChildrenResp::Timeout)
-                } else {
-                    Ok(ListStorageEntryChildrenResp::Unknown)
-                };
+                tracing::warn!(
+                    kind = ?storage_error_kind(&error),
+                    "storage music scan failed"
+                );
+                return Ok(list_error_response(&error));
             }
-            Err(error) => {
-                tracing::warn!("ct_scan_storage_music_folder, {error:?}");
+            Err(_) => {
+                tracing::warn!("storage music scan failed outside the storage backend");
                 return Ok(ListStorageEntryChildrenResp::Unknown);
             }
         };
@@ -253,6 +283,28 @@ pub async fn ct_scan_storage_music_folder(
     }
 
     Ok(ListStorageEntryChildrenResp::Ok(files))
+}
+
+fn list_error_response(
+    error: &tidetunes_storage_backend::StorageBackendError,
+) -> ListStorageEntryChildrenResp {
+    if error.is_unauthorized() {
+        ListStorageEntryChildrenResp::AuthenticationFailed
+    } else if error.is_timeout() {
+        ListStorageEntryChildrenResp::Timeout
+    } else if error.is_permission_denied() {
+        ListStorageEntryChildrenResp::PermissionDenied
+    } else if error.is_not_found() {
+        ListStorageEntryChildrenResp::NotFound
+    } else if error.is_invalid_path() {
+        ListStorageEntryChildrenResp::InvalidAddress
+    } else if error.is_connection_lost() {
+        ListStorageEntryChildrenResp::Unavailable
+    } else if error.is_unsupported() {
+        ListStorageEntryChildrenResp::Unsupported
+    } else {
+        ListStorageEntryChildrenResp::Unknown
+    }
 }
 
 #[uniffi::export]

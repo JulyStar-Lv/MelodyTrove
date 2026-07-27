@@ -1,6 +1,6 @@
 # TideTunes Final Architecture Report
 
-Date: 2026-06-28
+Date: 2026-07-27
 
 This document records the current architecture after the Komi Store-style KMP/CMP refactor. It reflects the physical module split and playback engine adapter work completed through Round 34 in `docs/architecture/komi-cmp-task.md`.
 
@@ -16,7 +16,12 @@ TideTunes/
 │   ├── domain/                         Pure Kotlin domain models and repository interfaces
 │   └── presentation/                   Compose design system, theme, media rendering helpers
 ├── source/
-│   └── api/                            MusicSource contracts and registry
+│   ├── api/                            MusicSource contracts and registry
+│   ├── local/                          Local source adapter
+│   ├── webdav/                         WebDAV source adapter
+│   ├── onedrive/                       OneDrive source adapter
+│   ├── smb/                            SMB2/3 source adapter
+│   └── server/                         Server source adapter
 ├── service/
 │   ├── playback/domain/                PlaybackController, PlaybackEngine, advanced capabilities, queue/state contracts
 │   ├── playback/presentation/          NowPlaying state and mappers
@@ -53,6 +58,7 @@ TideTunes/
 | `:core:domain` | Pure domain types | No Compose, Room, Ktor, Android, AVFoundation, Media3, UniFFI |
 | `:core:presentation` | Shared UI system | Compose theme/components, artwork UI, window size |
 | `:source:api` | Music source API | `MusicSource`, `MusicSourceRegistry`, source result models |
+| `:source:smb` | SMB music source | SMB configuration, authentication/list/search/playback/download adapters over the shared storage bridge |
 | `:service:playback:domain` | Playback contracts | `PlaybackController`, `PlaybackEngine`, `AudioOutputController`, optional advanced playback capabilities, queue, state, position |
 | `:service:playback:presentation` | Playback presentation | NowPlaying state models and domain-to-presentation mappers |
 | `:service:download:domain` | Download contracts | `DownloadTask`, `DownloadController`, `EnqueueDownloadUseCase` |
@@ -106,7 +112,7 @@ Data-side code is intentionally still in `shared` where it depends on Room, UniF
 
 | Type | Purpose |
 |------|---------|
-| `SourceId` | Stable source identifier such as local, webdav, onedrive |
+| `SourceId` | Stable source identifier such as local, webdav, onedrive, smb |
 | `SourceAccountId` | Stable per-account identifier |
 | `MediaType` | Track, Album, Artist, Playlist, Folder, Image |
 | `MediaId` | Stable cross-layer source media identifier |
@@ -132,7 +138,9 @@ interface MusicSource {
 }
 ```
 
-Implemented adapters currently live in `shared`: Local, WebDAV, OneDrive. They are not split into physical source modules yet because they depend on legacy storage bridges and Rust/UniFFI paths.
+Local, WebDAV, OneDrive, SMB, and server adapters live in physical `source:*`
+modules. `shared` supplies their Room, credential-store, and Rust/UniFFI bridge
+implementations through Koin.
 
 ### PlaybackController
 
@@ -270,7 +278,7 @@ Room KMP remains in `shared`.
 - Database: `TideTunesDatabase`
 - Driver: `BundledSQLiteDriver`
 - Schema path: `shared/schemas/com.github.tidetunes.database.TideTunesDatabase/`
-- Current schema version: 7
+- Current schema version: 17
 - Source identity tables: `source_account`, `library_root`, `source_item`, `source_item_property`, `track_source_ref`, `source_sync_cursor`, `source_error`
 - Canonical library tables: `track`, `album`, `artist`, `genre`, joins, `artwork`, `lyrics`, `raw_metadata`, `playlist`, `playlist_track`, `download_task`, `import_job`
 
@@ -291,6 +299,25 @@ Playback resolves through `TrackEntity -> TrackSourceRefEntity ->
 SourceItemEntity -> MusicSource.resolvePlayback(...)`. Temporary URIs,
 headers, cookies, tokens, and signed URLs remain transient and are not written
 to Room.
+
+### SMB storage and playback
+
+The pure-Rust `smb2` client is implemented as `SmbBackend` behind the existing
+`StorageBackend` trait. `StorageType.Smb` is appended to the UniFFI/Serde/
+bitcode model, and the generic controller, scanner, metadata reader, and
+playback gateway build the backend from credential-free address data plus a
+credential-store lookup.
+
+SMB directory enumeration uses three bounded session slots while positioned
+reads use a dedicated playback slot. File readers are kept in an eight-entry
+LRU and explicitly released on eviction, invalidation, playback shutdown, and
+account deletion. Full streaming uses a bounded two-chunk channel with 512 KiB
+chunks. Range playback continues through the tokenized localhost HTTP gateway,
+so Media3, AVPlayer, and Desktop playback never receive `smb://` or account
+credentials.
+
+See [SMB music source](../music-sources/smb.md) for configuration, platform
+limits, and the compatibility matrix.
 
 ## 9. Platform Architecture
 
@@ -381,7 +408,8 @@ compilation, shared cross-platform compilation, and Desktop app compilation.
 | Limit | Status |
 |-------|--------|
 | `core:data` physical module | Blocked by UniFFI/Rust bridge ownership and shared Room/platform dependencies |
-| Source implementation modules | Blocked by legacy storage bridge and Rust/UniFFI dependencies |
+| SMB incremental synchronization | First version performs full scans; Change Notify is not implemented |
+| iOS SMB download after process termination | URLSession cannot rely on a terminated localhost playback session; in-process resume is implemented |
 | Advanced playback | Domain contracts and platform engine adapters exist; gapless, crossfade, ReplayGain, output devices, Android Auto, AirPlay, and CarPlay require Rust rodio or platform/backend work |
 | Vehicle/system integrations | Android Auto, AirPlay, CarPlay require platform/backend implementation |
 | OneDrive cancellable delta sync | Requires lower-level Rust request cancellation |

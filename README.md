@@ -10,12 +10,12 @@ TideTunes is a self-hosted and local-first music player built with Kotlin Multip
 ## Highlights
 
 - **Android, iOS, and Desktop** from a shared Kotlin and Compose codebase.
-- **Local and WebDAV music sources** with browsing, indexed search, streaming, and downloads.
+- **Local, WebDAV, and SMB2/3 music sources** with browsing, indexed search, streaming, and downloads.
 - **Source-agnostic Room KMP library** for tracks, albums, artists, genres, artwork, lyrics, playlists, downloads, and sync state.
 - **Adaptive UI** with compact bottom navigation, medium navigation rail, and large-screen desktop sidebar layouts.
 - **Cross-platform playback abstraction** backed by Android Media3, iOS AVPlayer, and a Rust/rodio Desktop engine.
 - **Offline downloads** through Android WorkManager, iOS background URLSession, and a Desktop coroutine scheduler.
-- **Selective WebDAV metadata scanning** with Fast, Standard, and Full modes.
+- **Selective remote metadata scanning** for WebDAV and SMB with Fast, Standard, and Full modes.
 - **JavaScript metadata plugins** compatible with Lyrico Plugin API v1-v3, executed in isolated QuickJS runtimes.
 - **Rust backend** for remote storage, metadata parsing, plugin execution, playback support, and UniFFI bindings.
 
@@ -37,10 +37,11 @@ TideTunes is a self-hosted and local-first music player built with Kotlin Multip
 | --- | :---: | :---: | :---: | :---: | :---: |
 | Local | Yes | Yes | Yes | Yes | No |
 | WebDAV | Yes | Yes | Yes | Yes | No |
+| SMB2/3 | Yes | Yes | Yes | Yes | No |
 
 Source adapters authenticate, browse, search, and resolve playback resources. They do not write directly to the canonical music tables.
 
-### WebDAV metadata scan modes
+### Remote metadata scan modes
 
 | Mode | Behavior |
 | --- | --- |
@@ -135,12 +136,13 @@ flowchart TD
    Common code consumes playback, download, sync, source, and repository interfaces. Media3, AVPlayer, rodio, Room, and UniFFI stay at platform or data boundaries.
 
 6. **Metadata plugins are not playback providers**  
-   JavaScript plugins implement metadata lookup through `MetaSource`; Local and WebDAV implement playback and browsing through `MusicSource`.
+   JavaScript plugins implement metadata lookup through `MetaSource`; Local, WebDAV, and SMB implement playback and browsing through `MusicSource`.
 
 More detailed documents:
 
 - [Architecture report](./docs/architecture/final-architecture.md)
 - [Room KMP schema](./docs/database/schema.md)
+- [SMB music source](./docs/music-sources/smb.md)
 - [Plugin runtime](./docs/plugin-runtime.md)
 - [Test report](./docs/testing/test-report.md)
 
@@ -160,6 +162,7 @@ TideTunes/
 ├── source/
 │   ├── api/                     MusicSource contracts and registry
 │   ├── local/                   Local source adapter
+│   ├── smb/                     SMB2/3 source adapter
 │   └── webdav/                  WebDAV source adapter
 ├── service/
 │   ├── playback/domain/         Playback engine/controller/queue contracts

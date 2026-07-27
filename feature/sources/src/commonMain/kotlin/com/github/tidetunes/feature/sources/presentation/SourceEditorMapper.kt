@@ -33,6 +33,18 @@ fun sourceEditorState(
             drives = oneDriveDrives.toSourceEditorDriveUiList(),
             drivesLoading = oneDriveDrivesLoading,
         ),
+        smb = SmbSourceEditorState(
+            alias = draft.alias,
+            host = draft.smbHost,
+            port = draft.smbPort.takeIf { it > 0 }?.toString().orEmpty(),
+            share = draft.smbShare,
+            rootPath = draft.smbRootPath,
+            domain = draft.smbDomain,
+            username = draft.username,
+            isGuest = draft.isAnonymous,
+            requireSigning = draft.smbRequireSigning,
+            requireEncryption = draft.smbRequireEncryption,
+        ),
     )
 }
 

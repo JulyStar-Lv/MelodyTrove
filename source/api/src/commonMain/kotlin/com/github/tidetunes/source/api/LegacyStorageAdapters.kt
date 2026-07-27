@@ -7,6 +7,7 @@ enum class LegacyStorageKind {
     Local,
     WebDav,
     OneDrive,
+    Smb,
 }
 
 data class LegacyStorageConnectionRequest(

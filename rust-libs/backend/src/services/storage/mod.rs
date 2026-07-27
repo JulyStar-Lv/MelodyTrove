@@ -1,4 +1,11 @@
-use std::{sync::Arc, time::Duration};
+use std::{
+    num::NonZeroUsize,
+    sync::{Arc, Mutex, OnceLock},
+    time::Duration,
+};
+
+use lru::LruCache;
+use sha2::{Digest, Sha256};
 
 use crate::{
     ctx::BackendContext,
@@ -7,9 +14,18 @@ use crate::{
     schema::{StorageEntryLoc, StorageType},
 };
 use tidetunes_storage_backend::{
-    BuildOneDriveArg, BuildWebdavArg, LocalBackend, OneDriveBackend, StorageBackend, StreamFile,
-    Webdav,
+    BuildOneDriveArg, BuildSmbArg, BuildWebdavArg, LocalBackend, OneDriveBackend, SmbBackend,
+    StorageBackend, StreamFile, Webdav,
 };
+
+const SMB_BACKEND_CACHE_CAPACITY: usize = 8;
+
+struct CachedSmbBackend {
+    fingerprint: [u8; 32],
+    backend: Arc<dyn StorageBackend + Send + Sync>,
+}
+
+static SMB_BACKENDS: OnceLock<Mutex<LruCache<i64, CachedSmbBackend>>> = OnceLock::new();
 
 pub fn build_storage_backend_by_arg(
     _cx: &BackendContext,
@@ -36,8 +52,69 @@ pub fn build_storage_backend_by_arg(
             };
             Arc::new(OneDriveBackend::new(arg))
         }
+        StorageType::Smb => build_smb_backend(arg, connect_timeout)?,
     };
     Ok(ret)
+}
+
+fn build_smb_backend(
+    arg: ArgUpsertStorage,
+    connect_timeout: Duration,
+) -> BResult<Arc<dyn StorageBackend + Send + Sync>> {
+    let storage_id = arg.id.map(|id| *id.as_ref());
+    let fingerprint = smb_fingerprint(&arg);
+    if let Some(storage_id) = storage_id {
+        if let Some(cached) = smb_backends().lock().unwrap().get(&storage_id) {
+            if cached.fingerprint == fingerprint {
+                return Ok(Arc::clone(&cached.backend));
+            }
+        }
+    }
+
+    let smb_arg = BuildSmbArg::from_url(
+        &arg.addr,
+        arg.username,
+        arg.password,
+        arg.is_anonymous,
+        connect_timeout,
+    )?;
+    let backend: Arc<dyn StorageBackend + Send + Sync> = Arc::new(SmbBackend::new(smb_arg)?);
+    if let Some(storage_id) = storage_id {
+        smb_backends().lock().unwrap().put(
+            storage_id,
+            CachedSmbBackend {
+                fingerprint,
+                backend: Arc::clone(&backend),
+            },
+        );
+    }
+    Ok(backend)
+}
+
+fn smb_backends() -> &'static Mutex<LruCache<i64, CachedSmbBackend>> {
+    SMB_BACKENDS.get_or_init(|| {
+        Mutex::new(LruCache::new(
+            NonZeroUsize::new(SMB_BACKEND_CACHE_CAPACITY)
+                .expect("SMB backend cache capacity must be non-zero"),
+        ))
+    })
+}
+
+fn smb_fingerprint(arg: &ArgUpsertStorage) -> [u8; 32] {
+    let mut hasher = Sha256::new();
+    hasher.update(arg.addr.as_bytes());
+    hasher.update([0]);
+    hasher.update(arg.username.as_bytes());
+    hasher.update([0]);
+    hasher.update(arg.password.as_bytes());
+    hasher.update([arg.is_anonymous as u8]);
+    hasher.finalize().into()
+}
+
+pub fn release_cached_storage_backend(storage_id: crate::schema::StorageId) {
+    if let Some(cache) = SMB_BACKENDS.get() {
+        cache.lock().unwrap().pop(storage_id.as_ref());
+    }
 }
 
 pub fn build_storage_backend(

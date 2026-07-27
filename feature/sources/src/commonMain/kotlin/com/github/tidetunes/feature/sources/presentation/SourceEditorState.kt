@@ -13,6 +13,7 @@ data class SourceEditorState(
     val removeDialogOpen: Boolean = false,
     val webDav: WebDavSourceEditorState = WebDavSourceEditorState(),
     val oneDrive: OneDriveSourceEditorState = OneDriveSourceEditorState(),
+    val smb: SmbSourceEditorState = SmbSourceEditorState(),
 )
 
 @Immutable
@@ -21,6 +22,8 @@ data class SourceEditorValidation(
     val aliasEmpty: Boolean = false,
     val usernameEmpty: Boolean = false,
     val passwordEmpty: Boolean = false,
+    val smbShareEmpty: Boolean = false,
+    val smbPortInvalid: Boolean = false,
 )
 
 @Immutable
@@ -38,6 +41,20 @@ data class OneDriveSourceEditorState(
     val connected: Boolean = false,
     val drives: List<SourceEditorDriveUi> = emptyList(),
     val drivesLoading: Boolean = false,
+)
+
+@Immutable
+data class SmbSourceEditorState(
+    val alias: String = "",
+    val host: String = "",
+    val port: String = "445",
+    val share: String = "",
+    val rootPath: String = "",
+    val domain: String = "",
+    val username: String = "",
+    val isGuest: Boolean = false,
+    val requireSigning: Boolean = false,
+    val requireEncryption: Boolean = false,
 )
 
 @Immutable
@@ -61,6 +78,17 @@ sealed interface SourceEditorAction {
     data class WebDavUsernameChanged(val value: String) : SourceEditorAction
     data class WebDavPasswordChanged(val value: String) : SourceEditorAction
     data class OneDriveAliasChanged(val value: String) : SourceEditorAction
+    data class SmbAliasChanged(val value: String) : SourceEditorAction
+    data class SmbHostChanged(val value: String) : SourceEditorAction
+    data class SmbPortChanged(val value: String) : SourceEditorAction
+    data class SmbShareChanged(val value: String) : SourceEditorAction
+    data class SmbRootPathChanged(val value: String) : SourceEditorAction
+    data class SmbDomainChanged(val value: String) : SourceEditorAction
+    data class SmbUsernameChanged(val value: String) : SourceEditorAction
+    data class SmbPasswordChanged(val value: String) : SourceEditorAction
+    data class SmbGuestChanged(val value: Boolean) : SourceEditorAction
+    data class SmbSigningChanged(val value: Boolean) : SourceEditorAction
+    data class SmbEncryptionChanged(val value: Boolean) : SourceEditorAction
     data object ConnectOneDrive : SourceEditorAction
     data object DisconnectOneDrive : SourceEditorAction
     data class SelectOneDriveDrive(val driveId: String) : SourceEditorAction

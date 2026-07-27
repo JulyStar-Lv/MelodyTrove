@@ -17,6 +17,7 @@ import com.github.tidetunes.source.api.SourceListFailureReason
 import com.github.tidetunes.source.api.SourceListResult
 import com.github.tidetunes.source.local.LocalMusicSource
 import com.github.tidetunes.source.onedrive.OneDriveMusicSource
+import com.github.tidetunes.source.smb.SmbMusicSource
 import com.github.tidetunes.source.storage.BridgeLegacyPlaybackSessionFactory
 import com.github.tidetunes.source.storage.LegacyPlaybackSessionFactory
 import com.github.tidetunes.source.storage.LegacyStorageLookup
@@ -121,6 +122,7 @@ val sourceDataModule = module {
     single { LocalMusicSource(get(), get(), get(named("liveSearch"))) }
     single { WebDavMusicSource(get(), get(), get(), get(named("liveSearch"))) }
     single { OneDriveMusicSource(get(), get(), get(), get(named("liveSearch"))) }
+    single { SmbMusicSource(get(), get(), get(), get(named("liveSearch"))) }
     single<RemoteServerGateway> { RemoteServerGatewayImpl(get(), get()) }
     single(named("navidromeSource")) {
         ServerMusicSource(RemoteServerKind.Navidrome, get())
@@ -137,6 +139,7 @@ val sourceDataModule = module {
                 get<LocalMusicSource>(),
                 get<WebDavMusicSource>(),
                 get<OneDriveMusicSource>(),
+                get<SmbMusicSource>(),
                 get<ServerMusicSource>(named("navidromeSource")),
                 get<ServerMusicSource>(named("openSubsonicSource")),
                 get<ServerMusicSource>(named("embySource")),

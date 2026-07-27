@@ -15,7 +15,9 @@ import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import platform.Foundation.NSError
+import platform.Foundation.NSData
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSMutableURLRequest
 import platform.Foundation.NSOperationQueue
@@ -28,6 +30,7 @@ import platform.Foundation.NSURLSessionTask
 import platform.Foundation.NSURLSessionTaskDelegateProtocol
 import platform.Foundation.setValue
 import platform.darwin.NSObject
+import kotlin.coroutines.resume
 import kotlin.math.max
 import kotlin.time.Clock
 
@@ -43,6 +46,8 @@ internal class IosUrlSessionDownloadScheduler(
     private val nowEpochMs: () -> Long = { Clock.System.now().toEpochMilliseconds() },
 ) : DownloadTaskScheduler {
     private val activeResources = mutableMapOf<String, PlaybackResource>()
+    private val resumeDataByTaskId = mutableMapOf<String, NSData>()
+    private val pausedTaskIds = mutableSetOf<String>()
     private val backgroundCompletionHandlers = mutableMapOf<String, () -> Unit>()
     private val delegate = IosDownloadSessionDelegate(this)
     private val sessionIdentifier = "com.github.tidetunes.downloads"
@@ -71,10 +76,32 @@ internal class IosUrlSessionDownloadScheduler(
     }
 
     override suspend fun pause(id: DownloadTaskId) {
-        cancelSessionTask(id)
+        pausedTaskIds += id.value
+        suspendCancellableCoroutine { continuation ->
+            session.getTasksWithCompletionHandler { _, _, downloadTasks ->
+                val matchingTasks = downloadTasks
+                    ?.filterIsInstance<NSURLSessionDownloadTask>()
+                    ?.filter { it.taskDescription == id.value }
+                    .orEmpty()
+                val task = matchingTasks.firstOrNull()
+                matchingTasks.drop(1).forEach { it.cancel() }
+                if (task == null) {
+                    if (continuation.isActive) continuation.resume(Unit)
+                } else {
+                    task.cancelByProducingResumeData { resumeData ->
+                        if (resumeData != null) {
+                            resumeDataByTaskId[id.value] = resumeData
+                        }
+                        if (continuation.isActive) continuation.resume(Unit)
+                    }
+                }
+            }
+        }
     }
 
     override suspend fun cancel(id: DownloadTaskId) {
+        pausedTaskIds -= id.value
+        resumeDataByTaskId.remove(id.value)
         cancelSessionTask(id)
     }
 
@@ -88,18 +115,33 @@ internal class IosUrlSessionDownloadScheduler(
     private suspend fun runTask(task: DownloadTask) {
         if (updateStatus(task.id, DownloadStatus.Resolving) == null) return
 
+        pausedTaskIds -= task.id.value
+        val resumeData = resumeDataByTaskId.remove(task.id.value)
+        if (resumeData == null) {
+            activeResources.remove(task.id.value)?.let { staleResource ->
+                legacyStoragePlaybackResolver.release(staleResource.uri)
+            }
+        }
         val source = sourceRegistry.sourceOrNull(task.mediaId.sourceId)
         if (source == null) {
             markFailed(task.id, "Music source is unavailable")
             return
         }
 
-        val resource = when (val result = source.resolvePlayback(task.mediaId)) {
-            is SourcePlaybackResult.Success -> result.resource
-            is SourcePlaybackResult.Failure -> {
-                markFailed(task.id, "Unable to resolve download resource: ${result.reason}")
-                return
+        val resource = if (resumeData != null) {
+            activeResources[task.id.value]
+        } else {
+            when (val result = source.resolvePlayback(task.mediaId)) {
+                is SourcePlaybackResult.Success -> result.resource
+                is SourcePlaybackResult.Failure -> {
+                    markFailed(task.id, "Unable to resolve download resource: ${result.reason}")
+                    return
+                }
             }
+        }
+        if (resource == null) {
+            markFailed(task.id, "Paused download session is no longer available")
+            return
         }
 
         try {
@@ -114,12 +156,17 @@ internal class IosUrlSessionDownloadScheduler(
                 current.copy(mimeType = resource.mimeType ?: current.mimeType)
             } ?: return
 
-            val request = NSMutableURLRequest.requestWithURL(url)
-            resource.headers.forEach { (key, value) ->
-                request.setValue(value, forHTTPHeaderField = key)
-            }
             activeResources[task.id.value] = resource
-            session.downloadTaskWithRequest(request).apply {
+            val downloadTask = if (resumeData != null) {
+                session.downloadTaskWithResumeData(resumeData)
+            } else {
+                val request = NSMutableURLRequest.requestWithURL(url)
+                resource.headers.forEach { (key, value) ->
+                    request.setValue(value, forHTTPHeaderField = key)
+                }
+                session.downloadTaskWithRequest(request)
+            }
+            downloadTask.apply {
                 taskDescription = task.id.value
                 resume()
             }
@@ -210,9 +257,12 @@ internal class IosUrlSessionDownloadScheduler(
         error: NSError?,
     ) {
         scope.launch {
+            val current = repository.getTask(id)
+            if (current?.status == DownloadStatus.Paused || id.value in pausedTaskIds) {
+                return@launch
+            }
             val resource = activeResources.remove(id.value)
             if (error != null) {
-                val current = repository.getTask(id)
                 if (
                     current?.status != DownloadStatus.Paused &&
                     current?.status != DownloadStatus.Cancelled

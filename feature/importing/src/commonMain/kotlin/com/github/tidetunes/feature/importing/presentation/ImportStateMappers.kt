@@ -44,6 +44,10 @@ fun SourceListFailureReason.toImportLoadState(): ImportLoadState {
     return when (this) {
         SourceListFailureReason.Unauthorized -> ImportLoadState.AuthenticationFailed
         SourceListFailureReason.Timeout -> ImportLoadState.Timeout
+        SourceListFailureReason.PermissionDenied,
+        SourceListFailureReason.NotFound,
+        SourceListFailureReason.InvalidAddress,
+        SourceListFailureReason.UnsupportedSecurityPolicy,
         SourceListFailureReason.UnsupportedAccount,
         SourceListFailureReason.Unavailable,
         SourceListFailureReason.Unknown -> ImportLoadState.UnknownError

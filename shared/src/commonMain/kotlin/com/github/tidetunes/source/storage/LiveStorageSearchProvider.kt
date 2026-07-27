@@ -105,6 +105,15 @@ internal class LiveStorageSearchProvider(
     }
 
     private fun isMusicFile(entry: StorageEntry): Boolean {
+        if (
+            entry.mimeType
+                ?.substringBefore(';')
+                ?.trim()
+                ?.lowercase()
+                ?.startsWith("video/") == true
+        ) {
+            return false
+        }
         val lowerPath = entry.path.lowercase()
         return MUSIC_EXTENSIONS.any { lowerPath.endsWith(it) }
     }
@@ -112,6 +121,7 @@ internal class LiveStorageSearchProvider(
     companion object {
         internal val MUSIC_EXTENSIONS = arrayOf(
             ".wav", ".mp3", ".aac", ".flac", ".ogg", ".oga", ".opus", ".m4a",
+            ".mp4", ".ape", ".wv", ".aif", ".aiff",
         )
     }
 }

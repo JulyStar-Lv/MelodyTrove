@@ -66,7 +66,8 @@ class RoomLibraryMaintenanceService(
                             selectedFolderDisplayPath = root.displayName,
                             scanRules = scanRules,
                             metadataScanMode = settings.metadataScanModeFor(
-                                account.providerType == ProviderTypes.WebDav,
+                                account.providerType == ProviderTypes.WebDav ||
+                                    account.providerType == ProviderTypes.Smb,
                             ),
                         )
                     )

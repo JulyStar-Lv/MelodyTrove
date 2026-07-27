@@ -32,12 +32,14 @@ class RoomLegacyStorageSearchProviderIntegrationTest {
     fun searchesIndexedTracksForExpectedStorageOnly() = withDatabase { database ->
         val webDavFolderId = seedStorageAndFolder(database, storageId = 1, type = StorageType.WEBDAV)
         val oneDriveFolderId = seedStorageAndFolder(database, storageId = 2, type = StorageType.ONE_DRIVE)
+        val smbFolderId = seedStorageAndFolder(database, storageId = 3, type = StorageType.SMB)
         database.trackDao().upsertAll(
             listOf(
                 track(id = 1, title = "Moonlight"),
                 track(id = 2, title = "Sunrise"),
                 track(id = 3, title = "Deleted Moon"),
                 track(id = 4, title = "Moon Cloud"),
+                track(id = 5, title = "SMB Moon"),
             )
         )
         seedSourceRef(
@@ -74,11 +76,20 @@ class RoomLegacyStorageSearchProviderIntegrationTest {
             rootId = oneDriveFolderId,
             path = "/Cloud/Moon.flac",
         )
+        seedSourceRef(
+            database,
+            trackId = 5,
+            sourceItemId = 301,
+            storageId = 3,
+            rootId = smbFolderId,
+            path = "/NAS/SMB Moon.flac",
+        )
         val provider = RoomLegacyStorageSearchProvider(
             storageLookup = { storageId ->
                 when (storageId.value) {
                     1L -> storage(storageId.value, StorageType.WEBDAV)
                     2L -> storage(storageId.value, StorageType.ONE_DRIVE)
+                    3L -> storage(storageId.value, StorageType.SMB)
                     else -> null
                 }
             },
@@ -102,6 +113,18 @@ class RoomLegacyStorageSearchProviderIntegrationTest {
         assertEquals("/Music/Moon.flac", item.path)
         assertEquals("Luna", item.artist)
         assertEquals(180_000, item.durationMs)
+
+        val smbResult = provider.search(
+            accountId = SourceAccountId("storage:3"),
+            query = "moon",
+            limit = 10,
+            expectedStorageKind = LegacyStorageKind.Smb,
+            sourceId = BuiltInSourceIds.Smb,
+        )
+        val smbItem = assertIs<SourceSearchResult.Success>(smbResult).items.single()
+        assertEquals("SMB Moon", smbItem.title)
+        assertEquals(BuiltInSourceIds.Smb, smbItem.mediaId.sourceId)
+        assertEquals("/NAS/SMB Moon.flac", smbItem.path)
     }
 
     @Test
@@ -285,6 +308,7 @@ class RoomLegacyStorageSearchProviderIntegrationTest {
             StorageType.LOCAL -> ProviderTypes.Local
             StorageType.WEBDAV -> ProviderTypes.WebDav
             StorageType.ONE_DRIVE -> ProviderTypes.OneDrive
+            StorageType.SMB -> ProviderTypes.Smb
         }
     }
 

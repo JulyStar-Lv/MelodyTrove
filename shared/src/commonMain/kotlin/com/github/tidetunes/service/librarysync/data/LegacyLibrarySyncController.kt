@@ -87,7 +87,8 @@ internal class LegacyLibrarySyncController(
                     metadataConcurrency = request.metadataConcurrency,
                     importBatchSize = request.importBatchSize,
                 )
-                StorageType.LOCAL -> importer.scanAndImportFolder(
+                StorageType.LOCAL,
+                StorageType.SMB -> importer.scanAndImportFolder(
                     storageId = storageId.value,
                     selectedFolderRemoteId = request.selectedFolderRemoteId,
                     selectedFolderCanonicalPath = request.selectedFolderCanonicalPath,

@@ -124,6 +124,45 @@ class SourceEditorStateTest {
         assertEquals(StorageType.ONE_DRIVE, arg.typ)
     }
 
+    @Test
+    fun smbDraftBuildsCredentialFreeStorageArgument() {
+        val draft = SourceEditorDraft(
+            id = 7,
+            alias = "Living Room NAS",
+            username = "alice",
+            secret = "secret-password",
+            storageType = SourceEditorType.Smb,
+            smbHost = "nas.local",
+            smbPort = 1445,
+            smbShare = "Music Share",
+            smbRootPath = "音乐/Hi Res",
+            smbDomain = "HOME",
+            smbRequireSigning = true,
+            smbRequireEncryption = true,
+        )
+
+        val arg = draft.toArgUpsertStorage()
+        val state = sourceEditorState(
+            draft = draft,
+            title = "Living Room NAS",
+            musicCount = 0u,
+            validation = SourceEditorValidation(),
+            removeDialogOpen = false,
+            testResult = SourceConnectionTestStatus.None,
+        )
+
+        assertEquals(StorageType.SMB, arg.typ)
+        assertEquals(
+            "smb://nas.local:1445/Music%20Share/%E9%9F%B3%E4%B9%90/Hi%20Res" +
+                "?domain=HOME&signing=true&encryption=true",
+            arg.addr,
+        )
+        assertFalse(arg.addr.contains("alice"))
+        assertFalse(arg.addr.contains("secret-password"))
+        assertEquals("nas.local", state.smb.host)
+        assertEquals("1445", state.smb.port)
+    }
+
     private fun sourceEditorDraft(
         id: Long? = null,
         address: String = "",

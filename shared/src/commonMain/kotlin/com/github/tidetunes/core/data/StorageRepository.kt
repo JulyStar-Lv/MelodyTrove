@@ -22,6 +22,7 @@ import com.github.tidetunes.platform.currentTimeMillis
 import com.github.tidetunes.core.data.security.CredentialStore
 import com.github.tidetunes.core.domain.model.StoredCredential
 import com.github.tidetunes.source.api.BuiltInSourceIds
+import com.github.tidetunes.source.api.SmbSourceConfiguration
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,6 +31,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -39,6 +43,7 @@ import uniffi.tidetunes_backend.StorageConnectionTestResult
 import uniffi.tidetunes_backend.OneDriveDriveList
 import uniffi.tidetunes_backend.ctExchangeOnedriveCode
 import uniffi.tidetunes_backend.ctListOnedriveDrives
+import uniffi.tidetunes_backend.ctReleaseStorageBackend
 import uniffi.tidetunes_backend.ctStartOnedriveOauth
 import uniffi.tidetunes_backend.ctTestStorage
 import uniffi.tidetunes_backend.StorageId
@@ -46,6 +51,7 @@ import uniffi.tidetunes_backend.StorageType
 import uniffi.tidetunes_backend.ctEmbyLogin
 import uniffi.tidetunes_backend.ctEmbyRequest
 import uniffi.tidetunes_backend.ctSubsonicRequest
+import com.github.tidetunes.source.smb.toSmbAddress
 
 
 class StorageRepositoryImpl(
@@ -166,15 +172,20 @@ class StorageRepositoryImpl(
     }
 
     override suspend fun upsertSource(draft: SourceEditorDraft): SourceAccountId {
-        return if (draft.storageType.isRemoteServer) {
-            storageSourceAccountId(upsertRemoteServer(draft))
-        } else {
-            storageSourceAccountId(upsertStorage(draft.toArgUpsertStorage()).value)
+        return when {
+            draft.storageType == SourceEditorType.Smb -> {
+                storageSourceAccountId(upsertSmb(draft))
+            }
+            draft.storageType.isRemoteServer -> {
+                storageSourceAccountId(upsertRemoteServer(draft))
+            }
+            else -> storageSourceAccountId(upsertStorage(draft.toArgUpsertStorage()).value)
         }
     }
 
     suspend fun remove(id: StorageId) {
         _preRemoveStorageEvent.emit(id)
+        ctReleaseStorageBackend(id)
         credentialStore.delete(id.value)
         sourceAccountDao.delete(id.value)
         _onRemoveStorageEvent.emit(Unit)
@@ -217,9 +228,24 @@ class StorageRepositoryImpl(
     }
 
     private fun SourceAccountEntity.toStorage(password: String): Storage {
+        val address = if (providerType == ProviderTypes.Smb) {
+            val config = smbProviderConfiguration()
+            if (config == null) {
+                endpoint.orEmpty()
+            } else {
+                config.toSourceConfiguration(
+                    accountId = storageSourceAccountId(id),
+                    alias = displayName,
+                    host = endpoint.orEmpty(),
+                    password = password,
+                ).toSmbAddress()
+            }
+        } else {
+            externalAccountId ?: endpoint.orEmpty()
+        }
         return Storage(
             id = StorageId(id),
-            addr = externalAccountId ?: endpoint.orEmpty(),
+            addr = address,
             alias = displayName,
             username = "",
             password = password,
@@ -269,6 +295,31 @@ class StorageRepositoryImpl(
                 isOneDrive = false,
             )
         }
+        if (entity.providerType == ProviderTypes.Smb) {
+            val credential = loadCredential(StorageId(id))
+            val config = entity.smbProviderConfiguration() ?: return null
+            return SourceEditorStorageState(
+                accountId = storageSourceAccountId(id),
+                draft = SourceEditorDraft(
+                    id = id,
+                    alias = entity.displayName,
+                    username = credential?.username.orEmpty(),
+                    secret = "",
+                    isAnonymous = credential?.isAnonymous == true,
+                    storageType = SourceEditorType.Smb,
+                    smbHost = entity.endpoint.orEmpty(),
+                    smbPort = config.port,
+                    smbShare = config.share,
+                    smbRootPath = config.rootPath,
+                    smbDomain = config.domain.orEmpty(),
+                    smbRequireSigning = config.requireSigning,
+                    smbRequireEncryption = config.requireEncryption,
+                ),
+                title = entity.displayName.ifBlank { entity.endpoint.orEmpty() },
+                musicCount = _storages.value.find { it.id.value == id }?.musicCount ?: 0u,
+                isOneDrive = false,
+            )
+        }
         val storage = _storages.value.find { it.id.value == id } ?: return null
         val credential = loadCredential(StorageId(id))
         val accountId = storageSourceAccountId(id)
@@ -285,7 +336,74 @@ class StorageRepositoryImpl(
         if (draft.storageType.isRemoteServer) {
             return testRemoteServer(draft)
         }
-        return test(draft.toArgUpsertStorage()).toSourceConnectionTestStatus()
+        val testDraft = if (
+            draft.storageType == SourceEditorType.Smb &&
+            !draft.isAnonymous &&
+            draft.secret.isBlank()
+        ) {
+            draft.copy(
+                secret = draft.id?.let { loadCredential(StorageId(it))?.secret }.orEmpty()
+            )
+        } else {
+            draft
+        }
+        val argument = testDraft.toArgUpsertStorage().let { argument ->
+            if (draft.storageType == SourceEditorType.Smb) {
+                argument.copy(id = null)
+            } else {
+                argument
+            }
+        }
+        return test(argument).toSourceConnectionTestStatus()
+    }
+
+    private suspend fun upsertSmb(draft: SourceEditorDraft): Long {
+        val id = draft.id ?: ((sourceAccountDao.maxId() ?: 0L) + 1L)
+        val previous = sourceAccountDao.get(id)
+        val previousCredential = loadCredential(StorageId(id))
+        val secret = if (draft.isAnonymous) {
+            ""
+        } else {
+            draft.secret.ifBlank { previousCredential?.secret.orEmpty() }
+        }
+        val configuration = draft.copy(secret = secret).toSmbSourceConfiguration()
+        configuration.toSmbAddress()
+        credentialStore.save(
+            id,
+            StoredCredential(
+                username = if (draft.isAnonymous) "" else draft.username,
+                secret = secret,
+                isAnonymous = draft.isAnonymous,
+            )
+        )
+        val now = currentTimeMillis()
+        sourceAccountDao.upsert(
+            SourceAccountEntity(
+                id = id,
+                providerType = ProviderTypes.Smb,
+                displayName = draft.alias.ifBlank { draft.smbHost },
+                endpoint = draft.smbHost.trim(),
+                externalAccountId = null,
+                credentialRef = previous?.credentialRef ?: "storage-$id",
+                priority = previous?.priority ?: 0,
+                enabled = previous?.enabled ?: true,
+                createdAt = previous?.createdAt ?: now,
+                updatedAt = now,
+                rootPath = previous?.rootPath ?: "/",
+                providerConfig = SMB_JSON.encodeToString(
+                    SmbProviderConfiguration(
+                        port = configuration.port,
+                        share = configuration.share,
+                        rootPath = configuration.rootPath,
+                        domain = configuration.domain,
+                        requireSigning = configuration.requireSigning,
+                        requireEncryption = configuration.requireEncryption,
+                    )
+                ),
+            )
+        )
+        ctReleaseStorageBackend(StorageId(id))
+        return id
     }
 
     private suspend fun testRemoteServer(draft: SourceEditorDraft): SourceConnectionTestStatus =
@@ -438,6 +556,7 @@ private fun StorageType.toProviderType(): String {
         StorageType.LOCAL -> ProviderTypes.Local
         StorageType.WEBDAV -> ProviderTypes.WebDav
         StorageType.ONE_DRIVE -> ProviderTypes.OneDrive
+        StorageType.SMB -> ProviderTypes.Smb
     }
 }
 
@@ -446,6 +565,7 @@ private fun String.toStorageType(): StorageType {
         ProviderTypes.Local -> StorageType.LOCAL
         ProviderTypes.WebDav -> StorageType.WEBDAV
         ProviderTypes.OneDrive -> StorageType.ONE_DRIVE
+        ProviderTypes.Smb -> StorageType.SMB
         else -> StorageType.WEBDAV
     }
 }
@@ -456,6 +576,7 @@ private val FILE_PROVIDER_TYPES = setOf(
     ProviderTypes.Local,
     ProviderTypes.WebDav,
     ProviderTypes.OneDrive,
+    ProviderTypes.Smb,
 )
 
 private val SourceEditorType.isRemoteServer: Boolean
@@ -483,6 +604,7 @@ private fun SourceAccountSummaryRow.toStorageAccountInfo(): StorageAccountInfo {
         ProviderTypes.Local -> BuiltInSourceIds.Local
         ProviderTypes.WebDav -> BuiltInSourceIds.WebDav
         ProviderTypes.OneDrive -> BuiltInSourceIds.OneDrive
+        ProviderTypes.Smb -> BuiltInSourceIds.Smb
         ProviderTypes.Navidrome -> BuiltInSourceIds.Navidrome
         ProviderTypes.OpenSubsonic -> BuiltInSourceIds.OpenSubsonic
         ProviderTypes.Emby -> BuiltInSourceIds.Emby
@@ -512,6 +634,13 @@ fun SourceConnectionTestStatus.toStorageConnectionTestResult(): StorageConnectio
         SourceConnectionTestStatus.None -> StorageConnectionTestResult.NONE
         SourceConnectionTestStatus.Testing -> StorageConnectionTestResult.TESTING
         SourceConnectionTestStatus.Success -> StorageConnectionTestResult.SUCCESS
+        SourceConnectionTestStatus.Unauthorized -> StorageConnectionTestResult.UNAUTHORIZED
+        SourceConnectionTestStatus.Timeout -> StorageConnectionTestResult.TIMEOUT
+        SourceConnectionTestStatus.PermissionDenied -> StorageConnectionTestResult.PERMISSION_DENIED
+        SourceConnectionTestStatus.NotFound -> StorageConnectionTestResult.NOT_FOUND
+        SourceConnectionTestStatus.InvalidAddress -> StorageConnectionTestResult.INVALID_ADDRESS
+        SourceConnectionTestStatus.Unavailable -> StorageConnectionTestResult.UNAVAILABLE
+        SourceConnectionTestStatus.UnsupportedSecurityPolicy -> StorageConnectionTestResult.UNSUPPORTED
         SourceConnectionTestStatus.Error -> StorageConnectionTestResult.OTHER_ERROR
     }
 }
@@ -521,8 +650,56 @@ fun StorageConnectionTestResult.toSourceConnectionTestStatus(): SourceConnection
         StorageConnectionTestResult.NONE -> SourceConnectionTestStatus.None
         StorageConnectionTestResult.TESTING -> SourceConnectionTestStatus.Testing
         StorageConnectionTestResult.SUCCESS -> SourceConnectionTestStatus.Success
-        else -> SourceConnectionTestStatus.Error
+        StorageConnectionTestResult.UNAUTHORIZED -> SourceConnectionTestStatus.Unauthorized
+        StorageConnectionTestResult.TIMEOUT -> SourceConnectionTestStatus.Timeout
+        StorageConnectionTestResult.PERMISSION_DENIED -> SourceConnectionTestStatus.PermissionDenied
+        StorageConnectionTestResult.NOT_FOUND -> SourceConnectionTestStatus.NotFound
+        StorageConnectionTestResult.INVALID_ADDRESS -> SourceConnectionTestStatus.InvalidAddress
+        StorageConnectionTestResult.UNAVAILABLE -> SourceConnectionTestStatus.Unavailable
+        StorageConnectionTestResult.UNSUPPORTED -> SourceConnectionTestStatus.UnsupportedSecurityPolicy
+        StorageConnectionTestResult.OTHER_ERROR -> SourceConnectionTestStatus.Error
     }
+}
+
+@Serializable
+private data class SmbProviderConfiguration(
+    val port: Int = 445,
+    val share: String,
+    val rootPath: String = "",
+    val domain: String? = null,
+    val requireSigning: Boolean = false,
+    val requireEncryption: Boolean = false,
+) {
+    fun toSourceConfiguration(
+        accountId: SourceAccountId,
+        alias: String,
+        host: String,
+        password: String,
+    ): SmbSourceConfiguration {
+        return SmbSourceConfiguration(
+            accountId = accountId,
+            alias = alias,
+            host = host,
+            port = port,
+            share = share,
+            rootPath = rootPath,
+            domain = domain,
+            password = password,
+            requireSigning = requireSigning,
+            requireEncryption = requireEncryption,
+        )
+    }
+}
+
+private fun SourceAccountEntity.smbProviderConfiguration(): SmbProviderConfiguration? {
+    val value = providerConfig ?: return null
+    return runCatching {
+        SMB_JSON.decodeFromString<SmbProviderConfiguration>(value)
+    }.getOrNull()
+}
+
+private val SMB_JSON = Json {
+    ignoreUnknownKeys = true
 }
 
 fun uniffi.tidetunes_backend.StorageId.toSourceAccountId(): SourceAccountId {

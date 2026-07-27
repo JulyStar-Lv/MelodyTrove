@@ -9,6 +9,13 @@ data class SourceEditorDraft(
     val isAnonymous: Boolean = false,
     val storageType: SourceEditorType = SourceEditorType.WebDav,
     val externalAccountId: String = "",
+    val smbHost: String = "",
+    val smbPort: Int = 445,
+    val smbShare: String = "",
+    val smbRootPath: String = "",
+    val smbDomain: String = "",
+    val smbRequireSigning: Boolean = false,
+    val smbRequireEncryption: Boolean = false,
 )
 
 fun defaultSourceEditorDraft(): SourceEditorDraft {
@@ -18,6 +25,7 @@ fun defaultSourceEditorDraft(): SourceEditorDraft {
 enum class SourceEditorType {
     WebDav,
     OneDrive,
+    Smb,
     Navidrome,
     OpenSubsonic,
     Emby,
@@ -27,6 +35,13 @@ enum class SourceConnectionTestStatus {
     None,
     Testing,
     Success,
+    Unauthorized,
+    Timeout,
+    PermissionDenied,
+    NotFound,
+    InvalidAddress,
+    Unavailable,
+    UnsupportedSecurityPolicy,
     Error,
 }
 

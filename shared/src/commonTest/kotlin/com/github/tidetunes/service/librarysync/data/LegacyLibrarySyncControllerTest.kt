@@ -71,6 +71,28 @@ class LegacyLibrarySyncControllerTest {
     }
 
     @Test
+    fun smbStorageUsesBoundedFullFolderScan() = runBlocking {
+        val importer = FakeLegacyLibrarySyncImporter()
+        val controller = controller(
+            importer = importer,
+            storage = storage(id = 42, typ = StorageType.SMB),
+        )
+
+        controller.syncFolder(
+            request(
+                selectedFolderRemoteId = "smb-folder",
+                metadataScanMode = MetadataScanMode.Standard,
+            )
+        )
+
+        assertEquals(1, importer.scanCalls.size)
+        assertEquals(emptyList(), importer.webDavCalls)
+        assertEquals(emptyList(), importer.oneDriveCalls)
+        assertEquals("smb-folder", importer.scanCalls.single().selectedFolderRemoteId)
+        assertEquals(MetadataScanMode.Standard, importer.scanCalls.single().metadataScanMode)
+    }
+
+    @Test
     fun oneDriveStorageUsesLegacyIncrementalSync() = runBlocking {
         val importer = FakeLegacyLibrarySyncImporter()
         val controller = controller(

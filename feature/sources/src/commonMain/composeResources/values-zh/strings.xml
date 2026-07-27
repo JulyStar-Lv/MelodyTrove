@@ -19,6 +19,27 @@
     <string name="storage_edit_onedrive_should_auth">请先连接你的账号</string>
     <string name="storage_edit_password">密码</string>
     <string name="storage_edit_username">用户名</string>
+    <string name="storage_edit_smb_server">服务器</string>
+    <string name="storage_edit_smb_port">端口</string>
+    <string name="storage_edit_smb_share">共享名称</string>
+    <string name="storage_edit_smb_root">根目录</string>
+    <string name="storage_edit_smb_domain">域或工作组</string>
+    <string name="storage_edit_smb_guest">Guest 匿名访问</string>
+    <string name="storage_edit_smb_signing">要求签名</string>
+    <string name="storage_edit_smb_encryption">要求加密</string>
+    <string name="storage_edit_smb_share_required">共享名称不能为空</string>
+    <string name="storage_edit_smb_port_invalid">端口必须在 1 到 65535 之间</string>
+    <string name="storage_test_testing">正在测试连接…</string>
+    <string name="storage_test_success">连接成功</string>
+    <string name="storage_test_unauthorized">用户名或密码错误</string>
+    <string name="storage_test_timeout">连接超时</string>
+    <string name="storage_test_permission">没有访问此共享的权限</string>
+    <string name="storage_test_not_found">共享或根目录不存在</string>
+    <string name="storage_test_invalid_address">服务器地址或 SMB 路径无效</string>
+    <string name="storage_test_unavailable">服务器不可达</string>
+    <string name="storage_test_unsupported">服务器不支持所要求的 SMB 安全策略</string>
+    <string name="storage_test_error">连接失败</string>
     <string name="storage_remove_desc_count">将移除 $$B__E_MCNT$$ 首歌曲。</string>
     <string name="storage_remove_desc_main">确定要移除存储“$$B__E_TITLE$$”吗？</string>
+    <string name="storage_remove_desc_downloads">将移除曲库引用。已有离线文件和下载记录会保留，直到你在“下载”中手动移除。</string>
 </resources>

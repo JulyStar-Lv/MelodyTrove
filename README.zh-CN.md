@@ -10,12 +10,12 @@ TideTunes 是一款使用 Kotlin Multiplatform、Compose Multiplatform、Rust �
 ## 项目亮点
 
 - 使用同一套 Kotlin 与 Compose 代码支持 **Android、iOS 和 Desktop**。
-- 支持 **本地和 WebDAV 音源**，具备目录浏览、索引搜索、在线播放和下载能力。
+- 支持 **本地、WebDAV 和 SMB2/3 音源**，具备目录浏览、索引搜索、在线播放和下载能力。
 - 使用 **Room KMP 统一曲库** 管理曲目、专辑、艺术家、流派、封面、歌词、播放列表、下载和同步状态。
 - 提供 **自适应界面**：手机使用底部导航，中等窗口使用导航栏，大屏和桌面使用侧边栏布局。
 - 使用统一播放抽象，并分别接入 Android Media3、iOS AVPlayer 和 Desktop Rust/rodio 播放引擎。
 - 支持跨平台离线下载：Android WorkManager、iOS 后台 URLSession、Desktop 协程调度器。
-- WebDAV 支持 Fast、Standard、Full 三种可选元数据扫描模式。
+- WebDAV 和 SMB 支持 Fast、Standard、Full 三种可选元数据扫描模式。
 - 支持兼容 Lyrico Plugin API v1-v3 的 JavaScript 元数据插件，并在隔离的 QuickJS Runtime 中运行。
 - Rust 后端负责远端存储、元数据解析、插件执行、桌面播放支持和 UniFFI 绑定。
 
@@ -37,10 +37,11 @@ TideTunes 是一款使用 Kotlin Multiplatform、Compose Multiplatform、Rust �
 | --- | :---: | :---: | :---: | :---: | :---: |
 | 本地 | 支持 | 支持 | 支持 | 支持 | 暂不支持 |
 | WebDAV | 支持 | 支持 | 支持 | 支持 | 暂不支持 |
+| SMB2/3 | 支持 | 支持 | 支持 | 支持 | 暂不支持 |
 
 音源适配器负责鉴权、浏览、搜索和解析播放资源，不会直接写入规范化音乐表。
 
-### WebDAV 元数据扫描模式
+### 远程音源元数据扫描模式
 
 | 模式 | 行为 |
 | --- | --- |
@@ -131,12 +132,13 @@ flowchart TD
    commonMain 仅使用播放、下载、同步、音源和 Repository 接口。Media3、AVPlayer、rodio、Room 和 UniFFI 均保留在平台层或数据边界。
 
 6. **元数据插件不是播放音源**  
-   JavaScript 插件通过 `MetaSource` 提供元数据查询；本地和 WebDAV 通过 `MusicSource` 提供浏览和播放。
+   JavaScript 插件通过 `MetaSource` 提供元数据查询；本地、WebDAV 和 SMB 通过 `MusicSource` 提供浏览和播放。
 
 详细文档：
 
 - [架构报告](./docs/architecture/final-architecture.md)
 - [Room KMP 数据库结构](./docs/database/schema.md)
+- [SMB 音源](./docs/music-sources/smb.md)
 - [插件运行时](./docs/plugin-runtime.md)
 - [测试报告](./docs/testing/test-report.md)
 
@@ -156,6 +158,7 @@ TideTunes/
 ├── source/
 │   ├── api/                     MusicSource 契约和注册表
 │   ├── local/                   本地音源适配器
+│   ├── smb/                     SMB2/3 音源适配器
 │   └── webdav/                  WebDAV 音源适配器
 ├── service/
 │   ├── playback/domain/         播放引擎、控制器和队列契约

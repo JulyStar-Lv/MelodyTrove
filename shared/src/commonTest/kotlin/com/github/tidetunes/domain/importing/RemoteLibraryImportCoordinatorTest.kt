@@ -126,6 +126,46 @@ class RemoteLibraryImportCoordinatorTest {
     }
 
     @Test
+    fun musicFiltersExcludeVideoMp4AndKeepAudioMp4() {
+        val video = entry(
+            path = "/Photos/clip.mp4",
+            name = "clip.mp4",
+            mimeType = "video/mp4",
+        )
+        val audio = entry(
+            path = "/Music/track.mp4",
+            name = "track.mp4",
+            mimeType = "audio/mp4",
+        )
+        val unknown = entry(
+            path = "/Music/legacy.mp4",
+            name = "legacy.mp4",
+            mimeType = null,
+        )
+
+        assertFalse(isSupportedMusicEntry(video))
+        assertTrue(isSupportedMusicEntry(audio))
+        assertTrue(isSupportedMusicEntry(unknown))
+
+        assertFalse(
+            deltaItem(
+                remoteId = "video-id",
+                path = "/Photos/clip.mp4",
+                mimeType = "video/mp4; codecs=avc1",
+            ).isSupportedMusicFile()
+        )
+        assertTrue(
+            deltaItem(
+                remoteId = "audio-id",
+                path = "/Music/track.mp4",
+                mimeType = "audio/mp4",
+            ).isSupportedMusicFile()
+        )
+        assertTrue(isSupportedMusicEntry(entry(path = "/Music/album.ape", name = "album.ape")))
+        assertTrue(isSupportedMusicEntry(entry(path = "/Music/album.wv", name = "album.wv")))
+    }
+
+    @Test
     fun discoveredMusicEntriesKeepLargeRecursiveWebDavCounts() {
         val entries = buildList {
             repeat(805) { index ->
@@ -693,6 +733,7 @@ class RemoteLibraryImportCoordinatorTest {
         remoteId: String? = null,
         size: ULong? = if (isDir) null else 100uL,
         modifiedAt: Long? = 20,
+        mimeType: String? = if (isDir) null else "audio/flac",
     ) = StorageEntry(
         storageId = StorageId(1),
         name = name,
@@ -701,7 +742,7 @@ class RemoteLibraryImportCoordinatorTest {
         isDir = isDir,
         remoteId = remoteId,
         parentRemoteId = null,
-        mimeType = if (isDir) null else "audio/flac",
+        mimeType = mimeType,
         etag = etag,
         ctag = null,
         createdAt = 10,
@@ -808,6 +849,7 @@ class RemoteLibraryImportCoordinatorTest {
         path: String? = "/Music/Song.flac",
         isDir: Boolean = false,
         deleted: Boolean = false,
+        mimeType: String? = if (isDir || deleted) null else "audio/flac",
     ) = OneDriveDeltaItem(
         remoteId = remoteId,
         parentRemoteId = parentRemoteId,
@@ -816,7 +858,7 @@ class RemoteLibraryImportCoordinatorTest {
         size = if (isDir || deleted) null else 100uL,
         isDir = isDir,
         deleted = deleted,
-        mimeType = if (isDir || deleted) null else "audio/flac",
+        mimeType = mimeType,
         etag = "\"etag\"",
         ctag = null,
         createdAt = 10,
