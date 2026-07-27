@@ -528,6 +528,20 @@ interface TrackSourceRefDao {
     @Query(
         """
         UPDATE track_source_ref
+        SET hasEmbeddedArtwork = :hasEmbeddedArtwork,
+            updatedAt = :now
+        WHERE sourceItemId = :sourceItemId
+        """
+    )
+    suspend fun updateEmbeddedArtworkPresence(
+        sourceItemId: Long,
+        hasEmbeddedArtwork: Boolean,
+        now: Long,
+    )
+
+    @Query(
+        """
+        UPDATE track_source_ref
         SET isAvailable = 1,
             updatedAt = :now
         WHERE sourceItemId IN (:sourceItemIds)
@@ -581,6 +595,7 @@ interface TrackSourceRefDao {
             ref.lossless AS ref_lossless,
             ref.createdAt AS ref_createdAt,
             ref.updatedAt AS ref_updatedAt,
+            ref.hasEmbeddedArtwork AS ref_hasEmbeddedArtwork,
             item.id AS item_id,
             item.sourceAccountId AS item_sourceAccountId,
             item.libraryRootId AS item_libraryRootId,
@@ -658,6 +673,7 @@ interface TrackSourceRefDao {
             ref.lossless AS ref_lossless,
             ref.createdAt AS ref_createdAt,
             ref.updatedAt AS ref_updatedAt,
+            ref.hasEmbeddedArtwork AS ref_hasEmbeddedArtwork,
             item.id AS item_id,
             item.sourceAccountId AS item_sourceAccountId,
             item.libraryRootId AS item_libraryRootId,

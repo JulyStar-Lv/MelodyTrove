@@ -719,3 +719,34 @@ val MIGRATION_16_17 = object : Migration(16, 17) {
         ).use { statement -> statement.step() }
     }
 }
+
+val MIGRATION_17_18 = object : Migration(17, 18) {
+    override fun migrate(connection: SQLiteConnection) {
+        listOf(
+            """
+            CREATE TABLE IF NOT EXISTS listening_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                trackId INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                artist TEXT,
+                album TEXT,
+                durationMs INTEGER,
+                listenedMs INTEGER NOT NULL,
+                playedAtEpochMs INTEGER NOT NULL
+            )
+            """.trimIndent(),
+            "CREATE INDEX IF NOT EXISTS index_listening_history_trackId ON listening_history(trackId)",
+            "CREATE INDEX IF NOT EXISTS index_listening_history_playedAtEpochMs ON listening_history(playedAtEpochMs)",
+        ).forEach { sql ->
+            connection.prepare(sql).use { statement -> statement.step() }
+        }
+    }
+}
+
+val MIGRATION_18_19 = object : Migration(18, 19) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.prepare(
+            "ALTER TABLE track_source_ref ADD COLUMN hasEmbeddedArtwork INTEGER"
+        ).use { statement -> statement.step() }
+    }
+}

@@ -17,16 +17,20 @@ import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.session.CommandButton
+import androidx.media3.session.DefaultMediaNotificationProvider
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
+import com.github.tidetunes.shared.R
 import com.github.tidetunes.core.domain.model.AppSettings
 import com.github.tidetunes.core.domain.model.AudioFocusMode
+import com.github.tidetunes.core.domain.repository.ArtworkRepository
 import com.github.tidetunes.core.domain.repository.SettingsRepository
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
 import com.github.tidetunes.service.playback.data.PlayerRepository
+import com.github.tidetunes.service.playback.data.toPlaybackArtwork
 import com.github.tidetunes.singleton.RoomLibraryStore
 import com.github.tidetunes.service.playback.data.PlaybackResourceResolver
 import com.github.tidetunes.source.api.PlaybackResource
@@ -35,8 +39,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import uniffi.tidetunes_backend.Playlist
 import com.github.tidetunes.singleton.Bridge
 import org.koin.android.ext.android.inject
@@ -52,6 +58,7 @@ const val PLAYER_TO_NEXT_COMMAND = "PLAYER_TO_NEXT_COMMAND";
 
 class PlaybackService : MediaSessionService() {
     private val playerRepository: PlayerRepository by inject()
+    private val artworkRepository: ArtworkRepository by inject()
     private val settingsRepository: SettingsRepository by inject()
     private val bridge: Bridge by inject()
     private val roomLibraryStore: RoomLibraryStore by inject()
@@ -66,6 +73,11 @@ class PlaybackService : MediaSessionService() {
     override fun onCreate() {
         super.onCreate()
         tidetunesLog("Playback service creating...")
+        setMediaNotificationProvider(
+            DefaultMediaNotificationProvider(this).apply {
+                setSmallIcon(R.drawable.tidetunes_notification_small_icon)
+            }
+        )
         val context = this
 
         val intent = Intent(this, Class.forName("com.github.tidetunes.MainActivity")).apply {
@@ -205,6 +217,26 @@ class PlaybackService : MediaSessionService() {
                 } else {
                     tidetunesError("media player pause failed, command COMMAND_PLAY_PAUSE is unavailable")
                 }
+            }
+        }
+
+        serviceScope.launch(Dispatchers.Main) {
+            playerRepository.music.collectLatest { music ->
+                music ?: return@collectLatest
+                val artworkData = withContext(Dispatchers.IO) {
+                    artworkRepository.load(music.toPlaybackArtwork())
+                } ?: return@collectLatest
+                val currentItem = player.currentMediaItem ?: return@collectLatest
+                if (currentItem.mediaId != music.meta.id.value.toString()) return@collectLatest
+                if (!player.isCommandAvailable(Player.COMMAND_CHANGE_MEDIA_ITEMS)) {
+                    return@collectLatest
+                }
+                player.replaceMediaItem(
+                    player.currentMediaItemIndex,
+                    currentItem.buildUpon()
+                        .setMediaMetadata(currentItem.mediaMetadata.withArtworkData(artworkData))
+                        .build(),
+                )
             }
         }
     }

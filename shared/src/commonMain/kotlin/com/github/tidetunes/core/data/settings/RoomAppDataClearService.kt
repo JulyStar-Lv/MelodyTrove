@@ -43,6 +43,7 @@ internal suspend fun TideTunesDatabase.clearAllAppData() {
     useWriterConnection { connection ->
         connection.immediateTransaction {
             val dao = appDataDao()
+            dao.deleteListeningHistory()
             dao.deletePluginConfigs()
             dao.deletePlugins()
             dao.deletePlaylistTracks()

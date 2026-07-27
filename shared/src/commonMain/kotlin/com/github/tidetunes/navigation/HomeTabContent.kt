@@ -3,8 +3,11 @@ package com.github.tidetunes.navigation
 import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.navigation.NavHostController
 import com.github.tidetunes.core.LocalNavController
+import com.github.tidetunes.core.presentation.components.LocalTideStickyHeaderStateSink
+import com.github.tidetunes.core.presentation.components.TideStickyHeaderState
 import com.github.tidetunes.core.presentation.navigation.MusicGraph
 import com.github.tidetunes.feature.home.presentation.HomeRoot
 import com.github.tidetunes.feature.library.presentation.navigation.LibraryTabGraph
@@ -31,38 +34,54 @@ internal fun HomeTabContent(
     onNavigateToArtist: (Long) -> Unit,
     onNavigateToPlaylist: (Long) -> Unit,
     onNavigateToPlaylists: () -> Unit,
+    stickyHeaderStateSink: ((TideStickyHeaderState?) -> Unit)? = null,
 ) {
     val openSleepTimer = rememberOpenSleepTimer()
     val rootNavController = LocalNavController.current
 
     Crossfade(targetState = currentTab) { tab ->
-        when (tab) {
-            HomeTab.HOME -> HomeRoot(
-                scaffoldPadding = scaffoldPadding,
-                onNavigateToDownloads = onNavigateToDownloads,
-                onNavigateToLibrary = onNavigateToLibrary,
-                onNavigateToSearch = onNavigateToSearch,
-                onOpenSleepTimer = { openSleepTimer(SleepModeLeftTime(30 * 60 * 1000L)) },
-            )
-            HomeTab.SEARCH -> SearchTabGraph(searchNavController)
-            HomeTab.LIBRARY -> LibraryTabGraph(
-                navController = libraryNavController,
-                onNavigateToLibraryFolderImport = onNavigateToLibraryFolderImport,
-                onNavigateToAlbum = onNavigateToAlbum,
-                onNavigateToArtist = onNavigateToArtist,
-                onNavigateToPlaylist = onNavigateToPlaylist,
-                onNavigateToPlaylists = onNavigateToPlaylists,
-            )
-            HomeTab.SETTINGS -> SettingsTabGraph(
-                navController = settingsNavController,
-                appVersion = getAppVersion(),
-                appBuildInfo = getAppBuildInfo(),
-                gitCommitSha = getAppGitCommitSha(),
-                onNavigateToLibraryFolderImport = onNavigateToLibraryFolderImport,
-                onNavigateToPlugins = {
-                    rootNavController.navigate(MusicGraph.PluginSettings)
-                },
-            )
+        CompositionLocalProvider(
+            LocalTideStickyHeaderStateSink provides if (
+                stickyHeaderStateSink == null || tab == currentTab
+            ) {
+                stickyHeaderStateSink
+            } else {
+                IgnoreStickyHeaderState
+            },
+        ) {
+            when (tab) {
+                HomeTab.HOME -> HomeRoot(
+                    scaffoldPadding = scaffoldPadding,
+                    onNavigateToDownloads = onNavigateToDownloads,
+                    onNavigateToLibrary = onNavigateToLibrary,
+                    onNavigateToSearch = onNavigateToSearch,
+                    onNavigateToListening = {
+                        rootNavController.navigate(MusicGraph.Listening)
+                    },
+                    onOpenSleepTimer = { openSleepTimer(SleepModeLeftTime(30 * 60 * 1000L)) },
+                )
+                HomeTab.SEARCH -> SearchTabGraph(searchNavController)
+                HomeTab.LIBRARY -> LibraryTabGraph(
+                    navController = libraryNavController,
+                    onNavigateToLibraryFolderImport = onNavigateToLibraryFolderImport,
+                    onNavigateToAlbum = onNavigateToAlbum,
+                    onNavigateToArtist = onNavigateToArtist,
+                    onNavigateToPlaylist = onNavigateToPlaylist,
+                    onNavigateToPlaylists = onNavigateToPlaylists,
+                )
+                HomeTab.SETTINGS -> SettingsTabGraph(
+                    navController = settingsNavController,
+                    appVersion = getAppVersion(),
+                    appBuildInfo = getAppBuildInfo(),
+                    gitCommitSha = getAppGitCommitSha(),
+                    onNavigateToLibraryFolderImport = onNavigateToLibraryFolderImport,
+                    onNavigateToPlugins = {
+                        rootNavController.navigate(MusicGraph.PluginSettings)
+                    },
+                )
+            }
         }
     }
 }
+
+private val IgnoreStickyHeaderState: (TideStickyHeaderState?) -> Unit = {}

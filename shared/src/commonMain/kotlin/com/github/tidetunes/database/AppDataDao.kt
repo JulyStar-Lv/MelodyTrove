@@ -5,6 +5,9 @@ import androidx.room.Query
 
 @Dao
 interface AppDataDao {
+    @Query("DELETE FROM listening_history")
+    suspend fun deleteListeningHistory()
+
     @Query("DELETE FROM plugin_config")
     suspend fun deletePluginConfigs()
 

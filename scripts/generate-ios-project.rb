@@ -25,6 +25,7 @@ target.resources_build_phase.add_file_reference(assets_file)
 
 target.build_configurations.each do |configuration|
   settings = configuration.build_settings
+  settings["ASSETCATALOG_COMPILER_APPICON_NAME"] = "AppIcon"
   settings["CODE_SIGN_STYLE"] = "Automatic"
   settings["CURRENT_PROJECT_VERSION"] = "1"
   settings["DEVELOPMENT_TEAM"] = ""
@@ -34,7 +35,7 @@ target.build_configurations.each do |configuration|
     "$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
   ]
   settings["GENERATE_INFOPLIST_FILE"] = "NO"
-  settings["INFOPLIST_FILE"] = plist_file.real_path.to_s
+  settings["INFOPLIST_FILE"] = "$(SRCROOT)/Info.plist"
   settings["IPHONEOS_DEPLOYMENT_TARGET"] = "16.0"
   settings["MARKETING_VERSION"] = "0.3.0"
   settings["OTHER_LDFLAGS"] = ["$(inherited)", "-framework", "TideTunesShared"]

@@ -43,16 +43,10 @@
                 <action android:name="android.media.browse.MediaBrowserService" />
             </intent-filter>
         </service>
-        <service
-            android:name="com.github.tidetunes.core.KeepBackendService"
-            android:exported="false"
-            android:foregroundServiceType="mediaPlayback">
-        </service>
-
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.TideTunes"
+            android:theme="@style/Theme.TideTunes.Starting"
             android:launchMode="singleInstance"
             android:resizeableActivity="true"
             tools:targetApi="34">

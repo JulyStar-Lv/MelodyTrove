@@ -33,6 +33,7 @@ import kotlinx.coroutines.Dispatchers
         TrackFts::class,
         PluginEntity::class,
         PluginConfigEntity::class,
+        ListeningHistoryEntity::class,
     ],
     version = TIDE_TUNES_DATABASE_VERSION,
     exportSchema = true,
@@ -53,9 +54,10 @@ abstract class TideTunesDatabase : RoomDatabase() {
     abstract fun trackFtsDao(): TrackFtsDao
     abstract fun pluginDao(): PluginDao
     abstract fun appDataDao(): AppDataDao
+    abstract fun listeningStatisticsDao(): ListeningStatisticsDao
 }
 
-const val TIDE_TUNES_DATABASE_VERSION = 17
+const val TIDE_TUNES_DATABASE_VERSION = 19
 
 @Suppress("KotlinNoActualForExpect")
 expect object TideTunesDatabaseConstructor : RoomDatabaseConstructor<TideTunesDatabase> {
@@ -83,4 +85,6 @@ fun buildDatabase(): TideTunesDatabase = databaseBuilder()
     .addMigrations(MIGRATION_14_15)
     .addMigrations(MIGRATION_15_16)
     .addMigrations(MIGRATION_16_17)
+    .addMigrations(MIGRATION_17_18)
+    .addMigrations(MIGRATION_18_19)
     .build()

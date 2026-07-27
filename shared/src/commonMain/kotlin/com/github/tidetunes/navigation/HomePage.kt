@@ -1,18 +1,25 @@
 package com.github.tidetunes.navigation
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -28,6 +35,8 @@ import com.github.tidetunes.core.presentation.layout.WindowSizeClass
 import com.github.tidetunes.core.presentation.layout.rememberWindowSizeClass
 import com.github.tidetunes.core.presentation.navigation.MusicGraph
 import com.github.tidetunes.core.presentation.components.TideGlassOverlayScene
+import com.github.tidetunes.core.presentation.components.TideStickyGlassActionBar
+import com.github.tidetunes.core.presentation.components.TideStickyHeaderState
 import com.github.tidetunes.core.presentation.components.getBottomBarSpace
 import com.github.tidetunes.feature.importing.presentation.navigation.RouteImportType
 import com.github.tidetunes.service.playback.presentation.shell.PlaybackMiniPlayerHost
@@ -36,6 +45,7 @@ import com.github.tidetunes.widgets.appbar.NavigationRailBar
 import com.github.tidetunes.widgets.appbar.SidebarBar
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun HomePage(
@@ -85,15 +95,26 @@ fun HomePage(
     val settingsNavController = rememberNavController()
 
     BoxWithConstraints(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding(),
+        modifier = Modifier.fillMaxSize(),
     ) {
         val windowSizeClass = rememberWindowSizeClass(
             containerSize = androidx.compose.ui.unit.DpSize(maxWidth, maxHeight),
         )
+        val statusBarInset = WindowInsets.statusBars
+            .asPaddingValues()
+            .calculateTopPadding()
+        var stickyHeaderState by remember(currentTab) {
+            mutableStateOf<TideStickyHeaderState?>(null)
+        }
+        val stickyHeaderStateSink = remember(currentTab) {
+            { state: TideStickyHeaderState? -> stickyHeaderState = state }
+        }
 
-        val tabContent: @Composable (HomeTab, PaddingValues) -> Unit = { tab, contentPadding ->
+        val tabContent: @Composable (
+            HomeTab,
+            PaddingValues,
+            ((TideStickyHeaderState?) -> Unit)?,
+        ) -> Unit = { tab, contentPadding, stickyHeaderSink ->
             HomeTabContent(
                 currentTab = tab,
                 libraryNavController = libraryNavController,
@@ -108,6 +129,7 @@ fun HomePage(
                 onNavigateToArtist = onNavigateToArtist,
                 onNavigateToPlaylist = onNavigateToPlaylist,
                 onNavigateToPlaylists = onNavigateToPlaylists,
+                stickyHeaderStateSink = stickyHeaderSink,
             )
         }
 
@@ -117,14 +139,31 @@ fun HomePage(
                     modifier = Modifier.fillMaxSize(),
                     contentBottomInset = getBottomBarSpace(showHomeChrome, scaffoldPadding),
                     backdropContent = {
-                        tabContent(
-                            currentTab,
-                            PaddingValues(
-                                bottom = getBottomBarSpace(showHomeChrome, scaffoldPadding),
-                            ),
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(MiuixTheme.colorScheme.background)
+                                .statusBarsPadding(),
+                        ) {
+                            tabContent(
+                                currentTab,
+                                PaddingValues(
+                                    bottom = getBottomBarSpace(showHomeChrome, scaffoldPadding),
+                                ),
+                                stickyHeaderStateSink,
+                            )
+                        }
                     },
                     overlayContent = {
+                        stickyHeaderState?.let { state ->
+                            TideStickyGlassActionBar(
+                                title = state.title,
+                                subtitle = state.subtitle,
+                                collapseFraction = state.collapseFraction,
+                                statusBarInset = statusBarInset,
+                                modifier = Modifier.align(Alignment.TopCenter),
+                            )
+                        }
                         BottomBar(
                             currentTab = currentTab,
                             onTabSelected = onTabSelected,
@@ -137,7 +176,11 @@ fun HomePage(
                 )
             }
             WindowSizeClass.Medium -> {
-                Row(modifier = Modifier.fillMaxSize()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .statusBarsPadding(),
+                ) {
                     NavigationRailBar(
                         currentTab = currentTab,
                         onTabSelected = onTabSelected,
@@ -151,14 +194,18 @@ fun HomePage(
                         showMiniPlayer = showHomeChrome,
                         miniPlayerContent = miniPlayerContent,
                     ) {
-                        tabContent(currentTab, scaffoldPadding)
+                        tabContent(currentTab, scaffoldPadding, null)
                     }
                 }
             }
             WindowSizeClass.Expanded,
             WindowSizeClass.Large,
             WindowSizeClass.XL -> {
-                Row(modifier = Modifier.fillMaxSize()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .statusBarsPadding(),
+                ) {
                     SidebarBar(
                         currentTab = currentTab,
                         onTabSelected = onTabSelected,
@@ -184,7 +231,7 @@ fun HomePage(
                         showMiniPlayer = showHomeChrome,
                         miniPlayerContent = miniPlayerContent,
                     ) {
-                        tabContent(currentTab, scaffoldPadding)
+                        tabContent(currentTab, scaffoldPadding, null)
                     }
                 }
             }

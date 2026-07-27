@@ -49,11 +49,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.kyant.backdrop.drawBackdrop
-import com.kyant.backdrop.effects.blur
-import com.kyant.backdrop.effects.colorControls
-import com.kyant.backdrop.effects.lens
-import com.kyant.backdrop.highlight.Highlight
 import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
@@ -95,35 +90,16 @@ fun TideMiniPlayerBar(
     val shape = RoundedCornerShape(22.dp)
     val backdrop = currentTideBackdrop()
     val surface = MiuixTheme.colorScheme.surfaceContainer
-    val glassSurfaceAlpha = tideGlassSurfaceAlpha()
     val clickInteractionSource = remember { MutableInteractionSource() }
     val glassModifier = if (backdrop != null) {
-        Modifier.drawBackdrop(
+        Modifier.tideLiquidGlass(
             backdrop = backdrop,
-            shape = { shape },
-            effects = {
-                colorControls(contrast = 1.04f, saturation = 1.10f)
-                blur(18.dp.toPx())
-                lens(
-                    refractionHeight = 8.dp.toPx(),
-                    refractionAmount = 14.dp.toPx(),
-                    depthEffect = true,
-                )
-            },
-            highlight = {
-                Highlight(
-                    width = 0.25.dp,
-                    blurRadius = 0.5.dp,
-                    alpha = 0.78f,
-                )
-            },
-            shadow = { null },
-            onDrawSurface = { drawRect(surface.copy(alpha = glassSurfaceAlpha)) },
+            shape = shape,
         )
     } else {
         Modifier
             .clip(shape)
-            .background(surface.copy(alpha = 0.90f))
+            .background(surface.copy(alpha = TideLiquidGlassDefaults.fallbackSurfaceAlpha))
     }
     Box(
         modifier = modifier
@@ -155,7 +131,8 @@ fun TideMiniPlayerBar(
                         contentDescription = "$title, $subtitle"
                         this.role = Role.Button
                         onClick { onClick(); true }
-                    },
+                    }
+                    .padding(4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 artwork()
@@ -211,35 +188,16 @@ fun TideExpandedMiniPlayerBar(
     val shape = RoundedCornerShape(22.dp)
     val backdrop = currentTideBackdrop()
     val surface = MiuixTheme.colorScheme.surfaceContainer
-    val glassSurfaceAlpha = tideGlassSurfaceAlpha()
     val clickInteractionSource = remember { MutableInteractionSource() }
     val glassModifier = if (backdrop != null) {
-        Modifier.drawBackdrop(
+        Modifier.tideLiquidGlass(
             backdrop = backdrop,
-            shape = { shape },
-            effects = {
-                colorControls(contrast = 1.04f, saturation = 1.10f)
-                blur(18.dp.toPx())
-                lens(
-                    refractionHeight = 8.dp.toPx(),
-                    refractionAmount = 14.dp.toPx(),
-                    depthEffect = true,
-                )
-            },
-            highlight = {
-                Highlight(
-                    width = 0.25.dp,
-                    blurRadius = 0.5.dp,
-                    alpha = 0.78f,
-                )
-            },
-            shadow = { null },
-            onDrawSurface = { drawRect(surface.copy(alpha = glassSurfaceAlpha)) },
+            shape = shape,
         )
     } else {
         Modifier
             .clip(shape)
-            .background(surface.copy(alpha = 0.90f))
+            .background(surface.copy(alpha = TideLiquidGlassDefaults.fallbackSurfaceAlpha))
     }
 
     Box(
@@ -276,7 +234,7 @@ fun TideExpandedMiniPlayerBar(
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(bottom = 5.dp),
+                        .padding(start = 4.dp, top = 4.dp, end = 4.dp, bottom = 5.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     artwork()
@@ -332,35 +290,16 @@ fun TideCompactMiniPlayerBar(
     val shape = RoundedCornerShape(cornerRadius)
     val backdrop = currentTideBackdrop()
     val surface = MiuixTheme.colorScheme.surfaceContainer
-    val glassSurfaceAlpha = tideGlassSurfaceAlpha()
     val clickInteractionSource = remember { MutableInteractionSource() }
     val glassModifier = if (backdrop != null) {
-        Modifier.drawBackdrop(
+        Modifier.tideLiquidGlass(
             backdrop = backdrop,
-            shape = { shape },
-            effects = {
-                colorControls(contrast = 1.04f, saturation = 1.10f)
-                blur(14.dp.toPx())
-                lens(
-                    refractionHeight = 7.dp.toPx(),
-                    refractionAmount = 12.dp.toPx(),
-                    depthEffect = true,
-                )
-            },
-            highlight = {
-                Highlight(
-                    width = 0.25.dp,
-                    blurRadius = 0.5.dp,
-                    alpha = 0.78f,
-                )
-            },
-            shadow = { null },
-            onDrawSurface = { drawRect(surface.copy(alpha = glassSurfaceAlpha)) },
+            shape = shape,
         )
     } else {
         Modifier
             .clip(shape)
-            .background(surface.copy(alpha = 0.92f))
+            .background(surface.copy(alpha = TideLiquidGlassDefaults.fallbackSurfaceAlpha))
     }
 
     Box(
@@ -418,32 +357,15 @@ fun TideBottomNavigationGlassSurface(
     val shape = RoundedCornerShape(0.dp)
     val backdrop = currentTideBackdrop()
     val surface = MiuixTheme.colorScheme.surfaceContainer
-    val glassSurfaceAlpha = tideGlassSurfaceAlpha()
     val glassModifier = if (backdrop != null) {
-        Modifier.drawBackdrop(
+        Modifier.tideLiquidGlass(
             backdrop = backdrop,
-            shape = { shape },
-            effects = {
-                colorControls(contrast = 1.04f, saturation = 1.10f)
-                blur(18.dp.toPx())
-                lens(
-                    refractionHeight = 8.dp.toPx(),
-                    refractionAmount = 14.dp.toPx(),
-                    depthEffect = true,
-                )
-            },
-            highlight = {
-                Highlight(
-                    width = 0.25.dp,
-                    blurRadius = 0.5.dp,
-                    alpha = 0.78f,
-                )
-            },
-            shadow = { null },
-            onDrawSurface = { drawRect(surface.copy(alpha = glassSurfaceAlpha)) },
+            shape = shape,
         )
     } else {
-        Modifier.background(surface.copy(alpha = 0.90f))
+        Modifier.background(
+            surface.copy(alpha = TideLiquidGlassDefaults.fallbackSurfaceAlpha),
+        )
     }
 
     Column(

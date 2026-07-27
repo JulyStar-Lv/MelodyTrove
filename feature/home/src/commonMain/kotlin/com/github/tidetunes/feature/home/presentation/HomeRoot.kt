@@ -6,6 +6,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.staticCompositionLocalOf
 import com.github.tidetunes.core.domain.model.LIBRARY_PLAYBACK_PLAYLIST_ID
 import com.github.tidetunes.service.playback.domain.PlayableItem
 import com.github.tidetunes.service.playback.domain.PlaybackController
@@ -13,26 +14,31 @@ import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
+val LocalPreloadedHomeViewModel = staticCompositionLocalOf<HomeViewModel?> { null }
+
 @Composable
 fun HomeRoot(
     scaffoldPadding: PaddingValues,
     onNavigateToDownloads: () -> Unit,
     onNavigateToLibrary: () -> Unit,
     onNavigateToSearch: () -> Unit,
+    onNavigateToListening: () -> Unit,
     onOpenSleepTimer: () -> Unit,
-    viewModel: HomeViewModel = koinViewModel(),
+    viewModel: HomeViewModel? = null,
 ) {
-    val state by viewModel.state.collectAsState()
+    val activeViewModel = viewModel ?: LocalPreloadedHomeViewModel.current ?: koinViewModel()
+    val state by activeViewModel.state.collectAsState()
     val playbackController = koinInject<PlaybackController>()
     val playbackState by playbackController.state.collectAsState()
     val coroutineScope = rememberCoroutineScope()
 
-    LaunchedEffect(viewModel) {
-        viewModel.events.collect { event ->
+    LaunchedEffect(activeViewModel) {
+        activeViewModel.events.collect { event ->
             when (event) {
                 HomeEvent.NavigateToDownloads -> onNavigateToDownloads()
                 HomeEvent.NavigateToLibrary -> onNavigateToLibrary()
                 HomeEvent.NavigateToSearch -> onNavigateToSearch()
+                HomeEvent.NavigateToListening -> onNavigateToListening()
                 HomeEvent.OpenSleepTimer -> onOpenSleepTimer()
             }
         }
@@ -77,7 +83,7 @@ fun HomeRoot(
                         }
                     }
                 }
-                else -> viewModel.onAction(action)
+                else -> activeViewModel.onAction(action)
             }
         },
     )

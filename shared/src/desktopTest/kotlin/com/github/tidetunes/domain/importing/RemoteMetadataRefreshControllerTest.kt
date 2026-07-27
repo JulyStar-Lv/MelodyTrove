@@ -71,6 +71,10 @@ class RemoteMetadataRefreshControllerTest {
             assertEquals(1, artworkResult.refreshedCount)
             assertEquals(256, artworkResult.metadataFetchedBytes)
             assertNotNull(database.metadataDao().getArtworkForAlbum(7))
+            assertEquals(
+                true,
+                database.trackSourceRefDao().findByTrackId(1).single().hasEmbeddedArtwork,
+            )
             assertNull(database.metadataDao().getLyrics(1))
             assertTrue(database.metadataDao().rawMetadataForTrack(1).isEmpty())
 
@@ -309,6 +313,7 @@ private class FakeRemoteMetadataReader : RemoteMetadataReader {
         replayGainAlbumPeak = null,
         lyrics = RemoteEmbeddedLyrics("Backfilled lyrics", false, null, null),
         artwork = RemoteArtwork("art-hash", "/cache/art.jpg", null, null, null, "image/jpeg", "CoverFront"),
+        hasEmbeddedArtwork = true,
         rawMetadata = listOf(RemoteRawMetadataEntry("Composer", "Composer", null, null)),
         durationMs = 1u,
         sampleRate = null,

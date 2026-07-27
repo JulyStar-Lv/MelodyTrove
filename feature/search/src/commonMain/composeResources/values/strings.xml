@@ -14,7 +14,7 @@
     <string name="library_title">Library</string>
     <string name="library_empty">No imported songs yet. Choose a storage library folder first.</string>
     <string name="search_title">Search</string>
-    <string name="search_hint">Songs, artists, albums, folders, sources…</string>
+    <string name="search_hint">Search songs, artists, albums, and genres</string>
     <string name="search_empty">No results</string>
     <string name="search_history">History</string>
     <string name="search_suggestions">Suggestions</string>
@@ -23,6 +23,9 @@
     <string name="search_connection_retry">Check source connection and try again.</string>
     <string name="search_try_suggestion">Try a recent search, artist, album, folder, or source.</string>
     <string name="search_recent_searches">Recent Searches</string>
+    <string name="search_clear">Clear</string>
+    <string name="search_trending_library">Trending in Your Library</string>
+    <string name="search_trending_subtitle">Your most-played tracks · Last 7 days</string>
     <string name="searching_library">Searching your library</string>
     <string name="search_sources_unavailable">Some sources are unavailable</string>
     <string name="search_no_matches_yet">No matches yet</string>

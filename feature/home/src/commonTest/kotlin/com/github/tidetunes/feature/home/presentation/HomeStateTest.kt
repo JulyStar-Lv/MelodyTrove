@@ -2,6 +2,7 @@ package com.github.tidetunes.feature.home.presentation
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -12,6 +13,7 @@ class HomeStateTest {
     fun `default state contains no demo content`() {
         val state = HomeState()
 
+        assertTrue(state.isLoading)
         assertTrue(state.featuredAlbums.isEmpty())
         assertTrue(state.recentlyAddedAlbums.isEmpty())
         assertTrue(state.artists.isEmpty())
@@ -19,6 +21,14 @@ class HomeStateTest {
         assertTrue(state.dailyPickTracks.isEmpty())
         assertTrue(state.recentTracks.isEmpty())
         assertNull(state.statistics)
+        assertFalse(state.shouldShowEmptyState)
+    }
+
+    @Test
+    fun `loaded empty state shows the empty library prompt`() {
+        val state = HomeState(isLoading = false)
+
+        assertTrue(state.shouldShowEmptyState)
     }
 
     @Test
@@ -36,12 +46,13 @@ class HomeStateTest {
             tracksPlayedToday = 3,
             mostPlayedTrackIds = listOf(1L, 2L, 3L),
         )
-        val state = HomeState(statistics = stats)
+        val state = HomeState(isLoading = false, statistics = stats)
 
         assertNotNull(state.statistics)
-        assertEquals(10, state.statistics?.totalTracksEverPlayed)
-        assertEquals(3600_000L, state.statistics?.totalListeningDurationMs)
-        assertEquals(3, state.statistics?.tracksPlayedToday)
-        assertEquals(listOf(1L, 2L, 3L), state.statistics?.mostPlayedTrackIds)
+        assertTrue(state.shouldShowEmptyState)
+        assertEquals(10, state.statistics.totalTracksEverPlayed)
+        assertEquals(3600_000L, state.statistics.totalListeningDurationMs)
+        assertEquals(3, state.statistics.tracksPlayedToday)
+        assertEquals(listOf(1L, 2L, 3L), state.statistics.mostPlayedTrackIds)
     }
 }

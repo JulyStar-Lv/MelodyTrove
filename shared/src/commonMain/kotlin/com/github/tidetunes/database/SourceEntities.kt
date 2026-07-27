@@ -188,6 +188,7 @@ data class TrackSourceRefEntity(
     val lossless: Boolean?,
     val createdAt: Long,
     val updatedAt: Long,
+    val hasEmbeddedArtwork: Boolean? = null,
 )
 
 @Entity(

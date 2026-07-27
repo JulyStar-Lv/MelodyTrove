@@ -43,3 +43,52 @@ data class HomeStatistics(
     val mostPlayedTrackIds: List<Long>,
 )
 
+@Immutable
+data class ListeningHistoryEntry(
+    val id: Long,
+    val trackId: Long,
+    val title: String,
+    val artist: String?,
+    val album: String?,
+    val durationMs: Long?,
+    val listenedMs: Long,
+    val playedAtEpochMs: Long,
+)
+
+@Immutable
+data class ListeningTrackStatistics(
+    val trackId: Long,
+    val title: String,
+    val artist: String?,
+    val album: String?,
+    val durationMs: Long?,
+    val playCount: Int,
+    val listenedMs: Long,
+    val lastPlayedAtEpochMs: Long,
+)
+
+@Immutable
+data class ListeningDistributionBucket(
+    val label: String,
+    val trackCount: Int,
+)
+
+@Immutable
+data class ListeningLibraryAnalysis(
+    val formatDistribution: List<ListeningDistributionBucket> = emptyList(),
+    val qualityDistribution: List<ListeningDistributionBucket> = emptyList(),
+)
+
+@Immutable
+data class ListeningStatisticsSnapshot(
+    val history: List<ListeningHistoryEntry> = emptyList(),
+    val tracks: List<ListeningTrackStatistics> = emptyList(),
+    val libraryAnalysis: ListeningLibraryAnalysis = ListeningLibraryAnalysis(),
+)
+
+@Immutable
+data class ListeningPlaybackTrack(
+    val trackId: Long,
+    val title: String,
+    val durationMs: Long?,
+)

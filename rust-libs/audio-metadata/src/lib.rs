@@ -283,6 +283,7 @@ pub struct NormalizedMetadata {
     pub replay_gain_album_peak: Option<f64>,
     pub lyrics: Option<EmbeddedLyrics>,
     pub artwork: Option<EmbeddedArtwork>,
+    pub has_embedded_artwork: bool,
     pub raw_metadata: Vec<RawMetadataEntry>,
     pub duration_ms: u64,
     pub sample_rate: Option<u32>,
@@ -387,7 +388,11 @@ fn read_metadata_attempt(
     let state = reader.state.clone();
     let result = (|| {
         let tagged_file = Probe::new(reader)
-            .options(ParseOptions::new().read_cover_art(read_cover_art))
+            .options(
+                ParseOptions::new()
+                    .read_cover_art(read_cover_art)
+                    .read_cover_art_presence(!read_cover_art),
+            )
             .guess_file_type()?
             .read()?;
         let properties = tagged_file.properties();
@@ -453,6 +458,7 @@ fn normalize_metadata(
         .read_artwork
         .then(|| tag.and_then(extract_artwork))
         .flatten();
+    let has_embedded_artwork = tag.is_some_and(|tag| !tag.pictures().is_empty());
     let (codec, container, lossless) = audio_format(file_type);
 
     Ok(NormalizedMetadata {
@@ -500,6 +506,7 @@ fn normalize_metadata(
         replay_gain_album_peak: tag.and_then(|tag| replay_gain(tag, ItemKey::ReplayGainAlbumPeak)),
         lyrics,
         artwork,
+        has_embedded_artwork,
         raw_metadata,
         duration_ms: properties.duration().as_millis() as u64,
         sample_rate: properties.sample_rate(),
@@ -756,6 +763,7 @@ mod tests {
         assert_eq!(metadata.title.as_deref(), Some("Large Art"));
         assert_eq!(metadata.artist.as_deref(), Some("Artist"));
         assert_eq!(metadata.artwork, None);
+        assert!(metadata.has_embedded_artwork);
         assert_eq!(metadata.sample_rate, Some(44_100));
         assert_eq!(metadata.channels, Some(2));
         assert_eq!(metadata.codec.as_deref(), Some("FLAC"));
@@ -783,6 +791,7 @@ mod tests {
 
         assert_eq!(result.metadata.title.as_deref(), Some("Large Art"));
         assert_eq!(result.metadata.artwork, None);
+        assert!(result.metadata.has_embedded_artwork);
         assert!(result.stats.request_count > 0);
         assert!(result.stats.fetched_bytes > 0);
         assert_eq!(parse_attempt_counts(), (0, 1));
@@ -819,6 +828,7 @@ mod tests {
 
         assert_eq!(metadata.title.as_deref(), Some("Song"));
         assert_eq!(metadata.artwork, None);
+        assert!(metadata.has_embedded_artwork);
         assert_eq!(metadata.lyrics, None);
         assert!(metadata.raw_metadata.is_empty());
         assert_eq!(extraction_attempt_counts(), (0, 0, 0));
@@ -908,6 +918,7 @@ mod tests {
         .unwrap();
 
         assert!(metadata.artwork.is_some());
+        assert!(metadata.has_embedded_artwork);
         assert!(metadata.lyrics.is_some());
         assert!(!metadata.raw_metadata.is_empty());
         assert_eq!(extraction_attempt_counts(), (1, 1, 1));
@@ -1039,6 +1050,31 @@ mod tests {
         .unwrap();
 
         assert_eq!(metadata.artwork, None);
+        assert!(metadata.has_embedded_artwork);
+    }
+
+    #[test]
+    fn disabled_artwork_skips_large_id3_picture_payload_and_keeps_presence() {
+        let picture_size = 1024 * 1024;
+        let mp3 = minimal_mp3_with_picture(picture_size);
+        let result = read_metadata_with_options(
+            Arc::new(MemorySource(Bytes::from(mp3))),
+            ReaderLimits {
+                block_size: 256,
+                max_requests: 32,
+                max_read_bytes: 32 * 1024,
+            },
+            MetadataReadOptions {
+                read_artwork: false,
+                read_lyrics: false,
+                read_raw_metadata: false,
+            },
+        )
+        .unwrap();
+
+        assert!(result.metadata.has_embedded_artwork);
+        assert_eq!(result.metadata.artwork, None);
+        assert!(result.stats.fetched_bytes < picture_size as u64 / 8);
     }
 
     #[test]
@@ -1074,6 +1110,43 @@ mod tests {
         wav.extend_from_slice(&(data.len() as u32).to_le_bytes());
         wav.extend_from_slice(&data);
         wav
+    }
+
+    fn minimal_mp3_with_picture(picture_size: usize) -> Vec<u8> {
+        let mut picture = Vec::with_capacity(picture_size + 16);
+        picture.push(0);
+        picture.extend_from_slice(b"image/jpeg");
+        picture.push(0);
+        picture.push(3);
+        picture.push(0);
+        picture.resize(picture_size + 14, 0x5A);
+
+        let mut tag = Vec::with_capacity(picture.len() + 20);
+        tag.extend_from_slice(b"APIC");
+        tag.extend_from_slice(&(picture.len() as u32).to_be_bytes());
+        tag.extend_from_slice(&[0, 0]);
+        tag.extend_from_slice(&picture);
+
+        let mut mp3 = Vec::with_capacity(tag.len() + 10 + 834);
+        mp3.extend_from_slice(b"ID3");
+        mp3.extend_from_slice(&[3, 0, 0]);
+        mp3.extend_from_slice(&synchsafe_u32(tag.len() as u32));
+        mp3.extend_from_slice(&tag);
+
+        let mut frame = vec![0; 417];
+        frame[..4].copy_from_slice(&[0xFF, 0xFB, 0x90, 0x64]);
+        mp3.extend_from_slice(&frame);
+        mp3.extend_from_slice(&frame);
+        mp3
+    }
+
+    fn synchsafe_u32(value: u32) -> [u8; 4] {
+        [
+            ((value >> 21) & 0x7F) as u8,
+            ((value >> 14) & 0x7F) as u8,
+            ((value >> 7) & 0x7F) as u8,
+            (value & 0x7F) as u8,
+        ]
     }
 
     fn reset_parse_attempt_counts() {

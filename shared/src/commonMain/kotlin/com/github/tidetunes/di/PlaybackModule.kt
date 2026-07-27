@@ -18,7 +18,7 @@ val playbackModule = module {
     includes(playbackPresentationModule)
 
     single { PlaybackResourceResolver(get(), get(), get(), get()) }
-    single { PlayerRepository(get(), get(), get(), get(), get()) }
+    single { PlayerRepository(get(), get(), get(), get(), get(), get()) }
     single { ManualMetadataService(get(), get(), get(), get(), get(), get()) }
     single<PlaybackController> {
         LegacyPlaybackController(

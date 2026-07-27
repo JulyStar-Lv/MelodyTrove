@@ -44,6 +44,9 @@ sealed interface MusicGraph {
     data object RecentlyPlayed : MusicGraph
 
     @Serializable
+    data object Listening : MusicGraph
+
+    @Serializable
     data object Onboarding : MusicGraph
 
     @Serializable

@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -31,6 +32,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.github.tidetunes.core.presentation.components.TideChevron
 import com.github.tidetunes.core.presentation.components.TideChevronDirection
 import com.github.tidetunes.core.presentation.components.TideSearchBar
@@ -90,31 +92,38 @@ fun SettingsScreen(
     val bottomContentInset = LocalTideBottomContentInset.current
 
     TideGlassScene(modifier = Modifier.fillMaxSize()) {
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .background(MiuixTheme.colorScheme.background),
         ) {
+            val compact = maxWidth < TideTunesTokens.adaptive.largeMinWidth
+            val pagePadding = if (compact) 24.dp else TideTunesTokens.spacing.pageExpanded
+
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(scrollState)
                     .padding(
-                        start = TideTunesTokens.spacing.pageCompact,
-                        top = 16.dp,
-                        end = TideTunesTokens.spacing.pageCompact,
+                        start = pagePadding,
+                        top = if (compact) 0.dp else 16.dp,
+                        end = pagePadding,
                         bottom = 16.dp + bottomContentInset,
                     ),
                 verticalArrangement = Arrangement.spacedBy(24.dp),
             ) {
         // Page title
-        Text(
-            text = stringResource(Res.string.settings_title),
-            color = MiuixTheme.colorScheme.onBackground,
-            style = MiuixTheme.textStyles.title1,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.alpha(pageTitleAlpha),
-        )
+        if (compact) {
+            SettingsMobileHeader(modifier = Modifier.alpha(pageTitleAlpha))
+        } else {
+            Text(
+                text = stringResource(Res.string.settings_title),
+                color = MiuixTheme.colorScheme.onBackground,
+                style = MiuixTheme.textStyles.title1,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.alpha(pageTitleAlpha),
+            )
+        }
 
         // Search bar
         TideSearchBar(
@@ -259,6 +268,28 @@ fun SettingsScreen(
                 modifier = Modifier.align(Alignment.TopCenter),
             )
         }
+    }
+}
+
+@Composable
+private fun SettingsMobileHeader(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(88.dp),
+        contentAlignment = Alignment.BottomStart,
+    ) {
+        Text(
+            text = stringResource(Res.string.settings_title),
+            color = MiuixTheme.colorScheme.onBackground,
+            style = MiuixTheme.textStyles.title1.copy(
+                fontSize = 32.sp,
+                lineHeight = 38.sp,
+            ),
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

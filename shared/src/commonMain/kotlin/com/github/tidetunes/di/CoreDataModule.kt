@@ -69,6 +69,7 @@ val coreDataModule = module {
     single { get<TideTunesDatabase>().sourceErrorDao() }
     single { get<TideTunesDatabase>().downloadTaskDao() }
     single { get<TideTunesDatabase>().pluginDao() }
+    single { get<TideTunesDatabase>().listeningStatisticsDao() }
     single { createAppDataStore() }
     single { AppPreferencesRepository(get()) }
     single<SettingsRepository> { DataStoreSettingsRepository(get()) }
@@ -91,7 +92,7 @@ val coreDataModule = module {
     single { Bridge(getAppDocumentDir(), getAppCacheDir(), get()) }
     single { RoomLibraryStore(get(), get(), get(), get(), get(), get(), get()) }
     single<HomeHistoryRepository> { RoomHomeHistoryRepository(get(), get(), get()) }
-    single<HomeStatisticsRepository> { RoomHomeStatisticsRepository(get(), get(), get()) }
+    single<HomeStatisticsRepository> { RoomHomeStatisticsRepository(get(), get(), get(), get()) }
 
 
     single {

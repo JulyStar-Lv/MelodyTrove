@@ -60,16 +60,11 @@ import androidx.compose.ui.unit.sp
 import com.github.tidetunes.core.presentation.components.TidePageHeader
 import com.github.tidetunes.core.presentation.components.TideGlassScene
 import com.github.tidetunes.core.presentation.components.TideStickyGlassActionBar
-import com.github.tidetunes.core.presentation.components.tideGlassSurfaceAlpha
+import com.github.tidetunes.core.presentation.components.tideLiquidGlass
 import com.github.tidetunes.core.presentation.theme.TideTunesBrand
 import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
-import com.kyant.backdrop.drawBackdrop
-import com.kyant.backdrop.effects.blur
-import com.kyant.backdrop.effects.colorControls
-import com.kyant.backdrop.effects.lens
-import com.kyant.backdrop.highlight.Highlight
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -100,6 +95,9 @@ import tidetunes.feature.home.generated.resources.home_pinned_playlists
 import tidetunes.feature.home.generated.resources.home_play
 import tidetunes.feature.home.generated.resources.home_empty_message
 import tidetunes.feature.home.generated.resources.home_empty_title
+import tidetunes.feature.home.generated.resources.home_listening_today
+import tidetunes.feature.home.generated.resources.home_listening_total_time
+import tidetunes.feature.home.generated.resources.home_listening_tracks_played
 import tidetunes.feature.home.generated.resources.home_no_track
 import tidetunes.feature.home.generated.resources.home_now_playing_label
 import tidetunes.feature.home.generated.resources.home_open_library
@@ -109,6 +107,7 @@ import tidetunes.feature.home.generated.resources.home_subtitle
 import tidetunes.feature.home.generated.resources.home_suggested_albums
 import tidetunes.feature.home.generated.resources.home_title
 import tidetunes.feature.home.generated.resources.home_your_listening
+import tidetunes.feature.home.generated.resources.listening_title
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -183,7 +182,7 @@ fun HomeDesignScreen(
                         )
                     }
                 }
-                if (state.isEmpty) {
+                if (state.shouldShowEmptyState) {
                     item {
                         HomeEmptyState(
                             onOpenLibrary = { onAction(HomeAction.NavigateToLibrary) },
@@ -221,7 +220,7 @@ fun HomeDesignScreen(
                         HomeSection(
                             title = stringResource(Res.string.home_your_listening),
                             icon = Res.drawable.icon_activity,
-                            onClick = { onAction(HomeAction.NavigateToLibrary) },
+                            onClick = { onAction(HomeAction.NavigateToListening) },
                         ) {
                             HomeStatisticsCard(statistics = statistics)
                         }
@@ -345,8 +344,6 @@ private fun DailyPicksHero(
     val shape = RoundedCornerShape(if (compact) 22.dp else 30.dp)
     val foreground = if (dark) Color.White else Color(0xFF15151A)
     val muted = foreground.copy(alpha = if (dark) 0.74f else 0.62f)
-    val glassSurface = MiuixTheme.colorScheme.surfaceContainer
-    val glassSurfaceAlpha = tideGlassSurfaceAlpha()
     val artworkIndex = track?.artworkIndex ?: 1
     val backgroundBackdrop = rememberLayerBackdrop()
     Box(
@@ -368,25 +365,9 @@ private fun DailyPicksHero(
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .drawBackdrop(
+                .tideLiquidGlass(
                     backdrop = backgroundBackdrop,
-                    shape = { shape },
-                    effects = {
-                        colorControls(contrast = 1.04f, saturation = 1.10f)
-                        blur(18.dp.toPx())
-                        lens(
-                            refractionHeight = 8.dp.toPx(),
-                            refractionAmount = 14.dp.toPx(),
-                            depthEffect = true,
-                        )
-                    },
-                    highlight = {
-                        Highlight(width = 0.25.dp, blurRadius = 0.5.dp, alpha = 0.78f)
-                    },
-                    shadow = { null },
-                    onDrawSurface = {
-                        drawRect(glassSurface.copy(alpha = glassSurfaceAlpha))
-                    },
+                    shape = shape,
                 ),
         )
         Column(
@@ -1144,7 +1125,7 @@ private fun HomeStatisticsCard(
                     modifier = Modifier.size(22.dp),
                 )
                 Text(
-                    text = "Your Listening",
+                    text = stringResource(Res.string.listening_title),
                     color = MiuixTheme.colorScheme.onBackground,
                     style = MiuixTheme.textStyles.title3,
                     fontWeight = FontWeight.Bold,
@@ -1155,15 +1136,15 @@ private fun HomeStatisticsCard(
                 horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
                 StatItem(
-                    label = "Tracks played",
+                    label = stringResource(Res.string.home_listening_tracks_played),
                     value = statistics.totalTracksEverPlayed.toString(),
                 )
                 StatItem(
-                    label = "Today",
+                    label = stringResource(Res.string.home_listening_today),
                     value = statistics.tracksPlayedToday.toString(),
                 )
                 StatItem(
-                    label = "Total time",
+                    label = stringResource(Res.string.home_listening_total_time),
                     value = formatListeningDuration(statistics.totalListeningDurationMs),
                 )
             }
@@ -1194,13 +1175,3 @@ private fun formatListeningDuration(totalMs: Long): String {
     val minutes = totalMinutes % 60L
     return if (hours > 0L) hours.toString() + "h " + minutes.toString() + "m" else minutes.toString() + "m"
 }
-private val HomeState.isEmpty: Boolean
-    get() {
-        val hasContent = featuredAlbums.isNotEmpty() ||
-            recentlyAddedAlbums.isNotEmpty() ||
-            artists.isNotEmpty() ||
-            pinnedPlaylists.isNotEmpty() ||
-            dailyPickTracks.isNotEmpty() ||
-            recentTracks.isNotEmpty()
-        return !hasContent && statistics == null
-    }

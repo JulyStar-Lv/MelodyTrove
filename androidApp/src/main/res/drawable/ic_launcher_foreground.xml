@@ -7,8 +7,8 @@
     <group
         android:pivotX="60"
         android:pivotY="60"
-        android:scaleX="0.72"
-        android:scaleY="0.72">
+        android:scaleX="0.78"
+        android:scaleY="0.78">
         <clip-path android:pathData="M19.25,19.25h81.51v81.51h-81.51z" />
         <path
             android:fillColor="#FFFFFFFF"

@@ -2417,6 +2417,7 @@ internal fun buildTrackSourceRefEntity(
         lossless = metadata.lossless ?: track.lossless,
         createdAt = existingRef?.createdAt ?: now,
         updatedAt = now,
+        hasEmbeddedArtwork = metadata.hasEmbeddedArtwork,
     )
 }
 

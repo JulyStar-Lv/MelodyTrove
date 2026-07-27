@@ -67,19 +67,9 @@ private fun buildMediaItem(
     music: MusicOrMusicAbstract,
     playbackUri: String? = null,
 ): MediaItem {
-    val cover = when(music) {
-        is MusicOrMusicAbstract.VMusic -> music.v1.cover
-        is MusicOrMusicAbstract.VMusicAbstract -> music.v1.cover
-    }
     val meta = when(music) {
         is MusicOrMusicAbstract.VMusic -> music.v1.meta
         is MusicOrMusicAbstract.VMusicAbstract -> music.v1.meta
-    }
-
-    val coverURI = if (cover != null) {
-        null
-    } else {
-        DEFAULT_COVER_BASE64.toUri()
     }
 
     val mediaItem = MediaItem.Builder()
@@ -88,7 +78,7 @@ private fun buildMediaItem(
         .setMediaMetadata(
             MediaMetadata.Builder()
                 .setTitle(meta.title)
-                .setArtworkUri(coverURI)
+                .setArtworkUri(DEFAULT_COVER_BASE64.toUri())
                 .build()
         )
         .build()
@@ -179,4 +169,12 @@ fun syncMetadataUtil(scope: CoroutineScope, playerRepository: PlayerRepository, 
             onUpdated()
         }
     }
+}
+
+@OptIn(UnstableApi::class)
+internal fun MediaMetadata.withArtworkData(artworkData: ByteArray): MediaMetadata {
+    return buildUpon()
+        .setArtworkUri(null)
+        .setArtworkData(artworkData, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
+        .build()
 }

@@ -48,10 +48,12 @@ class HomeViewModel(
         ) { history, stats ->
             Pair(history, stats)
         },
-    ) { libraryData, pair ->
+        libraryRepository.initialLoadComplete,
+    ) { libraryData, pair, initialLoadComplete ->
         val (tracks, albums, artists, playlists, favoriteTrackIds) = libraryData
         val (historyTracks, stats) = pair
         HomeState(
+            isLoading = !initialLoadComplete,
             featuredAlbums = albums.map { it.toHomeAlbum() }.toPersistentList(),
             recentlyAddedAlbums = albums.map { it.toHomeAlbum() }.toPersistentList(),
             artists = artists.map { it.toHomeArtist() }.toPersistentList(),
@@ -77,6 +79,7 @@ class HomeViewModel(
             HomeAction.NavigateToDownloads -> HomeEvent.NavigateToDownloads
             HomeAction.NavigateToLibrary -> HomeEvent.NavigateToLibrary
             HomeAction.NavigateToSearch -> HomeEvent.NavigateToSearch
+            HomeAction.NavigateToListening -> HomeEvent.NavigateToListening
             HomeAction.OpenSleepTimer -> HomeEvent.OpenSleepTimer
         }
         _events.trySend(event)

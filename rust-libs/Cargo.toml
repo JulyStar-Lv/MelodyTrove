@@ -11,6 +11,7 @@ members = [
     "audio-metadata",
     "plugin-runtime",
 ]
+exclude = ["vendor/lofty"]
 
 [profile.bench]
 debug = true
@@ -31,3 +32,6 @@ anyhow = "1.0"
 tracing = "0.1"
 tidetunes-async-runtime = { path = "./async-runtime" }
 tidetunes-order-key = { path = "./order-key" }
+
+[patch.crates-io]
+lofty = { path = "vendor/lofty" }

@@ -24,7 +24,9 @@ class LibraryRepositoryImpl(
     private val _tracks = MutableStateFlow<List<LibraryTrackItem>>(emptyList())
     private val _albums = MutableStateFlow<List<LibraryAlbumItem>>(emptyList())
     private val _artists = MutableStateFlow<List<LibraryArtistItem>>(emptyList())
+    private val _initialLoadComplete = MutableStateFlow(false)
 
+    override val initialLoadComplete = _initialLoadComplete.asStateFlow()
     override val tracks = _tracks.asStateFlow()
     override val albums = _albums.asStateFlow()
     override val artists = _artists.asStateFlow()
@@ -47,6 +49,7 @@ class LibraryRepositoryImpl(
                         mediaId = mediaIds[track.id],
                     )
                 }
+                _initialLoadComplete.value = true
             }
         }
         scope.launch {

@@ -11,11 +11,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.MoreExecutors
-import com.github.tidetunes.core.KeepBackendService
 import com.github.tidetunes.core.PlaybackService
 import com.github.tidetunes.core.data.StorageRepositoryImpl
 import com.github.tidetunes.di.AppInitializer
@@ -30,16 +30,20 @@ import uniffi.tidetunes_backend.tidetunesLog
 import kotlin.system.exitProcess
 
 class MainActivity : ComponentActivity() {
+    private var isAppReady = false
     private val playerControllerRepository: PlayerControllerRepository by inject()
     private val storageRepository: StorageRepositoryImpl by inject()
     private val permissionRepository: PermissionRepository by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
+        splashScreen.setKeepOnScreenCondition { !isAppReady }
+        splashScreen.setOnExitAnimationListener { splashScreenView ->
+            splashScreenView.remove()
+        }
         enableEdgeToEdge()
 
-        startService(Intent(this, KeepBackendService::class.java))
-        AppInitializer.initializeBridge(org.koin.core.context.GlobalContext.get())
         setupExceptionHandler()
 
         val requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
@@ -48,7 +52,7 @@ class MainActivity : ComponentActivity() {
         permissionRepository.onCreate(this, requestPermissionLauncher)
 
         setContent {
-            Root()
+            Root(onReady = { isAppReady = true })
         }
         handleOAuthRedirect(intent)
     }
@@ -134,6 +138,7 @@ class TideTunesApplication : Application() {
         super.onCreate()
         appContext = this
         initKoin()
+        AppInitializer.initializeBridge(org.koin.core.context.GlobalContext.get())
     }
 
     override fun onTerminate() {

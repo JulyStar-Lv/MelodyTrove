@@ -48,6 +48,7 @@ import com.github.tidetunes.feature.browse.presentation.navigation.browseGraph
 import com.github.tidetunes.feature.downloads.presentation.navigation.downloadsGraph
 import com.github.tidetunes.feature.importing.presentation.navigation.RouteImportType
 import com.github.tidetunes.feature.importing.presentation.navigation.importGraph
+import com.github.tidetunes.feature.home.presentation.ListeningRoot
 import com.github.tidetunes.feature.lyrics.presentation.navigation.lyricsGraph
 import com.github.tidetunes.feature.playlist.presentation.CreatePlaylistRoot
 import com.github.tidetunes.feature.playlist.presentation.CreatePlaylistVM
@@ -197,6 +198,9 @@ internal fun RootNavHost(
         radioGraph(navController)
         recentlyAddedGraph(navController)
         recentlyPlayedGraph(navController)
+        composable<MusicGraph.Listening> {
+            ListeningRoot(onNavigateBack = { navController.popBackStack() })
+        }
         lyricsGraph(navController)
         sourcesGraph(
             onNavigateBack = { navController.navigateUp() },

@@ -103,6 +103,7 @@ pub async fn ct_read_remote_metadata(
             description: lyrics.description,
         }),
         artwork,
+        has_embedded_artwork: metadata.has_embedded_artwork,
         raw_metadata: metadata
             .raw_metadata
             .into_iter()

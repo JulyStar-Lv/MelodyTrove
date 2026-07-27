@@ -533,6 +533,7 @@ class RemoteLibraryImportCoordinatorTest {
         assertEquals(42, ref.sourceItemId)
         assertEquals("source_identity", ref.matchMethod)
         assertEquals(true, ref.isAvailable)
+        assertEquals(false, ref.hasEmbeddedArtwork)
         assertEquals("Metadata Title", track.title)
         assertEquals("Album Artist", track.albumArtist)
         assertEquals(181_000, track.durationMs)
@@ -840,6 +841,7 @@ class RemoteLibraryImportCoordinatorTest {
             description = "main",
         ),
         artwork = artwork,
+        hasEmbeddedArtwork = artwork != null,
         rawMetadata = listOf(
             RemoteRawMetadataEntry(
                 key = "Composer",

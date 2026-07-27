@@ -37,6 +37,45 @@ import kotlin.test.assertTrue
 
 class RoomLibraryIntegrationTest {
     @Test
+    fun migrationEighteenToNineteenAddsEmbeddedArtworkPresence() {
+        val connection = BundledSQLiteDriver().open(":memory:")
+        try {
+            connection.execute(
+                "CREATE TABLE track_source_ref (trackId INTEGER NOT NULL PRIMARY KEY)"
+            )
+            connection.execute("INSERT INTO track_source_ref(trackId) VALUES (1)")
+
+            MIGRATION_18_19.migrate(connection)
+
+            assertTrue("hasEmbeddedArtwork" in columns(connection, "track_source_ref"))
+            connection.prepare(
+                "SELECT hasEmbeddedArtwork FROM track_source_ref WHERE trackId = 1"
+            ).use { statement ->
+                assertTrue(statement.step())
+                assertTrue(statement.isNull(0))
+            }
+        } finally {
+            connection.close()
+        }
+    }
+
+    @Test
+    fun migrationSeventeenToEighteenCreatesListeningHistory() {
+        val connection = BundledSQLiteDriver().open(":memory:")
+        try {
+            MIGRATION_17_18.migrate(connection)
+
+            val columns = columns(connection, "listening_history")
+            assertTrue("id" in columns)
+            assertTrue("trackId" in columns)
+            assertTrue("listenedMs" in columns)
+            assertTrue("playedAtEpochMs" in columns)
+        } finally {
+            connection.close()
+        }
+    }
+
+    @Test
     fun migrationSixteenToSeventeenAddsProviderConfiguration() {
         val connection = BundledSQLiteDriver().open(":memory:")
         try {
@@ -1448,6 +1487,7 @@ class RoomLibraryIntegrationTest {
             mimeType = "image/jpeg",
             pictureType = "CoverFront",
         ),
+        hasEmbeddedArtwork = true,
         rawMetadata = listOf(
             RemoteRawMetadataEntry("Composer", rawValue, null, null)
         ),

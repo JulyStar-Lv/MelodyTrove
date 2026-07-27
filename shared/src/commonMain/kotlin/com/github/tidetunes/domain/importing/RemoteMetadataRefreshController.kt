@@ -88,6 +88,13 @@ class RemoteMetadataRefreshController(
                     options = options,
                     now = now,
                 )
+                refreshed.forEach { value ->
+                    database.trackSourceRefDao().updateEmbeddedArtworkPresence(
+                        sourceItemId = value.candidate.sourceItemId,
+                        hasEmbeddedArtwork = value.metadata.hasEmbeddedArtwork,
+                        now = now,
+                    )
+                }
             }
         }
     }
