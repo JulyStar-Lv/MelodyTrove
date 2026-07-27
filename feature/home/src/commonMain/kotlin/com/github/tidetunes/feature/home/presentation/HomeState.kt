@@ -14,6 +14,7 @@ data class HomeState(
     val recentlyAddedAlbums: ImmutableList<HomeFeaturedAlbum> = persistentListOf(),
     val artists: ImmutableList<HomeArtist> = persistentListOf(),
     val pinnedPlaylists: ImmutableList<HomePlaylist> = persistentListOf(),
+    val dailyPickTracks: ImmutableList<HomeRecentTrack> = persistentListOf(),
     val recentTracks: ImmutableList<HomeRecentTrack> = persistentListOf(),
     val statistics: HomeStatistics? = null,
 )
@@ -31,6 +32,7 @@ data class HomeArtist(
     val name: String,
     val followers: String,
     val initials: String,
+    val artworkIndex: Int,
     val colors: ImmutableList<Color>,
 )
 
@@ -58,6 +60,8 @@ data class HomeRecentTrack(
 
 sealed interface HomeAction {
     data class PlayTrack(val trackId: Long) : HomeAction
+    data class PlayLibraryTrack(val trackId: Long) : HomeAction
+    data object PlayDailyPicks : HomeAction
     data object NavigateToDownloads : HomeAction
     data object NavigateToLibrary : HomeAction
     data object NavigateToSearch : HomeAction

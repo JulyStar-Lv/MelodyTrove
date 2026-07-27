@@ -1,7 +1,6 @@
 package com.github.tidetunes.feature.queue.presentation
 
 import androidx.compose.runtime.Immutable
-import com.github.tidetunes.core.domain.model.Artwork
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 
@@ -10,7 +9,6 @@ data class QueueState(
     val items: ImmutableList<QueueItemUi> = persistentListOf(),
     val currentIndex: Int = -1,
     val isPlaying: Boolean = false,
-    val isShuffleEnabled: Boolean = false,
 )
 
 @Immutable
@@ -18,7 +16,5 @@ data class QueueItemUi(
     val index: Int,
     val title: String,
     val artist: String?,
-    val durationMs: Long?,
     val isCurrent: Boolean,
-    val artwork: Artwork? = null,
 )

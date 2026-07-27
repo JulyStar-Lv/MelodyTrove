@@ -34,6 +34,15 @@ compose.desktop {
             targetFormats(TargetFormat.Deb, TargetFormat.Msi, TargetFormat.Dmg)
             packageName = "TideTunes"
             packageVersion = appVersionName
+            linux {
+                iconFile.set(project.file("src/desktopMain/resources/icon.png"))
+            }
+            macOS {
+                iconFile.set(project.file("src/desktopMain/resources/icon.icns"))
+            }
+            windows {
+                iconFile.set(project.file("src/desktopMain/resources/icon.ico"))
+            }
         }
     }
 }

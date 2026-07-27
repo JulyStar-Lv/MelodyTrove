@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.github.tidetunes.core.presentation.components.TideBottomNavigationBar
 import com.github.tidetunes.core.presentation.components.TideBottomNavigationItem
+import com.github.tidetunes.core.presentation.components.TideBottomNavigationGlassSurface
 import com.github.tidetunes.core.presentation.components.getBottomBarSpace
 import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import com.github.tidetunes.navigation.HomeTab
@@ -63,16 +64,14 @@ fun BoxScope.BottomBar(
                 miniPlayerContent()
             }
         }
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.86f)),
+        TideBottomNavigationGlassSurface(
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(TideTunesTokens.navigation.compactBarDividerHeight)
-                    .background(MiuixTheme.colorScheme.outline),
+                    .background(MiuixTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
             )
             TideBottomNavigationBar(
                 items = bottomItems,

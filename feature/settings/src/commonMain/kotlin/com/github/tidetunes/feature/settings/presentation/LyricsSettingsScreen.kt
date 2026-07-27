@@ -39,38 +39,24 @@ internal fun LyricsSettingsScreen(
 
     SettingsPageLayout(title = stringResource(Res.string.settings_lyrics_title), onBack = onBack) {
         SettingsSection(title = stringResource(Res.string.settings_lyrics_alignment_section)) {
-            SettingsChoiceRow(
-                title = stringResource(Res.string.settings_lyrics_align_left),
-                selected = lyrics.textAlignment == LyricTextAlignment.Left,
-                onClick = {
-                    onAction(SettingsAction.SetLyricTextAlignment(LyricTextAlignment.Left))
-                },
-            )
-            SettingsChoiceRow(
-                title = stringResource(Res.string.settings_lyrics_align_center),
-                selected = lyrics.textAlignment == LyricTextAlignment.Center,
-                onClick = {
-                    onAction(SettingsAction.SetLyricTextAlignment(LyricTextAlignment.Center))
-                },
-            )
-            SettingsChoiceRow(
-                title = stringResource(Res.string.settings_lyrics_align_right),
-                selected = lyrics.textAlignment == LyricTextAlignment.Right,
-                onClick = {
-                    onAction(SettingsAction.SetLyricTextAlignment(LyricTextAlignment.Right))
-                },
+            SettingsSelectRow(
+                label = stringResource(Res.string.settings_lyrics_alignment_section),
+                selected = lyrics.textAlignment,
+                options = LyricTextAlignment.entries.toList(),
+                optionLabel = { alignment -> stringResource(alignment.titleResource()) },
+                onSelect = { onAction(SettingsAction.SetLyricTextAlignment(it)) },
             )
         }
 
         SettingsSection(title = stringResource(Res.string.settings_lyrics_source_section)) {
-            LyricSourceMode.entries.forEach { mode ->
-                SettingsChoiceRow(
-                    title = stringResource(mode.titleResource()),
-                    summary = stringResource(mode.summaryResource()),
-                    selected = lyrics.sourceMode == mode,
-                    onClick = { onAction(SettingsAction.SetLyricSourceMode(mode)) },
-                )
-            }
+            SettingsSelectRow(
+                label = stringResource(Res.string.settings_lyrics_source_section),
+                subtitle = stringResource(lyrics.sourceMode.summaryResource()),
+                selected = lyrics.sourceMode,
+                options = LyricSourceMode.entries.toList(),
+                optionLabel = { mode -> stringResource(mode.titleResource()) },
+                onSelect = { onAction(SettingsAction.SetLyricSourceMode(it)) },
+            )
             lyrics.sourcePriority.forEachIndexed { index, kind ->
                 SettingsInfoRow(
                     title = stringResource(kind.titleResource()),
@@ -208,34 +194,30 @@ internal fun LyricsSettingsScreen(
 
         if (capabilities.lyricFontSelectionSupported) {
             SettingsSection(title = stringResource(Res.string.settings_lyrics_font_section)) {
-                LyricFontChoice.entries.forEach { choice ->
-                    SettingsChoiceRow(
-                        title = stringResource(choice.titleResource()),
-                        summary = stringResource(Res.string.settings_lyrics_western_font),
-                        selected = lyrics.font.westernFont == choice,
-                        onClick = {
-                            onAction(
-                                SettingsAction.SetLyricFontSettings(
-                                    lyrics.font.copy(westernFont = choice)
-                                )
+                SettingsSelectRow(
+                    label = stringResource(Res.string.settings_lyrics_western_font),
+                    selected = lyrics.font.westernFont,
+                    options = LyricFontChoice.entries.toList(),
+                    optionLabel = { choice -> stringResource(choice.titleResource()) },
+                    onSelect = { choice ->
+                        onAction(
+                            SettingsAction.SetLyricFontSettings(
+                                lyrics.font.copy(westernFont = choice)
                             )
-                        },
-                    )
-                }
-                LyricFontChoice.entries.forEach { choice ->
-                    SettingsChoiceRow(
-                        title = stringResource(choice.titleResource()),
-                        summary = stringResource(Res.string.settings_lyrics_cjk_font),
-                        selected = lyrics.font.cjkFont == choice,
-                        onClick = {
-                            onAction(
-                                SettingsAction.SetLyricFontSettings(
-                                    lyrics.font.copy(cjkFont = choice)
-                                )
-                            )
-                        },
-                    )
-                }
+                        )
+                    },
+                )
+                SettingsSelectRow(
+                    label = stringResource(Res.string.settings_lyrics_cjk_font),
+                    selected = lyrics.font.cjkFont,
+                    options = LyricFontChoice.entries.toList(),
+                    optionLabel = { choice -> stringResource(choice.titleResource()) },
+                    onSelect = { choice ->
+                        onAction(
+                            SettingsAction.SetLyricFontSettings(lyrics.font.copy(cjkFont = choice))
+                        )
+                    },
+                )
                 SettingsSliderRow(
                     title = stringResource(Res.string.settings_lyrics_font_weight),
                     value = lyrics.font.weight,
@@ -328,20 +310,19 @@ internal fun LyricsSettingsScreen(
                     state = state,
                     onAction = onAction,
                 )
-                SecondaryLyricContent.entries.forEach { content ->
-                    SettingsChoiceRow(
-                        title = stringResource(content.titleResource()),
-                        summary = stringResource(Res.string.settings_lyrics_output_secondary),
-                        selected = output.secondaryContent == content,
-                        onClick = {
-                            onAction(
-                                SettingsAction.SetLyricOutputSettings(
-                                    output.copy(secondaryContent = content)
-                                )
+                SettingsSelectRow(
+                    label = stringResource(Res.string.settings_lyrics_output_secondary),
+                    selected = output.secondaryContent,
+                    options = SecondaryLyricContent.entries.toList(),
+                    optionLabel = { content -> stringResource(content.titleResource()) },
+                    onSelect = { content ->
+                        onAction(
+                            SettingsAction.SetLyricOutputSettings(
+                                output.copy(secondaryContent = content)
                             )
-                        },
-                    )
-                }
+                        )
+                    },
+                )
             }
         }
     }
@@ -360,6 +341,12 @@ internal fun LyricsSettingsScreen(
         },
         onDismiss = { editingBlacklist = false },
     )
+}
+
+private fun LyricTextAlignment.titleResource() = when (this) {
+    LyricTextAlignment.Left -> Res.string.settings_lyrics_align_left
+    LyricTextAlignment.Center -> Res.string.settings_lyrics_align_center
+    LyricTextAlignment.Right -> Res.string.settings_lyrics_align_right
 }
 
 @Composable

@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.Flow
  */
 interface FavoritesRepository {
 
+    val favoriteTrackIds: Flow<Set<Long>>
+
     fun favoriteTracks(
         sort: SortCriteria = SortCriteria.Default,
         filter: FilterCriteria.FavoritesFilter = FilterCriteria.FavoritesFilter(),

@@ -70,35 +70,33 @@ fun NetworkCacheSettingsSection(
 
         SettingsSection(title = stringResource(Res.string.settings_advanced_section)) {
             if (capabilities.audioPreloadSupported) {
-                listOf(2L, 4L, 8L).forEach { megabytes ->
-                    val bytes = megabytes * BYTES_PER_MB
-                    SettingsChoiceRow(
-                        title = stringResource(Res.string.settings_audio_preload),
-                        summary = stringResource(
-                            Res.string.settings_audio_preload_summary,
-                            formatBytes(bytes),
-                        ),
-                        selected = settings.audioPreloadBytes == bytes,
-                        onClick = { onAction(SettingsAction.SetAudioPreloadBytes(bytes)) },
-                    )
-                }
-            }
-            listOf(10, 20, 30, 60).forEach { seconds ->
-                SettingsChoiceRow(
-                    title = stringResource(Res.string.settings_timeout),
-                    summary = stringResource(Res.string.settings_timeout_value, seconds),
-                    selected = settings.connectionTimeoutSeconds == seconds,
-                    onClick = { onAction(SettingsAction.SetConnectionTimeoutSeconds(seconds)) },
+                val preloadOptions = listOf(2L, 4L, 8L).map { it * BYTES_PER_MB }
+                SettingsSelectRow(
+                    label = stringResource(Res.string.settings_audio_preload),
+                    selected = settings.audioPreloadBytes,
+                    options = preloadOptions,
+                    optionLabel = { bytes -> formatBytes(bytes) },
+                    onSelect = { onAction(SettingsAction.SetAudioPreloadBytes(it)) },
                 )
             }
-            listOf(0, 1, 2, 3, 5).forEach { count ->
-                SettingsChoiceRow(
-                    title = stringResource(Res.string.settings_retry_count),
-                    summary = stringResource(Res.string.settings_retry_count_value, count),
-                    selected = settings.networkRetryCount == count,
-                    onClick = { onAction(SettingsAction.SetNetworkRetryCount(count)) },
-                )
-            }
+            SettingsSelectRow(
+                label = stringResource(Res.string.settings_timeout),
+                selected = settings.connectionTimeoutSeconds,
+                options = listOf(10, 20, 30, 60),
+                optionLabel = { seconds ->
+                    stringResource(Res.string.settings_timeout_value, seconds)
+                },
+                onSelect = { onAction(SettingsAction.SetConnectionTimeoutSeconds(it)) },
+            )
+            SettingsSelectRow(
+                label = stringResource(Res.string.settings_retry_count),
+                selected = settings.networkRetryCount,
+                options = listOf(0, 1, 2, 3, 5),
+                optionLabel = { count ->
+                    stringResource(Res.string.settings_retry_count_value, count)
+                },
+                onSelect = { onAction(SettingsAction.SetNetworkRetryCount(it)) },
+            )
         }
     }
 
@@ -121,35 +119,47 @@ private fun CacheLimitChoices(
     type: CacheLimitType,
     onAction: (SettingsAction) -> Unit,
 ) {
-    presets.forEach { bytes ->
-        SettingsChoiceRow(
-            title = if (bytes == 0L) {
-                stringResource(Res.string.settings_cache_disabled)
+    val isCustom = currentBytes !in presets
+    SettingsSelectRow(
+        label = stringResource(
+            if (type == CacheLimitType.Audio) Res.string.settings_audio_cache_section
+            else Res.string.settings_image_cache_section,
+        ),
+        selectedValue = if (isCustom) CACHE_CUSTOM_VALUE else currentBytes.toString(),
+        selectedLabel = if (isCustom) {
+            stringResource(Res.string.settings_cache_custom)
+        } else {
+            currentBytes.cacheLimitLabel()
+        },
+        options = presets.map { bytes ->
+            SettingsSelectOption(value = bytes.toString(), label = bytes.cacheLimitLabel())
+        } + SettingsSelectOption(
+            value = CACHE_CUSTOM_VALUE,
+            label = stringResource(Res.string.settings_cache_custom),
+        ),
+        onSelect = { value ->
+            if (value == CACHE_CUSTOM_VALUE) {
+                onAction(SettingsAction.OpenCustomCacheLimitDialog(type))
             } else {
-                formatBytes(bytes)
-            },
-            summary = if (bytes == 0L) {
-                stringResource(Res.string.settings_cache_disabled_summary)
-            } else {
-                stringResource(Res.string.settings_cache_limit_summary, formatBytes(bytes))
-            },
-            selected = currentBytes == bytes,
-            onClick = {
-                onAction(
-                    when (type) {
-                        CacheLimitType.Audio -> SettingsAction.SetAudioCacheLimitBytes(bytes)
-                        CacheLimitType.Image -> SettingsAction.SetImageCacheLimitBytes(bytes)
-                    }
-                )
-            },
-        )
-    }
-    SettingsChoiceRow(
-        title = stringResource(Res.string.settings_cache_custom),
-        summary = stringResource(Res.string.settings_cache_custom_summary, formatBytes(currentBytes)),
-        selected = currentBytes !in presets,
-        onClick = { onAction(SettingsAction.OpenCustomCacheLimitDialog(type)) },
+                value.toLongOrNull()?.let { bytes ->
+                    onAction(
+                        when (type) {
+                            CacheLimitType.Audio -> SettingsAction.SetAudioCacheLimitBytes(bytes)
+                            CacheLimitType.Image -> SettingsAction.SetImageCacheLimitBytes(bytes)
+                        }
+                    )
+                }
+            }
+        },
     )
 }
 
+@Composable
+private fun Long.cacheLimitLabel(): String = if (this == 0L) {
+    stringResource(Res.string.settings_cache_disabled)
+} else {
+    formatBytes(this)
+}
+
 private const val BYTES_PER_MB = 1_048_576L
+private const val CACHE_CUSTOM_VALUE = "custom"

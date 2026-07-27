@@ -48,6 +48,7 @@ import com.github.tidetunes.core.presentation.components.TideFab
 import com.github.tidetunes.core.presentation.components.TideIconButton
 import com.github.tidetunes.core.presentation.components.TideIconButtonSize
 import com.github.tidetunes.core.presentation.components.TideIconButtonVariant
+import com.github.tidetunes.core.presentation.components.LocalTideBottomContentInset
 import com.github.tidetunes.core.domain.model.ImportSelectionMode
 import com.github.tidetunes.core.presentation.platform.TideTunesBackHandler
 import com.github.tidetunes.core.presentation.theme.TideTunesBrand
@@ -245,6 +246,7 @@ private fun ImportEntries(
 ) {
     val spacing = TideTunesTokens.spacing
     val shapes = TideTunesTokens.shapes
+    val bottomContentInset = LocalTideBottomContentInset.current
 
     @Composable
     fun PathTab(
@@ -314,7 +316,7 @@ private fun ImportEntries(
                     .fillMaxSize()
                     .padding(horizontal = horizontalPadding),
                 verticalArrangement = Arrangement.spacedBy(spacing.xs),
-                contentPadding = PaddingValues(bottom = 88.dp),
+                contentPadding = PaddingValues(bottom = 88.dp + bottomContentInset),
             ) {
                 itemsIndexed(state.entries, key = { index, item -> item.lazyListKey(index) }) { _, item ->
                     ImportEntry(

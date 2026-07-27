@@ -27,13 +27,12 @@ internal suspend fun MetadataDao.updateOptionalMetadata(
                 artwork = embedded,
             )
         }.distinctBy { it.contentHash }
-        val newArtwork = mutableListOf<ArtworkEntity>()
+        val artworkToUpsert = mutableListOf<ArtworkEntity>()
         for (candidate in artwork) {
-            if (getArtworkByContentHash(candidate.contentHash) == null) {
-                newArtwork += candidate
-            }
+            val existing = getArtworkByContentHash(candidate.contentHash)
+            artworkToUpsert += existing?.withRefreshedCacheMetadata(candidate) ?: candidate
         }
-        if (newArtwork.isNotEmpty()) upsertArtwork(newArtwork)
+        if (artworkToUpsert.isNotEmpty()) upsertArtwork(artworkToUpsert)
     }
     if (options.readLyrics) {
         deleteLyricsForTracksBySource(trackIds, "Embedded")
@@ -49,4 +48,15 @@ internal suspend fun MetadataDao.updateOptionalMetadata(
         }
         if (rawMetadata.isNotEmpty()) upsertRawMetadata(rawMetadata)
     }
+}
+
+internal fun ArtworkEntity.withRefreshedCacheMetadata(candidate: ArtworkEntity): ArtworkEntity {
+    return copy(
+        localPath = candidate.localPath,
+        thumbnailPath = candidate.thumbnailPath,
+        width = candidate.width,
+        height = candidate.height,
+        mimeType = candidate.mimeType,
+        pictureType = candidate.pictureType,
+    )
 }

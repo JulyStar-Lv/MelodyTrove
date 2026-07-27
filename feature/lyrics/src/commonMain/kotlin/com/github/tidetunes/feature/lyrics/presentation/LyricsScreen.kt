@@ -50,6 +50,7 @@ import com.github.tidetunes.core.presentation.components.TideIconButton
 import com.github.tidetunes.core.presentation.components.TideIconButtonColors
 import com.github.tidetunes.core.presentation.components.TideIconButtonSize
 import com.github.tidetunes.core.presentation.components.TideIconButtonVariant
+import com.github.tidetunes.core.presentation.components.LocalTideBottomContentInset
 import com.github.tidetunes.core.presentation.components.TideTextButton
 import com.github.tidetunes.core.presentation.components.TideTextButtonSize
 import com.github.tidetunes.core.presentation.components.TideTextButtonVariant
@@ -62,7 +63,8 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import tidetunes.service.playback.presentation.generated.resources.Res
 import tidetunes.service.playback.presentation.generated.resources.icon_back
-import tidetunes.service.playback.presentation.generated.resources.icon_heart
+import tidetunes.service.playback.presentation.generated.resources.icon_heart_compact
+import tidetunes.service.playback.presentation.generated.resources.icon_heart_compact_filled
 import tidetunes.service.playback.presentation.generated.resources.icon_vertialcal_more
 import tidetunes.service.playback.presentation.generated.resources.music_lyric_remove
 import tidetunes.service.playback.presentation.generated.resources.player_add_favorite
@@ -82,12 +84,15 @@ fun LyricsScreen(
     currentPositionMs: Long,
     isPlaying: Boolean,
     lyricDisplaySettings: LyricDisplaySettings,
+    isFavorite: Boolean,
+    onToggleFavorite: () -> Unit,
     onAction: (LyricsAction) -> Unit,
     onPlayerAction: (NowPlayingAction) -> Unit,
 ) {
     val trackTitle = nowPlayingTrack?.title ?: state.trackTitle
     val trackArtist = nowPlayingTrack?.artist ?: state.trackArtist
     val artwork = nowPlayingTrack?.artwork
+    val bottomContentInset = LocalTideBottomContentInset.current
 
     Box(
         modifier = Modifier
@@ -126,6 +131,8 @@ fun LyricsScreen(
                 track = nowPlayingTrack,
                 title = trackTitle,
                 artist = trackArtist,
+                isFavorite = isFavorite,
+                onToggleFavorite = onToggleFavorite,
                 onNavigateBack = { onAction(LyricsAction.NavigateBack) },
                 onPlayerAction = onPlayerAction,
             )
@@ -137,13 +144,17 @@ fun LyricsScreen(
                     isPlaying = isPlaying,
                     lyricDisplaySettings = lyricDisplaySettings,
                     onPlayerAction = onPlayerAction,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(bottom = bottomContentInset),
                 )
             } else {
                 StoredLyricsContent(
                     state = state,
                     onAction = onAction,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(bottom = bottomContentInset),
                 )
             }
         }
@@ -155,10 +166,11 @@ private fun LyricsTrackHeader(
     track: NowPlayingTrackItem?,
     title: String,
     artist: String?,
+    isFavorite: Boolean,
+    onToggleFavorite: () -> Unit,
     onNavigateBack: () -> Unit,
     onPlayerAction: (NowPlayingAction) -> Unit,
 ) {
-    var liked by remember(track?.id) { mutableStateOf(true) }
     var moreMenuExpanded by remember { mutableStateOf(false) }
 
     Row(
@@ -215,14 +227,20 @@ private fun LyricsTrackHeader(
             TideIconButton(
                 size = TideIconButtonSize.Touch,
                 variant = TideIconButtonVariant.Default,
-                painter = painterResource(Res.drawable.icon_heart),
+                painter = painterResource(
+                    if (isFavorite) {
+                        Res.drawable.icon_heart_compact_filled
+                    } else {
+                        Res.drawable.icon_heart_compact
+                    },
+                ),
                 contentDescription = stringResource(
-                    if (liked) Res.string.player_remove_favorite else Res.string.player_add_favorite,
+                    if (isFavorite) Res.string.player_remove_favorite else Res.string.player_add_favorite,
                 ),
                 colors = lyricsHeaderButtonColors(
-                    iconTint = if (liked) MiuixTheme.colorScheme.primary else Color.White,
+                    iconTint = if (isFavorite) MiuixTheme.colorScheme.primary else Color.White,
                 ),
-                onClick = { liked = !liked },
+                onClick = onToggleFavorite,
             )
             Box {
                 TideIconButton(

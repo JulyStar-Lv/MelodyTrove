@@ -3,6 +3,7 @@ package com.github.tidetunes.core.presentation.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -48,13 +49,21 @@ fun TideSettingsGroup(
                 modifier = Modifier.padding(horizontal = 6.dp),
             )
         }
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(shapes.card))
                 .background(MiuixTheme.colorScheme.surfaceContainer),
-            content = content,
-        )
+        ) {
+            Column(content = content)
+            Spacer(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .align(Alignment.BottomCenter)
+                    .background(MiuixTheme.colorScheme.surfaceContainer),
+            )
+        }
     }
 }
 

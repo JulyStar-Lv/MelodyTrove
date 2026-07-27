@@ -19,7 +19,9 @@ target.product_reference.name = "TideTunes.app"
 app_group = project.main_group.new_group("TideTunes")
 swift_file = app_group.new_file("TideTunesApp.swift")
 plist_file = app_group.new_file("Info.plist")
+assets_file = app_group.new_file("Assets.xcassets")
 target.add_file_references([swift_file])
+target.resources_build_phase.add_file_reference(assets_file)
 
 target.build_configurations.each do |configuration|
   settings = configuration.build_settings

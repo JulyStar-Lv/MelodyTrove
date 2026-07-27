@@ -1,20 +1,29 @@
 package com.github.tidetunes.core.data
 
+import com.github.tidetunes.core.data.datastore.AppPreferencesRepository
 import com.github.tidetunes.core.domain.model.DomainTrackBrowserItem
 import com.github.tidetunes.core.domain.model.FilterCriteria
 import com.github.tidetunes.core.domain.model.LibraryTrackItem
+import com.github.tidetunes.core.domain.model.LibrarySortField
 import com.github.tidetunes.core.domain.model.RepositoryState
 import com.github.tidetunes.core.domain.model.SortCriteria
+import com.github.tidetunes.core.domain.model.SortDirection
 import com.github.tidetunes.core.domain.repository.DownloadCollectionRepository
 import com.github.tidetunes.core.domain.repository.FavoritesRepository
 import com.github.tidetunes.core.domain.repository.FolderRepository
 import com.github.tidetunes.core.domain.repository.GenreRepository
 import com.github.tidetunes.core.domain.repository.HistoryRepository
+import com.github.tidetunes.core.domain.repository.LibraryRepository
 import com.github.tidetunes.core.domain.repository.LibraryFolderItem
 import com.github.tidetunes.core.domain.repository.LosslessRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 
 // ── Genre ──
 
@@ -46,21 +55,59 @@ class StubFolderRepository : FolderRepository {
 
 // ── Favorites ──
 
-class StubFavoritesRepository : FavoritesRepository {
-    private val _favorites = MutableStateFlow<RepositoryState<List<LibraryTrackItem>>>(
-        RepositoryState.Empty("Favorite songs will appear here.")
-    )
+class DataStoreFavoritesRepository(
+    private val libraryRepository: LibraryRepository,
+    private val preferencesRepository: AppPreferencesRepository,
+) : FavoritesRepository {
+    override val favoriteTrackIds: Flow<Set<Long>> =
+        preferencesRepository.favoriteTrackIds.distinctUntilChanged()
 
     override fun favoriteTracks(
         sort: SortCriteria,
         filter: FilterCriteria.FavoritesFilter,
-    ): Flow<RepositoryState<List<LibraryTrackItem>>> = _favorites.asStateFlow()
+    ): Flow<RepositoryState<List<LibraryTrackItem>>> = combine(
+        libraryRepository.tracks,
+        favoriteTrackIds,
+    ) { tracks, favoriteIds ->
+        val filtered = tracks
+            .filter { track -> track.id in favoriteIds }
+            .filter { track ->
+                filter.query.isBlank() || listOfNotNull(track.title, track.artist)
+                    .any { value -> value.contains(filter.query, ignoreCase = true) }
+            }
+            .filter { track ->
+                filter.artistFilter == null || track.artist.equals(filter.artistFilter, ignoreCase = true)
+            }
+        val comparator = when (sort.field) {
+            LibrarySortField.Artist ->
+                compareBy<LibraryTrackItem> { it.artist.orEmpty().lowercase() }
+                    .thenBy { it.title.lowercase() }
+            LibrarySortField.Duration ->
+                compareBy<LibraryTrackItem> { it.durationMs ?: Long.MAX_VALUE }
+                    .thenBy { it.title.lowercase() }
+            else -> compareBy { track: LibraryTrackItem -> track.title.lowercase() }
+        }
+        val sorted = filtered.sortedWith(
+            if (sort.direction == SortDirection.Descending) comparator.reversed() else comparator,
+        )
+        if (sorted.isEmpty()) {
+            RepositoryState.Empty("Favorite songs will appear here.")
+        } else {
+            RepositoryState.Loaded(sorted)
+        }
+    }.catch { error ->
+        emit(RepositoryState.Error(error, "Failed to load favorite songs."))
+    }
 
-    override suspend fun isFavorite(trackId: Long): Boolean = false
+    override suspend fun isFavorite(trackId: Long): Boolean =
+        preferencesRepository.favoriteTrackIds.map { trackId in it }.first()
 
-    override suspend fun toggleFavorite(trackId: Long): Boolean = false
+    override suspend fun toggleFavorite(trackId: Long): Boolean =
+        preferencesRepository.toggleFavoriteTrack(trackId)
 
-    override val favoriteCount: Flow<Int> = MutableStateFlow(0).asStateFlow()
+    override val favoriteCount: Flow<Int> = favoriteTrackIds
+        .map { favoriteIds -> favoriteIds.size }
+        .distinctUntilChanged()
 }
 
 // ── History ──

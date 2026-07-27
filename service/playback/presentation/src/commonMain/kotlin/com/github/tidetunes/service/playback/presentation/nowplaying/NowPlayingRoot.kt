@@ -4,14 +4,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import com.github.tidetunes.core.domain.model.AppSettings
 import com.github.tidetunes.core.domain.model.PlayerInteractionSettings
+import com.github.tidetunes.core.domain.repository.FavoritesRepository
 import com.github.tidetunes.core.domain.repository.SettingsRepository
 import com.github.tidetunes.service.playback.presentation.PlayerVM
 import com.github.tidetunes.service.playback.presentation.sleep.SleepModeVM
 import com.github.tidetunes.core.presentation.platform.KeepScreenOnEffect
 import com.github.tidetunes.core.presentation.theme.TideTunesTheme
 import com.github.tidetunes.core.presentation.theme.TideTunesThemeMode
+import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -19,16 +22,19 @@ import org.koin.compose.viewmodel.koinViewModel
 fun NowPlayingRoot(
     onNavigateBack: () -> Unit,
     onNavigateToLyrics: (Long) -> Unit,
-    onNavigateToQueue: () -> Unit,
+    onOpenQueue: () -> Unit,
     onNavigateToLyricImport: () -> Unit,
     onSearchMetadata: (NowPlayingTrackItem) -> Unit,
     playerViewModel: PlayerVM = koinViewModel(),
     sleepModeViewModel: SleepModeVM = koinViewModel(),
     settingsRepository: SettingsRepository = koinInject(),
+    favoritesRepository: FavoritesRepository = koinInject(),
 ) {
     val state by playerViewModel.nowPlayingState.collectAsState()
     val settings by settingsRepository.settings.collectAsState(AppSettings.Default)
     val sleepModeState by sleepModeViewModel.state.collectAsState()
+    val favoriteTrackIds by favoritesRepository.favoriteTrackIds.collectAsState(emptySet())
+    val coroutineScope = rememberCoroutineScope()
     KeepScreenOnEffect(enabled = settings.keepScreenOnInPlayer)
 
     val playbackPosition by playerViewModel.playbackPosition.collectAsState()
@@ -52,7 +58,7 @@ fun NowPlayingRoot(
             NowPlayingAction.SearchMetadata -> state.currentTrack?.let(onSearchMetadata)
             NowPlayingAction.OpenSleepTimer -> sleepModeViewModel.openModal()
             NowPlayingAction.OpenLyrics -> state.currentTrack?.id?.let(onNavigateToLyrics)
-            NowPlayingAction.OpenQueue -> onNavigateToQueue()
+            NowPlayingAction.OpenQueue -> onOpenQueue()
             else -> playerViewModel.onNowPlayingAction(action)
         }
     }
@@ -68,6 +74,12 @@ fun NowPlayingRoot(
             currentPositionMs = playbackPosition.positionMs,
             isSeeking = playbackPosition.isSeeking,
             isSleepTimerEnabled = sleepModeState.enabled,
+            isFavorite = state.currentTrack?.id?.let(favoriteTrackIds::contains) == true,
+            onToggleFavorite = {
+                state.currentTrack?.id?.let { trackId ->
+                    coroutineScope.launch { favoritesRepository.toggleFavorite(trackId) }
+                }
+            },
             progressContent = { trackDurationMs ->
                 NowPlayingProgressRoot(
                     trackDurationMs = trackDurationMs,

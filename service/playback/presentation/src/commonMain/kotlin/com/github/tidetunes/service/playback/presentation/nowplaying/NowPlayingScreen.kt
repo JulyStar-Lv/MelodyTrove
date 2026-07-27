@@ -36,8 +36,13 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -46,6 +51,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.github.tidetunes.core.domain.model.Artwork
@@ -74,6 +82,7 @@ import com.github.tidetunes.core.presentation.theme.TideTunesFontFamilies
 import com.github.tidetunes.core.presentation.theme.TideTunesTokens
 import com.github.tidetunes.core.utils.toMusicDurationMs
 import com.github.tidetunes.service.playback.domain.RepeatMode
+import com.github.tidetunes.service.playback.presentation.transition.playerArtworkSharedElement
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.math.abs
 import org.jetbrains.compose.resources.DrawableResource
@@ -385,16 +394,24 @@ private fun MusicSlider(
 private fun CoverImage(
     artwork: Artwork?,
     modifier: Modifier = Modifier,
-    maxArtworkSize: androidx.compose.ui.unit.Dp = 400.dp,
-    cornerRadius: androidx.compose.ui.unit.Dp = TideTunesTokens.shapes.xl,
-    shadowOffsetY: androidx.compose.ui.unit.Dp = 18.dp,
-    shadowBlurRadius: androidx.compose.ui.unit.Dp = 38.dp,
-    borderWidth: androidx.compose.ui.unit.Dp = 0.dp,
+    maxArtworkSize: Dp = 400.dp,
+    cornerRadius: Dp = TideTunesTokens.shapes.xl,
+    shadowOffsetY: Dp = 18.dp,
+    shadowBlurRadius: Dp = 38.dp,
+    borderWidth: Dp = 0.dp,
     borderColor: Color = Color.Transparent,
     swipeEnabled: Boolean = false,
     onSwipePrevious: () -> Unit = {},
     onSwipeNext: () -> Unit = {},
 ) {
+    val compactCornerRadius = TideTunesTokens.shapes.sm
+    val artworkShape = remember(maxArtworkSize, cornerRadius, compactCornerRadius) {
+        PlayerArtworkShape(
+            expandedSize = maxArtworkSize,
+            compactCornerRadius = compactCornerRadius,
+            expandedCornerRadius = cornerRadius,
+        )
+    }
     BoxWithConstraints(
         contentAlignment = Alignment.Center,
         modifier = modifier,
@@ -402,6 +419,7 @@ private fun CoverImage(
         val artworkSize = minOf(maxWidth, maxHeight, maxArtworkSize)
         Box(
             modifier = Modifier
+                .playerArtworkSharedElement()
                 .size(artworkSize)
                 .pointerInput(swipeEnabled) {
                     if (swipeEnabled) {
@@ -423,11 +441,11 @@ private fun CoverImage(
                     offsetY = shadowOffsetY,
                     blurRadius = shadowBlurRadius,
                 )
-                .clip(RoundedCornerShape(cornerRadius))
+                .clip(artworkShape)
                 .border(
                     width = borderWidth,
                     color = borderColor,
-                    shape = RoundedCornerShape(cornerRadius),
+                    shape = artworkShape,
                 )
                 .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.24f)),
         ) {
@@ -439,6 +457,41 @@ private fun CoverImage(
         }
     }
 }
+
+private data class PlayerArtworkShape(
+    val expandedSize: Dp,
+    val compactCornerRadius: Dp,
+    val expandedCornerRadius: Dp,
+) : Shape {
+    override fun createOutline(
+        size: Size,
+        layoutDirection: LayoutDirection,
+        density: Density,
+    ): Outline {
+        val compactSizePx = with(density) { CompactArtworkTransitionSize.toPx() }
+        val expandedSizePx = with(density) { expandedSize.toPx() }
+        val compactRadiusPx = with(density) { compactCornerRadius.toPx() }
+        val expandedRadiusPx = with(density) { expandedCornerRadius.toPx() }
+        val currentSizePx = minOf(size.width, size.height)
+        val fraction = if (expandedSizePx <= compactSizePx) {
+            1f
+        } else {
+            ((currentSizePx - compactSizePx) / (expandedSizePx - compactSizePx)).coerceIn(0f, 1f)
+        }
+        val radiusPx = compactRadiusPx + (expandedRadiusPx - compactRadiusPx) * fraction
+        return Outline.Rounded(
+            RoundRect(
+                left = 0f,
+                top = 0f,
+                right = size.width,
+                bottom = size.height,
+                cornerRadius = CornerRadius(radiusPx),
+            ),
+        )
+    }
+}
+
+private val CompactArtworkTransitionSize = 44.dp
 
 // ── Track Information ──
 
@@ -1399,11 +1452,10 @@ private fun CompactNowPlayingLayout(
     isSeeking: Boolean,
     progressContent: @Composable (Long?) -> Unit,
     compactProgressContent: @Composable (Long?) -> Unit,
+    liked: Boolean,
+    onLikedChange: (Boolean) -> Unit,
     onAction: (NowPlayingAction) -> Unit,
 ) {
-    val track = state.currentTrack
-    var liked by remember(track?.id) { mutableStateOf(true) }
-
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val isShortLandscape = maxWidth >= 640.dp && maxWidth > maxHeight && maxHeight < 520.dp
         if (isShortLandscape) {
@@ -1414,7 +1466,7 @@ private fun CompactNowPlayingLayout(
                 currentPositionMs = currentPositionMs,
                 isSeeking = isSeeking,
                 liked = liked,
-                onLikedChange = { liked = it },
+                onLikedChange = onLikedChange,
                 progressContent = compactProgressContent,
                 onAction = onAction,
             )
@@ -1426,7 +1478,7 @@ private fun CompactNowPlayingLayout(
                 currentPositionMs = currentPositionMs,
                 isSeeking = isSeeking,
                 liked = liked,
-                onLikedChange = { liked = it },
+                onLikedChange = onLikedChange,
                 progressContent = progressContent,
                 onAction = onAction,
             )
@@ -1446,6 +1498,8 @@ fun NowPlayingScreen(
     isSleepTimerEnabled: Boolean,
     progressContent: @Composable (Long?) -> Unit,
     compactProgressContent: @Composable (Long?) -> Unit,
+    isFavorite: Boolean,
+    onToggleFavorite: () -> Unit,
     onAction: (NowPlayingAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -1490,6 +1544,8 @@ fun NowPlayingScreen(
                     isSeeking = isSeeking,
                     progressContent = progressContent,
                     compactProgressContent = compactProgressContent,
+                    liked = isFavorite,
+                    onLikedChange = { onToggleFavorite() },
                     onAction = onAction,
                 )
             }

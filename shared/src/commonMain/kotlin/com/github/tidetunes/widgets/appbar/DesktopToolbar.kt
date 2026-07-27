@@ -31,7 +31,6 @@ import tidetunes.core.presentation.generated.resources.Res as CorePresentationRe
 import tidetunes.core.presentation.generated.resources.icon_chevron_left
 import tidetunes.core.presentation.generated.resources.icon_chevron_right
 import tidetunes.core.presentation.generated.resources.icon_lyrics
-import tidetunes.core.presentation.generated.resources.icon_mode_list
 import tidetunes.core.presentation.generated.resources.icon_vertialcal_more
 import tidetunes.shared.generated.resources.Res as SharedRes
 import tidetunes.shared.generated.resources.icon_adjust
@@ -111,16 +110,6 @@ fun DesktopToolbar(
                     },
                 )
                 DesktopToolButton(
-                    painter = painterResource(CorePresentationRes.drawable.icon_mode_list),
-                    contentDescription = "Queue",
-                    active = rightPanel == DesktopRightPanel.Queue,
-                    onClick = {
-                        onRightPanelChange(
-                            if (rightPanel == DesktopRightPanel.Queue) null else DesktopRightPanel.Queue,
-                        )
-                    },
-                )
-                DesktopToolButton(
                     painter = painterResource(SharedRes.drawable.icon_adjust),
                     contentDescription = "Theme",
                     onClick = onToggleTheme,
@@ -188,7 +177,7 @@ private fun DesktopToolButton(
     }
 }
 
-enum class DesktopRightPanel { Lyrics, Queue }
+enum class DesktopRightPanel { Lyrics }
 
 @Composable
 fun DesktopRightPanelContent(
@@ -209,7 +198,7 @@ fun DesktopRightPanelContent(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = if (panel == DesktopRightPanel.Lyrics) "Lyrics" else "Queue",
+                text = "Lyrics",
                 style = MiuixTheme.textStyles.subtitle,
                 color = MiuixTheme.colorScheme.onSurface,
             )
@@ -226,7 +215,7 @@ fun DesktopRightPanelContent(
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(text = "Nothing playing", color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
             }
-        } else if (panel == DesktopRightPanel.Lyrics) {
+        } else {
             Column(
                 modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -237,27 +226,6 @@ fun DesktopRightPanelContent(
                         style = MiuixTheme.textStyles.body2,
                         color = if (index == 3) MiuixTheme.colorScheme.onSurface else MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     )
-                }
-            }
-        } else {
-            Column(
-                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(text = "Up Next · ${desktopQueue.size} songs", color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
-                desktopQueue.forEachIndexed { index, song ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
-                            .background(if (index == 0) MiuixTheme.colorScheme.primary.copy(alpha = 0.10f) else Color.Transparent)
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Column(Modifier.weight(1f)) {
-                            Text(song.first, style = MiuixTheme.textStyles.body2, color = if (index == 0) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurface)
-                            Text(song.second, style = MiuixTheme.textStyles.footnote1, color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
-                        }
-                        Text(song.third, style = MiuixTheme.textStyles.footnote1, color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
-                    }
                 }
             }
         }
@@ -271,11 +239,4 @@ private val desktopLyrics = listOf(
     "Midnight cascade, carry me away",
     "Every echo finds another wave",
     "Midnight cascade, where frequencies are found",
-)
-
-private val desktopQueue = listOf(
-    Triple("Midnight Cascade", "Luna Waves", "4:12"),
-    Triple("Neon Undertow", "Vector Bloom", "3:48"),
-    Triple("Silver Tide", "Coastal Drift", "3:55"),
-    Triple("Aurora Sequence", "Polar Echo", "5:02"),
 )

@@ -43,6 +43,7 @@ import com.github.tidetunes.core.presentation.components.TideCardSurface
 import com.github.tidetunes.core.presentation.components.TideLoadingIndicator
 import com.github.tidetunes.core.presentation.components.TidePageHeader
 import com.github.tidetunes.core.presentation.components.TideGlassScene
+import com.github.tidetunes.core.presentation.components.LocalTideBottomContentInset
 import com.github.tidetunes.core.presentation.components.TideSearchBar
 import com.github.tidetunes.core.presentation.components.TideStickyGlassActionBar
 import com.github.tidetunes.core.presentation.theme.TideTunesBrand
@@ -79,6 +80,8 @@ fun SearchDesignScreen(
     onAction: (SearchAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val bottomContentInset = LocalTideBottomContentInset.current
+
     TideGlassScene(modifier = modifier.fillMaxSize()) {
         BoxWithConstraints(
             modifier = Modifier
@@ -111,7 +114,7 @@ fun SearchDesignScreen(
                 start = pagePadding,
                 top = if (compact) 10.dp else 8.dp,
                 end = pagePadding,
-                bottom = 28.dp,
+                bottom = 28.dp + bottomContentInset,
             ),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {

@@ -2,7 +2,6 @@ package com.github.tidetunes.feature.queue.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.github.tidetunes.core.domain.model.Artwork
 import com.github.tidetunes.service.playback.domain.PlayableItem
 import com.github.tidetunes.service.playback.domain.PlaybackController
 import com.github.tidetunes.service.playback.domain.PlaybackStatus
@@ -36,14 +35,11 @@ class QueueViewModel(
                     index = index,
                     title = item.title,
                     artist = item.artist,
-                    durationMs = item.durationMs,
                     isCurrent = index == queue.currentIndex,
-                    artwork = item.toArtwork(),
                 )
             }.toPersistentList(),
             currentIndex = queue.currentIndex,
             isPlaying = isPlaying,
-            isShuffleEnabled = playerState.shuffleEnabled,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -53,7 +49,6 @@ class QueueViewModel(
 
     fun onAction(action: QueueAction) {
         when (action) {
-            QueueAction.NavigateBack -> Unit
             is QueueAction.PlayItem -> {
                 viewModelScope.launch {
                     if (action.index in cachedItems.indices) {
@@ -61,19 +56,7 @@ class QueueViewModel(
                     }
                 }
             }
-            is QueueAction.PlayNext -> cachedItems.getOrNull(action.index)?.let {
-                playbackController.enqueueNext(it)
-            }
-            is QueueAction.RemoveItem -> playbackController.removeQueueItem(action.index)
-            is QueueAction.MoveItem -> playbackController.moveQueueItem(action.from, action.to)
             QueueAction.ClearQueue -> playbackController.clearQueue()
-            QueueAction.ToggleShuffle -> playbackController.setShuffle(!state.value.isShuffleEnabled)
         }
     }
-}
-
-private fun PlayableItem.toArtwork(): Artwork? = when {
-    libraryTrackId != null -> libraryTrackId?.let(Artwork::LibraryTrack)
-    mediaId != null -> mediaId?.let(Artwork::SourceMedia)
-    else -> null
 }

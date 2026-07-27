@@ -2,6 +2,7 @@ package com.github.tidetunes.widgets.appbar
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -33,6 +34,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.github.tidetunes.core.presentation.components.tideTunesAppIconPainter
 import com.github.tidetunes.core.presentation.layout.WindowSizeClass
 import com.github.tidetunes.core.presentation.theme.TideTunesBrand
 import com.github.tidetunes.core.presentation.theme.TideTunesTokens
@@ -78,24 +80,13 @@ fun SidebarBar(
                     .padding(horizontal = 4.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Box(
+                Image(
+                    painter = tideTunesAppIconPainter(),
+                    contentDescription = "TideTunes",
                     modifier = Modifier
                         .size(38.dp)
-                        .background(
-                            brush = Brush.linearGradient(
-                                listOf(TideTunesBrand.Primary, TideTunesBrand.Secondary),
-                            ),
-                            shape = RoundedCornerShape(shapes.sm),
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        painter = painterResource(HomeTab.LIBRARY.painterRes),
-                        tint = Color.White,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
+                        .clip(RoundedCornerShape(shapes.sm)),
+                )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(

@@ -31,7 +31,6 @@ class RootNavHostTest {
             "com.github.tidetunes.MusicGraph.EditStorage",
             "com.github.tidetunes.MusicGraph.Import",
             "com.github.tidetunes.MusicGraph.Downloads",
-            "com.github.tidetunes.MusicGraph.Queue",
             "com.github.tidetunes.MusicGraph.Lyrics",
             "com.github.tidetunes.MusicGraph.PluginSettings",
         ).forEach { route ->

@@ -21,6 +21,7 @@ import com.github.tidetunes.service.download.domain.DownloadRequest
 import com.github.tidetunes.service.download.domain.EnqueueDownloadUseCase
 import kotlinx.collections.immutable.toPersistentList
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -83,6 +84,7 @@ class LibraryVM(
     private val genreNamesFlow = genreRepository.genreNames
     private val genreTracksFlow = flowOf(emptyMap<String, RepositoryState<List<DomainTrackBrowserItem>>>())
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private val foldersFlow: kotlinx.coroutines.flow.Flow<RepositoryState<List<com.github.tidetunes.core.domain.repository.LibraryFolderItem>>> =
         _folderSort.flatMapLatest { sort ->
             _folderFilter.flatMapLatest { filter ->
@@ -90,30 +92,35 @@ class LibraryVM(
             }
         }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private val favoritesFlow = _favoritesSort.flatMapLatest { sort ->
         _favoritesFilter.flatMapLatest { filter ->
             favoritesRepository.favoriteTracks(sort, filter)
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private val historyFlow = _historySort.flatMapLatest { sort ->
         _historyFilter.flatMapLatest { filter ->
             historyRepository.recentTracks(sort = sort, filter = filter)
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private val losslessFlow = _losslessSort.flatMapLatest { sort ->
         _losslessFilter.flatMapLatest { filter ->
             losslessRepository.losslessTracks(sort, filter)
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private val hiResFlow = _hiResSort.flatMapLatest { sort ->
         _hiResFilter.flatMapLatest { filter ->
             losslessRepository.hiResTracks(sort, filter)
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private val downloadsFlow = _downloadsSort.flatMapLatest { sort ->
         _downloadsFilter.flatMapLatest { filter ->
             downloadCollectionRepository.downloadedTracks(sort, filter)

@@ -1,5 +1,6 @@
 package com.github.tidetunes.domain.importing
 
+import com.github.tidetunes.database.ArtworkEntity
 import com.github.tidetunes.database.SourceItemEntity
 import com.github.tidetunes.database.SourceItemSignature
 import com.github.tidetunes.database.SourceItemTypes
@@ -678,6 +679,39 @@ class RemoteLibraryImportCoordinatorTest {
         assertEquals(90, albumArtwork.albumId)
         assertEquals("/cache/artwork/album.png", albumArtwork.localPath)
         assertEquals("image/png", albumArtwork.mimeType)
+    }
+
+    @Test
+    fun refreshesExistingArtworkCachePathWithoutChangingItsLibraryAssociation() {
+        val existing = ArtworkEntity(
+            id = 7,
+            trackId = null,
+            albumId = 90,
+            contentHash = "same-content",
+            localPath = "/old-container/Library/Caches/artwork/same-content.jpg",
+            thumbnailPath = null,
+            width = 512,
+            height = 512,
+            mimeType = "image/jpeg",
+            pictureType = "CoverFront",
+        )
+        val refreshed = existing.withRefreshedCacheMetadata(
+            existing.copy(
+                trackId = 9,
+                albumId = null,
+                localPath = "/current-container/Library/Caches/artwork/same-content.jpg",
+                thumbnailPath = "/current-container/Library/Caches/artwork/same-content-thumb.jpg",
+            ),
+        )
+
+        assertEquals(7, refreshed.id)
+        assertEquals(null, refreshed.trackId)
+        assertEquals(90, refreshed.albumId)
+        assertEquals("/current-container/Library/Caches/artwork/same-content.jpg", refreshed.localPath)
+        assertEquals(
+            "/current-container/Library/Caches/artwork/same-content-thumb.jpg",
+            refreshed.thumbnailPath,
+        )
     }
 
     private fun sourceItem(

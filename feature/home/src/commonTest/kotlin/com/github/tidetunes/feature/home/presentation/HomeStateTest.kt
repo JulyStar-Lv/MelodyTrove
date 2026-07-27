@@ -16,6 +16,7 @@ class HomeStateTest {
         assertTrue(state.recentlyAddedAlbums.isEmpty())
         assertTrue(state.artists.isEmpty())
         assertTrue(state.pinnedPlaylists.isEmpty())
+        assertTrue(state.dailyPickTracks.isEmpty())
         assertTrue(state.recentTracks.isEmpty())
         assertNull(state.statistics)
     }

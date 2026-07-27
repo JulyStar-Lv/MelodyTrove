@@ -5,8 +5,10 @@ import androidx.lifecycle.viewModelScope
 import androidx.compose.ui.graphics.Color
 import com.github.tidetunes.core.domain.model.LibraryAlbumItem
 import com.github.tidetunes.core.domain.model.LibraryArtistItem
+import com.github.tidetunes.core.domain.model.LibraryTrackItem
 import com.github.tidetunes.core.domain.model.PlaylistSummary
 import com.github.tidetunes.core.domain.repository.LibraryRepository
+import com.github.tidetunes.core.domain.repository.FavoritesRepository
 import com.github.tidetunes.core.domain.repository.PlaylistRepository
 import com.github.tidetunes.core.presentation.theme.TideTunesBrand
 import com.github.tidetunes.feature.home.domain.HistoryPlayItem
@@ -26,16 +28,19 @@ class HomeViewModel(
     playlistRepository: PlaylistRepository,
     historyRepository: HomeHistoryRepository,
     statisticsRepository: HomeStatisticsRepository,
+    favoritesRepository: FavoritesRepository,
 ) : ViewModel() {
     private val _events = Channel<HomeEvent>(Channel.BUFFERED)
 
     val state = combine(
         combine(
+            libraryRepository.tracks,
             libraryRepository.albums,
             libraryRepository.artists,
             playlistRepository.playlistSummaries,
-        ) { albums, artists, playlists ->
-            Triple(albums, artists, playlists)
+            favoritesRepository.favoriteTrackIds,
+        ) { tracks, albums, artists, playlists, favoriteTrackIds ->
+            HomeLibraryContent(tracks, albums, artists, playlists, favoriteTrackIds)
         },
         combine(
             historyRepository.recentPlays,
@@ -44,14 +49,17 @@ class HomeViewModel(
             Pair(history, stats)
         },
     ) { libraryData, pair ->
-        val (albums, artists, playlists) = libraryData
+        val (tracks, albums, artists, playlists, favoriteTrackIds) = libraryData
         val (historyTracks, stats) = pair
         HomeState(
             featuredAlbums = albums.map { it.toHomeAlbum() }.toPersistentList(),
             recentlyAddedAlbums = albums.map { it.toHomeAlbum() }.toPersistentList(),
             artists = artists.map { it.toHomeArtist() }.toPersistentList(),
             pinnedPlaylists = playlists.map { it.toHomePlaylist() }.toPersistentList(),
-            recentTracks = historyTracks.map { it.toHomeRecentTrack() }.toPersistentList(),
+            dailyPickTracks = tracks.map { it.toHomeTrack(it.id in favoriteTrackIds) }.toPersistentList(),
+            recentTracks = historyTracks
+                .map { it.toHomeRecentTrack(it.trackId in favoriteTrackIds) }
+                .toPersistentList(),
             statistics = stats,
         )
     }.stateIn(
@@ -64,6 +72,8 @@ class HomeViewModel(
     fun onAction(action: HomeAction) {
         val event = when (action) {
             is HomeAction.PlayTrack -> return
+            is HomeAction.PlayLibraryTrack -> return
+            HomeAction.PlayDailyPicks -> return
             HomeAction.NavigateToDownloads -> HomeEvent.NavigateToDownloads
             HomeAction.NavigateToLibrary -> HomeEvent.NavigateToLibrary
             HomeAction.NavigateToSearch -> HomeEvent.NavigateToSearch
@@ -73,7 +83,15 @@ class HomeViewModel(
     }
 }
 
-private fun HistoryPlayItem.toHomeRecentTrack(): HomeRecentTrack = HomeRecentTrack(
+private data class HomeLibraryContent(
+    val tracks: List<LibraryTrackItem>,
+    val albums: List<LibraryAlbumItem>,
+    val artists: List<LibraryArtistItem>,
+    val playlists: List<PlaylistSummary>,
+    val favoriteTrackIds: Set<Long>,
+)
+
+private fun HistoryPlayItem.toHomeRecentTrack(liked: Boolean): HomeRecentTrack = HomeRecentTrack(
     id = trackId,
     mediaId = mediaId,
     durationMs = durationMs,
@@ -81,6 +99,18 @@ private fun HistoryPlayItem.toHomeRecentTrack(): HomeRecentTrack = HomeRecentTra
     subtitle = artist.orEmpty(),
     artworkIndex = artworkIndex,
     color = homeGradient(trackId).first(),
+    liked = liked,
+)
+
+private fun LibraryTrackItem.toHomeTrack(liked: Boolean): HomeRecentTrack = HomeRecentTrack(
+    id = id,
+    mediaId = mediaId,
+    durationMs = durationMs,
+    title = title,
+    subtitle = artist.orEmpty(),
+    artworkIndex = indexFor(id),
+    color = homeGradient(id).first(),
+    liked = liked,
 )
 
 private fun LibraryAlbumItem.toHomeAlbum(): HomeFeaturedAlbum = HomeFeaturedAlbum(
@@ -99,6 +129,7 @@ private fun LibraryArtistItem.toHomeArtist(): HomeArtist = HomeArtist(
         .take(2)
         .joinToString(separator = "") { it.first().uppercase() }
         .ifBlank { "?" },
+    artworkIndex = indexFor(id),
     colors = homeGradient(id),
 )
 

@@ -18,6 +18,7 @@ import io.github.vinceglb.filekit.FileKit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import androidx.compose.ui.res.painterResource
 import java.awt.Dimension
 import java.awt.GraphicsConfiguration
 import java.awt.GraphicsEnvironment
@@ -59,6 +60,7 @@ fun main() {
             },
             title = "TideTunes",
             state = windowState,
+            icon = painterResource("icon.png"),
         ) {
             DisposableEffect(window) {
                 val availableSize = calculateAvailableScreenSize(window.graphicsConfiguration)

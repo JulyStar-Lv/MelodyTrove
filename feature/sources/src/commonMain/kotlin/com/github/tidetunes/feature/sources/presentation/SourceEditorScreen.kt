@@ -37,6 +37,7 @@ import com.github.tidetunes.core.presentation.components.ConfirmDialog
 import com.github.tidetunes.core.presentation.components.FormSwitch
 import com.github.tidetunes.core.presentation.components.FormText
 import com.github.tidetunes.core.presentation.components.FormWidget
+import com.github.tidetunes.core.presentation.components.LocalTideBottomContentInset
 import com.github.tidetunes.core.presentation.components.TideCardSurface
 import com.github.tidetunes.core.presentation.components.TideIconButton
 import com.github.tidetunes.core.presentation.components.TideIconButtonColors
@@ -516,6 +517,7 @@ fun SourceEditorScreen(
     val storageType = state.storageType
     val spacing = TideTunesTokens.spacing
     val shapes = TideTunesTokens.shapes
+    val bottomContentInset = LocalTideBottomContentInset.current
 
     val testingColors = when (state.testStatus) {
         SourceConnectionTestStatus.None -> null
@@ -636,7 +638,12 @@ fun SourceEditorScreen(
                     modifier = Modifier
                         .verticalScroll(rememberScrollState())
                         .imePadding()
-                        .padding(horizontal = horizontalPadding, vertical = 12.dp),
+                        .padding(
+                            start = horizontalPadding,
+                            top = 12.dp,
+                            end = horizontalPadding,
+                            bottom = 12.dp + bottomContentInset,
+                        ),
                 ) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),

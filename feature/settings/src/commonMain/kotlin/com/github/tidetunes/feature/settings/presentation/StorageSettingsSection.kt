@@ -162,30 +162,40 @@ fun StorageSettingsSection(
                     },
                 )
                 if (state.capabilities.scheduledBackupSupported) {
-                    BackupSchedule.entries.forEach { schedule ->
-                        SettingsChoiceRow(
-                            title = stringResource(schedule.titleResource()),
-                            summary = stringResource(Res.string.settings_backup_schedule),
-                            selected = backup.schedule == schedule,
-                            onClick = {
-                                onAction(SettingsAction.SetBackupSettings(backup.copy(schedule = schedule)))
-                            },
-                        )
-                    }
-                    state.sourceAccounts.filter(SourceAccountSettingsItem::isWebDav).forEach { account ->
-                        val storageAccountId = account.accountId.toStorageRouteIdOrNull()
-                        SettingsChoiceRow(
-                            title = account.title,
-                            summary = stringResource(Res.string.settings_backup_webdav_account),
-                            selected = backup.webDavAccountId == storageAccountId,
-                            onClick = {
-                                onAction(
-                                    SettingsAction.SetBackupSettings(
-                                        backup.copy(webDavAccountId = storageAccountId)
+                    SettingsSelectRow(
+                        label = stringResource(Res.string.settings_backup_schedule),
+                        selected = backup.schedule,
+                        options = BackupSchedule.entries.toList(),
+                        optionLabel = { schedule -> stringResource(schedule.titleResource()) },
+                        onSelect = { schedule ->
+                            onAction(SettingsAction.SetBackupSettings(backup.copy(schedule = schedule)))
+                        },
+                    )
+                    val webDavAccounts = state.sourceAccounts
+                        .filter(SourceAccountSettingsItem::isWebDav)
+                        .mapNotNull { account ->
+                            account.accountId.toStorageRouteIdOrNull()?.let { accountId ->
+                                SettingsSelectOption(value = accountId.toString(), label = account.title)
+                            }
+                        }
+                    if (webDavAccounts.isNotEmpty()) {
+                        val selectedAccount = webDavAccounts.firstOrNull {
+                            it.value == backup.webDavAccountId?.toString()
+                        }
+                        SettingsSelectRow(
+                            label = stringResource(Res.string.settings_backup_webdav_account),
+                            selectedValue = selectedAccount?.value.orEmpty(),
+                            selectedLabel = selectedAccount?.label ?: "—",
+                            options = webDavAccounts,
+                            onSelect = { accountId ->
+                                accountId.toLongOrNull()?.let { storageAccountId ->
+                                    onAction(
+                                        SettingsAction.SetBackupSettings(
+                                            backup.copy(webDavAccountId = storageAccountId)
+                                        )
                                     )
-                                )
+                                }
                             },
-                            enabled = storageAccountId != null,
                         )
                     }
                     SettingsInfoRow(

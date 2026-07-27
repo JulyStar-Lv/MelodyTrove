@@ -8,5 +8,5 @@ import org.koin.dsl.module
 
 val homeFeatureModule = module {
     single<HomePinnedRepository> { DataStoreHomePinnedRepository(get(), get()) }
-    viewModel { HomeViewModel(get(), get(), get(), get()) }
+    viewModel { HomeViewModel(get(), get(), get(), get(), get()) }
 }

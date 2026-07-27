@@ -2,16 +2,18 @@ package com.github.tidetunes.navigation
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -21,10 +23,11 @@ import com.github.tidetunes.core.domain.model.AppSettings
 import com.github.tidetunes.core.domain.model.AppThemeMode
 import com.github.tidetunes.core.domain.repository.SettingsRepository
 import com.github.tidetunes.core.isRouteHome
+import com.github.tidetunes.core.isRouteNowPlaying
 import com.github.tidetunes.core.presentation.layout.WindowSizeClass
 import com.github.tidetunes.core.presentation.layout.rememberWindowSizeClass
 import com.github.tidetunes.core.presentation.navigation.MusicGraph
-import com.github.tidetunes.core.presentation.components.TideGlassScene
+import com.github.tidetunes.core.presentation.components.TideGlassOverlayScene
 import com.github.tidetunes.core.presentation.components.getBottomBarSpace
 import com.github.tidetunes.feature.importing.presentation.navigation.RouteImportType
 import com.github.tidetunes.service.playback.presentation.shell.PlaybackMiniPlayerHost
@@ -39,6 +42,7 @@ fun HomePage(
     scaffoldPadding: PaddingValues,
     currentTab: HomeTab,
     onTabSelected: (HomeTab) -> Unit,
+    onOpenQueue: () -> Unit,
 ) {
     val settingsRepository = koinInject<SettingsRepository>()
     val settings by settingsRepository.settings.collectAsState(AppSettings.Default)
@@ -46,7 +50,7 @@ fun HomePage(
     val globalNavController = LocalNavController.current
     val currentRootBackStackEntry by globalNavController.currentBackStackEntryAsState()
     val currentRootRoute = currentRootBackStackEntry?.destination?.route.orEmpty()
-    val showHomeChrome = isRouteHome(currentRootRoute)
+    val showHomeChrome = isRouteHome(currentRootRoute) || isRouteNowPlaying(currentRootRoute)
     val onOpenNowPlaying = {
         globalNavController.navigate(MusicGraph.NowPlaying)
     }
@@ -72,6 +76,7 @@ fun HomePage(
         PlaybackMiniPlayerHost(
             onOpenNowPlaying = onOpenNowPlaying,
             onBrowseLibrary = { onTabSelected(HomeTab.LIBRARY) },
+            onOpenQueue = onOpenQueue,
         )
     }
 
@@ -79,19 +84,22 @@ fun HomePage(
     val searchNavController = rememberNavController()
     val settingsNavController = rememberNavController()
 
-    TideGlassScene(modifier = Modifier.fillMaxSize()) {
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-            val windowSizeClass = rememberWindowSizeClass(
-                containerSize = androidx.compose.ui.unit.DpSize(maxWidth, maxHeight),
-            )
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding(),
+    ) {
+        val windowSizeClass = rememberWindowSizeClass(
+            containerSize = androidx.compose.ui.unit.DpSize(maxWidth, maxHeight),
+        )
 
-        val tabContent: @Composable (HomeTab) -> Unit = { tab ->
+        val tabContent: @Composable (HomeTab, PaddingValues) -> Unit = { tab, contentPadding ->
             HomeTabContent(
                 currentTab = tab,
                 libraryNavController = libraryNavController,
                 searchNavController = searchNavController,
                 settingsNavController = settingsNavController,
-                scaffoldPadding = scaffoldPadding,
+                scaffoldPadding = contentPadding,
                 onNavigateToDownloads = onNavigateToDownloads,
                 onNavigateToLibrary = { onTabSelected(HomeTab.LIBRARY) },
                 onNavigateToSearch = { onTabSelected(HomeTab.SEARCH) },
@@ -103,26 +111,32 @@ fun HomePage(
             )
         }
 
-            when (windowSizeClass) {
+        when (windowSizeClass) {
             WindowSizeClass.Compact -> {
-                Box(
-                    modifier = Modifier.padding(
-                        bottom = getBottomBarSpace(showHomeChrome, scaffoldPadding),
-                    ),
-                ) {
-                    tabContent(currentTab)
-                }
-                BottomBar(
-                    currentTab = currentTab,
-                    onTabSelected = onTabSelected,
-                    miniPlayerContent = miniPlayerContent,
-                    showMiniPlayer = showHomeChrome,
-                    showChrome = showHomeChrome,
-                    scaffoldPadding = scaffoldPadding,
+                TideGlassOverlayScene(
+                    modifier = Modifier.fillMaxSize(),
+                    contentBottomInset = getBottomBarSpace(showHomeChrome, scaffoldPadding),
+                    backdropContent = {
+                        tabContent(
+                            currentTab,
+                            PaddingValues(
+                                bottom = getBottomBarSpace(showHomeChrome, scaffoldPadding),
+                            ),
+                        )
+                    },
+                    overlayContent = {
+                        BottomBar(
+                            currentTab = currentTab,
+                            onTabSelected = onTabSelected,
+                            miniPlayerContent = miniPlayerContent,
+                            showMiniPlayer = showHomeChrome,
+                            showChrome = showHomeChrome,
+                            scaffoldPadding = scaffoldPadding,
+                        )
+                    },
                 )
             }
-            WindowSizeClass.Medium,
-            WindowSizeClass.Expanded -> {
+            WindowSizeClass.Medium -> {
                 Row(modifier = Modifier.fillMaxSize()) {
                     NavigationRailBar(
                         currentTab = currentTab,
@@ -137,10 +151,11 @@ fun HomePage(
                         showMiniPlayer = showHomeChrome,
                         miniPlayerContent = miniPlayerContent,
                     ) {
-                        tabContent(currentTab)
+                        tabContent(currentTab, scaffoldPadding)
                     }
                 }
             }
+            WindowSizeClass.Expanded,
             WindowSizeClass.Large,
             WindowSizeClass.XL -> {
                 Row(modifier = Modifier.fillMaxSize()) {
@@ -169,10 +184,9 @@ fun HomePage(
                         showMiniPlayer = showHomeChrome,
                         miniPlayerContent = miniPlayerContent,
                     ) {
-                        tabContent(currentTab)
+                        tabContent(currentTab, scaffoldPadding)
                     }
                 }
-            }
             }
         }
     }
@@ -185,16 +199,24 @@ internal fun RootContentPane(
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
-    Column(modifier = modifier) {
-        Box(modifier = Modifier.weight(1f)) {
-            content()
-        }
-        if (showMiniPlayer) {
+    if (!showMiniPlayer) {
+        Box(modifier = modifier) { content() }
+        return
+    }
+
+    TideGlassOverlayScene(
+        modifier = modifier,
+        backdropContent = { content() },
+        overlayContent = {
             Box(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center,
             ) {
                 miniPlayerContent()
             }
-        }
-    }
+        },
+    )
 }

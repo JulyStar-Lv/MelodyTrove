@@ -2,7 +2,9 @@ package com.github.tidetunes.feature.settings.presentation
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import com.github.tidetunes.core.presentation.components.TideLoadingIndicator
+import com.github.tidetunes.core.presentation.components.LocalTideBottomContentInset
 import com.github.tidetunes.core.presentation.theme.TideTunesBrand
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,10 +22,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -88,12 +91,15 @@ internal fun SettingsPageLayout(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val spacing = TideTunesTokens.spacing
+    val bottomContentInset = LocalTideBottomContentInset.current
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val horizontalPadding = spacing.pageCompact
+        val pageWidth = minOf(maxWidth, 800.dp)
         val showTopBar = maxWidth < 1024.dp || onBack != null
         Column(
             modifier = Modifier
-                .fillMaxSize()
+                .align(Alignment.TopCenter)
+                .width(pageWidth)
+                .fillMaxHeight()
                 .background(MiuixTheme.colorScheme.background),
         ) {
             if (showTopBar) {
@@ -103,7 +109,12 @@ internal fun SettingsPageLayout(
                 modifier = Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = horizontalPadding, vertical = 8.dp),
+                    .padding(
+                        start = spacing.pageCompact,
+                        top = spacing.xs,
+                        end = spacing.pageCompact,
+                        bottom = maxOf(TideTunesTokens.player.miniBarHeight, bottomContentInset) + spacing.lg,
+                    ),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
                 content = content,
             )
@@ -127,7 +138,9 @@ private fun SettingsTopBar(
         if (onBack != null) {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MiuixTheme.colorScheme.surfaceContainerHigh)
                     .clickable(onClick = onBack),
                 contentAlignment = Alignment.Center,
             ) {
@@ -188,26 +201,6 @@ private fun SettingsLeadingIcon(drawable: DrawableResource) {
 @Composable
 internal fun SettingsSection(title: String, content: @Composable ColumnScope.() -> Unit) {
     TideSettingsGroup(title = title, content = content)
-}
-
-@Composable
-internal fun SettingsChoiceRow(
-    title: String,
-    summary: String? = null,
-    selected: Boolean,
-    enabled: Boolean = true,
-    onClick: () -> Unit,
-) {
-    TidePreferenceRow(
-        title = title,
-        summary = summary,
-        enabled = enabled,
-        onClick = onClick,
-        trailing = {
-            ChoiceIndicator(selected = selected)
-        },
-        showDivider = false,
-    )
 }
 
 @Composable
@@ -346,7 +339,6 @@ internal fun SettingsDangerRow(
         enabled = enabled,
         onClick = onClick,
         titleColor = MiuixTheme.colorScheme.error,
-        showDivider = false,
     )
 }
 
@@ -504,19 +496,6 @@ internal fun SettingsInputDialog(
     }
 }
 
-@Composable
-private fun ChoiceIndicator(selected: Boolean) {
-    Box(
-        modifier = Modifier
-            .size(14.dp)
-            .clip(CircleShape)
-            .background(
-                if (selected) MiuixTheme.colorScheme.primary
-                else MiuixTheme.colorScheme.outline,
-            ),
-    )
-}
-
 internal fun formatBytes(bytes: Long?): String {
     if (bytes == null) return "—"
     if (bytes < 1024L) return "$bytes B"
@@ -548,12 +527,18 @@ internal fun SettingsSelectRow(
 ) {
     var menuOpen by remember { mutableStateOf(false) }
 
-    Box {
-        Row(
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.45f),
+    ) {
+        Box {
+            Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .heightIn(min = 68.dp)
                 .clickable(enabled = enabled) { menuOpen = true }
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(
@@ -602,11 +587,12 @@ internal fun SettingsSelectRow(
             }
         }
 
-        if (menuOpen) {
-            androidx.compose.ui.window.Popup(
-                alignment = Alignment.TopEnd,
-                onDismissRequest = { menuOpen = false },
-            ) {
+            if (menuOpen) {
+                Popup(
+                    alignment = Alignment.TopEnd,
+                    properties = PopupProperties(focusable = true),
+                    onDismissRequest = { menuOpen = false },
+                ) {
                 Column(
                     modifier = Modifier
                         .widthIn(min = 200.dp, max = 300.dp)
@@ -651,7 +637,14 @@ internal fun SettingsSelectRow(
                     }
                 }
             }
+            }
         }
+        Spacer(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.48f)),
+        )
     }
 }
 
@@ -660,6 +653,32 @@ internal data class SettingsSelectOption(
     val value: String,
     val label: String,
 )
+
+@Composable
+internal fun <T> SettingsSelectRow(
+    label: String,
+    selected: T,
+    options: List<T>,
+    optionLabel: @Composable (T) -> String,
+    subtitle: String? = null,
+    enabled: Boolean = true,
+    onSelect: (T) -> Unit,
+) {
+    val selectedIndex = options.indexOf(selected)
+    SettingsSelectRow(
+        label = label,
+        subtitle = subtitle,
+        selectedValue = selectedIndex.toString(),
+        selectedLabel = optionLabel(selected),
+        options = options.mapIndexed { index, option ->
+            SettingsSelectOption(value = index.toString(), label = optionLabel(option))
+        },
+        enabled = enabled,
+        onSelect = { value ->
+            value.toIntOrNull()?.let(options::getOrNull)?.let(onSelect)
+        },
+    )
+}
 
 // ── Action Row (destructive actions with confirm states) ──
 
