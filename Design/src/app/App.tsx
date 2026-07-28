@@ -3724,11 +3724,10 @@ const INITIAL_METADATA_PLUGINS: MetadataPluginModel[] = [
   },
 ];
 
-function MetadataPluginDialog({ plugin, onClose, onChange, onRemove }: {
+function MetadataPluginDialog({ plugin, onClose, onChange }: {
   plugin:MetadataPluginModel|null;
   onClose:()=>void;
   onChange:(plugin:MetadataPluginModel)=>void;
-  onRemove:(plugin:MetadataPluginModel)=>void;
 }) {
   const [configValues,setConfigValues] = useState<Record<string,string>>({});
   const [clearingCache,setClearingCache] = useState(false);
@@ -3778,13 +3777,7 @@ function MetadataPluginDialog({ plugin, onClose, onChange, onRemove }: {
               <Puzzle className="h-5 w-5"/>
             </span>
             <div className="min-w-0 flex-1 px-10 text-center sm:px-0 sm:text-left">
-              <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-                <h2 id="metadata-plugin-title" className="text-[19px] font-semibold text-foreground">{plugin.name}</h2>
-                <span className={cn("inline-flex h-5 items-center rounded-full px-2 text-[10px] font-semibold",
-                  plugin.enabled?"bg-[#3DCA8A]/12 text-[#2EAE75]":"bg-muted text-muted-foreground")}>
-                  {plugin.enabled?"Enabled":"Disabled"}
-                </span>
-              </div>
+              <h2 id="metadata-plugin-title" className="text-[19px] font-semibold text-foreground">{plugin.name}</h2>
               <p className="mt-1 text-[12px] leading-[17px] text-muted-foreground">{plugin.author} · v{plugin.version}</p>
             </div>
             <button type="button" aria-label="Close plugin settings" onClick={onClose}
@@ -3792,8 +3785,6 @@ function MetadataPluginDialog({ plugin, onClose, onChange, onRemove }: {
               <X className="h-4 w-4"/>
             </button>
           </div>
-
-          <p className="mt-4 rounded-[18px] bg-muted/55 px-4 py-3 text-[12px] leading-[18px] text-muted-foreground">{plugin.description}</p>
 
           {markdownFields.map(field=>(
             <section key={field.key} className="mt-5 rounded-[22px] border border-border bg-card p-4 sm:p-5" aria-labelledby={`plugin-guide-${field.key}`}>
@@ -3845,19 +3836,6 @@ function MetadataPluginDialog({ plugin, onClose, onChange, onRemove }: {
             </section>
           )}
 
-          <section className="mt-5" aria-labelledby="plugin-availability-title">
-            <p id="plugin-availability-title" className="mb-2 px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Availability</p>
-            <div className="overflow-hidden rounded-[22px] border border-border bg-card">
-              <div className="flex min-h-[64px] items-center gap-4 px-4 py-2.5">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[15px] font-medium text-foreground">Enable plugin</p>
-                  <p className="mt-1 text-[12px] leading-[17px] text-muted-foreground">Makes this provider available for manual lookup</p>
-                </div>
-                <DesignSwitch ariaLabel={`Enable ${plugin.name}`} checked={plugin.enabled} onChange={enabled=>patchPlugin({enabled})}/>
-              </div>
-            </div>
-          </section>
-
           <section className="mt-5" aria-labelledby="plugin-permissions-title">
             <p id="plugin-permissions-title" className="mb-2 px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Additional access</p>
             <div className="divide-y divide-border/60 overflow-hidden rounded-[22px] border border-border bg-card">
@@ -3877,24 +3855,11 @@ function MetadataPluginDialog({ plugin, onClose, onChange, onRemove }: {
             </div>
           </section>
 
-          <section className="mt-5" aria-labelledby="plugin-capabilities-title">
-            <p id="plugin-capabilities-title" className="mb-2 px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Capabilities</p>
-            <div className="flex flex-wrap gap-2 rounded-[22px] border border-border bg-card p-4">
-              {plugin.capabilities.map(capability=>
-                <span key={capability} className="inline-flex h-7 items-center rounded-full bg-muted px-3 text-[11px] font-medium text-foreground">{capability}</span>
-              )}
-            </div>
-          </section>
-
           <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-border/70 pt-5">
             <button type="button" onClick={clearCache} disabled={clearingCache}
               className="inline-flex h-10 items-center gap-2 rounded-full bg-muted px-4 text-[12px] font-semibold text-foreground outline-none hover:bg-muted/80 disabled:opacity-55 focus-visible:ring-2 focus-visible:ring-primary/40">
               <RefreshCw className={cn("h-3.5 w-3.5",clearingCache&&"animate-spin")}/>
               {clearingCache?"Clearing…":"Clear cache"}
-            </button>
-            <button type="button" onClick={()=>onRemove(plugin)}
-              className="inline-flex h-10 items-center gap-2 rounded-full px-4 text-[12px] font-semibold text-destructive outline-none hover:bg-destructive/10 focus-visible:ring-2 focus-visible:ring-destructive/35">
-              <Trash2 className="h-3.5 w-3.5"/>Uninstall
             </button>
             <button type="button" onClick={()=>{patchPlugin({configValues});onClose();}}
               className="ml-auto inline-flex h-10 items-center rounded-full bg-primary px-5 text-[12px] font-semibold text-primary-foreground outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-primary/40">
@@ -4682,7 +4647,7 @@ function SettingsPage({ sub, onSubChange, themeMode, onThemeModeChange }: {
         </div>
         <AddWebDavSourceDialog open={addSourceOpen} existingNames={sources.map(source=>source.name)} onClose={()=>setAddSourceOpen(false)} onAdd={addWebDavSource}/>
         <ManageWebDavSourceDialog source={editingSource} existingNames={sources.map(source=>source.name)} onClose={()=>setEditingSourceId(null)} onSave={saveWebDavSource} onDelete={deleteWebDavSource}/>
-        <MetadataPluginDialog plugin={editingPlugin} onClose={()=>setEditingPluginId(null)} onChange={updateMetadataPlugin} onRemove={requestPluginRemoval}/>
+        <MetadataPluginDialog plugin={editingPlugin} onClose={()=>setEditingPluginId(null)} onChange={updateMetadataPlugin}/>
         <MetadataPluginRemovalDialog plugin={pendingPluginRemoval} onClose={()=>setPendingPluginRemovalId(null)} onConfirm={confirmPluginRemoval}/>
       </>
     );
@@ -4695,7 +4660,7 @@ function SettingsPage({ sub, onSubChange, themeMode, onThemeModeChange }: {
       </div>
       <AddWebDavSourceDialog open={addSourceOpen} existingNames={sources.map(source=>source.name)} onClose={()=>setAddSourceOpen(false)} onAdd={addWebDavSource}/>
       <ManageWebDavSourceDialog source={editingSource} existingNames={sources.map(source=>source.name)} onClose={()=>setEditingSourceId(null)} onSave={saveWebDavSource} onDelete={deleteWebDavSource}/>
-      <MetadataPluginDialog plugin={editingPlugin} onClose={()=>setEditingPluginId(null)} onChange={updateMetadataPlugin} onRemove={requestPluginRemoval}/>
+      <MetadataPluginDialog plugin={editingPlugin} onClose={()=>setEditingPluginId(null)} onChange={updateMetadataPlugin}/>
       <MetadataPluginRemovalDialog plugin={pendingPluginRemoval} onClose={()=>setPendingPluginRemovalId(null)} onConfirm={confirmPluginRemoval}/>
     </>
   );
