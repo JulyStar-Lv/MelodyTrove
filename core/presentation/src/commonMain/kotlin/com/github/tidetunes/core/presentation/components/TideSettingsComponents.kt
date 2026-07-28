@@ -32,6 +32,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 fun TideSettingsGroup(
     title: String?,
     modifier: Modifier = Modifier,
+    maskBottomDivider: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val shapes = TideTunesTokens.shapes
@@ -56,13 +57,15 @@ fun TideSettingsGroup(
                 .background(MiuixTheme.colorScheme.surfaceContainer),
         ) {
             Column(content = content)
-            Spacer(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .align(Alignment.BottomCenter)
-                    .background(MiuixTheme.colorScheme.surfaceContainer),
-            )
+            if (maskBottomDivider) {
+                Spacer(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .align(Alignment.BottomCenter)
+                        .background(MiuixTheme.colorScheme.surfaceContainer),
+                )
+            }
         }
     }
 }

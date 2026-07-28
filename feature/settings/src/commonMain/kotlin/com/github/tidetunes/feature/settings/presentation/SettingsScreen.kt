@@ -136,17 +136,20 @@ fun SettingsScreen(
         )
 
         // Personalization
-        if (matches("appearance", "theme", "language", "lyrics", "translation", "alignment")) {
+        val showAppearance = matches("appearance", "theme", "language")
+        val showLyrics = matches("lyrics", "translation", "alignment")
+        if (showAppearance || showLyrics) {
             SettingsSectionCard(title = stringResource(Res.string.settings_personalization_section)) {
-                if (matches("appearance", "theme", "language")) {
+                if (showAppearance) {
                     SettingsNavRow(
                         title = stringResource(Res.string.settings_appearance_title),
                         summary = stringResource(Res.string.settings_appearance_card_summary),
                         icon = CoreRes.drawable.icon_image,
                         onClick = onNavigateToAppearance,
+                        showDivider = showLyrics,
                     )
                 }
-                if (matches("lyrics", "translation", "alignment")) {
+                if (showLyrics) {
                     SettingsNavRow(
                         title = stringResource(Res.string.settings_lyrics_title),
                         summary = stringResource(Res.string.settings_lyrics_card_summary),
@@ -172,11 +175,13 @@ fun SettingsScreen(
         }
 
         // Library & data
-        if (matches("library", "sources", "local", "webdav", "metadata", "plugins", "lyrico",
-                "network", "cache", "streaming", "storage", "data", "cleanup", "backup")
-        ) {
+        val showSources = matches("library", "sources", "local", "webdav")
+        val showPlugins = matches("metadata", "plugins", "lyrico")
+        val showNetworkCache = matches("network", "cache", "streaming")
+        val showStorage = matches("storage", "data", "cleanup", "backup")
+        if (showSources || showPlugins || showNetworkCache || showStorage) {
             SettingsSectionCard(title = stringResource(Res.string.settings_library_data_section)) {
-                if (matches("library", "sources", "local", "webdav")) {
+                if (showSources) {
                     val sourceCount = state.sourceAccounts.size
                     val readyCount = state.enabledSourceCount
                     SettingsNavRow(
@@ -188,25 +193,28 @@ fun SettingsScreen(
                         ),
                         icon = CoreRes.drawable.icon_cloud,
                         onClick = onNavigateToSource,
+                        showDivider = showPlugins || showNetworkCache || showStorage,
                     )
                 }
-                if (matches("metadata", "plugins", "lyrico")) {
+                if (showPlugins) {
                     SettingsNavRow(
                         title = stringResource(Res.string.settings_metadata_plugins),
                         summary = stringResource(Res.string.settings_metadata_plugins_summary),
                         icon = CoreRes.drawable.icon_setting,
                         onClick = onNavigateToPlugins,
+                        showDivider = showNetworkCache || showStorage,
                     )
                 }
-                if (matches("network", "cache", "streaming")) {
+                if (showNetworkCache) {
                     SettingsNavRow(
                         title = stringResource(Res.string.settings_network_cache_title),
                         summary = stringResource(Res.string.settings_network_cache_card_summary),
                         icon = CoreRes.drawable.icon_wifitethering,
                         onClick = onNavigateToNetworkCache,
+                        showDivider = showStorage,
                     )
                 }
-                if (matches("storage", "data", "cleanup", "backup")) {
+                if (showStorage) {
                     SettingsNavRow(
                         title = stringResource(Res.string.settings_storage_title),
                         summary = stringResource(
@@ -328,7 +336,11 @@ private fun SettingsSectionCard(
     title: String,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    TideSettingsGroup(title = title, content = content)
+    TideSettingsGroup(
+        title = title,
+        maskBottomDivider = false,
+        content = content,
+    )
 }
 
 // ── Nav Row ──
@@ -397,9 +409,9 @@ private fun SettingsNavRow(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 70.dp)
+                .padding(start = 70.dp, end = 16.dp)
                 .height(1.dp)
-                .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.35f)),
+                .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.05f)),
         )
     }
 }
