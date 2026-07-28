@@ -41,6 +41,9 @@ interface PluginDao {
     @Query("UPDATE plugin SET enabled = :enabled WHERE pluginId = :pluginId")
     suspend fun setEnabled(pluginId: String, enabled: Boolean)
 
+    @Query("UPDATE plugin SET enabled = 0")
+    suspend fun disableAll()
+
     @Query(
         """
         UPDATE plugin SET

@@ -9,12 +9,13 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.TransferListener
 import com.github.tidetunes.core.data.media.AssetRepository
+import com.github.tidetunes.core.domain.model.DiagnosticLogCategory
+import com.github.tidetunes.diagnostics.TideLogger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import uniffi.tidetunes_backend.tidetunesError
 import uniffi.tidetunes_backend.MusicId
 import java.io.IOException
 import java.io.PipedInputStream
@@ -72,7 +73,12 @@ class MusicPlayerDataSource(
                 } catch (e: IOException) {
                     break
                 } catch (e: Exception) {
-                    tidetunesError("load chunk failed, $e")
+                    TideLogger.error(
+                        DiagnosticLogCategory.Playback,
+                        "MusicPlayerDataSource",
+                        "Streaming chunk load failed",
+                        e.stackTraceToString(),
+                    )
                     break
                 }
             }

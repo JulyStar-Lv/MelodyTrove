@@ -8,8 +8,8 @@ import androidx.compose.runtime.compositionLocalOf
 import uniffi.tidetunes_backend.ArgInitializeApp
 import uniffi.tidetunes_backend.Backend
 import uniffi.tidetunes_backend.createBackend
-import uniffi.tidetunes_backend.tidetunesError
-import uniffi.tidetunes_backend.tidetunesLog
+import com.github.tidetunes.core.domain.model.DiagnosticLogCategory
+import com.github.tidetunes.diagnostics.TideLogger
 
 
 private fun normalizePath(p: String): String {
@@ -42,8 +42,12 @@ class Bridge(
         try {
             return block(internal())
         } catch (e: Exception) {
-            tidetunesError("run bridge failed: $e")
-            tidetunesError("run bridge failed stacktrace: ${e.stackTraceToString()}")
+            TideLogger.error(
+                DiagnosticLogCategory.App,
+                "Bridge",
+                "Bridge operation failed",
+                e.stackTraceToString(),
+            )
             return null
         }
     }
@@ -60,7 +64,12 @@ class Bridge(
         try {
             return block(internal())
         } catch (e: Exception) {
-            tidetunesError("run bridge failed: $e")
+            TideLogger.error(
+                DiagnosticLogCategory.App,
+                "Bridge",
+                "Synchronous bridge operation failed",
+                e.stackTraceToString(),
+            )
             toastRepository.emitToast(e.toString())
             return null
         }
@@ -72,7 +81,7 @@ class Bridge(
         }
         _backend = createBackend(_arg)
         _backend!!.init();
-        tidetunesLog("bridge initialized")
+        TideLogger.info(DiagnosticLogCategory.Startup, "Bridge", "Bridge initialized")
         _isInit = true
     }
 
@@ -83,6 +92,6 @@ class Bridge(
         _backend!!.destroy()
         _backend = null
         _isInit = false
-        tidetunesLog("bridge destroyed")
+        TideLogger.info(DiagnosticLogCategory.App, "Bridge", "Bridge destroyed")
     }
 }

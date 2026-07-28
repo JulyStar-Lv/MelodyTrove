@@ -20,6 +20,7 @@ fun SettingsRoot(
     onNavigateToPlugins: () -> Unit,
     onNavigateToNetworkCache: () -> Unit,
     onNavigateToStorage: () -> Unit,
+    onNavigateToDiagnostics: () -> Unit,
     onNavigateToAbout: () -> Unit,
     onNavigateToLicenses: () -> Unit,
     onNavigateToLibraryFolderImport: () -> Unit,
@@ -48,6 +49,7 @@ fun SettingsRoot(
             onNavigateToPlugins = onNavigateToPlugins,
             onNavigateToNetworkCache = onNavigateToNetworkCache,
             onNavigateToStorage = onNavigateToStorage,
+            onNavigateToDiagnostics = onNavigateToDiagnostics,
             onNavigateToAbout = onNavigateToAbout,
         )
         SettingsPage.Appearance -> AppearanceSettingsSection(
@@ -80,6 +82,7 @@ fun SettingsRoot(
             onBack = onBack,
             onAction = settingsVM::onAction,
         )
+        SettingsPage.Diagnostics -> DiagnosticsScreen(onBack = onBack)
         SettingsPage.About -> AboutSettingsSection(
             appVersion = appVersion,
             appBuildInfo = appBuildInfo,

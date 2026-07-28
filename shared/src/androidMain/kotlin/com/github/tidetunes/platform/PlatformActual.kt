@@ -2,6 +2,7 @@ package com.github.tidetunes.platform
 
 import android.graphics.BitmapFactory
 import android.app.LocaleManager
+import android.app.Application
 import android.os.Build
 import android.os.LocaleList
 import com.github.tidetunes.core.domain.model.AppLanguageMode
@@ -20,6 +21,11 @@ actual fun getAppDatabasePath(): String? {
     return appContext.getDatabasePath("tidetunes.db").absolutePath
 }
 
+actual fun getPlatformName(): String = "android"
+
+actual fun getProcessName(): String =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) Application.getProcessName() else appContext.packageName
+
 actual fun isSystemDynamicColorAvailable(): Boolean {
     return false
 }
@@ -33,6 +39,12 @@ actual fun platformSettingsCapabilities() =
         deviceDisconnectSupported = true,
         networkStatusSupported = true,
         diagnosticsExportSupported = true,
+        diagnosticsCenterSupported = true,
+        safeModeSupported = true,
+        platformExitInfoSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R,
+        historicalAnrTraceSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R,
+        incidentRecoverySupported = true,
+        fileShareSupported = true,
         floatingLyricsSupported = true,
         notificationLyricsSupported = true,
         bluetoothLyricsSupported = true,

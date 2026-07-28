@@ -52,6 +52,15 @@ class AppPreferencesRepository(
         }
     }
 
+    suspend fun clearPlaybackSession() {
+        dataStore.edit { preferences ->
+            preferences.remove(LAST_TRACK_ID_KEY)
+            preferences.remove(LAST_PLAYLIST_ID_KEY)
+            preferences.remove(LAST_POSITION_MS_KEY)
+            preferences.remove(LAST_WAS_PLAYING_KEY)
+        }
+    }
+
     suspend fun toggleFavoriteTrack(trackId: Long): Boolean {
         var isFavorite = false
         dataStore.edit { preferences ->

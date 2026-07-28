@@ -14,6 +14,7 @@ private const val ROUTE_LYRICS = "settings/lyrics"
 private const val ROUTE_SOURCE = "settings/source"
 private const val ROUTE_NETWORK_CACHE = "settings/network-cache"
 private const val ROUTE_STORAGE = "settings/storage"
+private const val ROUTE_DIAGNOSTICS = "settings/diagnostics"
 private const val ROUTE_ABOUT = "settings/about"
 private const val ROUTE_LICENSES = "settings/licenses"
 
@@ -44,6 +45,7 @@ fun SettingsTabGraph(
             onNavigateToPlugins = onNavigateToPlugins,
             onNavigateToNetworkCache = { navigate(ROUTE_NETWORK_CACHE) },
             onNavigateToStorage = { navigate(ROUTE_STORAGE) },
+            onNavigateToDiagnostics = { navigate(ROUTE_DIAGNOSTICS) },
             onNavigateToAbout = { navigate(ROUTE_ABOUT) },
             onNavigateToLicenses = { navigate(ROUTE_LICENSES) },
             onNavigateToLibraryFolderImport = onNavigateToLibraryFolderImport,
@@ -62,6 +64,7 @@ fun SettingsTabGraph(
         composable(ROUTE_SOURCE) { Route(SettingsPage.Source) }
         composable(ROUTE_NETWORK_CACHE) { Route(SettingsPage.NetworkCache) }
         composable(ROUTE_STORAGE) { Route(SettingsPage.Storage) }
+        composable(ROUTE_DIAGNOSTICS) { Route(SettingsPage.Diagnostics) }
         composable(ROUTE_ABOUT) { Route(SettingsPage.About) }
         composable(ROUTE_LICENSES) { Route(SettingsPage.Licenses) }
     }

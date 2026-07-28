@@ -7,10 +7,11 @@ import com.github.tidetunes.core.data.StorageRepositoryImpl
 import androidx.compose.ui.graphics.ImageBitmap
 import com.github.tidetunes.core.DataSourceKeyH
 import com.github.tidetunes.platform.byteArrayToImageBitmap
+import com.github.tidetunes.core.domain.model.DiagnosticLogCategory
+import com.github.tidetunes.diagnostics.TideLogger
 import uniffi.tidetunes_backend.AssetStream
 import uniffi.tidetunes_backend.ctGetAsset
 import uniffi.tidetunes_backend.ctGetAssetStream
-import uniffi.tidetunes_backend.tidetunesError
 import uniffi.tidetunes_backend.DataSourceKey
 import uniffi.tidetunes_backend.MusicId
 import uniffi.tidetunes_backend.StorageEntryLoc
@@ -38,7 +39,12 @@ class AssetRepository(
             }
             buf
         } catch (e: Exception) {
-            tidetunesError(e.toString())
+            TideLogger.error(
+                DiagnosticLogCategory.Cache,
+                "AssetRepository",
+                "Asset load failed",
+                e.stackTraceToString(),
+            )
             null
         }
     }

@@ -64,6 +64,7 @@ enum class SettingsPage {
     Source,
     NetworkCache,
     Storage,
+    Diagnostics,
     About,
     Licenses,
 }

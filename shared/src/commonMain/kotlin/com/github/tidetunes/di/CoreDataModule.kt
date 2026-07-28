@@ -14,6 +14,7 @@ import com.github.tidetunes.core.data.settings.RoomSourceSettingsRepository
 import com.github.tidetunes.core.data.settings.JsonSettingsBackupService
 import com.github.tidetunes.core.domain.model.SettingsCapabilities
 import com.github.tidetunes.core.domain.repository.DiagnosticsService
+import com.github.tidetunes.core.domain.repository.DiagnosticsRepository
 import com.github.tidetunes.core.domain.repository.AppDataClearService
 import com.github.tidetunes.core.domain.repository.LibraryMaintenanceService
 import com.github.tidetunes.core.domain.repository.SettingsMigration
@@ -44,6 +45,7 @@ import com.github.tidetunes.feature.home.data.RoomHomeHistoryRepository
 import com.github.tidetunes.feature.home.data.RoomHomeStatisticsRepository
 import com.github.tidetunes.feature.home.domain.HomeHistoryRepository
 import com.github.tidetunes.feature.home.domain.HomeStatisticsRepository
+import com.github.tidetunes.diagnostics.RustDiagnosticsRepository
 
 import com.github.tidetunes.source.api.MetaSourceRegistry
 import kotlinx.coroutines.CoroutineScope
@@ -78,8 +80,12 @@ val coreDataModule = module {
     }
     single<SettingsMigration> { RoomSettingsMigration(get(), get()) }
     single<SourceSettingsRepository> { RoomSourceSettingsRepository(get(), get()) }
-    single<StorageUsageRepository> { FileStorageUsageRepository() }
-    single<DiagnosticsService> { FileDiagnosticsService(get(), get(), get(), get(), get(), get()) }
+    single<DiagnosticsRepository> { RustDiagnosticsRepository }
+    single<StorageUsageRepository> { FileStorageUsageRepository(get()) }
+    single<DiagnosticsService> {
+        FileDiagnosticsService(get(), get(), get(), get(), get(), get(), get())
+    }
+    single { com.github.tidetunes.platform.diagnosticExportPresenter() }
     single<LibraryMaintenanceService> {
         RoomLibraryMaintenanceService(get(), get(), get(), get(), get())
     }

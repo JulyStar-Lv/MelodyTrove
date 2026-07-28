@@ -36,7 +36,8 @@ import uniffi.tidetunes_backend.MusicId
 import uniffi.tidetunes_backend.Playlist
 import uniffi.tidetunes_backend.PlaylistId
 import uniffi.tidetunes_backend.StorageId
-import uniffi.tidetunes_backend.tidetunesLog
+import com.github.tidetunes.core.domain.model.DiagnosticLogCategory
+import com.github.tidetunes.diagnostics.TideLogger
 import kotlin.math.max
 
 internal interface AndroidPlayerStateStore {
@@ -189,7 +190,11 @@ class PlayerControllerRepository internal constructor(
         _scope.launch {
             playerState.reload()
         }
-        tidetunesLog("media controller setup")
+        TideLogger.info(
+            DiagnosticLogCategory.Playback,
+            "PlayerControllerRepository",
+            "Media controller attached",
+        )
     }
 
     fun destroyMediaController() {
@@ -197,7 +202,11 @@ class PlayerControllerRepository internal constructor(
         playbackEngine = null
         _mediaController = null
 
-        tidetunesLog("media controller destroy")
+        TideLogger.info(
+            DiagnosticLogCategory.Playback,
+            "PlayerControllerRepository",
+            "Media controller detached",
+        )
     }
 
     override fun getCurrentPosition(): Long {
@@ -345,9 +354,17 @@ class PlayerControllerRepository internal constructor(
         val delayMs = max(newExpiredMs - System.currentTimeMillis(), 0)
         _sleepJob = _scope.launch {
             _sleep.update { state -> state.copy(enabled = true, expiredMs = newExpiredMs) }
-            tidetunesLog("schedule sleep")
+            TideLogger.info(
+                DiagnosticLogCategory.Playback,
+                "PlayerControllerRepository",
+                "Sleep timer scheduled",
+            )
             delay(delayMs)
-            tidetunesLog("sleep scheduled")
+            TideLogger.info(
+                DiagnosticLogCategory.Playback,
+                "PlayerControllerRepository",
+                "Sleep timer elapsed",
+            )
             playerState.emitPauseRequest()
             _sleep.update { state -> state.copy(enabled = false, expiredMs = 0) }
         }

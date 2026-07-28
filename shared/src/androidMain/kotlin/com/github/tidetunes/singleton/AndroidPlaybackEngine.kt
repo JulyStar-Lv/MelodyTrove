@@ -7,6 +7,8 @@ import androidx.media3.common.Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM
 import androidx.media3.common.Player.COMMAND_STOP
 import androidx.media3.session.MediaController
 import com.github.tidetunes.core.playUtil
+import com.github.tidetunes.core.domain.model.DiagnosticLogCategory
+import com.github.tidetunes.diagnostics.TideLogger
 import com.github.tidetunes.service.playback.domain.PlaybackEngine
 import com.github.tidetunes.service.playback.domain.PlaybackEngineFailureReason
 import com.github.tidetunes.service.playback.domain.PlaybackEngineLoadRequest
@@ -14,7 +16,6 @@ import com.github.tidetunes.service.playback.domain.PlaybackEngineLoadResult
 import com.github.tidetunes.service.playback.domain.PlaybackEngineUnsupportedReason
 import com.github.tidetunes.service.playback.domain.PlaybackPosition
 import kotlinx.coroutines.CoroutineScope
-import uniffi.tidetunes_backend.tidetunesError
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicReference
 
@@ -49,7 +50,11 @@ internal class MediaControllerAndroidPlaybackEngine(
             if (mediaController.isCommandAvailable(COMMAND_PLAY_PAUSE)) {
                 mediaController.play()
             } else {
-                tidetunesError("media controller resume failed, command COMMAND_PLAY_PAUSE is unavailable")
+                TideLogger.warn(
+                    DiagnosticLogCategory.Playback,
+                    "AndroidPlaybackEngine",
+                    "Resume command is unavailable",
+                )
             }
         }
     }
@@ -59,7 +64,11 @@ internal class MediaControllerAndroidPlaybackEngine(
             if (mediaController.isCommandAvailable(COMMAND_PLAY_PAUSE)) {
                 mediaController.pause()
             } else {
-                tidetunesError("media controller pause failed, command COMMAND_PLAY_PAUSE is unavailable")
+                TideLogger.warn(
+                    DiagnosticLogCategory.Playback,
+                    "AndroidPlaybackEngine",
+                    "Pause command is unavailable",
+                )
             }
         }
     }
@@ -69,7 +78,11 @@ internal class MediaControllerAndroidPlaybackEngine(
             if (mediaController.isCommandAvailable(COMMAND_STOP)) {
                 mediaController.stop()
             } else {
-                tidetunesError("media controller stop failed, command COMMAND_STOP is unavailable")
+                TideLogger.warn(
+                    DiagnosticLogCategory.Playback,
+                    "AndroidPlaybackEngine",
+                    "Stop command is unavailable",
+                )
             }
         }
     }
@@ -79,7 +92,11 @@ internal class MediaControllerAndroidPlaybackEngine(
             if (mediaController.isCommandAvailable(COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM)) {
                 mediaController.seekTo(positionMs.coerceAtLeast(0))
             } else {
-                tidetunesError("media controller seek failed, command COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM is unavailable")
+                TideLogger.warn(
+                    DiagnosticLogCategory.Playback,
+                    "AndroidPlaybackEngine",
+                    "Seek command is unavailable",
+                )
             }
         }
     }

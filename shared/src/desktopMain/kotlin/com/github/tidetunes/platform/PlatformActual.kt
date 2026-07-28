@@ -18,6 +18,10 @@ actual fun getAppDatabasePath(): String? {
     return "${getAppDocumentDir()}/tidetunes.db"
 }
 
+actual fun getPlatformName(): String = "desktop"
+
+actual fun getProcessName(): String = "TideTunes"
+
 actual fun isSystemDynamicColorAvailable(): Boolean {
     return false
 }
@@ -34,6 +38,12 @@ actual fun platformSettingsCapabilities() =
         replayGainSupported = true,
         audioEffectsSupported = true,
         diagnosticsExportSupported = true,
+        diagnosticsCenterSupported = true,
+        safeModeSupported = true,
+        platformExitInfoSupported = false,
+        historicalAnrTraceSupported = false,
+        incidentRecoverySupported = true,
+        fileShareSupported = true,
         settingsBackupSupported = true,
         scheduledBackupSupported = true,
         desktopShortcutsSupported = true,

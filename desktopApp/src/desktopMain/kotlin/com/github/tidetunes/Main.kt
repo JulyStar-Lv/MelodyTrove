@@ -4,6 +4,8 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
@@ -11,13 +13,18 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.github.tidetunes.di.AppInitializer
 import com.github.tidetunes.di.initKoin
+import com.github.tidetunes.diagnostics.DiagnosticsBootstrap
+import com.github.tidetunes.diagnostics.DiagnosticsBootstrapState
+import com.github.tidetunes.diagnostics.RustDiagnosticsRepository
+import com.github.tidetunes.diagnostics.recordKotlinUncaughtException
+import com.github.tidetunes.core.domain.recovery.StartupMode
+import com.github.tidetunes.core.domain.recovery.StartupPlan
+import com.github.tidetunes.core.domain.recovery.allowsNormalApplicationInitialization
 import com.github.tidetunes.core.domain.model.AppSettings
 import com.github.tidetunes.core.domain.repository.SettingsRepository
 import com.github.tidetunes.service.playback.domain.PlaybackController
 import io.github.vinceglb.filekit.FileKit
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.runBlocking
 import androidx.compose.ui.res.painterResource
 import java.awt.Dimension
 import java.awt.GraphicsConfiguration
@@ -30,6 +37,9 @@ import javax.swing.AbstractAction
 import javax.swing.JComponent
 import javax.swing.KeyStroke
 import kotlin.math.roundToInt
+import kotlin.system.exitProcess
+import org.koin.core.Koin
+import org.koin.core.KoinApplication
 
 private const val MinWindowWidth = 840
 private const val MinWindowHeight = 520
@@ -40,22 +50,31 @@ private const val WindowHeightRatio = 0.72
 
 fun main() {
     FileKit.init(appId = "TideTunes")
-    application {
-        val koinApp = initKoin()
+    DiagnosticsBootstrap.initialize()
+    installDesktopFatalHandler()
+    val initialDiagnosticsState = DiagnosticsBootstrap.finishPlatformExitCollection()
+    val runtime = DesktopApplicationRuntime()
+    val initialRecoveryIncidentIds =
+        initialDiagnosticsState.beginAutomaticDegradedRecovery()
+    if (initialDiagnosticsState.startupPlan.allowsNormalApplicationInitialization()) {
+        runtime.initialize(initialDiagnosticsState.startupPlan.disabledComponents)
+    }
 
-        val koin = koinApp.koin
-        AppInitializer.initializeBridge(koin)
-        AppInitializer.reloadRepositories(koin, CoroutineScope(SupervisorJob() + Dispatchers.Default))
-        val playbackController = remember(koin) { koin.get<PlaybackController>() }
-        val settingsRepository = remember(koin) { koin.get<SettingsRepository>() }
-        val appSettings by settingsRepository.settings.collectAsState(AppSettings.Default)
+    application {
+        var diagnosticsState by remember {
+            mutableStateOf<DiagnosticsBootstrapState>(initialDiagnosticsState)
+        }
+        var recoveryIncidentIds by remember {
+            mutableStateOf(initialRecoveryIncidentIds)
+        }
 
         val initialWindowSize = remember { calculateInitialWindowSize() }
         val windowState = rememberWindowState(size = initialWindowSize)
 
         Window(
             onCloseRequest = {
-                koinApp.close()
+                runtime.close()
+                runCatching { RustDiagnosticsRepository.shutdown() }
                 exitApplication()
             },
             title = "TideTunes",
@@ -70,13 +89,88 @@ fun main() {
                 )
                 onDispose {}
             }
-            DisposableEffect(window, appSettings.playerInteraction.desktopShortcutsEnabled) {
-                if (appSettings.playerInteraction.desktopShortcutsEnabled) {
-                    installPlaybackShortcuts(window.rootPane, playbackController)
+            if (diagnosticsState.safeMode) {
+                Root(
+                    diagnosticsState = diagnosticsState,
+                    onTryNormalStartup = { disabledComponents ->
+                        val incidentIds = diagnosticsState.recoveryIncidentIds()
+                        runCatching {
+                            RustDiagnosticsRepository.beginRecovery(disabledComponents)
+                            incidentIds.forEach { incidentId ->
+                                RustDiagnosticsRepository.markRecoveryAttempted(
+                                    incidentId,
+                                    disabledComponents,
+                                )
+                            }
+                            recoveryIncidentIds = incidentIds
+                            runtime.initialize(disabledComponents)
+                            diagnosticsState = diagnosticsState.copy(
+                                snapshot = RustDiagnosticsRepository.snapshot(),
+                                startupPlan = StartupPlan(StartupMode.NormalStartup),
+                            )
+                        }
+                    },
+                )
+            } else {
+                val koin = runtime.koin
+                val playbackController = remember(koin) { koin.get<PlaybackController>() }
+                val settingsRepository = remember(koin) { koin.get<SettingsRepository>() }
+                val appSettings by settingsRepository.settings.collectAsState(AppSettings.Default)
+                DisposableEffect(window, appSettings.playerInteraction.desktopShortcutsEnabled) {
+                    if (appSettings.playerInteraction.desktopShortcutsEnabled) {
+                        installPlaybackShortcuts(window.rootPane, playbackController)
+                    }
+                    onDispose { removePlaybackShortcuts(window.rootPane) }
                 }
-                onDispose { removePlaybackShortcuts(window.rootPane) }
+                Root(
+                    diagnosticsState = diagnosticsState,
+                    onStartupStable = {
+                        if (recoveryIncidentIds.isNotEmpty()) {
+                            RustDiagnosticsRepository.completeRecovery(recoveryIncidentIds)
+                            com.github.tidetunes.diagnostics.SafeModeRecoveryStore.clear()
+                            recoveryIncidentIds = emptyList()
+                        }
+                    },
+                )
             }
-            Root()
+        }
+    }
+}
+
+private class DesktopApplicationRuntime {
+    private var koinApp: KoinApplication? = null
+    val koin: Koin
+        get() = checkNotNull(koinApp).koin
+
+    fun initialize(disabledComponents: Set<String>) {
+        if (koinApp != null) return
+        val application = initKoin()
+        try {
+            AppInitializer.initializeBridge(application.koin, disabledComponents)
+            runBlocking {
+                AppInitializer.reloadRepositories(application.koin, disabledComponents)
+            }
+            koinApp = application
+        } catch (error: Throwable) {
+            application.close()
+            throw error
+        }
+    }
+
+    fun close() {
+        koinApp?.close()
+        koinApp = null
+    }
+}
+
+private fun installDesktopFatalHandler() {
+    val previous = Thread.getDefaultUncaughtExceptionHandler()
+    Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+        recordKotlinUncaughtException(thread.name, throwable)
+        if (previous != null) {
+            previous.uncaughtException(thread, throwable)
+        } else {
+            exitProcess(1)
         }
     }
 }

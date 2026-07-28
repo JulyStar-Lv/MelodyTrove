@@ -20,6 +20,10 @@ actual fun getAppCacheDir(): String = platformDirectory(NSCachesDirectory)
 
 actual fun getAppDatabasePath(): String? = "${getAppDocumentDir()}/tidetunes.db"
 
+actual fun getPlatformName(): String = "ios"
+
+actual fun getProcessName(): String = NSBundle.mainBundle.bundleIdentifier ?: "TideTunes"
+
 actual fun isSystemDynamicColorAvailable(): Boolean = false
 
 actual fun platformSettingsCapabilities() =
@@ -27,6 +31,13 @@ actual fun platformSettingsCapabilities() =
         dynamicColorSupported = false,
         customMusicDirectorySupported = true,
         secureCredentialStoreSupported = true,
+        diagnosticsExportSupported = true,
+        diagnosticsCenterSupported = true,
+        safeModeSupported = true,
+        platformExitInfoSupported = false,
+        historicalAnrTraceSupported = false,
+        incidentRecoverySupported = true,
+        fileShareSupported = true,
         settingsBackupSupported = true,
         scheduledBackupSupported = true,
     )

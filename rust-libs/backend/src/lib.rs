@@ -3,7 +3,7 @@ use std::sync::Arc;
 pub(crate) mod controllers;
 pub(crate) mod ctx;
 pub mod error;
-mod infra;
+pub mod infra;
 mod objects;
 pub mod schema;
 pub(crate) mod services;
@@ -22,7 +22,7 @@ pub use crate::services::{
 };
 use crate::{
     ctx::BackendContext,
-    infra::init_infra,
+    infra::init_infra_compat,
     services::{app_bootstrap, app_destroy},
 };
 
@@ -66,16 +66,37 @@ impl Backend {
 #[uniffi::export]
 pub fn create_backend(arg: ArgInitializeApp) -> Arc<Backend> {
     let cx = Arc::new(BackendContext::new());
-    init_infra(&arg.app_document_dir);
+    let _ = init_infra_compat(&arg.app_document_dir);
     Arc::new(Backend { cx, arg })
 }
 
 #[uniffi::export]
 pub fn tidetunes_log(msg: &str) {
-    tracing::info!("{}", msg);
+    if let Some(runtime) = infra::runtime_if_initialized() {
+        let _ = runtime;
+        let _ = infra::log_diagnostic_event(infra::DiagnosticLogEvent {
+            level: infra::DiagnosticLogLevel::Info,
+            category: infra::DiagnosticLogCategory::Unknown,
+            target: "KotlinLegacy".to_string(),
+            message: msg.to_string(),
+            detail: None,
+            correlation_id: None,
+            fields: Default::default(),
+        });
+    }
 }
 
 #[uniffi::export]
 pub fn tidetunes_error(msg: &str) {
-    tracing::error!("{}", msg);
+    if infra::runtime_if_initialized().is_some() {
+        let _ = infra::log_diagnostic_event(infra::DiagnosticLogEvent {
+            level: infra::DiagnosticLogLevel::Error,
+            category: infra::DiagnosticLogCategory::Unknown,
+            target: "KotlinLegacy".to_string(),
+            message: msg.to_string(),
+            detail: None,
+            correlation_id: None,
+            fields: Default::default(),
+        });
+    }
 }

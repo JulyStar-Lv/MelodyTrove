@@ -52,6 +52,10 @@ class FakePluginDao : PluginDao {
         update(pluginId) { it.copy(enabled = enabled) }
     }
 
+    override suspend fun disableAll() {
+        pluginsFlow.value = pluginsFlow.value.map { it.copy(enabled = false) }
+    }
+
     override suspend fun setLookupPermissions(
         pluginId: String,
         allowManual: Boolean,

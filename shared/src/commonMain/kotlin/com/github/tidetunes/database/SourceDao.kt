@@ -79,6 +79,16 @@ interface SourceAccountDao {
     @Query(
         """
         UPDATE source_account
+        SET enabled = 0,
+            updatedAt = :updatedAt
+        WHERE providerType != 'local'
+        """
+    )
+    suspend fun disableRemoteSources(updatedAt: Long)
+
+    @Query(
+        """
+        UPDATE source_account
         SET rootPath = :rootPath,
             updatedAt = :updatedAt
         WHERE id = :id AND providerType = 'webdav'

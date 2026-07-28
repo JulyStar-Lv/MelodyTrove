@@ -3,6 +3,7 @@ package com.github.tidetunes.core.data.settings
 import com.github.tidetunes.core.data.datastore.APP_DATA_STORE_FILE_NAME
 import com.github.tidetunes.core.domain.model.StorageUsage
 import com.github.tidetunes.core.domain.repository.StorageUsageRepository
+import com.github.tidetunes.core.domain.repository.DiagnosticsRepository
 import com.github.tidetunes.platform.getAppCacheDir
 import com.github.tidetunes.platform.getAppDatabasePath
 import com.github.tidetunes.platform.getAppDocumentDir
@@ -11,6 +12,7 @@ import okio.Path
 import okio.Path.Companion.toPath
 
 class FileStorageUsageRepository(
+    private val diagnosticsRepository: DiagnosticsRepository,
     private val fileSystem: FileSystem = FileSystem.SYSTEM,
 ) : StorageUsageRepository {
 
@@ -25,7 +27,7 @@ class FileStorageUsageRepository(
             DOWNLOAD_DIR_NAMES.flatMap { name -> listOf(cacheDir / name, documentDir / name) }
         )
         val databaseBytes = databasePath?.let { sumExisting(databaseRelatedPaths(it)) }
-        val logBytes = null
+        val logBytes = runCatching { diagnosticsRepository.getStorageUsage().totalBytes }.getOrNull()
         val totalRoots = mutableListOf(cacheDir, documentDir)
         if (databasePath != null && totalRoots.none { root -> databasePath.isWithin(root) }) {
             totalRoots += databasePath

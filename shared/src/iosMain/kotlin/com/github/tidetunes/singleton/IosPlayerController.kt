@@ -28,7 +28,8 @@ import kotlinx.coroutines.launch
 import uniffi.tidetunes_backend.MusicId
 import uniffi.tidetunes_backend.Playlist
 import uniffi.tidetunes_backend.PlaylistId
-import uniffi.tidetunes_backend.tidetunesError
+import com.github.tidetunes.core.domain.model.DiagnosticLogCategory
+import com.github.tidetunes.diagnostics.TideLogger
 import kotlin.math.max
 
 class IosPlayerController internal constructor(
@@ -203,7 +204,12 @@ class IosPlayerController internal constructor(
                     playbackResource = null
                     playbackResourceResolver.release(resource)
                 }
-                tidetunesError("iOS playback failed: $error")
+                TideLogger.error(
+                    DiagnosticLogCategory.Playback,
+                    "IosPlayerController",
+                    "iOS playback failed",
+                    error.stackTraceToString(),
+                )
                 toastRepository.emitToast(error.toString())
                 playerRepository.resetCurrent()
                 playerRepository.setIsPlaying(false)

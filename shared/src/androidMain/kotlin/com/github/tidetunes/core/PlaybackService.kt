@@ -47,8 +47,8 @@ import uniffi.tidetunes_backend.Playlist
 import com.github.tidetunes.singleton.Bridge
 import org.koin.android.ext.android.inject
 import uniffi.tidetunes_backend.MusicAbstract
-import uniffi.tidetunes_backend.tidetunesError
-import uniffi.tidetunes_backend.tidetunesLog
+import com.github.tidetunes.core.domain.model.DiagnosticLogCategory
+import com.github.tidetunes.diagnostics.TideLogger
 
 
 const val PLAYER_TO_PREV_COMMAND = "PLAYER_TO_PREV_COMMAND";
@@ -72,7 +72,11 @@ class PlaybackService : MediaSessionService() {
     @OptIn(UnstableApi::class)
     override fun onCreate() {
         super.onCreate()
-        tidetunesLog("Playback service creating...")
+        TideLogger.info(
+            DiagnosticLogCategory.Playback,
+            "PlaybackService",
+            "Playback service creating",
+        )
         setMediaNotificationProvider(
             DefaultMediaNotificationProvider(this).apply {
                 setSmallIcon(R.drawable.tidetunes_notification_small_icon)
@@ -199,7 +203,11 @@ class PlaybackService : MediaSessionService() {
                 playerRepository.notifyDurationChanged()
             }
         })
-        tidetunesLog("Playback service created")
+        TideLogger.info(
+            DiagnosticLogCategory.Playback,
+            "PlaybackService",
+            "Playback service created",
+        )
 
         serviceScope.launch(Dispatchers.Main) {
             settingsRepository.settings.collect { settings ->
@@ -215,7 +223,11 @@ class PlaybackService : MediaSessionService() {
                 if (player.isCommandAvailable(COMMAND_PLAY_PAUSE)) {
                     player.pause()
                 } else {
-                    tidetunesError("media player pause failed, command COMMAND_PLAY_PAUSE is unavailable")
+                    TideLogger.warn(
+                        DiagnosticLogCategory.Playback,
+                        "PlaybackService",
+                        "Pause command is unavailable",
+                    )
                 }
             }
         }
@@ -275,7 +287,12 @@ class PlaybackService : MediaSessionService() {
             val resource = when (val result = playbackResourceResolver.resolve(music)) {
                 is SourcePlaybackResult.Success -> result.resource
                 is SourcePlaybackResult.Failure -> {
-                    tidetunesError("Android playback resource resolve failed: ${result.reason}")
+                    TideLogger.error(
+                        DiagnosticLogCategory.Playback,
+                        "PlaybackService",
+                        "Playback resource resolution failed",
+                        result.reason.toString(),
+                    )
                     playerRepository.resetCurrent()
                     return@launch
                 }

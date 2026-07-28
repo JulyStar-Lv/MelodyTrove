@@ -70,6 +70,7 @@ fun SettingsScreen(
     onNavigateToPlugins: () -> Unit,
     onNavigateToNetworkCache: () -> Unit,
     onNavigateToStorage: () -> Unit,
+    onNavigateToDiagnostics: () -> Unit,
     onNavigateToAbout: () -> Unit,
 ) {
     var searchQuery by remember { mutableStateOf("") }
@@ -221,8 +222,29 @@ fun SettingsScreen(
         }
 
         // App & info
-        if (matches("about", "version", "build", "privacy", "licenses")) {
+        if (matches("about", "version", "build", "privacy", "licenses", "logs", "diagnostics",
+                "incident", "crash", "safe mode")
+        ) {
             SettingsSectionCard(title = stringResource(Res.string.settings_app_info_section)) {
+                if (shouldShowDiagnosticsCenter(
+                        state.capabilities,
+                        matches(
+                            "logs",
+                            "diagnostics",
+                            "incident",
+                            "crash",
+                            "safe mode",
+                            "privacy",
+                        ),
+                    )
+                ) {
+                    SettingsNavRow(
+                        title = stringResource(Res.string.diagnostics_title),
+                        summary = stringResource(Res.string.diagnostics_card_summary),
+                        icon = CoreRes.drawable.icon_setting,
+                        onClick = onNavigateToDiagnostics,
+                    )
+                }
                 SettingsNavRow(
                     title = stringResource(Res.string.settings_about_title),
                     summary = stringResource(
@@ -244,6 +266,7 @@ fun SettingsScreen(
                 "library", "local", "webdav", "metadata", "lyrico", "cache",
                 "streaming", "data", "cleanup", "backup", "version", "build",
                 "privacy", "licenses",
+                "logs", "diagnostics", "incident", "crash", "safe mode",
             )
         ) {
             Box(
@@ -270,6 +293,11 @@ fun SettingsScreen(
         }
     }
 }
+
+internal fun shouldShowDiagnosticsCenter(
+    capabilities: com.github.tidetunes.core.domain.model.SettingsCapabilities,
+    queryMatches: Boolean,
+): Boolean = capabilities.diagnosticsCenterSupported && queryMatches
 
 @Composable
 private fun SettingsMobileHeader(modifier: Modifier = Modifier) {
