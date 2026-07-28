@@ -14,9 +14,9 @@ kotlin {
         iosSimulatorArm64(),
     ).forEach { iosTarget ->
         iosTarget.binaries.framework {
-            baseName = "TideTunesSearchFeature"
+            baseName = "SearchFeature"
             isStatic = true
-            binaryOption("bundleId", "com.github.tidetunes.feature.search")
+            binaryOption("bundleId", "io.github.julystar.musicapp.feature.search")
         }
     }
 
@@ -49,7 +49,7 @@ kotlin {
 }
 
 android {
-    namespace = "com.github.tidetunes.feature.search"
+    namespace = "io.github.julystar.musicapp.feature.search"
     compileSdk = 37
     defaultConfig {
         minSdk = 29

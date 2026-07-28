@@ -18,7 +18,7 @@ fn main() {
             "src/engine/quickjs_compat.c".into(),
         ])
         .warnings(false)
-        .compile("tidetunes_quickjs");
+        .compile("musicapp_quickjs");
     println!("cargo:rerun-if-changed=src/engine/quickjs_compat.c");
     println!("cargo:rerun-if-changed=src/engine/quickjs_compat.h");
 }

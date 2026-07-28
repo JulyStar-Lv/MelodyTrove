@@ -9,13 +9,13 @@ use std::{
     time::{Duration, Instant},
 };
 
-use bytes::Bytes;
-use serde::{Deserialize, Serialize};
-use tidetunes_async_runtime::tokio_runtime;
-use tidetunes_audio_metadata::{
+use async_runtime::tokio_runtime;
+use audio_metadata::{
     read_metadata, MetadataError, NormalizedMetadata, RangeSource, ReaderLimits, StorageRangeSource,
 };
-use tidetunes_storage_backend::{BuildWebdavArg, ByteRange, Entry, StorageBackend, Webdav};
+use bytes::Bytes;
+use serde::{Deserialize, Serialize};
+use storage_backend::{BuildWebdavArg, ByteRange, Entry, StorageBackend, Webdav};
 
 #[derive(Serialize)]
 struct ScanReport {
@@ -115,24 +115,24 @@ impl RangeSource for CountingSource {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let total_started = Instant::now();
-    let address = required_env("TIDETUNES_WEBDAV_ADDRESS")?;
-    let username = required_env("TIDETUNES_WEBDAV_USERNAME")?;
-    let password = required_env("TIDETUNES_WEBDAV_PASSWORD")?;
-    let start_index = optional_env("TIDETUNES_SCAN_START", 0_usize)?;
-    let limit = optional_env("TIDETUNES_SCAN_LIMIT", 50_usize)?;
-    let timeout_secs = optional_env("TIDETUNES_SCAN_FILE_TIMEOUT_SECS", 30_u64)?;
-    let concurrency = optional_env("TIDETUNES_SCAN_CONCURRENCY", 4_usize)?;
+    let address = required_env("MUSICAPP_WEBDAV_ADDRESS")?;
+    let username = required_env("MUSICAPP_WEBDAV_USERNAME")?;
+    let password = required_env("MUSICAPP_WEBDAV_PASSWORD")?;
+    let start_index = optional_env("MUSICAPP_SCAN_START", 0_usize)?;
+    let limit = optional_env("MUSICAPP_SCAN_LIMIT", 50_usize)?;
+    let timeout_secs = optional_env("MUSICAPP_SCAN_FILE_TIMEOUT_SECS", 30_u64)?;
+    let concurrency = optional_env("MUSICAPP_SCAN_CONCURRENCY", 4_usize)?;
     if concurrency == 0 {
-        return Err("TIDETUNES_SCAN_CONCURRENCY must be greater than zero".into());
+        return Err("MUSICAPP_SCAN_CONCURRENCY must be greater than zero".into());
     }
     let limits = ReaderLimits {
         block_size: optional_env(
-            "TIDETUNES_SCAN_BLOCK_SIZE",
+            "MUSICAPP_SCAN_BLOCK_SIZE",
             ReaderLimits::default().block_size,
         )?,
         ..ReaderLimits::default()
     };
-    let output = env::var("TIDETUNES_SCAN_OUTPUT").ok();
+    let output = env::var("MUSICAPP_SCAN_OUTPUT").ok();
     let previous = load_previous_report()?;
     let backend: Arc<dyn StorageBackend + Send + Sync> = Arc::new(Webdav::new(BuildWebdavArg {
         addr: address,
@@ -232,7 +232,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn load_previous_report() -> Result<HashMap<String, PreviousFile>, Box<dyn std::error::Error>> {
-    let Some(path) = env::var("TIDETUNES_SCAN_PREVIOUS").ok() else {
+    let Some(path) = env::var("MUSICAPP_SCAN_PREVIOUS").ok() else {
         return Ok(HashMap::new());
     };
     let report: PreviousReport = serde_json::from_slice(&fs::read(path)?)?;

@@ -29,10 +29,10 @@ kotlin {
 
 compose.desktop {
     application {
-        mainClass = "com.github.tidetunes.MainKt"
+        mainClass = "io.github.julystar.musicapp.MainKt"
         nativeDistributions {
             targetFormats(TargetFormat.Deb, TargetFormat.Msi, TargetFormat.Dmg)
-            packageName = "TideTunes"
+            packageName = "MelodyTrove"
             packageVersion = appVersionName
             linux {
                 iconFile.set(project.file("src/desktopMain/resources/icon.png"))

@@ -1,9 +1,9 @@
 use std::io::ErrorKind;
 
+use async_runtime::tokio_runtime;
 use bytes::Bytes;
 use futures_util::future::BoxFuture;
 use reqwest::{header::CONTENT_RANGE, StatusCode};
-use tidetunes_async_runtime::tokio_runtime;
 
 #[derive(Debug, Clone)]
 pub struct Entry {

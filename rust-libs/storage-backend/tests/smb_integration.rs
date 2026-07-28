@@ -1,14 +1,12 @@
 use std::{env, fs, path::PathBuf, sync::Arc, time::Duration};
 
-use tidetunes_storage_backend::{
-    BuildSmbArg, ByteRange, SmbBackend, StorageBackend, StorageBackendError,
-};
+use storage_backend::{BuildSmbArg, ByteRange, SmbBackend, StorageBackend, StorageBackendError};
 
-const AUTH_URL: &str = "TIDETUNES_SMB_TEST_AUTH_URL";
-const GUEST_URL: &str = "TIDETUNES_SMB_TEST_GUEST_URL";
-const USERNAME: &str = "TIDETUNES_SMB_TEST_USERNAME";
-const PASSWORD: &str = "TIDETUNES_SMB_TEST_PASSWORD";
-const FIXTURE_DIR: &str = "TIDETUNES_SMB_TEST_FIXTURE_DIR";
+const AUTH_URL: &str = "MUSICAPP_SMB_TEST_AUTH_URL";
+const GUEST_URL: &str = "MUSICAPP_SMB_TEST_GUEST_URL";
+const USERNAME: &str = "MUSICAPP_SMB_TEST_USERNAME";
+const PASSWORD: &str = "MUSICAPP_SMB_TEST_PASSWORD";
+const FIXTURE_DIR: &str = "MUSICAPP_SMB_TEST_FIXTURE_DIR";
 
 fn required_env(name: &str) -> String {
     env::var(name)

@@ -70,7 +70,7 @@ jobs:
           if ./gradlew \
             :shared:compileKotlinDesktop \
             :shared:desktopTest \
-            --tests 'com.github.tidetunes.plugin.*' \
+            --tests 'io.github.julystar.musicapp.plugin.*' \
             --no-daemon \
             --no-configuration-cache \
             --console=plain \

@@ -1,11 +1,11 @@
-# TideTunes Room KMP Schema
+# MelodyTrove Room KMP Schema
 
 Date: 2026-07-28
 
-The shared Room database is `tidetunes.db`. Android, iOS, and Desktop use
+The shared Room database is `library.db`. Android, iOS, and Desktop use
 platform-specific builders with bundled SQLite. Schema versions 1 through 19 are
 exported under
-`shared/schemas/com.github.tidetunes.database.TideTunesDatabase/`.
+`shared/schemas/io.github.julystar.musicapp.database.AppDatabase/`.
 
 ## Ownership
 

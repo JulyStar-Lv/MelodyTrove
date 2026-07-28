@@ -70,7 +70,7 @@ jobs:
           sudo apt-get install --yes --no-install-recommends samba netcat-openbsd
           sudo systemctl stop smbd nmbd 2>/dev/null || true
 
-          fixture=/tmp/tidetunes-smb-fixture
+          fixture=/tmp/musicapp-smb-fixture
           sudo mkdir -p "${fixture}/音乐" "${fixture}/restricted"
           printf '0123456789' | sudo tee "${fixture}/range.bin" >/dev/null
           printf '0123456789' | sudo tee "${fixture}/mutable.bin" >/dev/null
@@ -81,9 +81,9 @@ jobs:
           sudo chmod 000 "${fixture}/restricted"
 
           test_password="$(openssl rand -hex 24)"
-          sudo useradd --no-create-home --shell /usr/sbin/nologin tidetunes-smb
+          sudo useradd --no-create-home --shell /usr/sbin/nologin musicapp-smb
           printf '%s\n%s\n' "${test_password}" "${test_password}" | \
-            sudo smbpasswd -a -s tidetunes-smb
+            sudo smbpasswd -a -s musicapp-smb
 
           sudo tee "${RUNNER_TEMP}/smb.conf" >/dev/null <<EOF
           [global]
@@ -99,7 +99,7 @@ jobs:
           path = ${fixture}
           read only = yes
           guest ok = no
-          valid users = tidetunes-smb
+          valid users = musicapp-smb
 
           [guest]
           path = ${fixture}
@@ -118,17 +118,17 @@ jobs:
           nc -z 127.0.0.1 445
 
           {
-            echo "TIDETUNES_SMB_TEST_AUTH_URL=smb://127.0.0.1/authenticated"
-            echo "TIDETUNES_SMB_TEST_GUEST_URL=smb://127.0.0.1/guest"
-            echo "TIDETUNES_SMB_TEST_USERNAME=tidetunes-smb"
-            echo "TIDETUNES_SMB_TEST_PASSWORD=${test_password}"
-            echo "TIDETUNES_SMB_TEST_FIXTURE_DIR=${fixture}"
+            echo "MUSICAPP_SMB_TEST_AUTH_URL=smb://127.0.0.1/authenticated"
+            echo "MUSICAPP_SMB_TEST_GUEST_URL=smb://127.0.0.1/guest"
+            echo "MUSICAPP_SMB_TEST_USERNAME=musicapp-smb"
+            echo "MUSICAPP_SMB_TEST_PASSWORD=${test_password}"
+            echo "MUSICAPP_SMB_TEST_FIXTURE_DIR=${fixture}"
           } >> "${GITHUB_ENV}"
 
       - name: Run ignored SMB integration tests
         run: >-
           cargo test --manifest-path rust-libs/Cargo.toml
-          --package tidetunes-storage-backend
+          --package storage-backend
           --test smb_integration -- --ignored --nocapture
 
   android:

@@ -1,11 +1,13 @@
-# TideTunes
+# MelodyTrove
 
 [English](./README.md) · [简体中文](./README.zh-CN.md)
 
-TideTunes is a self-hosted and local-first music player built with Kotlin Multiplatform, Compose Multiplatform, Rust, and UniFFI. It provides one shared music library across Android, iOS, and Desktop while keeping playback resources, credentials, and provider-specific details behind explicit source boundaries.
+MelodyTrove（旋律珍藏）is a self-hosted and local-first music player built with Kotlin Multiplatform, Compose Multiplatform, Rust, and UniFFI. It provides one shared music library across Android, iOS, and Desktop while keeping playback resources, credentials, and provider-specific details behind explicit source boundaries.
+
+> This project was formerly published as TideTunes. Existing installs and integrations are covered by the documented compatibility migration.
 
 > [!IMPORTANT]
-> TideTunes is under active development. The current app version is `0.3.0`; user-facing behavior, database migrations, and extension APIs may continue to evolve before a stable release.
+> MelodyTrove is under active development. The current app version is `0.3.0`; user-facing behavior, database migrations, and extension APIs may continue to evolve before a stable release.
 
 ## Highlights
 
@@ -68,7 +70,7 @@ Fast and Standard persist per-source artwork presence in `track_source_ref` with
 
 ### Lyrico-compatible metadata plugins
 
-TideTunes supports user-supplied ZIP plugins that implement Lyrico Plugin API v1-v3 `MetaSource` behavior. Plugins extend metadata, cover, and lyric lookup; they are intentionally separate from general playback `MusicSource` providers.
+MelodyTrove supports user-supplied ZIP plugins that implement Lyrico Plugin API v1-v3 `MetaSource` behavior. Plugins extend metadata, cover, and lyric lookup; they are intentionally separate from general playback `MusicSource` providers.
 
 Accepted manual matches update the library's canonical metadata without modifying the audio
 file. Those descriptive fields remain protected during background scans until **Reset from
@@ -83,7 +85,7 @@ Plugin ZIP
   -> observable MetaSource registry
   -> lazy isolated QuickJS worker
   -> searchSongs / getLyrics / searchCovers
-  -> normalized TideTunes metadata results
+  -> normalized MelodyTrove metadata results
 ```
 
 Implemented plugin capabilities include:
@@ -97,7 +99,7 @@ Implemented plugin capabilities include:
 - Host APIs for HTTP, cache, crypto, base64, bytes, compression, XML, logging, app, and runtime information.
 - Redirect and private-network validation, response-size limits, and sensitive-log filtering.
 
-Third-party plugin ZIPs are not bundled or downloaded by TideTunes; users provide them locally. See [Plugin Runtime](./docs/plugin-runtime.md) for the compatibility and security model.
+Third-party plugin ZIPs are not bundled or downloaded by MelodyTrove; users provide them locally. See [Plugin Runtime](./docs/plugin-runtime.md) for the compatibility and security model.
 
 ## Architecture
 
@@ -151,7 +153,7 @@ More detailed documents:
 ## Repository Structure
 
 ```text
-TideTunes/
+MelodyTrove/
 ├── androidApp/                  Android application entry point
 ├── desktopApp/                  Desktop JVM application entry point
 ├── iosApp/                      SwiftUI container and Xcode project
@@ -250,8 +252,8 @@ sudo apt-get install --yes libasound2-dev pkg-config
 Clone the repository:
 
 ```bash
-git clone https://github.com/JulyStar-Lv/TideTunes.git
-cd TideTunes
+git clone https://github.com/JulyStar-Lv/MelodyTrove.git
+cd MelodyTrove
 ```
 
 ### Android
@@ -293,10 +295,10 @@ Compose Desktop is configured for DMG, MSI, and DEB distributions.
 Open the Xcode project:
 
 ```bash
-open iosApp/TideTunes.xcodeproj
+open iosApp/App.xcodeproj
 ```
 
-Select the `TideTunes` scheme and an arm64 simulator or physical device. The Xcode build phase invokes:
+Select the `App` scheme and an arm64 simulator or physical device. The Xcode build phase invokes:
 
 ```bash
 ./gradlew :shared:embedAndSignAppleFrameworkForXcode
@@ -306,8 +308,8 @@ A command-line simulator build can be run with:
 
 ```bash
 xcodebuild \
-  -project iosApp/TideTunes.xcodeproj \
-  -scheme TideTunes \
+  -project iosApp/App.xcodeproj \
+  -scheme App \
   -configuration Debug \
   -sdk iphonesimulator \
   -destination 'generic/platform=iOS Simulator' \
@@ -376,7 +378,7 @@ Some live WebDAV tests require runtime-provided credentials. Secrets must never 
 
 - The project is still pre-stable and does not guarantee backward compatibility for every development build.
 - The iOS Simulator target is arm64 only.
-- Third-party Lyrico plugin ZIPs are user supplied and are not distributed by TideTunes.
+- Third-party Lyrico plugin ZIPs are user supplied and are not distributed by MelodyTrove.
 - Runtime `include(path)` is intentionally unavailable after deterministic include-directory bundling; plugins cannot read arbitrary local files.
 - Android production process termination relies on normal operating-system resource reclamation.
 - Android lint currently has repository/tooling compatibility issues documented in the test report; build and unit-test gates remain the primary validation path.
@@ -405,6 +407,6 @@ Issues and pull requests are welcome. Before submitting a change:
 
 ## License
 
-Most of TideTunes is licensed under the [GNU General Public License v3.0](./LICENSE.md).
+Most of MelodyTrove is licensed under the [GNU General Public License v3.0](./LICENSE.md).
 
-The [`tidetunes-order-key`](./rust-libs/order-key) crate is available under either the Apache License 2.0 or the MIT License.
+The [`order-key`](./rust-libs/order-key) crate is available under either the Apache License 2.0 or the MIT License.

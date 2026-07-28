@@ -1,0 +1,191 @@
+package io.github.julystar.musicapp.feature.sources.presentation
+
+import io.github.julystar.musicapp.core.data.toArgUpsertStorage
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+import io.github.julystar.musicapp.core.domain.model.OneDriveDriveInfo
+import uniffi.app_backend.StorageId
+import uniffi.app_backend.StorageConnectionTestResult
+import uniffi.app_backend.StorageType
+
+class SourceEditorStateTest {
+    @Test
+    fun webDavStateDoesNotExposePassword() {
+        val state = sourceEditorState(
+            draft = sourceEditorDraft(
+                address = "https://dav.example.com/music",
+                alias = "WebDAV",
+                username = "alice",
+                secret = "secret-password",
+                isAnonymous = false,
+                storageType = SourceEditorType.WebDav,
+            ),
+            title = "WebDAV",
+            musicCount = 12u,
+            validation = SourceEditorValidation(),
+            removeDialogOpen = false,
+            testResult = SourceConnectionTestStatus.Success,
+        )
+
+        assertEquals(SourceEditorType.WebDav, state.storageType)
+        assertEquals(SourceConnectionTestStatus.Success, state.testStatus)
+        assertFalse(
+            listOf(
+                state.webDav.alias,
+                state.webDav.address,
+                state.webDav.username,
+                state.oneDrive.alias,
+                state.oneDrive.selectedDriveId,
+            ).contains("secret-password")
+        )
+    }
+
+    @Test
+    fun oneDriveStateKeepsOnlyConnectionStatusFromToken() {
+        val state = sourceEditorState(
+            draft = sourceEditorDraft(
+                address = "drive-id",
+                alias = "OneDrive",
+                secret = "refresh-token",
+                storageType = SourceEditorType.OneDrive,
+            ),
+            title = "OneDrive",
+            musicCount = 0u,
+            validation = SourceEditorValidation(),
+            removeDialogOpen = false,
+            testResult = SourceConnectionTestStatus.None,
+        )
+
+        assertEquals(SourceEditorType.OneDrive, state.storageType)
+        assertTrue(state.oneDrive.connected)
+        assertFalse(
+            listOf(
+                state.webDav.alias,
+                state.webDav.address,
+                state.webDav.username,
+                state.oneDrive.alias,
+                state.oneDrive.selectedDriveId,
+            ).contains("refresh-token")
+        )
+    }
+
+    @Test
+    fun oneDriveDrivesMapToUiModels() {
+        val state = sourceEditorState(
+            draft = sourceEditorDraft(
+                address = "drive-2",
+                alias = "OneDrive",
+                secret = "refresh-token",
+                storageType = SourceEditorType.OneDrive,
+            ),
+            title = "OneDrive",
+            musicCount = 0u,
+            validation = SourceEditorValidation(),
+            removeDialogOpen = false,
+            testResult = SourceConnectionTestStatus.None,
+            oneDriveDrives = listOf(
+                oneDriveDrive(id = "drive-1", name = "Personal"),
+                oneDriveDrive(id = "drive-2", name = "Music"),
+            ),
+            oneDriveDrivesLoading = true,
+        )
+
+        assertTrue(state.oneDrive.drivesLoading)
+        assertEquals("drive-2", state.oneDrive.selectedDriveId)
+        assertEquals(
+            listOf(
+                SourceEditorDriveUi(id = "drive-1", name = "Personal"),
+                SourceEditorDriveUi(id = "drive-2", name = "Music"),
+            ),
+            state.oneDrive.drives,
+        )
+    }
+
+    @Test
+    fun draftConvertsToRepositoryArgumentOnlyAtBoundary() {
+        val arg = sourceEditorDraft(
+            id = 42,
+            address = "drive-id",
+            alias = "OneDrive",
+            username = "user@example.com",
+            secret = "refresh-token",
+            isAnonymous = false,
+            storageType = SourceEditorType.OneDrive,
+        ).toArgUpsertStorage()
+
+        assertEquals(StorageId(42), arg.id)
+        assertEquals("drive-id", arg.addr)
+        assertEquals("OneDrive", arg.alias)
+        assertEquals("user@example.com", arg.username)
+        assertEquals("refresh-token", arg.password)
+        assertFalse(arg.isAnonymous)
+        assertEquals(StorageType.ONE_DRIVE, arg.typ)
+    }
+
+    @Test
+    fun smbDraftBuildsCredentialFreeStorageArgument() {
+        val draft = SourceEditorDraft(
+            id = 7,
+            alias = "Living Room NAS",
+            username = "alice",
+            secret = "secret-password",
+            storageType = SourceEditorType.Smb,
+            smbHost = "nas.local",
+            smbPort = 1445,
+            smbShare = "Music Share",
+            smbRootPath = "音乐/Hi Res",
+            smbDomain = "HOME",
+            smbRequireSigning = true,
+            smbRequireEncryption = true,
+        )
+
+        val arg = draft.toArgUpsertStorage()
+        val state = sourceEditorState(
+            draft = draft,
+            title = "Living Room NAS",
+            musicCount = 0u,
+            validation = SourceEditorValidation(),
+            removeDialogOpen = false,
+            testResult = SourceConnectionTestStatus.None,
+        )
+
+        assertEquals(StorageType.SMB, arg.typ)
+        assertEquals(
+            "smb://nas.local:1445/Music%20Share/%E9%9F%B3%E4%B9%90/Hi%20Res" +
+                "?domain=HOME&signing=true&encryption=true",
+            arg.addr,
+        )
+        assertFalse(arg.addr.contains("alice"))
+        assertFalse(arg.addr.contains("secret-password"))
+        assertEquals("nas.local", state.smb.host)
+        assertEquals("1445", state.smb.port)
+    }
+
+    private fun sourceEditorDraft(
+        id: Long? = null,
+        address: String = "",
+        alias: String = "",
+        username: String = "",
+        secret: String = "",
+        isAnonymous: Boolean = true,
+        storageType: SourceEditorType,
+    ) = SourceEditorDraft(
+        id = id,
+        address = address,
+        alias = alias,
+        username = username,
+        secret = secret,
+        isAnonymous = isAnonymous,
+        storageType = storageType,
+    )
+
+    private fun oneDriveDrive(
+        id: String,
+        name: String,
+    ) = OneDriveDriveInfo(
+        id = id,
+        name = name,
+    )
+}

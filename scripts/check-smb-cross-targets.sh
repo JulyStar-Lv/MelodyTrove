@@ -3,7 +3,7 @@ set -euo pipefail
 
 mode="${1:-all}"
 manifest="rust-libs/Cargo.toml"
-package="tidetunes-storage-backend"
+package="storage-backend"
 
 check_android() {
   local ndk_root="${ANDROID_NDK_HOME:-${ANDROID_NDK:-}}"

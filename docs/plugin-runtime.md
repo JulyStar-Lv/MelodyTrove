@@ -1,6 +1,6 @@
-# TideTunes Plugin Runtime
+# MelodyTrove Plugin Runtime
 
-TideTunes implements JavaScript metadata plugins as Lyrico Plugin API v1–v3 compatible
+MelodyTrove implements JavaScript metadata plugins as Lyrico Plugin API v1–v3 compatible
 `MetaSource` instances. Plugins are imported from local ZIP files and are never treated as
 general playback `MusicSource` implementations.
 
@@ -57,7 +57,7 @@ manifest dependencies are preserved, while markdown fields are display-only.
 - Cover parsing accepts URL strings, explicit cover objects, song-shaped objects, and the same
   wrappers plus `covers`.
 - Lyrics parsing accepts structured line/word timing, translated and romanized tracks, all v3
-  raw lyric types, `notFound`, and the legacy TideTunes `lines` shape.
+  raw lyric types, `notFound`, and the legacy MelodyTrove `lines` shape.
 - The QuickJS boundary returns JavaScript strings directly and JSON-serializes other values.
   `null` and `undefined` normalize to the JSON text `null`; JSON strings are not double encoded.
 
@@ -119,7 +119,7 @@ The bootstrap exposes `Platform.app`, `Platform.runtime`, `Platform.cache`, `Pla
 `Platform.log`, including the Lyrico global app/runtime shortcuts. Cache paths are isolated by a
 hash of the plugin ID.
 
-HTTP adds a TideTunes User-Agent, supports text/binary bodies and responses, and applies request
+HTTP adds a MelodyTrove User-Agent, supports text/binary bodies and responses, and applies request
 and response limits. HTTPS hostnames use the platform resolver and network stack so TUN/VPN
 synthetic DNS works without assuming a particular address range; TLS authenticates the requested
 hostname. Plaintext HTTP hostnames are resolved, private-address checked, and pinned. Literal
@@ -139,7 +139,7 @@ See [testing/test-report.md](testing/test-report.md) for the commands and curren
 
 ## Known limitations
 
-- TideTunes does not ship or download third-party plugin ZIPs; real plugins remain user supplied.
+- MelodyTrove does not ship or download third-party plugin ZIPs; real plugins remain user supplied.
 - `include(path)` is a compatibility no-op after all configured include-directory JavaScript has
   been bundled in deterministic order. Plugins cannot read arbitrary files at runtime.
 - The Gradle build configures `iosSimulatorArm64`, not an x86_64 simulator target. Generic Xcode

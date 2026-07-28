@@ -61,7 +61,7 @@ impl PluginRuntime {
         let control = Arc::new(OperationControl::default());
         let worker_control = control.clone();
         let join = thread::Builder::new()
-            .name("tidetunes-plugin-runtime".into())
+            .name("plugin-runtime".into())
             .spawn(move || run(receiver, worker_control, options, host))
             .map_err(|error| PluginRuntimeError::Initialization(error.to_string()))?;
         Ok(Self {

@@ -9,6 +9,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+use async_runtime::tokio_runtime;
 use bytes::Bytes;
 use futures_util::future::BoxFuture;
 use lru::LruCache;
@@ -17,7 +18,6 @@ use smb2::{
     client::{stream::FileReader, Cipher},
     ClientConfig, DirectoryEntry, ErrorKind as SmbErrorKind, SmbClient, Tree,
 };
-use tidetunes_async_runtime::tokio_runtime;
 use tokio::sync::Mutex;
 
 use crate::{

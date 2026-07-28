@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="diagnostics_safe_mode_title">TideTunes 安全模式</string>
+    <string name="app_name">旋律珍藏</string>
+    <string name="diagnostics_safe_mode_title">MelodyTrove 安全模式</string>
     <string name="diagnostics_safe_mode_reason">进入安全模式的原因</string>
     <string name="diagnostics_safe_mode_disabled">暂时禁用的组件</string>
     <string name="diagnostics_safe_mode_privacy">诊断数据只保存在本机，绝不会自动上传。</string>

@@ -14,9 +14,9 @@ kotlin {
         iosSimulatorArm64(),
     ).forEach { iosTarget ->
         iosTarget.binaries.framework {
-            baseName = "TideTunesImportingFeature"
+            baseName = "ImportingFeature"
             isStatic = true
-            binaryOption("bundleId", "com.github.tidetunes.feature.importing")
+            binaryOption("bundleId", "io.github.julystar.musicapp.feature.importing")
         }
     }
 
@@ -41,7 +41,7 @@ kotlin {
 }
 
 android {
-    namespace = "com.github.tidetunes.feature.importing"
+    namespace = "io.github.julystar.musicapp.feature.importing"
     compileSdk = 37
     defaultConfig {
         minSdk = 29

@@ -3,7 +3,7 @@
 Date: 2026-06-28
 
 This note records the required source/API evaluation before adding Miuix to
-TideTunes. It intentionally does not add a dependency yet; adoption should go
+MelodyTrove. It intentionally does not add a dependency yet; adoption should go
 through `core/presentation` wrappers so feature screens do not depend directly
 on third-party UI APIs.
 
@@ -36,9 +36,9 @@ on third-party UI APIs.
   into preference or overlay component names.
 - Release `v0.9.2` notes `miuix-blur` Android minSdk moved to API 33.
 
-## TideTunes compatibility
+## MelodyTrove compatibility
 
-Current TideTunes versions in `gradle/libs.versions.toml`:
+Current MelodyTrove versions in `gradle/libs.versions.toml`:
 
 - Kotlin: `2.4.0`
 - Compose Multiplatform: `1.11.1`
@@ -84,7 +84,7 @@ Defer these modules:
 - Keep Miuix imports inside `core/presentation` wrappers such as
   `AppButton`, `AppIconButton`, `AppNavigationBar`, `AppNavigationRail`,
   `AppSidebar`, `AppCard`, `AppDialog`, and `AppScaffold`.
-- Feature screens should depend on TideTunes wrapper APIs, not Miuix APIs.
+- Feature screens should depend on MelodyTrove wrapper APIs, not Miuix APIs.
 - Keep current Material/App components until each wrapper is migrated and
   verified.
 - Do not add `miuix-blur` until Android minSdk and fallback behavior are
@@ -96,7 +96,7 @@ Defer these modules:
 2. Add `libs.miuix.ui` to `shared` `commonMain`.
 3. Create a single `core/presentation/theme/AppDesignTheme` or wrapper that
    can delegate to the existing theme until Miuix is enabled.
-4. Migrate one low-risk wrapper, such as `TideTunesTextButton`, behind an
+4. Migrate one low-risk wrapper, such as `CompatTextButton`, behind an
    app-owned interface or component name.
 5. Run the full gate:
 

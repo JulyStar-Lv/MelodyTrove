@@ -1,6 +1,6 @@
 /**
  * Release audit: scans the repository and build artifacts for forbidden third-party plugin content.
- * TideTunes must never bundle, recommend, or automatically enable any specific music platform plugin.
+ * MelodyTrove must never bundle, recommend, or automatically enable any specific music platform plugin.
  */
 const fs = require("fs");
 const path = require("path");
@@ -28,6 +28,22 @@ const FORBIDDEN_IN_ZIP = [
 
 const ALLOWED_PLUGIN_DIRS = [
   path.join("scripts", "compat-plugins"),
+];
+
+const ALLOWED_TEST_FIXTURES = [
+  path.join(
+    "shared",
+    "src",
+    "commonTest",
+    "kotlin",
+    "io",
+    "github",
+    "julystar",
+    "musicapp",
+    "plugin",
+    "management",
+    "ManualMetadataServiceTest.kt",
+  ),
 ];
 
 let failures = 0;
@@ -59,10 +75,14 @@ function walkDir(dir, fn) {
 
 function isAllowedPluginPath(p) {
   const norm = p.replace(/\\/g, "/").replace(/^\.\//, "");
-  return ALLOWED_PLUGIN_DIRS.some((dir) => {
+  const allowedDirectory = ALLOWED_PLUGIN_DIRS.some((dir) => {
     const allowed = dir.replace(/\\/g, "/").replace(/^\.\//, "");
     return norm === allowed || norm.startsWith(`${allowed}/`);
   });
+  const allowedTestFixture = ALLOWED_TEST_FIXTURES.some(
+    (file) => norm === file.replace(/\\/g, "/"),
+  );
+  return allowedDirectory || allowedTestFixture;
 }
 
 function auditText(filePath, content) {

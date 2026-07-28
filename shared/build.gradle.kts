@@ -20,12 +20,12 @@ abstract class GenerateGitInfoTask : DefaultTask() {
     @TaskAction
     fun generate() {
         val file = outputDirectory.file(
-            "com/github/tidetunes/platform/GeneratedBuildInfo.kt"
+            "io/github/julystar/musicapp/platform/GeneratedBuildInfo.kt"
         ).get().asFile
         file.parentFile.mkdirs()
         file.writeText(
             """
-            package com.github.tidetunes.platform
+            package io.github.julystar.musicapp.platform
 
             internal object GeneratedBuildInfo {
                 const val gitCommitSha: String = "${gitCommitSha.get()}"
@@ -70,9 +70,9 @@ kotlin {
         iosSimulatorArm64(),
     ).forEach { iosTarget ->
         iosTarget.binaries.framework {
-            baseName = "TideTunesShared"
+            baseName = "SharedKit"
             isStatic = true
-            binaryOption("bundleId", "com.github.tidetune.shared")
+            binaryOption("bundleId", "io.github.julystar.musicapp.shared")
         }
     }
 
@@ -176,7 +176,7 @@ room {
 
 val suppressGeneratedUniffiAndroidWarnings by tasks.registering {
     val generatedFile = layout.buildDirectory.file(
-        "generated/uniffi/androidMain/kotlin/uniffi/tidetunes_backend/tidetunes_backend.android.kt"
+        "generated/uniffi/androidMain/kotlin/uniffi/app_backend/app_backend.android.kt"
     )
 
     dependsOn(tasks.named("buildUniffiBindings"))
@@ -222,14 +222,14 @@ tasks.matching { task ->
 }
 
 cargo {
-    packageDirectory = layout.projectDirectory.dir("../rust-libs/backend")
+    packageDirectory = layout.projectDirectory.dir("../rust-libs/app-backend")
     builds.jvm {
         embedRustLibrary = rustTarget == GobleyHost.current.rustTarget
     }
 }
 
 android {
-    namespace = "com.github.tidetunes.shared"
+    namespace = "io.github.julystar.musicapp.shared"
     compileSdk = 37
     defaultConfig {
         minSdk = 29
@@ -242,7 +242,7 @@ android {
 }
 
 tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
-    val liveWebDavEnabled = providers.systemProperty("tidetunes.liveWebdav.enabled").orElse("false")
-    inputs.property("tidetunes.liveWebdav.enabled", liveWebDavEnabled)
-    systemProperty("tidetunes.liveWebdav.enabled", liveWebDavEnabled.get())
+    val liveWebDavEnabled = providers.systemProperty("musicapp.liveWebdav.enabled").orElse("false")
+    inputs.property("musicapp.liveWebdav.enabled", liveWebDavEnabled)
+    systemProperty("musicapp.liveWebdav.enabled", liveWebDavEnabled.get())
 }

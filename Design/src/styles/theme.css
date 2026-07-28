@@ -5,13 +5,13 @@
   --font-sans: "Noto Sans SC", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", monospace;
 
-  /* TideTunes Brand */
-  --tide-pink: #FF5B8A;
-  --tide-purple: #7A6CFF;
-  --tide-orange: #FF8A3D;
-  --tide-green: #3DCA8A;
-  --tide-blue: #3D9AFF;
-  --tide-yellow: #FFD93D;
+  /* MelodyTrove Brand */
+  --brand-pink: #FF5B8A;
+  --brand-purple: #7A6CFF;
+  --brand-orange: #FF8A3D;
+  --brand-green: #3DCA8A;
+  --brand-blue: #3D9AFF;
+  --brand-yellow: #FFD93D;
 
   /* Light Mode Ground */
   --background: #F4F2FA;

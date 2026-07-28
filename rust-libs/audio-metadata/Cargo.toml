@@ -1,5 +1,5 @@
 [package]
-name = "tidetunes-audio-metadata"
+name = "audio-metadata"
 version = "0.1.0"
 edition = "2021"
 license = "GPL-3.0"
@@ -12,8 +12,8 @@ missing_const_for_thread_local = "allow"
 bytes = "1.5.0"
 lofty = "0.24.0"
 thiserror = { workspace = true }
-tidetunes-storage-backend = { path = "../storage-backend" }
-tidetunes-async-runtime = { workspace = true }
+storage-backend = { path = "../storage-backend" }
+async-runtime = { workspace = true }
 
 [dev-dependencies]
 serde = { workspace = true }

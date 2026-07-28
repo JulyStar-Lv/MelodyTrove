@@ -1,4 +1,4 @@
-# TideTunes Final Architecture Report
+# MelodyTrove Final Architecture Report
 
 Date: 2026-07-27
 
@@ -7,7 +7,7 @@ This document records the current architecture after the Komi Store-style KMP/CM
 ## 1. Module Tree
 
 ```text
-TideTunes/
+MelodyTrove/
 ├── androidApp/                         Android application entry point
 ├── desktopApp/                         Desktop JVM application entry point
 ├── iosApp/                             iOS Xcode project and Swift entry point
@@ -108,7 +108,7 @@ Data-side code is intentionally still in `shared` where it depends on Room, UniF
 
 ## 3. Core Domain
 
-`core/domain/src/commonMain/kotlin/com/github/tidetunes/core/domain/model/`
+`core/domain/src/commonMain/kotlin/io/github/julystar/musicapp/core/domain/model/`
 
 | Type | Purpose |
 |------|---------|
@@ -125,7 +125,7 @@ Domain module dependencies are limited to Kotlin and stable multiplatform librar
 
 ### MusicSource
 
-`source/api/src/commonMain/kotlin/com/github/tidetunes/source/api/MusicSource.kt`
+`source/api/src/commonMain/kotlin/io/github/julystar/musicapp/source/api/MusicSource.kt`
 
 ```kotlin
 interface MusicSource {
@@ -144,7 +144,7 @@ implementations through Koin.
 
 ### PlaybackController
 
-`service/playback/domain/src/commonMain/kotlin/com/github/tidetunes/service/playback/domain/PlaybackController.kt`
+`service/playback/domain/src/commonMain/kotlin/io/github/julystar/musicapp/service/playback/domain/PlaybackController.kt`
 
 ```kotlin
 interface PlaybackController {
@@ -197,7 +197,7 @@ and `PlayableItem` at the boundary.
 
 ### DownloadController
 
-`service/download/domain/src/commonMain/kotlin/com/github/tidetunes/service/download/domain/DownloadController.kt`
+`service/download/domain/src/commonMain/kotlin/io/github/julystar/musicapp/service/download/domain/DownloadController.kt`
 
 ```kotlin
 interface DownloadController {
@@ -212,7 +212,7 @@ interface DownloadController {
 
 ### LibrarySyncController
 
-`service/librarysync/domain/src/commonMain/kotlin/com/github/tidetunes/service/librarysync/domain/LibrarySyncController.kt`
+`service/librarysync/domain/src/commonMain/kotlin/io/github/julystar/musicapp/service/librarysync/domain/LibrarySyncController.kt`
 
 ```kotlin
 interface LibrarySyncController {
@@ -242,7 +242,7 @@ Physical feature modules contain only the parts that can compile without Room, U
 
 ## 6. Navigation
 
-`shared/src/commonMain/kotlin/com/github/tidetunes/navigation/`
+`shared/src/commonMain/kotlin/io/github/julystar/musicapp/navigation/`
 
 - `MusicGraph.kt` defines typed serializable routes.
 - `AppNavigation.kt` owns the root scaffold and NavHost.
@@ -275,9 +275,9 @@ Entry points call the shared Koin bootstrap from Android, iOS, and Desktop.
 
 Room KMP remains in `shared`.
 
-- Database: `TideTunesDatabase`
+- Database: `AppDatabase`
 - Driver: `BundledSQLiteDriver`
-- Schema path: `shared/schemas/com.github.tidetunes.database.TideTunesDatabase/`
+- Schema path: `shared/schemas/io.github.julystar.musicapp.database.AppDatabase/`
 - Current schema version: 17
 - Source identity tables: `source_account`, `library_root`, `source_item`, `source_item_property`, `track_source_ref`, `source_sync_cursor`, `source_error`
 - Canonical library tables: `track`, `album`, `artist`, `genre`, joins, `artwork`, `lyrics`, `raw_metadata`, `playlist`, `playlist_track`, `download_task`, `import_job`
@@ -349,13 +349,13 @@ limits, and the compatibility matrix.
 
 | Plugin ID | Purpose |
 |-----------|---------|
-| `com.github.tidetunes.convention.kmp.library` | Applies KMP, serialization, Android library plugins |
-| `com.github.tidetunes.convention.cmp.library` | Applies Compose Multiplatform plugins |
-| `com.github.tidetunes.convention.kmp.domain` | Pure domain/API module plugin |
-| `com.github.tidetunes.convention.feature` | Feature module plugin |
-| `com.github.tidetunes.convention.music-source` | Future source implementation module plugin |
-| `com.github.tidetunes.convention.room` | Room/KSP conventions |
-| `com.github.tidetunes.convention.cargo-uniffi` | Gobley Cargo + UniFFI conventions |
+| `io.github.julystar.musicapp.convention.kmp.library` | Applies KMP, serialization, Android library plugins |
+| `io.github.julystar.musicapp.convention.cmp.library` | Applies Compose Multiplatform plugins |
+| `io.github.julystar.musicapp.convention.kmp.domain` | Pure domain/API module plugin |
+| `io.github.julystar.musicapp.convention.feature` | Feature module plugin |
+| `io.github.julystar.musicapp.convention.music-source` | Future source implementation module plugin |
+| `io.github.julystar.musicapp.convention.room` | Room/KSP conventions |
+| `io.github.julystar.musicapp.convention.cargo-uniffi` | Gobley Cargo + UniFFI conventions |
 
 Class-based convention plugins are currently apply-only. KMP targets and module-specific dependencies stay in module build scripts because direct KGP/AGP/Compose extension configuration from the included build introduced API/classpath ambiguity.
 
@@ -385,8 +385,8 @@ Latest full gate, Round 33:
   :service:playback:presentation:desktopTest \
   :service:download:domain:desktopTest \
   :service:librarysync:domain:desktopTest \
-  shared:testDebugUnitTest --tests com.github.tidetunes.singleton.PlayerControllerRepositoryTest \
-  shared:iosSimulatorArm64Test --tests com.github.tidetunes.singleton.IosPlayerControllerTest \
+  shared:testDebugUnitTest --tests io.github.julystar.musicapp.singleton.PlayerControllerRepositoryTest \
+  shared:iosSimulatorArm64Test --tests io.github.julystar.musicapp.singleton.IosPlayerControllerTest \
   shared:compileDebugKotlinAndroid \
   shared:compileKotlinIosSimulatorArm64 \
   desktopApp:compileKotlinDesktop \

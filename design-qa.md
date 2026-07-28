@@ -50,7 +50,7 @@
 
 - Fonts and typography: existing app font stack, weights, line heights, and text hierarchy are reused. Mobile headings and dense ranking metadata remain readable without truncating primary labels.
 - Spacing and layout rhythm: existing page gutters, 22–24px card radii, section gaps, and responsive grids are reused. Body and main scroll widths stay at 390px in the mobile viewport; no page-level horizontal overflow was detected.
-- Colors and visual tokens: the implementation uses the existing background, card, border, muted, primary, and TidePink tokens. No unrelated palette was introduced.
+- Colors and visual tokens: the implementation uses the existing background, card, border, muted, primary, and DesignPink tokens. No unrelated palette was introduced.
 - Image quality and asset fidelity: existing cover sources and `CoverArt` behavior are reused with matching crops and radii. No placeholder art, custom SVG, or replacement imagery was introduced.
 - Copy and content: labels are concise and standalone. Singular/plural calendar summaries and the `Yesterday` label were verified.
 - Icons and controls: existing Lucide icon family, stroke weight, focus rings, and touch behavior are preserved. The Home entry has an explicit accessible label, calendar cells expose day and duration labels, and Back/Overview/Calendar/Rankings controls work.
@@ -143,9 +143,9 @@ final result: passed
 
 ### Evidence
 
-- Design source: `/Users/shine/CommonWork/MobileWork/TideTunes/artifacts/design-source/now-playing.png`.
-- Final native capture: `/Users/shine/CommonWork/MobileWork/TideTunes/artifacts/native/now-playing-final-design-aligned.png`.
-- Same-viewport combined comparison: `/Users/shine/CommonWork/MobileWork/TideTunes/artifacts/comparisons/now-playing-current-final.png`.
+- Design source: `./artifacts/design-source/now-playing.png`.
+- Final native capture: `./artifacts/native/now-playing-final-design-aligned.png`.
+- Same-viewport combined comparison: `./artifacts/comparisons/now-playing-current-final.png`.
 - Viewport: Design 393 × 852; native iPhone 15 Pro 1179 × 2556 at 3×, normalized to 393 × 852 for comparison.
 
 ### Fidelity review
@@ -185,16 +185,16 @@ final result: passed
 
 ### Source, implementation, and comparison evidence
 
-- Source visual truth (393 × 852): `/Users/shine/CommonWork/MobileWork/TideTunes/artifacts/design-source/home.png`, `search.png`, `library.png`, `settings.png`, and `now-playing.png`.
-- Native iPhone 15 Pro implementation (1179 × 2556 at 3×): `/Users/shine/CommonWork/MobileWork/TideTunes/artifacts/native/home-final.png`, `search-final.png`, `library-final.png`, `settings-final.png`, and `now-playing-final.png`.
-- Same-viewport combined comparisons, source on the left and native implementation on the right: `/Users/shine/CommonWork/MobileWork/TideTunes/artifacts/comparisons/home.png`, `search.png`, `library.png`, `settings.png`, and `now-playing.png`.
+- Source visual truth (393 × 852): `./artifacts/design-source/home.png`, `search.png`, `library.png`, `settings.png`, and `now-playing.png`.
+- Native iPhone 15 Pro implementation (1179 × 2556 at 3×): `./artifacts/native/home-final.png`, `search-final.png`, `library-final.png`, `settings-final.png`, and `now-playing-final.png`.
+- Same-viewport combined comparisons, source on the left and native implementation on the right: `./artifacts/comparisons/home.png`, `search.png`, `library.png`, `settings.png`, and `now-playing.png`.
 - State: dark theme; Home/Search/Library/Settings root states; persistent idle mini player in the cold-start native app; paused Now Playing QA state. Temporary QA-only start destinations and player data were removed before the final production build.
 
 ### Required fidelity surfaces
 
-- Fonts and typography: the native hierarchy matches the Design headings, section titles, chips, playlist metadata, settings rows, lyric summary, time labels, and selected-navigation labels using the existing TideTunes type system. The compact player time format was corrected from `00:01:42` / `-00:02:00` to `1:42` / `-2:00`.
+- Fonts and typography: the native hierarchy matches the Design headings, section titles, chips, playlist metadata, settings rows, lyric summary, time labels, and selected-navigation labels using the existing MelodyTrove type system. The compact player time format was corrected from `00:01:42` / `-00:02:00` to `1:42` / `-2:00`.
 - Spacing and layout rhythm: the four-item flat bottom navigation, 12 dp mini-player gutter, 72 dp mini-player height, segmented Library tabs, two-row horizontal genre rail, grouped settings cards, and full-width Now Playing hero align at the normalized 393 × 852 viewport. Content scrolls beneath the fixed player/navigation stack, while Home retains the verified 58 dp sticky header.
-- Colors and visual tokens: the implementation reuses the production dark surfaces, low-alpha outlines, TideTunes pink selected/action states, blue-purple gradients, muted secondary copy, and white Now Playing transport control. The mini-player outline was reduced after native comparison to match the source's quieter glass edge.
+- Colors and visual tokens: the implementation reuses the production dark surfaces, low-alpha outlines, MelodyTrove pink selected/action states, blue-purple gradients, muted secondary copy, and white Now Playing transport control. The mini-player outline was reduced after native comparison to match the source's quieter glass edge.
 - Image quality and asset fidelity: Home and Library reuse the source's eight 900 × 900 production covers with crop scaling and matching rounded corners. Library playlist rows now use the exact corresponding Design covers rather than the default record placeholder. The native Now Playing QA fixture could not resolve a database-backed cover and therefore shows the production fallback; the production screen still renders `track.artwork` through the same full-bleed crop path.
 - Copy and content: Search recent queries, genre names/order, and trending heading; Library tab/playlist copy; Settings grouping; and Now Playing title, artist, lyric, translation, and time structure follow the Design fixture. Native Settings copy follows the simulator's Chinese locale, a content-localization difference rather than a layout difference.
 - Icons and controls: the production Lucide navigation vectors, existing playback resources, real collapse/heart assets, clickable tabs/chips/rows, functional settings search, mini-player routing, Now Playing overflow menu, favorite toggle, progress seek, repeat, previous/play/next controls, and persistent navigation targets were retained.
@@ -225,7 +225,7 @@ final result: passed
 - Desktop regression suite for Search, Library, Settings, playback presentation, and shared navigation: passed (`BUILD SUCCESSFUL`).
 - Post-cover Library desktop test: passed (`BUILD SUCCESSFUL`).
 - Final `xcodebuild` for the iPhone 15 Pro simulator after restoring the production Home start tab: passed (`** BUILD SUCCEEDED **`). Existing malformed iOS 15.5 runtime and newer-object deployment warnings remain non-blocking.
-- Final app install and clean launch: passed with bundle `com.github.tidetunes`.
+- Final app install and clean launch: passed with bundle `io.github.julystar.musicapp`.
 - `git diff --check`: passed.
 
 ## Findings
@@ -248,11 +248,11 @@ final result: passed
 
 ### Required fidelity surfaces
 
-- Fonts and typography: the implementation keeps the source's bold 25px title, medium artist treatment, prominent multi-line lyric summary, low-emphasis credit copy, and monospace time labels while retaining TideTunes' existing type family.
+- Fonts and typography: the implementation keeps the source's bold 25px title, medium artist treatment, prominent multi-line lyric summary, low-emphasis credit copy, and monospace time labels while retaining MelodyTrove' existing type family.
 - Spacing and layout rhythm: full-bleed artwork occupies the upper 59vh and fades into the content surface; metadata starts at 44vh. The 28px content gutter aligns title, lyric summary, progress track, and time row. The control rail fits above the safe-area edge without clipping.
-- Colors and tokens: the warm sample palette is intentionally remapped to the current track's blue artwork and TideTunes pink liked state. Opacity and black-surface transitions preserve the source's hierarchy and contrast.
-- Image quality: the existing high-resolution TideTunes cover is reused as the real full-bleed hero, with object-cover cropping and a gradient blend rather than a fabricated or placeholder asset.
-- Copy and content: sample-specific Taylor Swift/legal copy is replaced with current TideTunes song, artist, synchronized lyric, translation, and credit data while keeping the same information structure.
+- Colors and tokens: the warm sample palette is intentionally remapped to the current track's blue artwork and MelodyTrove pink liked state. Opacity and black-surface transitions preserve the source's hierarchy and contrast.
+- Image quality: the existing high-resolution MelodyTrove cover is reused as the real full-bleed hero, with object-cover cropping and a gradient blend rather than a fabricated or placeholder asset.
+- Copy and content: sample-specific Taylor Swift/legal copy is replaced with current MelodyTrove song, artist, synchronized lyric, translation, and credit data while keeping the same information structure.
 - Icons and affordances: heart, overflow, repeat, previous, play, next, and queue use one Lucide icon family with 48px-or-larger tap targets and visible keyboard focus states.
 
 ### Comparison history
@@ -266,7 +266,7 @@ final result: passed
 
 - The source and implementation share the same top-image/lower-content composition, fade position, metadata and lyric hierarchy, progress placement, centered quality pill, and five-control bottom rail.
 - [P3] The web prototype does not reproduce operating-system status or home-indicator chrome.
-- [P3] A subtle close control remains at the top-left because TideTunes requires a discoverable return path; the supplied source relies on native navigation behavior.
+- [P3] A subtle close control remains at the top-left because MelodyTrove requires a discoverable return path; the supplied source relies on native navigation behavior.
 - [P3] The filled pink favorite icon reflects the current song's saved liked state instead of forcing the source's unliked outline state.
 
 ### Interaction and technical verification
@@ -298,10 +298,10 @@ final result: passed
 
 ### Required fidelity surfaces
 
-- Typography: the reference hierarchy is preserved—strong song title, quiet artist/time metadata, oversized active lyrics, and lower-emphasis translations and neighboring lines—using the existing TideTunes type system.
+- Typography: the reference hierarchy is preserved—strong song title, quiet artist/time metadata, oversized active lyrics, and lower-emphasis translations and neighboring lines—using the existing MelodyTrove type system.
 - Spacing and layout: the player cover is 328px wide; cover, song metadata, and progress bar share the same horizontal bounds. Lyrics and queue use the reference's compact track header and fixed bottom navigation. No visible clipping or horizontal overflow remains.
-- Colors and tokens: the reference's art-derived immersive backdrop and translucent controls are retained while using TideTunes' blue/pink visual tokens rather than copying the lavender sample palette.
-- Images and content: all states use existing high-quality TideTunes cover art and realistic track/artist data; no placeholder or constructed art is used.
+- Colors and tokens: the reference's art-derived immersive backdrop and translucent controls are retained while using MelodyTrove' blue/pink visual tokens rather than copying the lavender sample palette.
+- Images and content: all states use existing high-quality MelodyTrove cover art and realistic track/artist data; no placeholder or constructed art is used.
 - Icons: controls use the project's Lucide icon family consistently, including lyrics, cast/device, queue, playback modes, drag handles, favorite, and overflow actions.
 - Interaction and accessibility: bottom view navigation, playback, shuffle, playback device, and history clearing were exercised. Toggle states expose `aria-pressed`; named buttons and sliders remain keyboard-addressable with focus treatment.
 
@@ -313,7 +313,7 @@ final result: passed
 - Lyrics: compact track header, progressive active-line highlighting, Chinese translation, faded surrounding lines, and immersive blurred artwork match the source hierarchy.
 - Queue: compact header, shuffle/repeat/autoplay modes, history with clear action, continue-playing list with drag handles, progress, transport controls, and selected queue navigation match the source structure.
 - [P3] Long dynamic titles intentionally truncate in the compact header so favorite and overflow actions retain stable 44px targets.
-- [P3] Unselected bottom-navigation icons remain intentionally quieter than the sample to preserve TideTunes' existing contrast hierarchy.
+- [P3] Unselected bottom-navigation icons remain intentionally quieter than the sample to preserve MelodyTrove' existing contrast hierarchy.
 
 ### Final verification
 
@@ -333,9 +333,9 @@ final result: passed
 
 ### Source and implementation evidence
 
-- Source visual truth: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/tidetunes-native-ui/source-design-home-mobile.png`.
-- Native implementation screenshot: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/tidetunes-native-ui/final-ios-home.png`.
-- Final combined comparison: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/tidetunes-native-ui/final-comparison.png`.
+- Source visual truth: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/melodytrove-native-ui/source-design-home-mobile.png`.
+- Native implementation screenshot: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/melodytrove-native-ui/final-ios-home.png`.
+- Final combined comparison: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/melodytrove-native-ui/final-comparison.png`.
 - Viewport and state: source 390 × 844; native iPhone 15 Pro 393 × 852 points (1179 × 2556 at 3×), normalized to 390 × 844 for comparison; dark theme; Home selected; native playback inactive.
 - The source and native capture were placed side by side at the same normalized viewport. The full-view comparison was sufficient for focused review because the hero copy, cover crops, card metadata, section hierarchy, ranking details, and bottom navigation remained readable at 2× output resolution.
 
@@ -343,7 +343,7 @@ final result: passed
 
 - Fonts and typography: native Plus Jakarta Sans styling preserves the source's large Home title, heavy Daily Picks title, compact muted status line, section hierarchy, card labels, and two-line ranking metadata.
 - Spacing and layout: the compact hero is 152 dp with a 22 dp radius; horizontal content gutters, 160 dp pinned cards, section rhythm, and 120 dp recently-added cards map to the source. Native safe-area and status-bar space remain platform-owned.
-- Colors and tokens: the dark background, blue-purple hero, TideTunes pink action/selected states, muted secondary text, translucent icon containers, and card overlays use existing production tokens while matching the source hierarchy.
+- Colors and tokens: the dark background, blue-purple hero, MelodyTrove pink action/selected states, muted secondary text, translucent icon containers, and card overlays use existing production tokens while matching the source hierarchy.
 - Image quality: the eight source Unsplash crops are stored as 900 × 900 production resources and rendered with crop scaling; the hero uses three circular source crops with visible borders. No placeholder or code-drawn cover remains.
 - Copy and content: Daily Picks, current-track status, My Favorites, pinned metadata, descriptions, and the Top tracks by time / This month ranking copy match the Design fixture.
 - Icons and affordances: play and chevron actions use existing production icon assets and clickable Compose surfaces. Section-leading glyphs retain the production music-note family; this is recorded below as a non-blocking P3 system adaptation.
@@ -352,7 +352,7 @@ final result: passed
 
 #### Iteration 1 — blocked
 
-- Evidence: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/tidetunes-native-ui/iteration-1-comparison.png`.
+- Evidence: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/melodytrove-native-ui/iteration-1-comparison.png`.
 - [P1] The compact Daily Picks banner rendered as a 250 dp poster instead of the source's 152 px horizontal banner.
 - [P2] Section headers displayed “See All” instead of the source chevron treatment.
 - [P2] Pinned and album artwork used gradient placeholders and omitted the source's first My Favorites card.
@@ -372,8 +372,8 @@ final result: passed
 - `./gradlew :feature:home:compileKotlinDesktop`: passed after the final Home changes.
 - `./gradlew :desktopApp:compileKotlinDesktop :shared:desktopTest --continue`: passed; the existing experimental-coroutines opt-in warning remains non-blocking.
 - `xcodebuild` for the iPhone 15 Pro simulator: passed; the existing simulator-runtime and newer-object deployment warnings remain non-blocking.
-- App install and launch: passed with bundle `com.github.tidetunes`; final screenshot captured after a clean relaunch.
-- Runtime log review found no TideTunes error or fault entries; `git diff --check` passed.
+- App install and launch: passed with bundle `io.github.julystar.musicapp`; final screenshot captured after a clean relaunch.
+- Runtime log review found no MelodyTrove error or fault entries; `git diff --check` passed.
 
 ## Findings
 
@@ -387,11 +387,11 @@ final result: passed
 
 ### Source and implementation evidence
 
-- Source visual truth: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/tidetunes-native-ui/source-design-home-mobile.png`.
-- Pre-fix native screenshot: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/tidetunes-native-ui/final-ios-home.png`.
-- Post-fix native screenshot: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/tidetunes-native-ui/nav-final-ios-home.png`.
-- Full-view comparison: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/tidetunes-native-ui/nav-final-comparison.png`.
-- Focused bottom-navigation comparison: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/tidetunes-native-ui/nav-final-focused.png`.
+- Source visual truth: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/melodytrove-native-ui/source-design-home-mobile.png`.
+- Pre-fix native screenshot: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/melodytrove-native-ui/final-ios-home.png`.
+- Post-fix native screenshot: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/melodytrove-native-ui/nav-final-ios-home.png`.
+- Full-view comparison: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/melodytrove-native-ui/nav-final-comparison.png`.
+- Focused bottom-navigation comparison: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/melodytrove-native-ui/nav-final-focused.png`.
 - Viewport and state: source 390 × 844; native iPhone 15 Pro 393 × 852 points, normalized to 390 × 844; dark theme; Home selected; playback inactive in the native capture.
 
 ### Required fidelity surfaces
@@ -438,10 +438,10 @@ final result: passed
 ### Source and implementation evidence
 
 - Dynamic source state: the `Design/` prototype at 390 × 844 with the Home scroller at `scrollTop = 130`; its header measured 390 × 58 px and its title measured 24 px with a 30 px line height.
-- Source focused crop: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/tidetunes-native-ui/source-sticky-focused.png`.
-- Native collapsed-state screenshot: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/tidetunes-native-ui/sticky-native-scrolled.png`.
-- Final focused side-by-side comparison: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/tidetunes-native-ui/sticky-final-focused.png`.
-- Final production initial-state screenshot after removing the QA scroll seed: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/tidetunes-native-ui/sticky-native-final-initial.png`.
+- Source focused crop: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/melodytrove-native-ui/source-sticky-focused.png`.
+- Native collapsed-state screenshot: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/melodytrove-native-ui/sticky-native-scrolled.png`.
+- Final focused side-by-side comparison: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/melodytrove-native-ui/sticky-final-focused.png`.
+- Final production initial-state screenshot after removing the QA scroll seed: `/Users/shine/.codex/visualizations/2026/07/20/019f7ff1-e785-78a2-9f82-64363bb2f2d7/melodytrove-native-ui/sticky-native-final-initial.png`.
 - Viewport and state: source 390 × 844; native iPhone 15 Pro 393 × 852 points, normalized to 390 × 844. The comparison excludes the native status-bar safe area and inspects the same 180 px collapsed-header/content segment.
 
 ### Required fidelity surfaces
@@ -475,8 +475,8 @@ final result: passed
 - `git diff --check`: passed.
 - `./gradlew :desktopApp:compileKotlinDesktop :shared:desktopTest --continue`: passed after restoring the normal initial list state.
 - `xcodebuild` for the iPhone 15 Pro simulator: passed after restoring the normal initial list state; the existing malformed iOS 15.5 runtime and newer-object deployment warnings remain non-blocking.
-- App install and clean launch: passed with bundle `com.github.tidetunes`; the production build opens at the top of Home, while the collapsed-state evidence was captured from a temporary QA-only initial list position that was removed before the final build.
-- Runtime log inspection showed the simulator's existing `libxpc` assertion, but the TideTunes process remained live and rendered both initial and collapsed states without a crash or visible fault.
+- App install and clean launch: passed with bundle `io.github.julystar.musicapp`; the production build opens at the top of Home, while the collapsed-state evidence was captured from a temporary QA-only initial list position that was removed before the final build.
+- Runtime log inspection showed the simulator's existing `libxpc` assertion, but the MelodyTrove process remained live and rendered both initial and collapsed states without a crash or visible fault.
 
 ## Findings
 
@@ -490,16 +490,16 @@ final result: passed
 
 ### Evidence
 
-- Source screenshots: `/Users/shine/CommonWork/MobileWork/TideTunes/artifacts/design-source/home.png`, `search.png`, `library.png`, `settings.png`, `now-playing.png`.
-- Native screenshots: `/Users/shine/CommonWork/MobileWork/TideTunes/artifacts/native/home-final.png`, `search-final.png`, `library-final.png`, `settings-final.png`, `now-playing-final.png`.
-- Same-viewport source/implementation comparisons: `/Users/shine/CommonWork/MobileWork/TideTunes/artifacts/comparisons/home.png`, `search.png`, `library.png`, `settings.png`, `now-playing.png`.
+- Source screenshots: `./artifacts/design-source/home.png`, `search.png`, `library.png`, `settings.png`, `now-playing.png`.
+- Native screenshots: `./artifacts/native/home-final.png`, `search-final.png`, `library-final.png`, `settings-final.png`, `now-playing-final.png`.
+- Same-viewport source/implementation comparisons: `./artifacts/comparisons/home.png`, `search.png`, `library.png`, `settings.png`, `now-playing.png`.
 - Viewport: 393 × 852 points; native captures are 1179 × 2556 at 3× and normalized to 393 × 852 in every combined comparison.
 
 ### Five fidelity surfaces
 
-- Typography: page titles, section hierarchy, chips, row copy, lyric summary, compact time labels, and selected navigation labels match the Design hierarchy using the production TideTunes font system.
+- Typography: page titles, section hierarchy, chips, row copy, lyric summary, compact time labels, and selected navigation labels match the Design hierarchy using the production MelodyTrove font system.
 - Spacing/layout: the persistent 72 dp mini player, flat four-item navigation, Home sticky header, Search two-row genre rail, Library segmented tabs and rows, Settings groups, and Now Playing hero/controls fit without overlap or horizontal overflow.
-- Colors/tokens: production dark surfaces, TideTunes pink, blue-purple gradients, low-alpha glass borders, muted copy, dividers, and white transport controls match the source hierarchy.
+- Colors/tokens: production dark surfaces, MelodyTrove pink, blue-purple gradients, low-alpha glass borders, muted copy, dividers, and white transport controls match the source hierarchy.
 - Images/assets: Home and Library use the source's real 900 × 900 covers with matching crops and radii; production vector resources are used for navigation, collapse, favorite, playback, and settings actions. The isolated Now Playing fixture's unresolved database artwork exercises the production fallback while real playback uses the same `track.artwork` crop path.
 - Copy/controls: Search queries and genre order, Library tabs/playlists, Settings groups/search, mini-player routing, page navigation, menu, favorite, seek, and transport controls align with the source and remain interactive. The Chinese Settings capture reflects the simulator locale.
 

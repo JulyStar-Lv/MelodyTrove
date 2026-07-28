@@ -14,7 +14,7 @@ use lofty::{
     properties::FileProperties,
     tag::{Accessor, ItemKey, ItemValue, Tag},
 };
-use tidetunes_storage_backend::{ByteRange, StorageBackend};
+use storage_backend::{ByteRange, StorageBackend};
 
 #[cfg(test)]
 thread_local! {
@@ -103,7 +103,7 @@ impl RangeSource for StorageRangeSource {
     }
 
     fn read_range(&self, range: ByteRange) -> Result<Bytes, MetadataError> {
-        tidetunes_async_runtime::tokio_runtime()
+        async_runtime::tokio_runtime()
             .block_on(self.backend.get_range(self.path.clone(), range))
             .map_err(|error| MetadataError::Source(error.to_string()))
     }
@@ -1224,7 +1224,7 @@ mod tests {
 
     fn vorbis_comment(entries: &[(&str, &str)]) -> Vec<u8> {
         let mut data = Vec::new();
-        let vendor = b"TideTunes";
+        let vendor = b"MelodyTrove";
         data.extend_from_slice(&(vendor.len() as u32).to_le_bytes());
         data.extend_from_slice(vendor);
         data.extend_from_slice(&(entries.len() as u32).to_le_bytes());

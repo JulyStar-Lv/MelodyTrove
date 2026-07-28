@@ -3,7 +3,7 @@
 [workspace]
 resolver = "2"
 members = [
-    "backend",
+    "app-backend",
     "uniffi-bindgen",
     "async-runtime",
     "order-key",
@@ -30,8 +30,8 @@ thiserror = "1.0.57"
 chrono = "0.4.41"
 anyhow = "1.0"
 tracing = "0.1"
-tidetunes-async-runtime = { path = "./async-runtime" }
-tidetunes-order-key = { path = "./order-key" }
+async-runtime = { path = "./async-runtime" }
+order-key = { path = "./order-key" }
 
 [patch.crates-io]
 lofty = { path = "vendor/lofty" }

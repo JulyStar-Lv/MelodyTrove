@@ -7,9 +7,9 @@ kotlin {
     jvm("desktop")
     listOf(iosArm64(), iosSimulatorArm64()).forEach { iosTarget ->
         iosTarget.binaries.framework {
-            baseName = "TideTunesSourceServer"
+            baseName = "SourceServer"
             isStatic = true
-            binaryOption("bundleId", "com.github.tidetunes.source.server")
+            binaryOption("bundleId", "io.github.julystar.musicapp.source.server")
         }
     }
 
@@ -22,7 +22,7 @@ kotlin {
 }
 
 android {
-    namespace = "com.github.tidetunes.source.server"
+    namespace = "io.github.julystar.musicapp.source.server"
     compileSdk = 36
     defaultConfig { minSdk = 29 }
     compileOptions {
