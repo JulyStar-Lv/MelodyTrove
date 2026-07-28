@@ -10,9 +10,9 @@ kotlin {
         iosSimulatorArm64(),
     ).forEach { iosTarget ->
         iosTarget.binaries.framework {
-            baseName = "TideTunesSourceApi"
+            baseName = "SourceApi"
             isStatic = true
-            binaryOption("bundleId", "com.github.tidetunes.source.api")
+            binaryOption("bundleId", "io.github.julystar.musicapp.source.api")
         }
     }
 
@@ -28,7 +28,7 @@ kotlin {
 }
 
 android {
-    namespace = "com.github.tidetunes.source.api"
+    namespace = "io.github.julystar.musicapp.source.api"
     compileSdk = 36
     defaultConfig {
         minSdk = 29

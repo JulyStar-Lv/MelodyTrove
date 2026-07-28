@@ -1,13 +1,13 @@
 use std::{env, sync::Arc, time::Duration};
 
-use tidetunes_async_runtime::tokio_runtime;
-use tidetunes_audio_metadata::{read_metadata, ReaderLimits, StorageRangeSource};
-use tidetunes_storage_backend::{BuildWebdavArg, ByteRange, StorageBackend, Webdav};
+use async_runtime::tokio_runtime;
+use audio_metadata::{read_metadata, ReaderLimits, StorageRangeSource};
+use storage_backend::{BuildWebdavArg, ByteRange, StorageBackend, Webdav};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let address = required_env("TIDETUNES_WEBDAV_ADDRESS")?;
-    let username = required_env("TIDETUNES_WEBDAV_USERNAME")?;
-    let password = required_env("TIDETUNES_WEBDAV_PASSWORD")?;
+    let address = required_env("MUSICAPP_WEBDAV_ADDRESS")?;
+    let username = required_env("MUSICAPP_WEBDAV_USERNAME")?;
+    let password = required_env("MUSICAPP_WEBDAV_PASSWORD")?;
     let backend: Arc<dyn StorageBackend + Send + Sync> = Arc::new(Webdav::new(BuildWebdavArg {
         addr: address,
         username,

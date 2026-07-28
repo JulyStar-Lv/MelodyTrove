@@ -10,9 +10,9 @@ kotlin {
         iosSimulatorArm64(),
     ).forEach { iosTarget ->
         iosTarget.binaries.framework {
-            baseName = "TideTunesSourceWebDav"
+            baseName = "SourceWebDav"
             isStatic = true
-            binaryOption("bundleId", "com.github.tidetunes.source.webdav")
+            binaryOption("bundleId", "io.github.julystar.musicapp.source.webdav")
         }
     }
 
@@ -27,7 +27,7 @@ kotlin {
 }
 
 android {
-    namespace = "com.github.tidetunes.source.webdav"
+    namespace = "io.github.julystar.musicapp.source.webdav"
     compileSdk = 36
     defaultConfig {
         minSdk = 29

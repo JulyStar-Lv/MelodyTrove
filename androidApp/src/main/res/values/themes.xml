@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.TideTunes" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:windowBackground">@color/tidetunes_startup_background</item>
+    <style name="Theme.App" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/app_startup_background</item>
         <item name="android:windowLightStatusBar">true</item>
-        <item name="android:navigationBarColor">@color/tidetunes_startup_background</item>
+        <item name="android:navigationBarColor">@color/app_startup_background</item>
         <item name="android:windowLightNavigationBar">true</item>
     </style>
 
-    <style name="Theme.TideTunes.Starting" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">@color/tidetunes_startup_background</item>
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/app_startup_background</item>
         <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
-        <item name="postSplashScreenTheme">@style/Theme.TideTunes</item>
+        <item name="postSplashScreenTheme">@style/Theme.App</item>
     </style>
 </resources>

@@ -14,9 +14,9 @@ kotlin {
         iosSimulatorArm64(),
     ).forEach { iosTarget ->
         iosTarget.binaries.framework {
-            baseName = "TideTunesPlaybackPresentation"
+            baseName = "PlaybackPresentation"
             isStatic = true
-            binaryOption("bundleId", "com.github.tidetunes.service.playback.presentation")
+            binaryOption("bundleId", "io.github.julystar.musicapp.service.playback.presentation")
         }
     }
 
@@ -48,7 +48,7 @@ kotlin {
 }
 
 android {
-    namespace = "com.github.tidetunes.service.playback.presentation"
+    namespace = "io.github.julystar.musicapp.service.playback.presentation"
     compileSdk = 37
     defaultConfig {
         minSdk = 29

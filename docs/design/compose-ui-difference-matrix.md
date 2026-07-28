@@ -1,16 +1,16 @@
-# TideTunes Compose UI 差异矩阵
+# MelodyTrove Compose UI 差异矩阵
 
 审计日期：2026-07-25。设计证据按优先级来自 `Design/src/app/App.tsx`、
-`Design/src/imports/pasted_text/tidetunes-design-system-v3.md` 与
+`Design/src/imports/pasted_text/design-system-v3.md` 与
 `docs/design/design-ui-implementation.md`；生产代码仅作为当前实现证据。
 
 | 设计元素 | 现有 Compose 文件 | 已确认差异 | 优先级 | 验收方式 |
 | --- | --- | --- | --- | --- |
 | 四个根入口与播放器入口 | `shared/.../navigation/HomeTab.kt`、`HomePage.kt`、`RootNavHost.kt` | 已修复：仅 Home、Search、Library、Settings 为根入口；移除了播放后自动跳转、Library 和播放列表的直达路径。唯一的 `MusicGraph.NowPlaying` 导航由 `PlaybackMiniPlayerHost` 的点击回调提供。 | 已完成 | 静态导航审查；当前工作树的 390×844 iOS 构建已在浅/深主题逐一切换四个入口，并确认 Mini Player 持续存在。桌面真实曲库已从 Mini Player 进入 Now Playing，入口唯一性另由导航测试覆盖。 |
-| 紧凑底部导航 | `widgets/appbar/BottomBar.kt`、`core/.../PlayerChromeComponents.kt` | 已修复：62dp 高度、1dp 分隔线、48×28dp 指示器、20dp 图标和 10sp 标签均由 `TideTunesTokens.navigation` 提供；每个入口还导出名称、`Role.Tab` 和选中状态。 | 已完成 | token 单元测试与源码尺寸检查；390×844 浅/深主题实际截图检查四个选中态及点击面。 |
+| 紧凑底部导航 | `widgets/appbar/BottomBar.kt`、`core/.../PlayerChromeComponents.kt` | 已修复：62dp 高度、1dp 分隔线、48×28dp 指示器、20dp 图标和 10sp 标签均由 `DesignTokens.navigation` 提供；每个入口还导出名称、`Role.Tab` 和选中状态。 | 已完成 | token 单元测试与源码尺寸检查；390×844 浅/深主题实际截图检查四个选中态及点击面。 |
 | 自适应应用壳与 Mini Player | `navigation/HomePage.kt`、`RootNavHost.kt`、`widgets/appbar/NavigationRailBar.kt`、`SidebarBar.kt` | 已修复：根壳保持 <600 / 600–1279 / ≥1280；`RootNavHost` 持有四个根 Tab 的状态。Home 使用同一状态渲染根壳；非 Home、非 Now Playing 二级路由复用底部导航/导航栏/桌面侧边栏及同一 `PlaybackMiniPlayerHost`，所以桌面播放器位于侧边栏右侧的主内容区底部。三种根导航均导出 Tab 名称与选中状态；Mini Player 主体导出按钮角色和本地化标签。 | 已完成 | 390×844 iOS 为底部导航；840dp、1008dp 桌面窗口为导航栏；1400dp 桌面窗口为侧边栏。三档均实际检查，浅/深主题均有运行证据；桌面播放器位于侧栏/导航栏右侧的主内容区底部。二级页壳层由导航测试覆盖，运行时只抽查外观设置页。 |
-| 共享 tokens 与页面收起栏 | `theme/Theme.kt`、`components/TideGlassComponents.kt`、`TidePageHeader.kt`、`BottomBarSpacer.kt` | 已修复：导航和 Mini Player 关键尺寸归入 tokens；所有底部空间复用 `compactMiniBarHeight + spacing.xs`；粘性标题栏为 58dp，Home 收起距离为 48dp。 | 已完成 | `TideTunesTokenTest` 固定断言 48dp/58dp；390×844 iOS 真机模拟器以 797 首真实曲目滚动后已显示收起栏，底部内容未被播放器/导航覆盖。 |
-| 可点击共享组件 | `components/TideCardSurface.kt`、`TideTabs.kt`、`TideSearchBar.kt`、`IconButton.kt`、`TextButton.kt`、`TideButton.kt`、`Checkbox.kt`、`TideSwitch.kt`、`ContextMenu.kt`、`ImportCover.kt`、`TideSettingsComponents.kt` | 已修复：卡片、Tabs、搜索清除、图标按钮、文本按钮、主按钮、复选框、开关、Mini Player 控制、封面删除和菜单项在组件表面允许时均使用 48dp 最小触控面；设置行已为 68dp。 | 已完成 | 对所有经共享组件承载的操作，在不受固定视觉尺寸限制时测量 ≥48dp。 |
+| 共享 tokens 与页面收起栏 | `theme/Theme.kt`、`components/DesignGlassComponents.kt`、`DesignPageHeader.kt`、`BottomBarSpacer.kt` | 已修复：导航和 Mini Player 关键尺寸归入 tokens；所有底部空间复用 `compactMiniBarHeight + spacing.xs`；粘性标题栏为 58dp，Home 收起距离为 48dp。 | 已完成 | `DesignTokenTest` 固定断言 48dp/58dp；390×844 iOS 真机模拟器以 797 首真实曲目滚动后已显示收起栏，底部内容未被播放器/导航覆盖。 |
+| 可点击共享组件 | `components/DesignCardSurface.kt`、`DesignTabs.kt`、`DesignSearchBar.kt`、`IconButton.kt`、`TextButton.kt`、`DesignButton.kt`、`Checkbox.kt`、`DesignSwitch.kt`、`ContextMenu.kt`、`ImportCover.kt`、`DesignSettingsComponents.kt` | 已修复：卡片、Tabs、搜索清除、图标按钮、文本按钮、主按钮、复选框、开关、Mini Player 控制、封面删除和菜单项在组件表面允许时均使用 48dp 最小触控面；设置行已为 68dp。 | 已完成 | 对所有经共享组件承载的操作，在不受固定视觉尺寸限制时测量 ≥48dp。 |
 | Home 真实数据与播放 | `feature/home/.../HomeState.kt`、`HomeViewModel.kt`、`HomeDesignScreen.kt`、`HomeRoot.kt` | 已修复为安全子集：默认状态为空，Home 组合 `LibraryRepository` 的曲目/专辑/艺术家及 `PlaylistRepository` 摘要；点击真实曲目建立真实播放队列，不再使用设计稿示例封面或曲目。 | 已完成 | 无库时只显示可操作空状态；有库时只显示 Repository 数据，点击曲目由 `PlaybackController` 开始播放。 |
 | Home 的置顶、历史、听歌统计 | 同上；`core/domain/.../LibraryRepository.kt`、`PlaylistRepository.kt` | 当前领域契约只提供曲目、专辑、艺术家与播放列表摘要；没有置顶、播放历史、听歌统计的真实数据。按要求不能用设计稿演示数据补齐。 | 阻塞该子项 | 需要产品决定：新增持久化业务契约后显示这些区块，或在生产 Home 中隐藏/以明确空状态替代。 |
 | Search | `feature/search/.../SearchDesignScreen.kt`、`SearchViewModel.kt`、`SearchRoot.kt`、`MusicSourceSearchAggregator.kt`、`shared/.../RoomSearchRepository.kt` | 已修复：生产页只展示真实 `tracks`、`history`、`suggestions`。启用账户才进入音源聚合；每个账户独立并发、8 秒超时后转为局部 `Timeout`，不丢弃其他账户及 Room 结果。Room 结果从启用/可用/可播放的 `track_source_ref` 批量取真实 `MediaId`；已有 `trackId` 的结果进入既有 Library 合成播放列表，仍不直达 Now Playing。 | 已完成，有明确取舍 | 聚合器超时/部分成功、禁用账户过滤、Room→`MediaId` 与 Search→`PlayableItem` 均有测试。远程 source-only 结果保留真实下载 `MediaId`，但当前播放契约只接受音乐库 `trackId`；UI 明确提示先加入音乐库，不再静默无效。 |

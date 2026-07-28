@@ -1,4 +1,4 @@
-# TideTunes Design UI implementation
+# MelodyTrove Design UI implementation
 
 This document maps the production Compose Multiplatform UI to the source-of-truth prototype in `Design/`.
 
@@ -6,8 +6,8 @@ This document maps the production Compose Multiplatform UI to the source-of-trut
 
 | Design surface | Production implementation |
 | --- | --- |
-| Mobile root navigation | `BottomBar.kt` + `TideBottomNavigationBar` |
-| Mobile mini player | `PlaybackMiniPlayerHost` + `TideMiniPlayerBar` |
+| Mobile root navigation | `BottomBar.kt` + `DesignBottomNavigationBar` |
+| Mobile mini player | `PlaybackMiniPlayerHost` + `DesignMiniPlayerBar` |
 | Tablet navigation | `NavigationRailBar.kt` |
 | Desktop navigation | `SidebarBar.kt` |
 | Desktop player placement | Bottom of `HomeMainPane` |
@@ -33,12 +33,12 @@ The compact Home implementation uses the source prototype's 152 dp Daily Picks b
 
 Album, Artist, Playlist, Now Playing, Lyrics, Queue, Downloads, Sources, Import, Plugin management, and all Settings subpages retain their existing business state and navigation. Their visual alignment is supplied by the shared components updated in this implementation:
 
-- `TidePageHeader`
-- `TideCardSurface`
-- `TideSettingsGroup`
-- `TidePreferenceRow`
-- `TideMiniPlayerBar`
-- `TideBottomNavigationBar`
+- `DesignPageHeader`
+- `DesignCardSurface`
+- `DesignSettingsGroup`
+- `DesignPreferenceRow`
+- `DesignMiniPlayerBar`
+- `DesignBottomNavigationBar`
 - shared spacing, radius, elevation, blur, motion, and adaptive tokens
 
 ## Data rules

@@ -119,6 +119,52 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2a4385e2e34eb35d6b3efe798b9eb88096925d87726c0798709bf56d9ed84af3"
 
 [[package]]
+name = "app-backend"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "async-channel",
+ "async-runtime",
+ "async-stream",
+ "audio-metadata",
+ "axum",
+ "base64 0.22.1",
+ "bitcode",
+ "bytes",
+ "chrono",
+ "flume",
+ "futures-util",
+ "getset",
+ "lru",
+ "md-5 0.10.6",
+ "nom",
+ "num-derive 0.2.5",
+ "num-traits",
+ "once_cell",
+ "order-key",
+ "plugin-runtime",
+ "postcard",
+ "rand 0.8.7",
+ "regex",
+ "reqwest",
+ "rodio",
+ "serde",
+ "serde_bytes",
+ "serde_json",
+ "sha2 0.10.8",
+ "storage-backend",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "tracing-android",
+ "tracing-subscriber",
+ "unicode-segmentation",
+ "uniffi",
+ "urlencoding",
+ "zip",
+]
+
+[[package]]
 name = "arbitrary"
 version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -188,6 +234,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-runtime"
+version = "0.1.0"
+dependencies = [
+ "once_cell",
+ "tokio",
+]
+
+[[package]]
 name = "async-stream"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -227,6 +281,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8cf2bce30dfe09ef0bfaef228b9d414faaf7e563035494d7fe092dba54b300f4"
 dependencies = [
  "critical-section",
+]
+
+[[package]]
+name = "audio-metadata"
+version = "0.1.0"
+dependencies = [
+ "async-runtime",
+ "bytes",
+ "lofty",
+ "serde",
+ "serde_json",
+ "storage-backend",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -2099,6 +2166,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
+name = "order-key"
+version = "0.1.0"
+dependencies = [
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "parking"
 version = "2.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2192,6 +2266,27 @@ name = "plain"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b4596b6d070b27117e987119b4dac604f3c58cfb0b191112e24771b2faeac1a6"
+
+[[package]]
+name = "plugin-runtime"
+version = "0.1.0"
+dependencies = [
+ "aes 0.8.4",
+ "base64 0.22.1",
+ "cc",
+ "cipher 0.4.4",
+ "flate2",
+ "flume",
+ "md-5 0.10.6",
+ "quick-xml 0.37.5",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "sha2 0.10.8",
+ "tempfile",
+ "thiserror 1.0.69",
+ "url",
+]
 
 [[package]]
 name = "polyval"
@@ -2921,6 +3016,37 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
+name = "storage-backend"
+version = "0.1.0"
+dependencies = [
+ "async-channel",
+ "async-runtime",
+ "async-stream",
+ "async-trait",
+ "bytes",
+ "chrono",
+ "dav-server",
+ "futures-executor",
+ "futures-util",
+ "http-auth",
+ "hyper",
+ "lru",
+ "obfstr",
+ "once_cell",
+ "quick-xml 0.29.0",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_with",
+ "sha2 0.10.8",
+ "smb2",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+ "urlencoding",
+]
+
+[[package]]
 name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3208,139 +3334,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1ad99c4c6d32803332c548b1af0540b357b3f5fc0be8f6c6bfe8b2e6ae784070"
 dependencies = [
  "cfg-if",
-]
-
-[[package]]
-name = "tidetunes-async-runtime"
-version = "0.1.0"
-dependencies = [
- "once_cell",
- "tokio",
-]
-
-[[package]]
-name = "tidetunes-audio-metadata"
-version = "0.1.0"
-dependencies = [
- "bytes",
- "lofty",
- "serde",
- "serde_json",
- "thiserror 1.0.69",
- "tidetunes-async-runtime",
- "tidetunes-storage-backend",
-]
-
-[[package]]
-name = "tidetunes-backend"
-version = "0.2.0"
-dependencies = [
- "anyhow",
- "async-channel",
- "async-stream",
- "axum",
- "base64 0.22.1",
- "bitcode",
- "bytes",
- "chrono",
- "flume",
- "futures-util",
- "getset",
- "lru",
- "md-5 0.10.6",
- "nom",
- "num-derive 0.2.5",
- "num-traits",
- "once_cell",
- "postcard",
- "rand 0.8.7",
- "regex",
- "reqwest",
- "rodio",
- "serde",
- "serde_bytes",
- "serde_json",
- "sha2 0.10.8",
- "thiserror 1.0.69",
- "tidetunes-async-runtime",
- "tidetunes-audio-metadata",
- "tidetunes-order-key",
- "tidetunes-plugin-runtime",
- "tidetunes-storage-backend",
- "tokio",
- "tracing",
- "tracing-android",
- "tracing-subscriber",
- "unicode-segmentation",
- "uniffi",
- "urlencoding",
- "zip",
-]
-
-[[package]]
-name = "tidetunes-order-key"
-version = "0.1.0"
-dependencies = [
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "tidetunes-plugin-runtime"
-version = "0.1.0"
-dependencies = [
- "aes 0.8.4",
- "base64 0.22.1",
- "cc",
- "cipher 0.4.4",
- "flate2",
- "flume",
- "md-5 0.10.6",
- "quick-xml 0.37.5",
- "reqwest",
- "serde",
- "serde_json",
- "sha2 0.10.8",
- "tempfile",
- "thiserror 1.0.69",
- "url",
-]
-
-[[package]]
-name = "tidetunes-storage-backend"
-version = "0.1.0"
-dependencies = [
- "async-channel",
- "async-stream",
- "async-trait",
- "bytes",
- "chrono",
- "dav-server",
- "futures-executor",
- "futures-util",
- "http-auth",
- "hyper",
- "lru",
- "obfstr",
- "once_cell",
- "quick-xml 0.29.0",
- "reqwest",
- "serde",
- "serde_json",
- "serde_with",
- "sha2 0.10.8",
- "smb2",
- "thiserror 1.0.69",
- "tidetunes-async-runtime",
- "tokio",
- "tracing",
- "urlencoding",
-]
-
-[[package]]
-name = "tidetunes-uniffi-bindgen"
-version = "0.1.0"
-dependencies = [
- "uniffi",
 ]
 
 [[package]]
@@ -3640,6 +3633,13 @@ dependencies = [
  "uniffi_core",
  "uniffi_macros",
  "uniffi_pipeline",
+]
+
+[[package]]
+name = "uniffi-bindgen"
+version = "0.1.0"
+dependencies = [
+ "uniffi",
 ]
 
 [[package]]

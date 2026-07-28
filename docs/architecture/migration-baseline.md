@@ -1,4 +1,4 @@
-# TideTunes Migration Baseline (Historical Archive)
+# MelodyTrove Migration Baseline (Historical Archive)
 
 Date: 2026-06-24 (original) / archived 2026-06-30
 
@@ -6,10 +6,10 @@ This document combines the original pre-migration state assessment and migration
 into a single historical archive.
 > **Historical naming note (2026-07-13):** This archive preserves the original
 > Rust crate and module names from the pre-rename era. The current names are:
-> `rust-libs/core` → `rust-libs/backend`,
-> `tidetunes-core` → `tidetunes-backend`,
-> `tidetunes_core` → `tidetunes_backend`,
-> `uniffi.tidetunes_core` → `uniffi.tidetunes_backend`.
+> the legacy Rust core directory → `rust-libs/app-backend`,
+> the legacy crate → `app-backend`,
+> the legacy Rust library → `app_backend`,
+> the legacy UniFFI package → `uniffi.app_backend`.
 > See `final-architecture.md` for current structure.
 > Commands and paths in this document use historical names and are not expected
 > to work verbatim.
@@ -18,7 +18,7 @@ into a single historical archive.
 
 ---
 
-# TideTunes migration: current state
+# MelodyTrove migration: current state
 
 Date: 2026-06-24  
 Upstream: `https://github.com/hpp2334/ease-music-player.git`  
@@ -29,7 +29,7 @@ Reviewed commit: `897ce0747dce191070fcc91711b5369e04df903c`
 
 The workspace was populated from the upstream `kmp` branch. The pre-existing
 `Design/` directory is not part of the upstream commit and is retained as the
-TideTunes UI specification.
+MelodyTrove UI specification.
 
 The upstream checkout has a case-insensitive-filesystem issue before any source
 change: the tracked `LICENSE` symlink conflicts with the tracked `license/`
@@ -183,7 +183,7 @@ database-backed library screen independent of playlists.
 
 ## Database
 
-The local app database is Room KMP, created as `tidetunes.db`. Binary artwork and
+The local app database is Room KMP, created as `library.db`. Binary artwork and
 credentials stay outside Room.
 
 Persisted models include storage, selected folders, remote files, tracks,
@@ -228,7 +228,7 @@ iOS:
 - no player implementation exists.
 
 The shared `PlayerController` does not expose the complete queue/state contract
-required by TideTunes.
+required by MelodyTrove.
 
 ## UI and navigation
 
@@ -240,10 +240,10 @@ The shared Compose UI contains:
 - a mini player and Android/Desktop platform adapters.
 
 Navigation is shared Navigation Compose. The current theme is a small Material 3
-color override named `EaseMusicPlayerTheme`; it has no TideTunes spacing, shape,
+color override named `EaseMusicPlayerTheme`; it has no MelodyTrove spacing, shape,
 motion, elevation, or responsive-window system. Desktop reuses the phone layout.
 
-The pre-existing `Design/` package defines TideTunes colors, typography, spacing,
+The pre-existing `Design/` package defines MelodyTrove colors, typography, spacing,
 responsive behavior, and target screens. It can be reused without replacing
 the functional Compose screens wholesale.
 
@@ -271,11 +271,11 @@ the functional Compose screens wholesale.
 - metadata extraction and artwork persistence;
 - import/sync coordinator;
 - Desktop player and all iOS platform implementations;
-- responsive TideTunes UI system and missing library screens.
+- responsive MelodyTrove UI system and missing library screens.
 
 ---
 
-# TideTunes migration plan
+# MelodyTrove migration plan
 
 Date: 2026-06-24
 
@@ -283,7 +283,7 @@ Date: 2026-06-24
 
 1. The upstream `kmp` branch is the only source baseline. Reusable functionality
    is migrated rather than rewritten.
-2. `Design/` is an accepted TideTunes design input and remains in the repository.
+2. `Design/` is an accepted MelodyTrove design input and remains in the repository.
 3. Room KMP becomes the UI-facing source of truth. Rust does not write Room
    tables directly; it returns typed batches to a KMP import coordinator.
 4. Rust remains authoritative for remote storage, bounded range reads, metadata
@@ -356,7 +356,7 @@ Changes:
 
 - add `iosArm64()` and `iosSimulatorArm64()` targets;
 - create `iosMain`, `iosTest`, and missing common/platform test source sets;
-- create an `iosApp` Xcode project with bundle ID `com.github.tidetunes`;
+- create an `iosApp` Xcode project with bundle ID `io.github.julystar.musicapp`;
 - move JNA/JVM APIs to Desktop-only code;
 - replace Java time/URL APIs in common code with Kotlin/common equivalents;
 - isolate generated Rust bindings behind `RustMusicCore`;
@@ -376,7 +376,7 @@ xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp \
 
 Changes:
 
-- create `tidetunes-core` and `tidetunes-ffi` crate identities;
+- create `melodytrove-core` and `melodytrove-ffi` crate identities;
 - configure Gobley Cargo and UniFFI plugins;
 - export one asynchronous typed function and one typed error;
 - build and call it from Android, Desktop, iOS Simulator, and iOS device
@@ -401,7 +401,7 @@ spike. Handwritten JNI is not an acceptable fallback.
 Changes:
 
 - add bundled SQLite, KSP schema generation, platform database builders, and
-  `tidetunes.db`;
+  `library.db`;
 - implement storage, selected folder, remote file, track, album, artist, genre,
   artwork, lyrics, raw metadata, import job, sync cursor, playlist, and
   cross-reference entities;
@@ -423,9 +423,9 @@ and a 50,000-track query/import benchmark.
 
 Changes:
 
-- split Rust into `tidetunes-core`, `tidetunes-ffi`,
-  `tidetunes-remote-storage`, `tidetunes-metadata`,
-  `tidetunes-player-desktop`, and `tidetunes-test-support`;
+- split Rust into `melodytrove-core`, `melodytrove-ffi`,
+  `melodytrove-remote-storage`, `melodytrove-metadata`,
+  `melodytrove-player-desktop`, and `melodytrove-test-support`;
 - implement typed `RemoteNode` with stable IDs and remote metadata;
 - add bounded `RemoteRangeReader`, block cache, validation, request/byte budgets,
   cancellation, retry, rate limits, and explicit no-range fallback;
@@ -480,11 +480,11 @@ Verify:
 - iOS Simulator player lifecycle test;
 - Desktop current-host playback smoke test.
 
-## Phase 8: TideTunes UI
+## Phase 8: MelodyTrove UI
 
 Changes:
 
-- implement `TideTunesTheme`, colors, typography, shapes, spacing, motion, and
+- implement `AppTheme`, colors, typography, shapes, spacing, motion, and
   elevation from `Design/design-system/tokens.json`;
 - migrate existing screens surgically and add the missing onboarding, library,
   folder selection, progress, album, artist, search, queue, lyrics, sync, and

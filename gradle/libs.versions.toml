@@ -92,10 +92,10 @@ gobley-uniffi = { id = "dev.gobley.uniffi", version.ref = "gobley" }
 kotlin-atomicfu = { id = "org.jetbrains.kotlin.plugin.atomicfu", version.ref = "kotlin" }
 androidx-room = { id = "androidx.room", version.ref = "room" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
-convention-kmp-library = { id = "com.github.tidetunes.convention.kmp.library" }
-convention-kmp-domain = { id = "com.github.tidetunes.convention.kmp.domain" }
-convention-music-source = { id = "com.github.tidetunes.convention.music-source" }
-convention-cmp-library = { id = "com.github.tidetunes.convention.cmp.library" }
-convention-feature = { id = "com.github.tidetunes.convention.feature" }
-convention-room = { id = "com.github.tidetunes.convention.room" }
-convention-cargo-uniffi = { id = "com.github.tidetunes.convention.cargo-uniffi" }
+convention-kmp-library = { id = "io.github.julystar.musicapp.convention.kmp.library" }
+convention-kmp-domain = { id = "io.github.julystar.musicapp.convention.kmp.domain" }
+convention-music-source = { id = "io.github.julystar.musicapp.convention.music-source" }
+convention-cmp-library = { id = "io.github.julystar.musicapp.convention.cmp.library" }
+convention-feature = { id = "io.github.julystar.musicapp.convention.feature" }
+convention-room = { id = "io.github.julystar.musicapp.convention.room" }
+convention-cargo-uniffi = { id = "io.github.julystar.musicapp.convention.cargo-uniffi" }

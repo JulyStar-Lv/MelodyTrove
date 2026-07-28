@@ -1,10 +1,10 @@
-# TideTunes build logic
+# MusicApp build logic
 
 This included build is the first measured step toward convention plugins.
 
 Current status:
 
-- `com.github.tidetunes.convention.project` is intentionally minimal and only
+- `io.github.julystar.musicapp.convention.project` is intentionally minimal and only
   sets shared project metadata.
 - Existing module build scripts are not migrated yet.
 - Future plugin slices should be introduced one at a time and verified with the

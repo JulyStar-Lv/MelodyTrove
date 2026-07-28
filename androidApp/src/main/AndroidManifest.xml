@@ -20,7 +20,7 @@
         <package android:name="com.xjcheng.musictageditor" />
     </queries>
     <application
-        android:name=".TideTunesApplication"
+        android:name=".AppApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -28,14 +28,14 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.TideTunes"
+        android:theme="@style/Theme.App"
         android:usesCleartextTraffic="true"
         tools:targetApi="34">
         <meta-data
             android:name="com.google.android.gms.car.application"
             android:resource="@xml/automotive_app_desc" />
         <service
-            android:name="com.github.tidetunes.core.PlaybackService"
+            android:name="io.github.julystar.musicapp.core.PlaybackService"
             android:exported="true"
             android:foregroundServiceType="mediaPlayback">
             <intent-filter>
@@ -46,7 +46,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.TideTunes.Starting"
+            android:theme="@style/Theme.App.Starting"
             android:launchMode="singleInstance"
             android:resizeableActivity="true"
             tools:targetApi="34">
@@ -58,6 +58,9 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="melodytrove"
+                    android:host="oauth2redirect" />
                 <data
                     android:scheme="tidetunes"
                     android:host="oauth2redirect" />

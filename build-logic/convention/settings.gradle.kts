@@ -14,4 +14,4 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "tidetunes-build-logic"
+rootProject.name = "musicapp-build-logic"

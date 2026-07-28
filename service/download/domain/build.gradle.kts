@@ -10,9 +10,9 @@ kotlin {
         iosSimulatorArm64(),
     ).forEach { iosTarget ->
         iosTarget.binaries.framework {
-            baseName = "TideTunesDownloadDomain"
+            baseName = "DownloadDomain"
             isStatic = true
-            binaryOption("bundleId", "com.github.tidetunes.service.download.domain")
+            binaryOption("bundleId", "io.github.julystar.musicapp.service.download.domain")
         }
     }
 
@@ -28,7 +28,7 @@ kotlin {
 }
 
 android {
-    namespace = "com.github.tidetunes.service.download.domain"
+    namespace = "io.github.julystar.musicapp.service.download.domain"
     compileSdk = 36
     defaultConfig {
         minSdk = 29

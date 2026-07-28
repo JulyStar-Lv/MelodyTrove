@@ -1,0 +1,112 @@
+package io.github.julystar.musicapp.core.presentation.components
+
+import io.github.julystar.musicapp.core.domain.model.Artwork
+import io.github.julystar.musicapp.core.presentation.media.ArtworkImage
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
+import musicapp.core.presentation.generated.resources.Res
+import musicapp.core.presentation.generated.resources.icon_plus
+import org.jetbrains.compose.resources.painterResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.theme.MiuixTheme
+
+@Composable
+fun ImportCover(
+    artwork: Artwork?,
+    onAdd: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    if (artwork != null) {
+        Box(
+            modifier = Modifier
+                .width(104.dp)
+                .height(90.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .offset(0.dp, 10.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .width(80.dp)
+                    .height(80.dp)
+            ) {
+                ArtworkImage(
+                    modifier = Modifier.fillMaxSize(),
+                    artwork = artwork,
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .offset(56.dp)
+                    .size(DesignTokens.adaptive.minimumTouchTarget)
+                    .clickable {
+                        onRemove()
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .offset(y = (-14).dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(MiuixTheme.colorScheme.error)
+                        .size(20.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(MiuixTheme.colorScheme.surface)
+                            .size(width = 8.dp, height = 2.dp)
+                    )
+                }
+            }
+        }
+    } else {
+        Box(
+            modifier = Modifier
+                .height(86.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .offset(0.dp, 10.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .clickable {
+                        onAdd()
+                    }
+                    .background(MiuixTheme.colorScheme.surfaceVariant)
+                    .width(80.dp)
+                    .height(80.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    modifier = Modifier
+                        .size(20.dp),
+                    painter = painterResource(Res.drawable.icon_plus),
+                    contentDescription = null,
+                    tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                )
+            }
+        }
+    }
+}

@@ -1,13 +1,13 @@
 use std::{cmp::Ordering, time::Duration};
 
+use async_runtime::tokio_runtime;
 use futures_util::future::BoxFuture;
 use reqwest::header::HeaderValue;
 use reqwest::StatusCode;
-use tidetunes_async_runtime::tokio_runtime;
 
 use crate::{
     backend::{parse_remote_timestamp, read_range_response},
-    env::TIDETUNES_ONEDRIVE_ID,
+    env::MUSICAPP_ONEDRIVE_ID,
     ByteRange, DeltaItem, DeltaPage, Entry, RangeResponse, StorageBackend, StorageBackendError,
     StorageBackendResult, StreamFile,
 };
@@ -168,7 +168,7 @@ mod onedrive_types {
 const ONEDRIVE_GRAPH_API: &str = "https://graph.microsoft.com/v1.0";
 const ONEDRIVE_ROOT_API: &str = "https://graph.microsoft.com/v1.0/me/drive";
 const ONEDRIVE_API_BASE: &str = "https://login.microsoftonline.com/common/oauth2/v2.0";
-const ONEDRIVE_REDIRECT_URI: &str = "tidetunes://oauth2redirect/";
+const ONEDRIVE_REDIRECT_URI: &str = "melodytrove://oauth2redirect/";
 
 fn is_auth_error<T>(r: &StorageBackendResult<T>) -> bool {
     matches!(
@@ -319,7 +319,7 @@ async fn refresh_token_by_code_impl(
     code: String,
     code_verifier: String,
 ) -> StorageBackendResult<Auth> {
-    let client_id = TIDETUNES_ONEDRIVE_ID;
+    let client_id = MUSICAPP_ONEDRIVE_ID;
     let body = [
         ("client_id", client_id),
         ("redirect_uri", ONEDRIVE_REDIRECT_URI),
@@ -400,7 +400,7 @@ impl OneDriveBackend {
     }
 
     async fn refresh_token_by_refresh_token(&self) -> StorageBackendResult<()> {
-        let client_id = TIDETUNES_ONEDRIVE_ID;
+        let client_id = MUSICAPP_ONEDRIVE_ID;
         let refresh_token = self.auth.read().await.refresh_token.clone();
         let body = [
             ("client_id", client_id),
@@ -858,7 +858,7 @@ mod tests {
                         "name": "Documents",
                         "driveType": "business",
                         "owner": {
-                            "user": { "displayName": "TideTunes Tester" }
+                            "user": { "displayName": "MelodyTrove Tester" }
                         }
                     }
                 ],
@@ -870,7 +870,7 @@ mod tests {
         assert_eq!(drives.len(), 1);
         assert_eq!(drives[0].id, "drive-1");
         assert_eq!(drives[0].drive_type.as_deref(), Some("business"));
-        assert_eq!(drives[0].owner_name.as_deref(), Some("TideTunes Tester"));
+        assert_eq!(drives[0].owner_name.as_deref(), Some("MelodyTrove Tester"));
         assert!(next_link.is_some());
     }
 }

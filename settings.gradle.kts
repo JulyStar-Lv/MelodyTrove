@@ -21,7 +21,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "TideTunes"
+rootProject.name = "MusicApp"
 include(":shared")
 include(":core:domain")
 include(":core:presentation")

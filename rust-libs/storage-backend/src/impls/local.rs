@@ -1,7 +1,7 @@
 use std::io::SeekFrom;
 
+use async_runtime::tokio_runtime;
 use futures_util::future::BoxFuture;
-use tidetunes_async_runtime::tokio_runtime;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
 use crate::{

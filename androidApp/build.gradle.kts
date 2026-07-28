@@ -18,7 +18,7 @@ val appVersionName = providers.gradleProperty("appVersionName").get()
 val appVersionCode = providers.gradleProperty("appVersionCode").map(String::toInt).get()
 
 android {
-    namespace = "com.github.tidetunes"
+    namespace = "io.github.julystar.musicapp"
     compileSdk = 37
 
     lint {
@@ -26,7 +26,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.github.tidetunes"
+        applicationId = "io.github.julystar.musicapp"
         minSdk = 29
         targetSdk = 34
         versionCode = appVersionCode

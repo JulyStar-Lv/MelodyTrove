@@ -1,11 +1,13 @@
-# TideTunes
+# MelodyTrove
 
 [English](./README.md) · [简体中文](./README.zh-CN.md)
 
-TideTunes 是一款使用 Kotlin Multiplatform、Compose Multiplatform、Rust 和 UniFFI 构建的本地优先、自托管音乐播放器。项目面向 Android、iOS 和 Desktop 提供统一的音乐库，同时通过清晰的音源边界隔离临时播放资源、账号凭据和 Provider 特有数据。
+MelodyTrove（旋律珍藏）是一款使用 Kotlin Multiplatform、Compose Multiplatform、Rust 和 UniFFI 构建的本地优先、自托管音乐播放器。项目面向 Android、iOS 和 Desktop 提供统一的音乐库，同时通过清晰的音源边界隔离临时播放资源、账号凭据和 Provider 特有数据。
+
+> 本项目原名 TideTunes；已有安装与外部集成由迁移兼容层和兼容清单继续支持。
 
 > [!IMPORTANT]
-> TideTunes 仍在积极开发中。当前应用版本为 `0.3.0`；在稳定版本发布前，用户界面、数据库迁移和扩展 API 仍可能继续调整。
+> MelodyTrove 仍在积极开发中。当前应用版本为 `0.3.0`；在稳定版本发布前，用户界面、数据库迁移和扩展 API 仍可能继续调整。
 
 ## 项目亮点
 
@@ -68,7 +70,7 @@ Fast/Standard 会把每个来源文件的封面存在状态保存到 `track_sour
 
 ### 兼容 Lyrico 的元数据插件
 
-TideTunes 支持用户从本地导入实现 Lyrico Plugin API v1-v3 `MetaSource` 行为的 ZIP 插件。插件用于扩展歌曲元数据、封面和歌词查询，不会被当作通用播放 `MusicSource` 使用。
+MelodyTrove 支持用户从本地导入实现 Lyrico Plugin API v1-v3 `MetaSource` 行为的 ZIP 插件。插件用于扩展歌曲元数据、封面和歌词查询，不会被当作通用播放 `MusicSource` 使用。
 
 当前插件链路如下：
 
@@ -79,7 +81,7 @@ TideTunes 支持用户从本地导入实现 Lyrico Plugin API v1-v3 `MetaSource`
   -> 可观察的 MetaSource 注册表
   -> 延迟创建的独立 QuickJS Worker
   -> searchSongs / getLyrics / searchCovers
-  -> 统一的 TideTunes 元数据结果
+  -> 统一的 MelodyTrove 元数据结果
 ```
 
 已经实现的插件能力包括：
@@ -93,7 +95,7 @@ TideTunes 支持用户从本地导入实现 Lyrico Plugin API v1-v3 `MetaSource`
 - 提供 HTTP、缓存、加密、Base64、字节、压缩、XML、日志、应用和运行时信息 Host API。
 - HTTP 重定向和私有网络校验、响应大小限制，以及敏感日志过滤。
 
-TideTunes 不内置或自动下载第三方插件 ZIP，插件文件由用户自行提供。详细兼容性和安全模型请参阅[插件运行时文档](./docs/plugin-runtime.md)。
+MelodyTrove 不内置或自动下载第三方插件 ZIP，插件文件由用户自行提供。详细兼容性和安全模型请参阅[插件运行时文档](./docs/plugin-runtime.md)。
 
 ## 架构
 
@@ -147,7 +149,7 @@ flowchart TD
 ## 仓库结构
 
 ```text
-TideTunes/
+MelodyTrove/
 ├── androidApp/                  Android 应用入口
 ├── desktopApp/                  Desktop JVM 应用入口
 ├── iosApp/                      SwiftUI 容器与 Xcode 工程
@@ -246,8 +248,8 @@ sudo apt-get install --yes libasound2-dev pkg-config
 克隆仓库：
 
 ```bash
-git clone https://github.com/JulyStar-Lv/TideTunes.git
-cd TideTunes
+git clone https://github.com/JulyStar-Lv/MelodyTrove.git
+cd MelodyTrove
 ```
 
 ### Android
@@ -289,10 +291,10 @@ Compose Desktop 已配置 DMG、MSI 和 DEB 输出格式。
 打开 Xcode 工程：
 
 ```bash
-open iosApp/TideTunes.xcodeproj
+open iosApp/App.xcodeproj
 ```
 
-选择 `TideTunes` Scheme 和 arm64 Simulator 或真机。Xcode Build Phase 会自动调用：
+选择 `App` Scheme 和 arm64 Simulator 或真机。Xcode Build Phase 会自动调用：
 
 ```bash
 ./gradlew :shared:embedAndSignAppleFrameworkForXcode
@@ -302,8 +304,8 @@ open iosApp/TideTunes.xcodeproj
 
 ```bash
 xcodebuild \
-  -project iosApp/TideTunes.xcodeproj \
-  -scheme TideTunes \
+  -project iosApp/App.xcodeproj \
+  -scheme App \
   -configuration Debug \
   -sdk iphonesimulator \
   -destination 'generic/platform=iOS Simulator' \
@@ -372,7 +374,7 @@ cargo test --manifest-path rust-libs/Cargo.toml --workspace
 
 - 项目仍处于稳定版之前，开发版本之间不保证所有行为完全兼容。
 - iOS Simulator 当前仅支持 arm64。
-- 第三方 Lyrico 插件 ZIP 由用户自行提供，TideTunes 不负责分发。
+- 第三方 Lyrico 插件 ZIP 由用户自行提供，MelodyTrove 不负责分发。
 - 配置的 include 目录会在构建 Bundle 时按确定顺序合并，运行时 `include(path)` 被有意禁用，插件不能任意读取本地文件。
 - Android 正常生产进程退出依赖操作系统回收进程资源。
 - Android Lint 当前存在已记录的仓库/工具链兼容问题，构建和单元测试仍是主要验证门禁。
@@ -401,6 +403,6 @@ cargo test --manifest-path rust-libs/Cargo.toml --workspace
 
 ## 许可证
 
-TideTunes 的大部分代码使用 [GNU General Public License v3.0](./LICENSE.md) 许可证。
+MelodyTrove 的大部分代码使用 [GNU General Public License v3.0](./LICENSE.md) 许可证。
 
-[`tidetunes-order-key`](./rust-libs/order-key) Crate 可在 Apache License 2.0 或 MIT License 二选一的条款下使用。
+[`order-key`](./rust-libs/order-key) Crate 可在 Apache License 2.0 或 MIT License 二选一的条款下使用。

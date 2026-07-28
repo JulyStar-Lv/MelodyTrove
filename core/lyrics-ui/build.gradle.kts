@@ -11,9 +11,9 @@ kotlin {
         iosSimulatorArm64(),
     ).forEach { iosTarget ->
         iosTarget.binaries.framework {
-            baseName = "TideTunesLyricsUi"
+            baseName = "LyricsUi"
             isStatic = true
-            binaryOption("bundleId", "com.github.tidetunes.core.lyrics.ui")
+            binaryOption("bundleId", "io.github.julystar.musicapp.core.lyrics.ui")
         }
     }
 
@@ -32,7 +32,7 @@ kotlin {
 }
 
 android {
-    namespace = "com.github.tidetunes.core.lyrics.ui"
+    namespace = "io.github.julystar.musicapp.core.lyrics.ui"
     compileSdk = 37
     defaultConfig {
         minSdk = 29

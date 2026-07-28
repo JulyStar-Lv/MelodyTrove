@@ -51,10 +51,8 @@ build/
 # Output
 /artifacts
 
-
-rust-libs/tidetunes-core/src/controllers/generated.rs
-rust-libs/tidetunes-schema/src/backends/generated.rs
-rust-libs/tidetunes-remote-storage/src/generated.rs
+# Generated build-logic classes must not duplicate plugin sources.
+/build-logic/convention/bin/
 
 **/target
 **/node_modules

@@ -1,7 +1,0 @@
-package com.github.tidetunes.core.utils
-
-import java.awt.EventQueue
-
-internal actual fun postOnMainThread(f: () -> Unit) {
-    EventQueue.invokeLater { f() }
-}

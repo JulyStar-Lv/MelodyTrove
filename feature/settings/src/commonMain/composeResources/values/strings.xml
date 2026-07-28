@@ -47,7 +47,7 @@
     <string name="settings_storage_title">Storage &amp; data</string>
     <string name="settings_storage_summary">Used %1$s</string>
     <string name="settings_about_title">About</string>
-    <string name="settings_about_summary">TideTunes %1$s</string>
+    <string name="settings_about_summary">MelodyTrove %1$s</string>
 
     <string name="settings_theme_section">Theme</string>
     <string name="settings_theme_system">System</string>
@@ -60,8 +60,8 @@
     <string name="settings_dynamic_color">Dynamic color</string>
     <string name="settings_dynamic_color_summary">Use system dynamic colors</string>
     <string name="settings_dynamic_color_unavailable">Not available on this platform</string>
-    <string name="settings_default_color">TideTunes colors</string>
-    <string name="settings_default_color_summary">Use the default TideTunes palette</string>
+    <string name="settings_default_color">MelodyTrove colors</string>
+    <string name="settings_default_color_summary">Use the default MelodyTrove palette</string>
     <string name="settings_language_section">Language</string>
     <string name="settings_language_system">System</string>
     <string name="settings_language_system_summary">Follow the system language after restart</string>
@@ -81,7 +81,7 @@
     <string name="settings_network_cache_card_summary">Streaming policy, cache limits, timeout, and retries</string>
     <string name="settings_storage_card_summary">%1$s used · cleanup, backup, and diagnostics</string>
     <string name="settings_app_info_section">App &amp; info</string>
-    <string name="settings_about_card_summary">TideTunes %1$s · build, links, privacy, and licenses</string>
+    <string name="settings_about_card_summary">MelodyTrove %1$s · build, links, privacy, and licenses</string>
     <string name="settings_search_empty">No settings match “%1$s”</string>
     <string name="diagnostics_title">Logs &amp; diagnostics</string>
     <string name="diagnostics_card_summary">Sessions, incidents, startup recovery, privacy, and export</string>
@@ -127,7 +127,7 @@
     <string name="settings_audio_focus_pause">Pause other audio</string>
     <string name="settings_audio_focus_pause_summary">Pause when another app needs audio focus</string>
     <string name="settings_audio_focus_duck">Lower volume</string>
-    <string name="settings_audio_focus_duck_summary">Temporarily lower TideTunes volume</string>
+    <string name="settings_audio_focus_duck_summary">Temporarily lower MelodyTrove volume</string>
     <string name="settings_audio_focus_mix">Mix audio</string>
     <string name="settings_audio_focus_mix_summary">Allow other apps to play at the same time</string>
     <string name="settings_playback_behavior_section">Playback behavior</string>
@@ -274,10 +274,10 @@
     <string name="settings_about_repository">Project homepage</string>
     <string name="settings_about_issues">Report an issue</string>
     <string name="settings_about_privacy">Privacy</string>
-    <string name="settings_about_privacy_summary">TideTunes is local-first. Diagnostic exports exclude credentials and tokens.</string>
+    <string name="settings_about_privacy_summary">MelodyTrove is local-first. Diagnostic exports exclude credentials and tokens.</string>
     <string name="settings_unavailable">Unavailable</string>
     <string name="settings_licenses_title">Open-source licenses</string>
-    <string name="settings_licenses_summary">TideTunes uses Kotlin, Compose Multiplatform, Miuix, Room, DataStore, Media3, Okio, Koin, Rust, and other open-source projects under their respective licenses.</string>
+    <string name="settings_licenses_summary">MelodyTrove uses Kotlin, Compose Multiplatform, Miuix, Room, DataStore, Media3, Okio, Koin, Rust, and other open-source projects under their respective licenses.</string>
 
     <string name="settings_confirm_clear_audio_title">Clear audio cache?</string>
     <string name="settings_confirm_clear_audio_message">Audio playback cache will be cleared. Downloaded files are kept.</string>
@@ -396,8 +396,8 @@
     <string name="settings_lyrics_western_font">Western font</string>
     <string name="settings_lyrics_cjk_font">CJK font</string>
     <string name="settings_lyrics_font_system">System default</string>
-    <string name="settings_lyrics_font_tide_sans">Tide Sans</string>
-    <string name="settings_lyrics_font_tide_cjk">Tide CJK</string>
+    <string name="settings_lyrics_font_app_sans">App Sans</string>
+    <string name="settings_lyrics_font_app_cjk">App CJK</string>
     <string name="settings_lyrics_font_monospace">Monospace</string>
     <string name="settings_lyrics_font_weight">Font weight</string>
     <string name="settings_lyrics_font_apply_page">Apply to the lyrics page</string>

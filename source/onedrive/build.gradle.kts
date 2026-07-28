@@ -10,9 +10,9 @@ kotlin {
         iosSimulatorArm64(),
     ).forEach { iosTarget ->
         iosTarget.binaries.framework {
-            baseName = "TideTunesSourceOneDrive"
+            baseName = "SourceOneDrive"
             isStatic = true
-            binaryOption("bundleId", "com.github.tidetunes.source.onedrive")
+            binaryOption("bundleId", "io.github.julystar.musicapp.source.onedrive")
         }
     }
 
@@ -27,7 +27,7 @@ kotlin {
 }
 
 android {
-    namespace = "com.github.tidetunes.source.onedrive"
+    namespace = "io.github.julystar.musicapp.source.onedrive"
     compileSdk = 36
     defaultConfig {
         minSdk = 29

@@ -1,10 +1,10 @@
 ﻿{
-  "id": "com.tidetunes.test.metadata",
+  "id": "com.musicapp.test.metadata",
   "name": "Test Metadata Plugin",
   "versionCode": 1,
   "versionName": "1.0.0",
-  "author": "TideTunes",
-  "description": "Compatibility test plugin for TideTunes CI",
+  "author": "MelodyTrove",
+  "description": "Compatibility test plugin for MelodyTrove CI",
   "apiVersion": 3,
   "minHostApiVersion": 3,
   "entry": "source.js",

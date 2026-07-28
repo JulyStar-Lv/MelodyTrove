@@ -277,11 +277,17 @@ function Btn({ children, variant="filled", size="md", className="", onClick, ico
   );
 }
 
-function TideSwitch({ checked, onChange, label, ariaLabel }: { checked:boolean; onChange:(v:boolean)=>void; label?:string; ariaLabel?:string }) {
+function DesignSwitch({ checked, onChange, label, ariaLabel, disabled=false }: {
+  checked:boolean;
+  onChange:(v:boolean)=>void;
+  label?:string;
+  ariaLabel?:string;
+  disabled?:boolean;
+}) {
   return (
-    <label className="flex items-center gap-3 cursor-pointer select-none">
+    <label className={cn("flex items-center gap-3 select-none",disabled?"cursor-not-allowed opacity-45":"cursor-pointer")}>
       {label && <span className="text-sm text-foreground">{label}</span>}
-      <button type="button" role="switch" aria-label={ariaLabel??label} aria-checked={checked} onClick={()=>onChange(!checked)}
+      <button type="button" role="switch" aria-label={ariaLabel??label} aria-checked={checked} disabled={disabled} onClick={()=>onChange(!checked)}
         className={cn("relative w-12 h-7 rounded-full transition-all duration-300 shrink-0", checked?"bg-primary":"bg-switch-background")}>
         <motion.div layout transition={{ type:"spring", stiffness:700, damping:35 }}
           className="absolute top-1 w-5 h-5 bg-white rounded-full shadow-md"
@@ -291,19 +297,19 @@ function TideSwitch({ checked, onChange, label, ariaLabel }: { checked:boolean; 
   );
 }
 
-function TideSlider({ value, onChange, label, accent }: { value:number; onChange:(v:number)=>void; label?:string; accent?:string }) {
+function DesignSlider({ value, onChange, label, accent }: { value:number; onChange:(v:number)=>void; label?:string; accent?:string }) {
   const pct = value;
   return (
     <div className="flex flex-col gap-2 w-full">
       {label && <span className="text-xs text-muted-foreground font-medium">{label}</span>}
       <div className="relative h-5 flex items-center w-full group cursor-pointer">
         <div className="absolute inset-x-0 h-1.5 bg-muted rounded-full overflow-hidden">
-          <div className="h-full rounded-full transition-all" style={{ width:`${pct}%`, background:accent||"var(--tide-pink)" }} />
+          <div className="h-full rounded-full transition-all" style={{ width:`${pct}%`, background:accent||"var(--brand-pink)" }} />
         </div>
         <input type="range" min={0} max={100} value={value} onChange={e=>onChange(Number(e.target.value))}
           className="absolute inset-0 w-full opacity-0 cursor-pointer h-full" />
         <div className="absolute w-5 h-5 bg-white rounded-full shadow-md border-2"
-          style={{ left:`calc(${pct}% - 10px)`, borderColor:accent||"var(--tide-pink)" }} />
+          style={{ left:`calc(${pct}% - 10px)`, borderColor:accent||"var(--brand-pink)" }} />
       </div>
     </div>
   );
@@ -873,7 +879,7 @@ function ArtistDetailPage({ artist, currentSong, isPlaying, onBack, onPlay, onOp
 }
 
 function SourceCard({ source }: { source:{name:string;type:string;icon:React.ReactNode;status:"connected"|"syncing"|"error"|"idle";storage:string;tracks:number;gradient:[string,string]} }) {
-  const sc = { connected:{l:"Connected",c:"var(--tide-green)"}, syncing:{l:"Syncing",c:"var(--tide-blue)"}, error:{l:"Error",c:"#FF4F4F"}, idle:{l:"Idle",c:"var(--muted-foreground)"} }[source.status];
+  const sc = { connected:{l:"Connected",c:"var(--brand-green)"}, syncing:{l:"Syncing",c:"var(--brand-blue)"}, error:{l:"Error",c:"#FF4F4F"}, idle:{l:"Idle",c:"var(--muted-foreground)"} }[source.status];
   return (
     <div className="bg-card rounded-[24px] p-5 border border-border hover:border-primary/30 transition-all group">
       <div className="flex items-start justify-between mb-4">
@@ -1050,7 +1056,7 @@ function AddWebDavSourceDialog({ open, existingNames, onClose, onAdd }: {
 
             <div className="flex min-h-[58px] items-center gap-4 rounded-[20px] bg-muted/55 px-4 py-2.5">
               <div className="flex-1"><p className="text-sm font-medium text-foreground">Anonymous access</p><p className="mt-0.5 text-[11px] text-muted-foreground">Connect without a username or password</p></div>
-              <TideSwitch ariaLabel="Anonymous access" checked={anonymous} onChange={value=>{setAnonymous(value);setErrors(current=>({...current,username:undefined,password:undefined}));markChanged();}}/>
+              <DesignSwitch ariaLabel="Anonymous access" checked={anonymous} onChange={value=>{setAnonymous(value);setErrors(current=>({...current,username:undefined,password:undefined}));markChanged();}}/>
             </div>
 
             {!anonymous&&<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -1224,7 +1230,7 @@ function ManageWebDavSourceDialog({ source, existingNames, onClose, onSave, onDe
           {deleteConfirm&&(
             <div className="mb-5 rounded-[22px] border border-destructive/25 bg-destructive/[0.07] p-4">
               <p className="text-sm font-semibold text-destructive">Remove this source?</p>
-              <p className="mt-1 text-[12px] leading-[17px] text-muted-foreground">{source.tracks.toLocaleString()} indexed tracks will be removed from TideTunes. Files on the WebDAV server stay untouched.</p>
+              <p className="mt-1 text-[12px] leading-[17px] text-muted-foreground">{source.tracks.toLocaleString()} indexed tracks will be removed from MelodyTrove. Files on the WebDAV server stay untouched.</p>
               <div className="mt-3 flex justify-end gap-2">
                 <button type="button" onClick={()=>setDeleteConfirm(false)} className="h-9 rounded-full px-3.5 text-xs font-semibold text-foreground hover:bg-muted">Keep source</button>
                 <button type="button" onClick={()=>{onDelete(source.id);onClose();}} className="h-9 rounded-full bg-destructive px-4 text-xs font-semibold text-white">Remove source</button>
@@ -1251,7 +1257,7 @@ function ManageWebDavSourceDialog({ source, existingNames, onClose, onSave, onDe
               </label>
               <div className="flex min-h-[58px] items-center gap-4 rounded-[20px] bg-muted/55 px-4 py-2.5">
                 <div className="flex-1"><p className="text-sm font-medium text-foreground">Anonymous access</p><p className="mt-0.5 text-[11px] text-muted-foreground">Connect without saved credentials</p></div>
-                <TideSwitch ariaLabel="Anonymous access" checked={anonymous} onChange={value=>{setAnonymous(value);setErrors(current=>({...current,username:undefined}));markChanged();}}/>
+                <DesignSwitch ariaLabel="Anonymous access" checked={anonymous} onChange={value=>{setAnonymous(value);setErrors(current=>({...current,username:undefined}));markChanged();}}/>
               </div>
               {!anonymous&&<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <label className="block">
@@ -1423,7 +1429,7 @@ function MiniPlayer({ song, isPlaying, onPlayPause, onNext, onExpand }: { song:S
         {/* Right zone: volume + expand */}
         <div className="relative z-10 w-1/3 flex items-center justify-end gap-2" onClick={e=>e.stopPropagation()}>
           <Volume2 className="w-4 h-4 text-muted-foreground shrink-0"/>
-          <div className="w-24"><TideSlider value={75} onChange={()=>{}} accent={song.gradient[0]}/></div>
+          <div className="w-24"><DesignSlider value={75} onChange={()=>{}} accent={song.gradient[0]}/></div>
           <button type="button" aria-label="Open full player" onPointerDown={preventMouseFocus} onClick={e=>{e.stopPropagation();onExpand();}} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[var(--mini-player-glass-control)] transition-all duration-[180ms] active:scale-[0.92] outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
             <Maximize2 className="w-4 h-4 text-muted-foreground"/>
           </button>
@@ -1441,10 +1447,10 @@ function MiniPlayer({ song, isPlaying, onPlayPause, onNext, onExpand }: { song:S
             <p className="text-[14px] font-semibold text-foreground truncate">{song.title}</p>
             <p className="text-[12px] text-muted-foreground truncate">{song.artist}</p>
           </div>
-          {/* TidePink progress bar at bottom */}
+          {/* DesignPink progress bar at bottom */}
           <div className="absolute bottom-0 left-0 right-0 h-[2.5px] rounded-b-[22px] overflow-hidden"
             style={{ background:"var(--mini-player-glass-track)" }}>
-            <motion.div className="h-full" style={{ background:"var(--tide-pink)", borderRadius:"0 2px 2px 0" }}
+            <motion.div className="h-full" style={{ background:"var(--brand-pink)", borderRadius:"0 2px 2px 0" }}
               animate={{ width:isPlaying?"65%":"40%" }}
               transition={{ duration:isPlaying?5:0, repeat:isPlaying?Infinity:0, ease:"linear" }}/>
           </div>
@@ -1600,7 +1606,7 @@ function FullPlayer({ song, isPlaying, onPlay, onPlayPause, onNext, onPrev, onCl
     <div className="flex items-center justify-between">
       <motion.button type="button" aria-label="Sleep timer" aria-pressed={sleepTimer} whileTap={{ scale:0.92 }} onPointerDown={preventMouseFocus} onClick={() => setSleepTimer(!sleepTimer)}
         className="relative flex items-center justify-center w-10 h-10 rounded-full transition-all duration-[180ms] outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-        style={{ color: sleepTimer ? "var(--tide-pink)" : "rgba(255,255,255,0.45)" }}>
+        style={{ color: sleepTimer ? "var(--brand-pink)" : "rgba(255,255,255,0.45)" }}>
         <Timer style={{ width:18, height:18 }}/>
         {sleepTimer && <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary"/>}
       </motion.button>
@@ -1623,7 +1629,7 @@ function FullPlayer({ song, isPlaying, onPlay, onPlayPause, onNext, onPrev, onCl
       </motion.button>
       <motion.button type="button" aria-label="Repeat" whileTap={{ scale:0.92 }} onPointerDown={preventMouseFocus} onClick={() => setRepeat(!repeat)}
         className="relative flex items-center justify-center w-10 h-10 rounded-full transition-all duration-[180ms] outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-        style={{ color: repeat ? "var(--tide-pink)" : "rgba(255,255,255,0.45)" }}>
+        style={{ color: repeat ? "var(--brand-pink)" : "rgba(255,255,255,0.45)" }}>
         <Repeat style={{ width:17, height:17 }}/>
         {repeat && <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary"/>}
       </motion.button>
@@ -1741,7 +1747,7 @@ function FullPlayer({ song, isPlaying, onPlay, onPlayPause, onNext, onPrev, onCl
     <div className={cn("grid grid-cols-5 items-center justify-items-center",compact?"h-[62px]":"mt-1 h-[84px]")}>
       <motion.button type="button" aria-label="Repeat" aria-pressed={repeat} whileTap={{ scale:0.90 }} onPointerDown={preventMouseFocus} onClick={() => setRepeat(!repeat)}
         className={cn("flex items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-white/40",compact?"h-11 w-11":"h-14 w-14")}
-        style={{ color:repeat?"var(--tide-pink)":"rgba(255,255,255,0.82)" }}>
+        style={{ color:repeat?"var(--brand-pink)":"rgba(255,255,255,0.82)" }}>
         <Repeat className={compact?"h-[21px] w-[21px]":"h-6 w-6"}/>
       </motion.button>
       <motion.button type="button" aria-label="Previous track" whileTap={{ scale:0.90 }} onPointerDown={preventMouseFocus} onClick={onPrev}
@@ -1776,7 +1782,7 @@ function FullPlayer({ song, isPlaying, onPlay, onPlayPause, onNext, onPrev, onCl
       </div>
       <motion.button type="button" aria-label={liked?"Remove from favorites":"Add to favorites"} whileTap={{ scale:0.92 }} onPointerDown={preventMouseFocus} onClick={() => setLiked(!liked)}
         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/10 outline-none focus-visible:ring-2 focus-visible:ring-white/40">
-        <Heart style={{ width:22,height:22,fill:liked?"var(--tide-pink)":"none",color:liked?"var(--tide-pink)":"white" }}/>
+        <Heart style={{ width:22,height:22,fill:liked?"var(--brand-pink)":"none",color:liked?"var(--brand-pink)":"white" }}/>
       </motion.button>
       <button type="button" aria-label="More options" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/10 text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40">
         <MoreHorizontal style={{ width:23,height:23 }}/>
@@ -1876,7 +1882,7 @@ function FullPlayer({ song, isPlaying, onPlay, onPlayPause, onNext, onPrev, onCl
                 </div>
                 <motion.button type="button" aria-label={liked?"Remove from favorites":"Add to favorites"} whileTap={{ scale:0.92 }} onPointerDown={preventMouseFocus} onClick={() => setLiked(!liked)}
                   className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40">
-                  <Heart className="h-[22px] w-[22px]" style={{ fill:liked?"var(--tide-pink)":"none",color:liked?"var(--tide-pink)":"white" }}/>
+                  <Heart className="h-[22px] w-[22px]" style={{ fill:liked?"var(--brand-pink)":"none",color:liked?"var(--brand-pink)":"white" }}/>
                 </motion.button>
                 <button type="button" aria-label="More options" className="flex h-10 w-9 shrink-0 items-center justify-center rounded-full text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40">
                   <MoreVertical className="h-6 w-6"/>
@@ -1981,7 +1987,7 @@ function FullPlayer({ song, isPlaying, onPlay, onPlayPause, onNext, onPrev, onCl
             </div>
             <motion.button type="button" aria-label={liked?"Remove from favorites":"Add to favorites"} whileTap={{ scale:0.92 }} onPointerDown={preventMouseFocus} onClick={() => setLiked(!liked)}
               className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40">
-              <Heart className="h-[28px] w-[28px]" style={{ fill:liked?"var(--tide-pink)":"none",color:liked?"var(--tide-pink)":"white" }}/>
+              <Heart className="h-[28px] w-[28px]" style={{ fill:liked?"var(--brand-pink)":"none",color:liked?"var(--brand-pink)":"white" }}/>
             </motion.button>
             <button type="button" aria-label="More options" className="flex h-12 w-10 shrink-0 items-center justify-center rounded-full text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40">
               <MoreVertical className="h-7 w-7"/>
@@ -2046,7 +2052,7 @@ function FullPlayer({ song, isPlaying, onPlay, onPlayPause, onNext, onPrev, onCl
                   </div>
                   <motion.button type="button" aria-label={liked?"Remove from favorites":"Add to favorites"} whileTap={{ scale:0.92 }} onPointerDown={preventMouseFocus} onClick={() => setLiked(!liked)}
                     className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40">
-                    <Heart className="h-[28px] w-[28px]" style={{ fill:liked?"var(--tide-pink)":"none",color:liked?"var(--tide-pink)":"white" }}/>
+                    <Heart className="h-[28px] w-[28px]" style={{ fill:liked?"var(--brand-pink)":"none",color:liked?"var(--brand-pink)":"white" }}/>
                   </motion.button>
                   <button type="button" aria-label="More options" className="flex h-12 w-10 shrink-0 items-center justify-center rounded-full text-white outline-none focus-visible:ring-2 focus-visible:ring-white/40">
                     <MoreVertical className="h-7 w-7"/>
@@ -2324,7 +2330,7 @@ function ListeningHeatmap({ compact=false, selected, onSelect }: {
       {days.map(day=>{
         const style = {
           background:day.minutes>0
-            ?`color-mix(in srgb,var(--tide-pink) ${Math.min(88,24+day.minutes*0.72)}%,var(--muted))`
+            ?`color-mix(in srgb,var(--brand-pink) ${Math.min(88,24+day.minutes*0.72)}%,var(--muted))`
             :"var(--muted)",
         };
         if (compact) return <span key={day.id} aria-hidden="true" className="h-2 w-2 rounded-[3px]" style={style}/>;
@@ -3527,6 +3533,258 @@ const SETTINGS_SUB_LABELS: Record<SettingsSub,string> = {
   about:"About",
 };
 
+type MetadataPluginModel = {
+  id:string;
+  name:string;
+  description:string;
+  version:string;
+  author:string;
+  enabled:boolean;
+  allowManual:boolean;
+  allowAutomatic:boolean;
+  allowBatch:boolean;
+  capabilities:string[];
+  configLabel?:string;
+  configHint?:string;
+  configValue?:string;
+};
+
+const INITIAL_METADATA_PLUGINS: MetadataPluginModel[] = [
+  {
+    id:"apple-music",
+    name:"Apple Music",
+    description:"Apple Music search provider",
+    version:"0.2.1",
+    author:"Lyrico Community",
+    enabled:true,
+    allowManual:true,
+    allowAutomatic:false,
+    allowBatch:false,
+    capabilities:["Song search","Lyrics","Artwork"],
+    configLabel:"Storefront",
+    configHint:"Two-letter Apple Music storefront code",
+    configValue:"CN",
+  },
+  {
+    id:"kugou",
+    name:"酷狗音乐",
+    description:"酷狗搜索源插件",
+    version:"0.2.0",
+    author:"Lyrico Community",
+    enabled:true,
+    allowManual:true,
+    allowAutomatic:false,
+    allowBatch:false,
+    capabilities:["Song search","Lyrics"],
+  },
+  {
+    id:"netease",
+    name:"网易云音乐",
+    description:"网易云搜索源插件",
+    version:"0.2.1",
+    author:"Lyrico Community",
+    enabled:true,
+    allowManual:true,
+    allowAutomatic:false,
+    allowBatch:false,
+    capabilities:["Song search","Lyrics","Artwork"],
+    configLabel:"Account cookie",
+    configHint:"Optional; used only inside this plugin runtime",
+    configValue:"",
+  },
+  {
+    id:"qq-music",
+    name:"QQ音乐",
+    description:"QQ音乐搜索源插件",
+    version:"0.2.0",
+    author:"Lyrico Community",
+    enabled:true,
+    allowManual:true,
+    allowAutomatic:false,
+    allowBatch:false,
+    capabilities:["Song search","Lyrics","Artwork"],
+    configLabel:"Account cookie",
+    configHint:"Optional; used only inside this plugin runtime",
+    configValue:"",
+  },
+  {
+    id:"qishui",
+    name:"汽水音乐",
+    description:"汽水音乐搜索源插件",
+    version:"0.2.0",
+    author:"Lyrico Community",
+    enabled:true,
+    allowManual:true,
+    allowAutomatic:false,
+    allowBatch:false,
+    capabilities:["Song search","Lyrics"],
+  },
+];
+
+function MetadataPluginDialog({ plugin, onClose, onChange, onRemove }: {
+  plugin:MetadataPluginModel|null;
+  onClose:()=>void;
+  onChange:(plugin:MetadataPluginModel)=>void;
+  onRemove:(plugin:MetadataPluginModel)=>void;
+}) {
+  const [configValue,setConfigValue] = useState("");
+  const [clearingCache,setClearingCache] = useState(false);
+
+  useEffect(()=>{
+    if (!plugin) return;
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event:KeyboardEvent) => event.key==="Escape"&&onClose();
+    setConfigValue(plugin.configValue??"");
+    setClearingCache(false);
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown",handleKeyDown);
+    return ()=>{
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown",handleKeyDown);
+    };
+  },[plugin?.id,onClose]);
+
+  if (!plugin) return null;
+
+  const patchPlugin = (patch:Partial<MetadataPluginModel>) => onChange({...plugin,...patch});
+  const clearCache = () => {
+    setClearingCache(true);
+    window.setTimeout(()=>setClearingCache(false),850);
+  };
+
+  return createPortal(
+    <AnimatePresence>
+      <motion.div className="fixed inset-0 z-[180] flex items-end justify-center bg-black/55 backdrop-blur-sm sm:items-center sm:p-4"
+        initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:0.16}}
+        onMouseDown={event=>event.target===event.currentTarget&&onClose()}>
+        <motion.div role="dialog" aria-modal="true" aria-labelledby="metadata-plugin-title"
+          initial={{opacity:0,y:26,scale:0.98}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:18,scale:0.98}}
+          transition={{type:"spring",stiffness:420,damping:34}}
+          className="max-h-[92vh] w-full overflow-y-auto rounded-t-[30px] border border-border bg-popover px-5 pb-6 pt-4 shadow-2xl sm:max-w-[520px] sm:rounded-[30px] sm:p-6">
+          <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-muted sm:hidden" aria-hidden="true"/>
+          <div className="flex items-start gap-3">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-primary/12 text-primary">
+              <Puzzle className="h-5 w-5"/>
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 id="metadata-plugin-title" className="text-[19px] font-semibold text-foreground">{plugin.name}</h2>
+                <span className={cn("inline-flex h-5 items-center rounded-full px-2 text-[10px] font-semibold",
+                  plugin.enabled?"bg-[#3DCA8A]/12 text-[#2EAE75]":"bg-muted text-muted-foreground")}>
+                  {plugin.enabled?"Enabled":"Disabled"}
+                </span>
+              </div>
+              <p className="mt-1 text-[12px] leading-[17px] text-muted-foreground">{plugin.author} · v{plugin.version}</p>
+            </div>
+            <button type="button" aria-label="Close plugin settings" onClick={onClose}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/40">
+              <X className="h-4 w-4"/>
+            </button>
+          </div>
+
+          <p className="mt-4 rounded-[18px] bg-muted/55 px-4 py-3 text-[12px] leading-[18px] text-muted-foreground">{plugin.description}</p>
+
+          <section className="mt-5" aria-labelledby="plugin-availability-title">
+            <p id="plugin-availability-title" className="mb-2 px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Availability</p>
+            <div className="overflow-hidden rounded-[22px] border border-border bg-card">
+              <div className="flex min-h-[64px] items-center gap-4 px-4 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[15px] font-medium text-foreground">Enable plugin</p>
+                  <p className="mt-1 text-[12px] leading-[17px] text-muted-foreground">Makes this provider available for manual lookup</p>
+                </div>
+                <DesignSwitch ariaLabel={`Enable ${plugin.name}`} checked={plugin.enabled} onChange={enabled=>patchPlugin({enabled})}/>
+              </div>
+            </div>
+          </section>
+
+          <section className="mt-5" aria-labelledby="plugin-permissions-title">
+            <p id="plugin-permissions-title" className="mb-2 px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Additional access</p>
+            <div className="divide-y divide-border/60 overflow-hidden rounded-[22px] border border-border bg-card">
+              {[
+                {key:"allowAutomatic" as const,label:"Automatic lookup",summary:"Use during background metadata refresh"},
+                {key:"allowBatch" as const,label:"Batch lookup",summary:"Use when updating multiple tracks"},
+              ].map(permission=>(
+                <div key={permission.key} className="flex min-h-[62px] items-center gap-4 px-4 py-2.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[14px] font-medium text-foreground">{permission.label}</p>
+                    <p className="mt-0.5 text-[11px] leading-4 text-muted-foreground">{permission.summary}</p>
+                  </div>
+                  <DesignSwitch ariaLabel={`${permission.label} for ${plugin.name}`} checked={plugin[permission.key]}
+                    disabled={!plugin.enabled} onChange={value=>patchPlugin({[permission.key]:value})}/>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="mt-5" aria-labelledby="plugin-capabilities-title">
+            <p id="plugin-capabilities-title" className="mb-2 px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Capabilities</p>
+            <div className="flex flex-wrap gap-2 rounded-[22px] border border-border bg-card p-4">
+              {plugin.capabilities.map(capability=>
+                <span key={capability} className="inline-flex h-7 items-center rounded-full bg-muted px-3 text-[11px] font-medium text-foreground">{capability}</span>
+              )}
+            </div>
+          </section>
+
+          {plugin.configLabel&&(
+            <section className="mt-5" aria-labelledby="plugin-configuration-title">
+              <p id="plugin-configuration-title" className="mb-2 px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Configuration</p>
+              <label className="block rounded-[22px] border border-border bg-card p-4">
+                <span className="block text-[14px] font-medium text-foreground">{plugin.configLabel}</span>
+                <input value={configValue} onChange={event=>setConfigValue(event.target.value)}
+                  className="mt-3 h-11 w-full rounded-[15px] border border-border bg-input-background px-3.5 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"/>
+                {plugin.configHint&&<span className="mt-2 block text-[11px] leading-4 text-muted-foreground">{plugin.configHint}</span>}
+              </label>
+            </section>
+          )}
+
+          <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-border/70 pt-5">
+            <button type="button" onClick={clearCache} disabled={clearingCache}
+              className="inline-flex h-10 items-center gap-2 rounded-full bg-muted px-4 text-[12px] font-semibold text-foreground outline-none hover:bg-muted/80 disabled:opacity-55 focus-visible:ring-2 focus-visible:ring-primary/40">
+              <RefreshCw className={cn("h-3.5 w-3.5",clearingCache&&"animate-spin")}/>
+              {clearingCache?"Clearing…":"Clear cache"}
+            </button>
+            <button type="button" onClick={()=>onRemove(plugin)}
+              className="inline-flex h-10 items-center gap-2 rounded-full px-4 text-[12px] font-semibold text-destructive outline-none hover:bg-destructive/10 focus-visible:ring-2 focus-visible:ring-destructive/35">
+              <Trash2 className="h-3.5 w-3.5"/>Uninstall
+            </button>
+            <button type="button" onClick={()=>{patchPlugin({configValue});onClose();}}
+              className="ml-auto inline-flex h-10 items-center rounded-full bg-primary px-5 text-[12px] font-semibold text-primary-foreground outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-primary/40">
+              {plugin.configLabel?"Save":"Done"}
+            </button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>,
+    document.body,
+  );
+}
+
+function MetadataPluginRemovalDialog({ plugin, onClose, onConfirm }: {
+  plugin:MetadataPluginModel|null;
+  onClose:()=>void;
+  onConfirm:()=>void;
+}) {
+  if (!plugin) return null;
+  return createPortal(
+    <motion.div className="fixed inset-0 z-[190] flex items-center justify-center bg-black/55 p-5 backdrop-blur-sm"
+      initial={{opacity:0}} animate={{opacity:1}} onMouseDown={event=>event.target===event.currentTarget&&onClose()}>
+      <motion.div role="alertdialog" aria-modal="true" aria-labelledby="remove-plugin-title" aria-describedby="remove-plugin-description"
+        initial={{opacity:0,scale:0.95,y:8}} animate={{opacity:1,scale:1,y:0}}
+        transition={{type:"spring",stiffness:430,damping:34}}
+        className="w-full max-w-[400px] rounded-[28px] border border-border bg-popover p-5 shadow-2xl">
+        <span className="flex h-11 w-11 items-center justify-center rounded-[15px] bg-destructive/10 text-destructive"><Trash2 className="h-5 w-5"/></span>
+        <h2 id="remove-plugin-title" className="mt-4 text-[18px] font-semibold text-foreground">Uninstall {plugin.name}?</h2>
+        <p id="remove-plugin-description" className="mt-2 text-[12px] leading-[18px] text-muted-foreground">Plugin files, configuration, cache, and private runtime context will be removed from this device.</p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="h-10 rounded-full px-4 text-[12px] font-semibold text-foreground hover:bg-muted">Cancel</button>
+          <button type="button" onClick={onConfirm} className="h-10 rounded-full bg-destructive px-5 text-[12px] font-semibold text-white hover:opacity-90">Uninstall</button>
+        </div>
+      </motion.div>
+    </motion.div>,
+    document.body,
+  );
+}
+
 function SettingsPage({ sub, onSubChange, themeMode, onThemeModeChange }: {
   sub:SettingsSub|null;
   onSubChange:(sub:SettingsSub|null)=>void;
@@ -3565,7 +3823,10 @@ function SettingsPage({ sub, onSubChange, themeMode, onThemeModeChange }: {
   const [autoScan, setAutoScan] = useState("startup");
   const [scanSubdirectories, setScanSubdirectories] = useState(true);
   const [metadataScan, setMetadataScan] = useState("standard");
-  const [pluginImportState, setPluginImportState] = useState<"idle"|"selected">("idle");
+  const [pluginImportState, setPluginImportState] = useState<"idle"|"selected"|"installing"|"success">("idle");
+  const [metadataPlugins,setMetadataPlugins] = useState<MetadataPluginModel[]>(INITIAL_METADATA_PLUGINS);
+  const [editingPluginId,setEditingPluginId] = useState<string|null>(null);
+  const [pendingPluginRemovalId,setPendingPluginRemovalId] = useState<string|null>(null);
   const [allowMeteredStreaming, setAllowMeteredStreaming] = useState(false);
   const [backgroundUnmetered, setBackgroundUnmetered] = useState(true);
   const [audioCache, setAudioCache] = useState("512");
@@ -3589,6 +3850,9 @@ function SettingsPage({ sub, onSubChange, themeMode, onThemeModeChange }: {
   const sourceTrackCount = sources.reduce((total,source)=>total+source.tracks,0);
   const readySourceCount = sources.filter(source=>source.status==="connected").length;
   const editingSource = sources.find(source=>source.id===editingSourceId&&source.type==="WebDAV")??null;
+  const editingPlugin = metadataPlugins.find(plugin=>plugin.id===editingPluginId)??null;
+  const pendingPluginRemoval = metadataPlugins.find(plugin=>plugin.id===pendingPluginRemovalId)??null;
+  const enabledPluginCount = metadataPlugins.filter(plugin=>plugin.enabled).length;
 
   function addWebDavSource(source:{name:string;address:string;username:string;anonymous:boolean}) {
     let location = source.address;
@@ -3615,15 +3879,53 @@ function SettingsPage({ sub, onSubChange, themeMode, onThemeModeChange }: {
     setEditingSourceId(null);
   }
 
+  function updateMetadataPlugin(updated:MetadataPluginModel) {
+    setMetadataPlugins(current=>current.map(plugin=>plugin.id===updated.id?updated:plugin));
+  }
+
+  function installMetadataPlugin() {
+    if (pluginImportState!=="selected") return;
+    setPluginImportState("installing");
+    window.setTimeout(()=>{
+      setMetadataPlugins(current=>current.some(plugin=>plugin.id==="imported-provider")
+        ?current
+        :[...current,{
+          id:"imported-provider",
+          name:"Imported Provider",
+          description:"Custom metadata search provider",
+          version:"1.0.0",
+          author:"Local plugin",
+          enabled:false,
+          allowManual:true,
+          allowAutomatic:false,
+          allowBatch:false,
+          capabilities:["Song search","Lyrics"],
+        }]);
+      setPluginImportState("success");
+      window.setTimeout(()=>setPluginImportState("idle"),1800);
+    },900);
+  }
+
+  function requestPluginRemoval(plugin:MetadataPluginModel) {
+    setEditingPluginId(null);
+    setPendingPluginRemovalId(plugin.id);
+  }
+
+  function confirmPluginRemoval() {
+    if (!pendingPluginRemovalId) return;
+    setMetadataPlugins(current=>current.filter(plugin=>plugin.id!==pendingPluginRemovalId));
+    setPendingPluginRemovalId(null);
+  }
+
   const SUMMARIES: Record<SettingsSub,string> = {
     appearance:"Theme, dynamic color, and app language",
     playback:"Audio focus, queue behavior, ReplayGain, and DSP",
     lyrics:"Sources, alignment, type, effects, and external output",
     sources:`${sources.length} ${sources.length===1?"source":"sources"} · ${readySourceCount} ready`,
-    plugins:"Import and configure Lyrico Plugin API v3 providers",
+    plugins:`${metadataPlugins.length} installed · ${enabledPluginCount} enabled · Lyrico Plugin API v3`,
     "network-cache":"Streaming policy, cache limits, timeout, and retries",
     storage:"1.8 GB used · cleanup, backup, and diagnostics",
-    about:"TideTunes 0.3.0 · build, links, privacy, and licenses",
+    about:"MelodyTrove 0.3.0 · build, links, privacy, and licenses",
   };
 
   const GROUPS: { id:SettingsGroup; label:string; description:string; items:{ id:SettingsSub; icon:React.ReactNode }[] }[] = [
@@ -3651,7 +3953,7 @@ function SettingsPage({ sub, onSubChange, themeMode, onThemeModeChange }: {
     playback:"audio focus pause duck mix gapless retry queue crossfade replaygain equalizer dsp",
     lyrics:"lyrics ttml lrc translation alignment font blur perspective floating bluetooth car",
     sources:"library source local folder webdav scan artwork metadata duplicate",
-    plugins:"metadata plugin lyrico v3 zip provider lookup import",
+    plugins:"metadata plugin lyrico v3 zip provider lookup import apple kugou netease qq qishui",
     "network-cache":"network metered streaming cache audio image timeout retry preload",
     storage:"storage usage cleanup backup restore diagnostics reset database downloads",
     about:"about version build commit github repository issue privacy license open source",
@@ -3802,7 +4104,7 @@ function SettingsPage({ sub, onSubChange, themeMode, onThemeModeChange }: {
           <p className="text-[15px] font-medium text-foreground leading-tight">{label}</p>
           {subtitle&&<p className="text-[12px] text-muted-foreground mt-1 leading-[17px]">{subtitle}</p>}
         </div>
-        <TideSwitch checked={checked} onChange={onChange}/>
+        <DesignSwitch checked={checked} onChange={onChange}/>
       </div>
     );
   }
@@ -3917,12 +4219,12 @@ function SettingsPage({ sub, onSubChange, themeMode, onThemeModeChange }: {
     if (id==="appearance") return (
       <div className="pb-8">
         <SettingsCard title="Theme">
-          <SelectRow label="Theme" subtitle="Choose how TideTunes follows system appearance" value={themeMode} onChange={value=>onThemeModeChange(value as ThemeMode)}
+          <SelectRow label="Theme" subtitle="Choose how MelodyTrove follows system appearance" value={themeMode} onChange={value=>onThemeModeChange(value as ThemeMode)}
             options={[{v:"system",l:"System"},{v:"light",l:"Light"},{v:"dark",l:"Dark"}]}/>
         </SettingsCard>
         <SettingsCard title="Color">
           <SwitchRow label="Dynamic color" subtitle="Use system dynamic colors when the platform supports them" checked={dynamicColor} onChange={setDynamicColor}/>
-          <ValueRow label="TideTunes colors" value={dynamicColor?"Inactive":"Active"} subtitle="Use the default pink and purple palette"/>
+          <ValueRow label="MelodyTrove colors" value={dynamicColor?"Inactive":"Active"} subtitle="Use the default pink and purple palette"/>
         </SettingsCard>
         <SettingsCard title="Language">
           <SelectRow label="App language" subtitle="Some screens may require a restart to refresh" value={appLanguage} onChange={setAppLanguage}
@@ -3947,7 +4249,7 @@ function SettingsPage({ sub, onSubChange, themeMode, onThemeModeChange }: {
         <SettingsCard title="Playback enhancement">
           <div className="px-4 py-4">
             <div className="flex items-center justify-between mb-2"><p className="text-[15px] font-medium text-foreground">Crossfade</p><span className="text-[12px] text-muted-foreground">{Math.round(crossfade*12/100)} s</span></div>
-            <TideSlider value={crossfade} onChange={setCrossfade}/>
+            <DesignSlider value={crossfade} onChange={setCrossfade}/>
           </div>
           <SelectRow label="ReplayGain" value={replayGain} onChange={setReplayGain}
             options={[{v:"off",l:"Off"},{v:"track",l:"Track gain"},{v:"album",l:"Album gain"},{v:"auto",l:"Automatic"}]}/>
@@ -3971,7 +4273,7 @@ function SettingsPage({ sub, onSubChange, themeMode, onThemeModeChange }: {
             options={[{v:"left",l:"Left"},{v:"center",l:"Center"},{v:"right",l:"Right"}]}/>
           <div className="px-4 py-4">
             <div className="flex items-center justify-between mb-2"><p className="text-[15px] font-medium text-foreground">Lyrics font size</p><span className="text-[12px] text-muted-foreground">{lyricsSize} sp</span></div>
-            <TideSlider value={(lyricsSize-24)*100/32} onChange={value=>setLyricsSize(Math.round(24+value*32/100))}/>
+            <DesignSlider value={(lyricsSize-24)*100/32} onChange={value=>setLyricsSize(Math.round(24+value*32/100))}/>
           </div>
         </SettingsCard>
         <SettingsCard title="Display & effects">
@@ -4036,20 +4338,89 @@ function SettingsPage({ sub, onSubChange, themeMode, onThemeModeChange }: {
 
     if (id==="plugins") return (
       <div className="pb-8">
-        <div className="rounded-[24px] border border-primary/20 bg-primary/[0.06] p-5 mb-6">
+        <div className="mb-6 rounded-[24px] border border-primary/20 bg-primary/[0.06] p-5">
           <div className="flex items-start gap-4">
             <div className="w-11 h-11 rounded-[15px] bg-primary/15 text-primary flex items-center justify-center shrink-0"><Puzzle className="w-5 h-5"/></div>
-            <div className="flex-1 min-w-0"><p className="text-[16px] font-semibold text-foreground">Lyrico Plugin API v3</p><p className="text-[12px] text-muted-foreground mt-1 leading-[18px]">Import a validated local ZIP, then control lookup permissions and provider configuration.</p></div>
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-[16px] font-semibold text-foreground">Metadata providers</p>
+                <span className="inline-flex h-6 items-center rounded-full bg-card/75 px-2.5 text-[10px] font-semibold text-muted-foreground">Lyrico API v3</span>
+              </div>
+              <p className="mt-1 text-[12px] leading-[18px] text-muted-foreground">Enabled plugins are available for manual lookup. Automatic and batch access can be granted separately.</p>
+              <div className="mt-3 flex items-center gap-4 border-t border-primary/10 pt-3 text-[11px] text-muted-foreground">
+                <span><strong className="text-[15px] font-semibold text-foreground">{metadataPlugins.length}</strong> installed</span>
+                <span><strong className="text-[15px] font-semibold text-[#2EAE75]">{enabledPluginCount}</strong> enabled</span>
+              </div>
+            </div>
           </div>
         </div>
-        <SettingsCard title="Import">
-          <div className="px-4 py-4 flex items-center gap-4">
-            <div className="flex-1 min-w-0"><p className="text-[15px] font-medium text-foreground">{pluginImportState==="selected"?"provider-plugin.zip":"Choose a plugin ZIP"}</p><p className="text-[12px] text-muted-foreground mt-1">{pluginImportState==="selected"?"Ready for archive validation":"Existing versions are replaced only after validation succeeds"}</p></div>
-            <Btn variant="tonal" size="sm" icon={<FolderOpen className="w-4 h-4"/>} onClick={()=>setPluginImportState("selected")}>Choose ZIP</Btn>
-          </div>
-        </SettingsCard>
+
         <SettingsCard title="Installed plugins">
-          <div className="px-5 py-8 text-center"><Package className="w-7 h-7 text-muted-foreground mx-auto mb-3"/><p className="text-[14px] font-medium text-foreground">No plugins installed</p><p className="text-[12px] text-muted-foreground mt-1">Import a ZIP that follows Lyrico Plugin API v3.</p></div>
+          {metadataPlugins.length===0?(
+            <div className="px-5 py-8 text-center">
+              <Package className="mx-auto mb-3 h-7 w-7 text-muted-foreground"/>
+              <p className="text-[14px] font-medium text-foreground">No plugins installed</p>
+              <p className="mt-1 text-[12px] text-muted-foreground">Import a ZIP that follows Lyrico Plugin API v3.</p>
+            </div>
+          ):metadataPlugins.map(plugin=>(
+            <div key={plugin.id} className={cn("flex min-h-[82px] items-center gap-1.5 px-3 py-3 transition-colors hover:bg-muted/30 sm:gap-2 sm:px-4",
+              !plugin.enabled&&"bg-muted/[0.16]")}>
+              <button type="button" onClick={()=>setEditingPluginId(plugin.id)}
+                className="min-w-0 flex-1 rounded-xl px-1 py-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
+                <span className="flex min-w-0 items-center gap-2">
+                  <span className="truncate text-[17px] font-semibold tracking-[-0.01em] text-foreground">{plugin.name}</span>
+                  <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full",plugin.enabled?"bg-[#3DCA8A]":"bg-switch-background")} aria-hidden="true"/>
+                </span>
+                <span className="mt-1 block line-clamp-2 text-[12px] leading-[17px] text-muted-foreground">
+                  Imported · {plugin.description} · v{plugin.version}
+                </span>
+              </button>
+              <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
+                {plugin.configLabel&&(
+                  <button type="button" aria-label={`Configure ${plugin.name}`} onClick={()=>setEditingPluginId(plugin.id)}
+                    className="flex h-10 w-9 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/40 sm:w-10">
+                    <SlidersHorizontal className="h-[18px] w-[18px]"/>
+                  </button>
+                )}
+                <button type="button" aria-label={`Uninstall ${plugin.name}`} onClick={()=>requestPluginRemoval(plugin)}
+                  className="flex h-10 w-9 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:ring-2 focus-visible:ring-destructive/35 sm:w-10">
+                  <Trash2 className="h-[18px] w-[18px]"/>
+                </button>
+                <DesignSwitch ariaLabel={`Enable ${plugin.name}`} checked={plugin.enabled}
+                  onChange={enabled=>updateMetadataPlugin({...plugin,enabled})}/>
+              </div>
+            </div>
+          ))}
+        </SettingsCard>
+
+        <SettingsCard title="Import">
+          <div className="flex min-h-[72px] items-center gap-3 px-4 py-3">
+            <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px]",
+              pluginImportState==="success"?"bg-[#3DCA8A]/12 text-[#2EAE75]":"bg-muted text-primary")}>
+              {pluginImportState==="success"?<CheckCircle2 className="h-5 w-5"/>:<FolderOpen className="h-5 w-5"/>}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[14px] font-medium text-foreground">
+                {pluginImportState==="idle"?"Import local ZIP":pluginImportState==="success"?"Plugin installed":"provider-plugin.zip"}
+              </p>
+              <p className="mt-1 text-[11px] leading-4 text-muted-foreground">
+                {pluginImportState==="idle"?"Archives are validated before an existing version is replaced"
+                  :pluginImportState==="selected"?"Ready to validate and install"
+                  :pluginImportState==="installing"?"Validating archive and plugin manifest…"
+                  :"Imported Provider is disabled until you review it"}
+              </p>
+            </div>
+            {pluginImportState==="idle"&&(
+              <Btn variant="tonal" size="sm" onClick={()=>setPluginImportState("selected")}>Choose ZIP</Btn>
+            )}
+            {pluginImportState==="selected"&&(
+              <div className="flex shrink-0 items-center gap-1">
+                <button type="button" onClick={()=>setPluginImportState("idle")} className="h-9 rounded-full px-3 text-[11px] font-semibold text-muted-foreground hover:bg-muted">Cancel</button>
+                <button type="button" onClick={installMetadataPlugin} className="h-9 rounded-full bg-primary px-4 text-[11px] font-semibold text-primary-foreground hover:opacity-90">Install</button>
+              </div>
+            )}
+            {pluginImportState==="installing"&&<RefreshCw className="h-4 w-4 shrink-0 animate-spin text-primary"/>}
+          </div>
         </SettingsCard>
       </div>
     );
@@ -4110,8 +4481,8 @@ function SettingsPage({ sub, onSubChange, themeMode, onThemeModeChange }: {
     return (
       <div className="pb-8">
         <div className="rounded-[24px] border border-border bg-card p-6 mb-6 flex items-center gap-4">
-          <div className="w-14 h-14 rounded-[18px] flex items-center justify-center text-white shadow-lg" style={{background:"linear-gradient(135deg,var(--tide-pink),var(--tide-purple))"}}><Music2 className="w-7 h-7"/></div>
-          <div><p className="text-[20px] font-bold text-foreground">TideTunes</p><p className="text-[13px] text-muted-foreground mt-0.5">One Library. Every Source.</p></div>
+          <div className="w-14 h-14 rounded-[18px] flex items-center justify-center text-white shadow-lg" style={{background:"linear-gradient(135deg,var(--brand-pink),var(--brand-purple))"}}><Music2 className="w-7 h-7"/></div>
+          <div><p className="text-[20px] font-bold text-foreground">MelodyTrove</p><p className="text-[13px] text-muted-foreground mt-0.5">One Library. Every Source.</p></div>
         </div>
         <SettingsCard title="App">
           <ValueRow label="Version" value="0.3.0"/>
@@ -4122,7 +4493,7 @@ function SettingsPage({ sub, onSubChange, themeMode, onThemeModeChange }: {
           <ValueRow label="Open-source licenses" value="View" onClick={()=>{}}/>
           <ValueRow label="Project homepage" value="GitHub" onClick={()=>{}}/>
           <ValueRow label="Report an issue" value="GitHub Issues" onClick={()=>{}}/>
-          <ValueRow label="Privacy" subtitle="TideTunes is local-first. Diagnostic exports exclude credentials and tokens."/>
+          <ValueRow label="Privacy" subtitle="MelodyTrove is local-first. Diagnostic exports exclude credentials and tokens."/>
         </SettingsCard>
       </div>
     );
@@ -4144,7 +4515,7 @@ function SettingsPage({ sub, onSubChange, themeMode, onThemeModeChange }: {
           <nav aria-label="Settings categories" className="w-[190px] shrink-0 border-r border-border overflow-y-auto py-5 px-2.5 h-full">
             <button type="button" onClick={()=>onSubChange(null)} className="w-full text-left px-3 mb-4 outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-xl">
               <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Settings</p>
-              <p className="text-[12px] text-muted-foreground mt-1">TideTunes 0.3.0</p>
+              <p className="text-[12px] text-muted-foreground mt-1">MelodyTrove 0.3.0</p>
             </button>
             <div className="space-y-1">
               {GROUPS.map(group=><button type="button" key={group.id} onClick={()=>{setActiveGroup(group.id);onSubChange(null);setSearchQ("");}}
@@ -4162,6 +4533,8 @@ function SettingsPage({ sub, onSubChange, themeMode, onThemeModeChange }: {
         </div>
         <AddWebDavSourceDialog open={addSourceOpen} existingNames={sources.map(source=>source.name)} onClose={()=>setAddSourceOpen(false)} onAdd={addWebDavSource}/>
         <ManageWebDavSourceDialog source={editingSource} existingNames={sources.map(source=>source.name)} onClose={()=>setEditingSourceId(null)} onSave={saveWebDavSource} onDelete={deleteWebDavSource}/>
+        <MetadataPluginDialog plugin={editingPlugin} onClose={()=>setEditingPluginId(null)} onChange={updateMetadataPlugin} onRemove={requestPluginRemoval}/>
+        <MetadataPluginRemovalDialog plugin={pendingPluginRemoval} onClose={()=>setPendingPluginRemovalId(null)} onConfirm={confirmPluginRemoval}/>
       </>
     );
   }
@@ -4173,6 +4546,8 @@ function SettingsPage({ sub, onSubChange, themeMode, onThemeModeChange }: {
       </div>
       <AddWebDavSourceDialog open={addSourceOpen} existingNames={sources.map(source=>source.name)} onClose={()=>setAddSourceOpen(false)} onAdd={addWebDavSource}/>
       <ManageWebDavSourceDialog source={editingSource} existingNames={sources.map(source=>source.name)} onClose={()=>setEditingSourceId(null)} onSave={saveWebDavSource} onDelete={deleteWebDavSource}/>
+      <MetadataPluginDialog plugin={editingPlugin} onClose={()=>setEditingPluginId(null)} onChange={updateMetadataPlugin} onRemove={requestPluginRemoval}/>
+      <MetadataPluginRemovalDialog plugin={pendingPluginRemoval} onClose={()=>setPendingPluginRemovalId(null)} onConfirm={confirmPluginRemoval}/>
     </>
   );
 }
@@ -4201,11 +4576,11 @@ function DSCover() {
         <div className="absolute inset-0 rounded-[32px] border border-primary/20"/>
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-14 h-14 rounded-[18px] flex items-center justify-center shadow-xl" style={{background:"linear-gradient(135deg,var(--tide-pink),var(--tide-purple))"}}>
+            <div className="w-14 h-14 rounded-[18px] flex items-center justify-center shadow-xl" style={{background:"linear-gradient(135deg,var(--brand-pink),var(--brand-purple))"}}>
               <Music2 className="w-7 h-7 text-white"/>
             </div>
             <div>
-              <h1 className="text-3xl font-black tracking-tight" style={{background:`linear-gradient(135deg,${G[0][0]},${G[1][1]})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>TideTunes DS</h1>
+              <h1 className="text-3xl font-black tracking-tight" style={{background:`linear-gradient(135deg,${G[0][0]},${G[1][1]})`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",backgroundClip:"text"}}>MelodyTrove DS</h1>
               <p className="text-sm text-muted-foreground font-medium">Repository-aligned · v4 · 2026</p>
             </div>
           </div>
@@ -4264,9 +4639,9 @@ function DSCover() {
 
 function DSFoundation() {
   const colors = [
-    {name:"TidePink",hex:"#FF5B8A",role:"Primary"},{name:"TidePurple",hex:"#7A6CFF",role:"Secondary"},
-    {name:"TideOrange",hex:"#FF8A3D",role:"Support"},{name:"TideGreen",hex:"#3DCA8A",role:"Support"},
-    {name:"TideBlue",hex:"#3D9AFF",role:"Support"},{name:"TideYellow",hex:"#FFD93D",role:"Support"},
+    {name:"DesignPink",hex:"#FF5B8A",role:"Primary"},{name:"DesignPurple",hex:"#7A6CFF",role:"Secondary"},
+    {name:"DesignOrange",hex:"#FF8A3D",role:"Support"},{name:"DesignGreen",hex:"#3DCA8A",role:"Support"},
+    {name:"DesignBlue",hex:"#3D9AFF",role:"Support"},{name:"DesignYellow",hex:"#FFD93D",role:"Support"},
   ];
   const typescale = [
     {name:"Display",cls:"text-4xl font-black",size:"36px · 900"},
@@ -4322,7 +4697,7 @@ function DSFoundation() {
         <div className="bg-card rounded-3xl border border-border overflow-hidden divide-y divide-border/60">
           {typescale.map(t=>(
             <div key={t.name} className="flex items-baseline justify-between px-5 py-4 gap-4">
-              <p className={cn("text-foreground truncate",t.cls)}>TideTunes</p>
+              <p className={cn("text-foreground truncate",t.cls)}>MelodyTrove</p>
               <div className="text-right shrink-0"><p className="text-xs font-semibold text-foreground">{t.name}</p><p className="text-[10px] font-mono text-muted-foreground">{t.size}</p></div>
             </div>
           ))}
@@ -4383,12 +4758,12 @@ function DSFoundation() {
 
 function DSTokens() {
   const colors = [
-    {name:"--tide-pink",  value:"#FF5B8A", role:"Brand Primary"},
-    {name:"--tide-purple",value:"#7A6CFF", role:"Brand Secondary"},
-    {name:"--tide-blue",  value:"#3D9AFF", role:"Support"},
-    {name:"--tide-orange",value:"#FF8A3D", role:"Support"},
-    {name:"--tide-green", value:"#3DCA8A", role:"Support"},
-    {name:"--tide-yellow",value:"#FFD93D", role:"Support"},
+    {name:"--brand-pink",  value:"#FF5B8A", role:"Brand Primary"},
+    {name:"--brand-purple",value:"#7A6CFF", role:"Brand Secondary"},
+    {name:"--brand-blue",  value:"#3D9AFF", role:"Support"},
+    {name:"--brand-orange",value:"#FF8A3D", role:"Support"},
+    {name:"--brand-green", value:"#3DCA8A", role:"Support"},
+    {name:"--brand-yellow",value:"#FFD93D", role:"Support"},
   ];
   const semanticDark = [
     {name:"--background",value:"#0C0A14",role:"Canvas"},
@@ -4426,7 +4801,7 @@ function DSTokens() {
     {name:"--radius-sm",  px:"8",   use:"Badge / input"},
     {name:"--radius-md",  px:"12",  use:"Search bar"},
     {name:"--radius-lg",  px:"20",  use:"Button pill / nav"},
-    {name:"--radius-xl",  px:"28",  use:"TideCardSurface"},
+    {name:"--radius-xl",  px:"28",  use:"DesignCardSurface"},
     {name:"--radius-2xl", px:"36",  use:"FullPlayer art"},
     {name:"--radius-3xl", px:"40",  use:"Hero / cover"},
     {name:"--radius-full",px:"999", use:"Circular"},
@@ -4601,9 +4976,9 @@ function DSComponents() {
       </section>
       <section><SectionHeader title="Controls — Switch & Slider"/>
         <div className="bg-card rounded-3xl border border-border p-5 space-y-5">
-          <div className="flex flex-wrap gap-8"><TideSwitch checked={sw1} onChange={setSw1} label="Dynamic Color"/><TideSwitch checked={sw2} onChange={setSw2} label="Blur Effect"/></div>
-          <TideSlider value={sl1} onChange={setSl1} label="Volume"/>
-          <TideSlider value={sl2} onChange={setSl2} label="Treble" accent="var(--tide-purple)"/>
+          <div className="flex flex-wrap gap-8"><DesignSwitch checked={sw1} onChange={setSw1} label="Dynamic Color"/><DesignSwitch checked={sw2} onChange={setSw2} label="Blur Effect"/></div>
+          <DesignSlider value={sl1} onChange={setSl1} label="Volume"/>
+          <DesignSlider value={sl2} onChange={setSl2} label="Treble" accent="var(--brand-purple)"/>
         </div>
       </section>
       <section><SectionHeader title="Tabs"/>
@@ -4673,7 +5048,7 @@ function DSComponents() {
               <p className="text-[15px] font-medium text-foreground leading-tight">Enable Lyrics</p>
               <p className="text-[12px] text-muted-foreground mt-0.5">Show synced lyrics while playing</p>
             </div>
-            <TideSwitch checked={ssw1} onChange={setSsw1}/>
+            <DesignSwitch checked={ssw1} onChange={setSsw1}/>
             <span className="ml-3 px-1.5 py-0.5 rounded text-[9px] font-mono bg-muted text-muted-foreground shrink-0">Switch</span>
           </div>
 
@@ -4708,7 +5083,7 @@ function DSComponents() {
                 <p className="text-[12px] text-muted-foreground mb-2">Lyrics and interface text size</p>
                 <div className="flex items-center gap-2.5">
                   <span className="text-[10px] text-muted-foreground shrink-0">10px</span>
-                  <div className="flex-1"><TideSlider value={(ssl1-10)/(24-10)*100} onChange={v=>setSsl1(Math.round(10+v*(24-10)/100))}/></div>
+                  <div className="flex-1"><DesignSlider value={(ssl1-10)/(24-10)*100} onChange={v=>setSsl1(Math.round(10+v*(24-10)/100))}/></div>
                   <span className="text-[10px] text-muted-foreground shrink-0">24px</span>
                 </div>
               </div>
@@ -4741,7 +5116,7 @@ function DSComponents() {
                 </div>
                 <div className="flex gap-2">
                   <div className="flex-1 relative">
-                    <input type={sshowPass?"text":"password"} defaultValue="sk-tide-abc123xyz"
+                    <input type={sshowPass?"text":"password"} defaultValue="sk-test-abc123xyz"
                       className="w-full h-9 px-3 pr-9 rounded-xl bg-muted text-[13px] text-foreground font-mono border border-transparent focus:border-primary/40 focus:ring-2 focus:ring-primary/15 outline-none transition-all"/>
                     <button onClick={()=>setSshowPass(!sshowPass)}
                       className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors p-0.5">
@@ -4792,7 +5167,7 @@ function DSComponents() {
               <GripVertical className="w-4 h-4 text-muted-foreground/40 shrink-0 cursor-grab active:cursor-grabbing"/>
               <div className="w-8 h-8 rounded-[10px] bg-muted flex items-center justify-center shrink-0"><Folder className="w-[15px] h-[15px] text-muted-foreground"/></div>
               <p className="flex-1 text-[15px] font-medium text-foreground">{r.lbl}</p>
-              <TideSwitch checked={r.on} onChange={()=>{}}/>
+              <DesignSwitch checked={r.on} onChange={()=>{}}/>
               {i===0&&<span className="ml-2 px-1.5 py-0.5 rounded text-[9px] font-mono bg-muted text-muted-foreground shrink-0">Reorder</span>}
             </div>
           ))}
@@ -4842,7 +5217,7 @@ function DSComponents() {
               <span className="px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{background:"rgba(255,211,61,0.14)",color:"#967000"}}>Required</span>
               <motion.button whileTap={{scale:0.93}}
                 className="px-3 py-1.5 rounded-[10px] text-[12px] font-semibold text-white"
-                style={{background:"var(--tide-pink)"}}>Grant</motion.button>
+                style={{background:"var(--brand-pink)"}}>Grant</motion.button>
             </div>
             <span className="ml-2 px-1.5 py-0.5 rounded text-[9px] font-mono bg-muted text-muted-foreground shrink-0">Permission</span>
           </div>
@@ -4901,12 +5276,12 @@ function DSComponents() {
                 className="flex items-center gap-3 px-5 min-h-[52px] cursor-pointer transition-colors hover:brightness-95"
                 style={{background: sel ? "rgba(255,91,138,0.07)" : undefined}}>
                 <div className="flex-1 min-w-0">
-                  <p className="text-[15px] font-medium transition-colors" style={{color: sel ? "var(--tide-pink)" : "var(--foreground)"}}>{opt.lbl}</p>
+                  <p className="text-[15px] font-medium transition-colors" style={{color: sel ? "var(--brand-pink)" : "var(--foreground)"}}>{opt.lbl}</p>
                   <p className="text-[12px] text-muted-foreground">{opt.desc}</p>
                 </div>
                 <div className="w-[18px] h-[18px] rounded-full border-2 flex items-center justify-center shrink-0 transition-all"
-                  style={{borderColor: sel ? "var(--tide-pink)" : "var(--border)"}}>
-                  {sel && <div className="w-2 h-2 rounded-full" style={{background:"var(--tide-pink)"}}/>}
+                  style={{borderColor: sel ? "var(--brand-pink)" : "var(--border)"}}>
+                  {sel && <div className="w-2 h-2 rounded-full" style={{background:"var(--brand-pink)"}}/>}
                 </div>
               </div>
             );
@@ -4917,16 +5292,16 @@ function DSComponents() {
         <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground mb-3 mt-8">State Matrix</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-2">
           {([
-            {state:"Default",badge:undefined,note:"Base interactive — transparent bg",indicator:<TideSwitch checked={true} onChange={()=>{}}/>},
-            {state:"Hover",badge:undefined,note:"Pointer-over, pre-press — bg-muted/40",indicator:<TideSwitch checked={false} onChange={()=>{}}/>},
+            {state:"Default",badge:undefined,note:"Base interactive — transparent bg",indicator:<DesignSwitch checked={true} onChange={()=>{}}/>},
+            {state:"Hover",badge:undefined,note:"Pointer-over, pre-press — bg-muted/40",indicator:<DesignSwitch checked={false} onChange={()=>{}}/>},
             {state:"Focus-visible",badge:undefined,note:"Keyboard nav — ring-2 ring-primary/40",indicator:<div className="h-9 px-3 rounded-xl bg-muted text-[13px] text-foreground font-mono flex items-center ring-2 ring-primary/40" style={{minWidth:80}}>Value</div>},
-            {state:"Pressed",badge:undefined,note:"Touch/click hold — scale-[0.99]",indicator:<motion.div whileTap={{scale:0.95}} className="px-3 py-1.5 rounded-xl text-[13px] font-semibold text-white cursor-pointer" style={{background:"var(--tide-pink)"}}>Action</motion.div>},
+            {state:"Pressed",badge:undefined,note:"Touch/click hold — scale-[0.99]",indicator:<motion.div whileTap={{scale:0.95}} className="px-3 py-1.5 rounded-xl text-[13px] font-semibold text-white cursor-pointer" style={{background:"var(--brand-pink)"}}>Action</motion.div>},
             {state:"Selected",badge:undefined,note:"Active choice — bg-primary/5",indicator:<div className="w-[18px] h-[18px] rounded-full border-2 border-primary flex items-center justify-center"><div className="w-2 h-2 rounded-full bg-primary"/></div>},
-            {state:"Disabled",badge:undefined,note:"opacity-40, pointer-events-none",indicator:<div className="opacity-40 pointer-events-none"><TideSwitch checked={false} onChange={()=>{}}/></div>},
-            {state:"Dependent-disabled",badge:undefined,note:"Gated by parent — opacity-55",indicator:<div className="opacity-55 pointer-events-none"><TideSwitch checked={false} onChange={()=>{}}/></div>},
+            {state:"Disabled",badge:undefined,note:"opacity-40, pointer-events-none",indicator:<div className="opacity-40 pointer-events-none"><DesignSwitch checked={false} onChange={()=>{}}/></div>},
+            {state:"Dependent-disabled",badge:undefined,note:"Gated by parent — opacity-55",indicator:<div className="opacity-55 pointer-events-none"><DesignSwitch checked={false} onChange={()=>{}}/></div>},
             {state:"Permission-required",badge:<span className="px-2 py-0.5 rounded-full text-[11px] font-semibold shrink-0" style={{background:"rgba(255,211,61,0.14)",color:"#967000"}}>Required</span>,note:"Grant action required",indicator:undefined},
             {state:"Busy",badge:undefined,note:"Async in-progress — spinner",indicator:<RefreshCw className="w-4 h-4 text-muted-foreground animate-spin"/>},
-            {state:"Success",badge:undefined,note:"Operation complete — TideGreen",indicator:<CheckCircle2 className="w-4 h-4 text-[#3DCA8A]"/>},
+            {state:"Success",badge:undefined,note:"Operation complete — DesignGreen",indicator:<CheckCircle2 className="w-4 h-4 text-[#3DCA8A]"/>},
             {state:"Error",badge:undefined,note:"Operation failed — destructive",indicator:<AlertCircle className="w-4 h-4 text-destructive"/>},
             {state:"Destructive",badge:undefined,note:"Irreversible — red title + icon bg",indicator:<span className="text-[13px] font-semibold text-destructive">Delete</span>},
           ] as {state:string;badge:React.ReactNode;note:string;indicator:React.ReactNode}[]).map(row=>(
@@ -5010,7 +5385,7 @@ function DSPatterns() {
       <section><SectionHeader title="Navigation Rail (Tablet · Expanded)"/>
         <div className="bg-muted rounded-3xl p-4">
           <div className="w-20 flex flex-col items-center py-4 gap-1 rounded-3xl" style={{background:"var(--card)",border:"1px solid var(--border)"}}>
-            <div className="w-10 h-10 rounded-2xl mb-3 flex items-center justify-center" style={{background:"linear-gradient(135deg,var(--tide-pink),var(--tide-purple))"}}><Music2 className="w-5 h-5 text-white"/></div>
+            <div className="w-10 h-10 rounded-2xl mb-3 flex items-center justify-center" style={{background:"linear-gradient(135deg,var(--brand-pink),var(--brand-purple))"}}><Music2 className="w-5 h-5 text-white"/></div>
             {[{i:<Home className="w-4 h-4"/>,l:"Home",a:true},{i:<Search className="w-4 h-4"/>,l:"Search",a:false},{i:<Library className="w-4 h-4"/>,l:"Library",a:false},{i:<Settings className="w-4 h-4"/>,l:"Settings",a:false}].map(item=>(
               <div key={item.l} className={cn("flex flex-col items-center gap-1 w-full px-2 py-2.5 rounded-2xl",item.a?"bg-primary/15 text-primary":"text-muted-foreground")}>
                 {item.i}<span className="text-[9px] font-bold">{item.l}</span>
@@ -5026,7 +5401,7 @@ function DSPatterns() {
             <div className="flex items-center gap-3 px-4 h-12 border-b border-border bg-card/80">
               <div className="flex gap-1.5"><div className="w-3 h-3 rounded-full bg-red-400"/><div className="w-3 h-3 rounded-full bg-yellow-400"/><div className="w-3 h-3 rounded-full bg-green-400"/></div>
               <div className="flex gap-1"><div className="w-6 h-6 rounded-lg bg-muted flex items-center justify-center"><ArrowLeft className="w-3 h-3 text-muted-foreground"/></div><div className="w-6 h-6 rounded-lg bg-muted flex items-center justify-center"><ArrowRight className="w-3 h-3 text-muted-foreground"/></div></div>
-              <div className="flex-1 h-7 bg-muted rounded-xl flex items-center px-3"><Search className="w-3 h-3 text-muted-foreground mr-2"/><span className="text-xs text-muted-foreground">Search TideTunes…</span></div>
+              <div className="flex-1 h-7 bg-muted rounded-xl flex items-center px-3"><Search className="w-3 h-3 text-muted-foreground mr-2"/><span className="text-xs text-muted-foreground">Search MelodyTrove…</span></div>
               <div className="flex gap-1.5"><div className="w-6 h-6 rounded-lg bg-muted"/><div className="w-6 h-6 rounded-lg bg-muted"/><div className="w-6 h-6 rounded-lg bg-muted"/></div>
             </div>
             <div className="flex" style={{height:220}}>
@@ -5077,7 +5452,7 @@ function DSCompose() {
     <div className="space-y-6 px-4 py-2 pb-8">
       <div className="bg-card/60 rounded-3xl border border-border p-5">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{background:"linear-gradient(135deg,var(--tide-green),var(--tide-blue))"}}><Code2 className="w-5 h-5 text-white"/></div>
+          <div className="w-10 h-10 rounded-2xl flex items-center justify-center" style={{background:"linear-gradient(135deg,var(--brand-green),var(--brand-blue))"}}><Code2 className="w-5 h-5 text-white"/></div>
           <div><p className="text-sm font-bold text-foreground">Compose Multiplatform Mapping</p><p className="text-xs text-muted-foreground">Figma → compose-miuix-ui 1:1</p></div>
         </div>
         <p className="text-xs text-muted-foreground">Each Figma component maps directly to a compose-miuix-ui component. The goal is Figma → Compose 1:1 so designers and developers share the same vocabulary.</p>
@@ -5160,10 +5535,10 @@ function Sidebar({ page, onPage, dsSection, onDsSection, isDark, onToggleDark }:
     <aside className="hidden lg:flex flex-col w-56 shrink-0 bg-sidebar border-r border-border h-full overflow-y-auto hide-scrollbar">
       {/* Logo */}
       <div className="flex items-center gap-3 px-4 pt-5 pb-4 shrink-0">
-        <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{background:"linear-gradient(135deg,var(--tide-pink),var(--tide-purple))"}}>
+        <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{background:"linear-gradient(135deg,var(--brand-pink),var(--brand-purple))"}}>
           <Music2 className="w-4 h-4 text-white"/>
         </div>
-        <div><p className="text-sm font-black text-foreground tracking-tight leading-none">TideTunes</p><p className="text-[9px] text-muted-foreground font-medium">One Library. Every Source.</p></div>
+        <div><p className="text-sm font-black text-foreground tracking-tight leading-none">MelodyTrove</p><p className="text-[9px] text-muted-foreground font-medium">One Library. Every Source.</p></div>
       </div>
       {/* App Nav */}
       <div className="px-2 mb-1">
@@ -5312,8 +5687,8 @@ export default function App() {
             <main ref={mainScrollRef} className="mt-[59px] flex-1 overflow-y-auto lg:mt-0 landscape:mt-0">
               {page !== "home" && page !== "playlist" && page !== "album" && page !== "artist" && page !== "listening" && (
                 <StickyPageHeader
-                  title={settingsDetailTitle??(page==="design-system"?dsTitles[dsSection]:mobilePageTitle[page]||"TideTunes")}
-                  subtitle={settingsDetailTitle?undefined:page==="design-system"?"TideTunes DS · v3.0":undefined}
+                  title={settingsDetailTitle??(page==="design-system"?dsTitles[dsSection]:mobilePageTitle[page]||"MelodyTrove")}
+                  subtitle={settingsDetailTitle?undefined:page==="design-system"?"MelodyTrove DS · v3.0":undefined}
                   onBack={settingsDetailTitle?()=>setSettingsSub(null):undefined}
                   backLabel="Back to Settings"
                   showTitleOnCollapse={Boolean(settingsDetailTitle)}
@@ -5327,7 +5702,7 @@ export default function App() {
               )}
               {page==="design-system"&&(
                 <>
-                  <StickyPageHeader title={dsTitles[dsSection]} subtitle="TideTunes DS · v3.0" className="hidden lg:block px-8 py-3"/>
+                  <StickyPageHeader title={dsTitles[dsSection]} subtitle="MelodyTrove DS · v3.0" className="hidden lg:block px-8 py-3"/>
                   <div className="lg:hidden px-4 py-2 overflow-x-auto hide-scrollbar">
                     <div className="flex gap-2">{DS_NAV.map(s=>(
                       <button key={s.id} onClick={()=>setDsSection(s.id)} className={cn("shrink-0 px-3.5 h-8 rounded-full text-xs font-semibold transition-all",dsSection===s.id?"bg-secondary text-secondary-foreground":"bg-muted text-muted-foreground")}>{s.label}</button>
