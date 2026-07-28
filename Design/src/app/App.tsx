@@ -3533,6 +3533,32 @@ const SETTINGS_SUB_LABELS: Record<SettingsSub,string> = {
   about:"About",
 };
 
+type MetadataPluginConfigDependency = { key:string; value:string };
+type MetadataPluginConfigField =
+  | {
+      type:"markdown";
+      key:string;
+      title:string;
+      paragraphs:string[];
+      dependsOn?:MetadataPluginConfigDependency;
+    }
+  | {
+      type:"select";
+      key:string;
+      title:string;
+      summary?:string;
+      options:{ value:string; label:string }[];
+      dependsOn?:MetadataPluginConfigDependency;
+    }
+  | {
+      type:"text"|"password";
+      key:string;
+      title:string;
+      summary?:string;
+      placeholder?:string;
+      dependsOn?:MetadataPluginConfigDependency;
+    };
+
 type MetadataPluginModel = {
   id:string;
   name:string;
@@ -3544,9 +3570,8 @@ type MetadataPluginModel = {
   allowAutomatic:boolean;
   allowBatch:boolean;
   capabilities:string[];
-  configLabel?:string;
-  configHint?:string;
-  configValue?:string;
+  configFields?:MetadataPluginConfigField[];
+  configValues?:Record<string,string>;
 };
 
 const INITIAL_METADATA_PLUGINS: MetadataPluginModel[] = [
@@ -3561,9 +3586,75 @@ const INITIAL_METADATA_PLUGINS: MetadataPluginModel[] = [
     allowAutomatic:false,
     allowBatch:false,
     capabilities:["Song search","Lyrics","Artwork"],
-    configLabel:"Storefront",
-    configHint:"Two-letter Apple Music storefront code",
-    configValue:"CN",
+    configFields:[
+      {
+        type:"markdown",
+        key:"lyrics-guide",
+        title:"歌词源说明",
+        paragraphs:[
+          "第三方：通过 PaxSenix Apple Music Lyrics 获取歌词，不需要 Apple Music 登录态。",
+          "官方：通过 Apple Music 官方接口获取歌词，需要填写网页登录态 Cookie 中的 media-user-token。",
+          "官方源限制：token 所属地区必须与下方地区一致，且可能过期；高频或批量请求可能触发限流，只有账号有权访问的歌曲才可能返回官方歌词。",
+        ],
+      },
+      {
+        type:"select",
+        key:"lyricsSource",
+        title:"歌词源",
+        options:[
+          {value:"third-party",label:"第三方"},
+          {value:"official",label:"官方"},
+        ],
+      },
+      {
+        type:"password",
+        key:"mediaUserToken",
+        title:"Media user token",
+        summary:"Apple Music 网页登录态 Cookie 中的 media-user-token",
+        placeholder:"粘贴 media-user-token",
+        dependsOn:{key:"lyricsSource",value:"official"},
+      },
+      {
+        type:"select",
+        key:"storefront",
+        title:"地区",
+        summary:"用于 Apple Music catalog storefront，需要与 token 所属地区匹配",
+        options:[
+          {value:"cn",label:"中国大陆"},
+          {value:"us",label:"美国"},
+          {value:"jp",label:"日本"},
+        ],
+      },
+      {
+        type:"select",
+        key:"language",
+        title:"语言",
+        summary:"用于 Apple Music localization 参数",
+        options:[
+          {value:"zh-CN",label:"简体中文"},
+          {value:"en-US",label:"English"},
+          {value:"ja-JP",label:"日本語"},
+        ],
+      },
+      {
+        type:"select",
+        key:"artworkSize",
+        title:"封面大小",
+        summary:"Apple Music 封面图片尺寸",
+        options:[
+          {value:"600",label:"600 × 600"},
+          {value:"1000",label:"1000 × 1000"},
+          {value:"3000",label:"3000 × 3000"},
+        ],
+      },
+    ],
+    configValues:{
+      lyricsSource:"third-party",
+      mediaUserToken:"",
+      storefront:"cn",
+      language:"zh-CN",
+      artworkSize:"1000",
+    },
   },
   {
     id:"kugou",
@@ -3588,9 +3679,15 @@ const INITIAL_METADATA_PLUGINS: MetadataPluginModel[] = [
     allowAutomatic:false,
     allowBatch:false,
     capabilities:["Song search","Lyrics","Artwork"],
-    configLabel:"Account cookie",
-    configHint:"Optional; used only inside this plugin runtime",
-    configValue:"",
+    configFields:[
+      {
+        type:"password",
+        key:"cookie",
+        title:"Account cookie",
+        summary:"Optional; used only inside this plugin runtime",
+      },
+    ],
+    configValues:{cookie:""},
   },
   {
     id:"qq-music",
@@ -3603,9 +3700,15 @@ const INITIAL_METADATA_PLUGINS: MetadataPluginModel[] = [
     allowAutomatic:false,
     allowBatch:false,
     capabilities:["Song search","Lyrics","Artwork"],
-    configLabel:"Account cookie",
-    configHint:"Optional; used only inside this plugin runtime",
-    configValue:"",
+    configFields:[
+      {
+        type:"password",
+        key:"cookie",
+        title:"Account cookie",
+        summary:"Optional; used only inside this plugin runtime",
+      },
+    ],
+    configValues:{cookie:""},
   },
   {
     id:"qishui",
@@ -3627,14 +3730,14 @@ function MetadataPluginDialog({ plugin, onClose, onChange, onRemove }: {
   onChange:(plugin:MetadataPluginModel)=>void;
   onRemove:(plugin:MetadataPluginModel)=>void;
 }) {
-  const [configValue,setConfigValue] = useState("");
+  const [configValues,setConfigValues] = useState<Record<string,string>>({});
   const [clearingCache,setClearingCache] = useState(false);
 
   useEffect(()=>{
     if (!plugin) return;
     const previousOverflow = document.body.style.overflow;
     const handleKeyDown = (event:KeyboardEvent) => event.key==="Escape"&&onClose();
-    setConfigValue(plugin.configValue??"");
+    setConfigValues(plugin.configValues??{});
     setClearingCache(false);
     document.body.style.overflow = "hidden";
     window.addEventListener("keydown",handleKeyDown);
@@ -3647,6 +3750,14 @@ function MetadataPluginDialog({ plugin, onClose, onChange, onRemove }: {
   if (!plugin) return null;
 
   const patchPlugin = (patch:Partial<MetadataPluginModel>) => onChange({...plugin,...patch});
+  const configFields = plugin.configFields??[];
+  const visibleConfigFields = configFields.filter(field=>
+    !field.dependsOn||configValues[field.dependsOn.key]===field.dependsOn.value
+  );
+  const markdownFields = visibleConfigFields.filter(field=>field.type==="markdown");
+  const editableFields = visibleConfigFields.filter(field=>field.type!=="markdown");
+  const updateConfigValue = (key:string,value:string) =>
+    setConfigValues(current=>({...current,[key]:value}));
   const clearCache = () => {
     setClearingCache(true);
     window.setTimeout(()=>setClearingCache(false),850);
@@ -3662,12 +3773,12 @@ function MetadataPluginDialog({ plugin, onClose, onChange, onRemove }: {
           transition={{type:"spring",stiffness:420,damping:34}}
           className="max-h-[92vh] w-full overflow-y-auto rounded-t-[30px] border border-border bg-popover px-5 pb-6 pt-4 shadow-2xl sm:max-w-[520px] sm:rounded-[30px] sm:p-6">
           <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-muted sm:hidden" aria-hidden="true"/>
-          <div className="flex items-start gap-3">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-primary/12 text-primary">
+          <div className="relative flex items-start gap-3">
+            <span className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-primary/12 text-primary sm:flex">
               <Puzzle className="h-5 w-5"/>
             </span>
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
+            <div className="min-w-0 flex-1 px-10 text-center sm:px-0 sm:text-left">
+              <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                 <h2 id="metadata-plugin-title" className="text-[19px] font-semibold text-foreground">{plugin.name}</h2>
                 <span className={cn("inline-flex h-5 items-center rounded-full px-2 text-[10px] font-semibold",
                   plugin.enabled?"bg-[#3DCA8A]/12 text-[#2EAE75]":"bg-muted text-muted-foreground")}>
@@ -3677,12 +3788,62 @@ function MetadataPluginDialog({ plugin, onClose, onChange, onRemove }: {
               <p className="mt-1 text-[12px] leading-[17px] text-muted-foreground">{plugin.author} · v{plugin.version}</p>
             </div>
             <button type="button" aria-label="Close plugin settings" onClick={onClose}
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/40">
+              className="absolute right-0 top-0 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/40 sm:static">
               <X className="h-4 w-4"/>
             </button>
           </div>
 
           <p className="mt-4 rounded-[18px] bg-muted/55 px-4 py-3 text-[12px] leading-[18px] text-muted-foreground">{plugin.description}</p>
+
+          {markdownFields.map(field=>(
+            <section key={field.key} className="mt-5 rounded-[22px] border border-border bg-card p-4 sm:p-5" aria-labelledby={`plugin-guide-${field.key}`}>
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-primary"/>
+                <h3 id={`plugin-guide-${field.key}`} className="text-[15px] font-semibold text-foreground">{field.title}</h3>
+              </div>
+              <div className="mt-3 space-y-2.5">
+                {field.paragraphs.map((paragraph,index)=>(
+                  <p key={index} className="text-[12px] leading-[19px] text-muted-foreground">{paragraph}</p>
+                ))}
+              </div>
+            </section>
+          ))}
+
+          {editableFields.length>0&&(
+            <section className="mt-5" aria-labelledby="plugin-configuration-title">
+              <p id="plugin-configuration-title" className="mb-2 px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Configuration</p>
+              <div className="divide-y divide-border/60 overflow-hidden rounded-[22px] border border-border bg-card">
+                {editableFields.map(field=>field.type==="select"?(
+                  <label key={field.key} className="relative flex min-h-[72px] cursor-pointer items-center gap-4 px-4 py-3 transition-colors hover:bg-muted/30">
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[15px] font-medium text-foreground">{field.title}</span>
+                      {field.summary&&<span className="mt-1 block text-[11px] leading-4 text-muted-foreground">{field.summary}</span>}
+                    </span>
+                    <span className="flex max-w-[42%] shrink-0 items-center gap-2 text-right text-[13px] text-muted-foreground">
+                      <span className="truncate">{field.options.find(option=>option.value===configValues[field.key])?.label??field.options[0]?.label}</span>
+                      <span className="flex flex-col -space-y-1" aria-hidden="true">
+                        <ChevronUp className="h-3.5 w-3.5"/>
+                        <ChevronDown className="h-3.5 w-3.5"/>
+                      </span>
+                    </span>
+                    <select aria-label={field.title} value={configValues[field.key]??field.options[0]?.value}
+                      onChange={event=>updateConfigValue(field.key,event.target.value)}
+                      className="absolute inset-0 h-full w-full cursor-pointer opacity-0">
+                      {field.options.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}
+                    </select>
+                  </label>
+                ):(
+                  <label key={field.key} className="block px-4 py-4">
+                    <span className="block text-[14px] font-medium text-foreground">{field.title}</span>
+                    <input type={field.type==="password"?"password":"text"} value={configValues[field.key]??""}
+                      placeholder={field.placeholder} onChange={event=>updateConfigValue(field.key,event.target.value)}
+                      className="mt-3 h-11 w-full rounded-[15px] border border-border bg-input-background px-3.5 text-sm text-foreground outline-none placeholder:text-muted-foreground/70 focus:border-primary/50 focus:ring-2 focus:ring-primary/20"/>
+                    {field.summary&&<span className="mt-2 block text-[11px] leading-4 text-muted-foreground">{field.summary}</span>}
+                  </label>
+                ))}
+              </div>
+            </section>
+          )}
 
           <section className="mt-5" aria-labelledby="plugin-availability-title">
             <p id="plugin-availability-title" className="mb-2 px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Availability</p>
@@ -3725,18 +3886,6 @@ function MetadataPluginDialog({ plugin, onClose, onChange, onRemove }: {
             </div>
           </section>
 
-          {plugin.configLabel&&(
-            <section className="mt-5" aria-labelledby="plugin-configuration-title">
-              <p id="plugin-configuration-title" className="mb-2 px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Configuration</p>
-              <label className="block rounded-[22px] border border-border bg-card p-4">
-                <span className="block text-[14px] font-medium text-foreground">{plugin.configLabel}</span>
-                <input value={configValue} onChange={event=>setConfigValue(event.target.value)}
-                  className="mt-3 h-11 w-full rounded-[15px] border border-border bg-input-background px-3.5 text-sm text-foreground outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20"/>
-                {plugin.configHint&&<span className="mt-2 block text-[11px] leading-4 text-muted-foreground">{plugin.configHint}</span>}
-              </label>
-            </section>
-          )}
-
           <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-border/70 pt-5">
             <button type="button" onClick={clearCache} disabled={clearingCache}
               className="inline-flex h-10 items-center gap-2 rounded-full bg-muted px-4 text-[12px] font-semibold text-foreground outline-none hover:bg-muted/80 disabled:opacity-55 focus-visible:ring-2 focus-visible:ring-primary/40">
@@ -3747,9 +3896,9 @@ function MetadataPluginDialog({ plugin, onClose, onChange, onRemove }: {
               className="inline-flex h-10 items-center gap-2 rounded-full px-4 text-[12px] font-semibold text-destructive outline-none hover:bg-destructive/10 focus-visible:ring-2 focus-visible:ring-destructive/35">
               <Trash2 className="h-3.5 w-3.5"/>Uninstall
             </button>
-            <button type="button" onClick={()=>{patchPlugin({configValue});onClose();}}
+            <button type="button" onClick={()=>{patchPlugin({configValues});onClose();}}
               className="ml-auto inline-flex h-10 items-center rounded-full bg-primary px-5 text-[12px] font-semibold text-primary-foreground outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-primary/40">
-              {plugin.configLabel?"Save":"Done"}
+              {editableFields.length?"Save":"Done"}
             </button>
           </div>
         </motion.div>
@@ -4376,7 +4525,7 @@ function SettingsPage({ sub, onSubChange, themeMode, onThemeModeChange }: {
                 </span>
               </button>
               <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
-                {plugin.configLabel&&(
+                {!!plugin.configFields?.length&&(
                   <button type="button" aria-label={`Configure ${plugin.name}`} onClick={()=>setEditingPluginId(plugin.id)}
                     className="flex h-10 w-9 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/40 sm:w-10">
                     <SlidersHorizontal className="h-[18px] w-[18px]"/>
