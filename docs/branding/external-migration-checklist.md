@@ -5,8 +5,10 @@ Date: 2026-07-28
 Repository code cannot complete the following operator-owned changes. Complete
 them before publishing a release under the new application identifiers.
 
-- Rename the GitHub repository to `MelodyTrove`, retain redirects, update the
-  description/topics, and verify branch protection and Actions secrets.
+- Completed 2026-07-28: renamed the GitHub repository to `MelodyTrove` and
+  retained the former repository URL redirect.
+- Verify GitHub branch protection, Actions secrets, repository topics, and the
+  optional repository description before the release.
 - Register `melodytrove://oauth2redirect/` with the OneDrive/Azure application.
   Keep the legacy redirect registered for at least one transition release.
 - Create or update Android signing and store listings for application ID
