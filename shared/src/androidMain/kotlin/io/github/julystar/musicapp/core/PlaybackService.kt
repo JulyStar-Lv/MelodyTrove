@@ -25,8 +25,11 @@ import androidx.media3.session.SessionResult
 import io.github.julystar.musicapp.shared.R
 import io.github.julystar.musicapp.core.domain.model.AppSettings
 import io.github.julystar.musicapp.core.domain.model.AudioFocusMode
+import io.github.julystar.musicapp.core.domain.model.ReplayGainMode
 import io.github.julystar.musicapp.core.domain.repository.ArtworkRepository
 import io.github.julystar.musicapp.core.domain.repository.SettingsRepository
+import io.github.julystar.musicapp.core.audio.RustDspAudioProcessor
+import io.github.julystar.musicapp.core.audio.TideTunesRenderersFactory
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
 import io.github.julystar.musicapp.service.playback.data.PlayerRepository
@@ -49,6 +52,8 @@ import org.koin.android.ext.android.inject
 import uniffi.app_backend.MusicAbstract
 import io.github.julystar.musicapp.core.domain.model.DiagnosticLogCategory
 import io.github.julystar.musicapp.diagnostics.AppLogger
+import kotlin.math.log10
+import kotlin.math.min
 
 
 const val PLAYER_TO_PREV_COMMAND = "PLAYER_TO_PREV_COMMAND";
@@ -68,6 +73,8 @@ class PlaybackService : MediaSessionService() {
     private var playbackResource: PlaybackResource? = null
     private var audioFocusController: PlaybackAudioFocusController? = null
     private var lyricOutputController: AndroidLyricOutputController? = null
+    private var dspAudioProcessor: RustDspAudioProcessor? = null
+    private var currentSettings = AppSettings.Default
 
     @OptIn(UnstableApi::class)
     override fun onCreate() {
@@ -90,7 +97,14 @@ class PlaybackService : MediaSessionService() {
         val pendingIntent = PendingIntent.getActivity(this, 0, intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
 
-        val player = ExoPlayer.Builder(context)
+        val dspProcessor = RustDspAudioProcessor().also {
+            it.updateSettings(AppSettings.Default.audioEffects)
+            dspAudioProcessor = it
+        }
+        val player = ExoPlayer.Builder(
+            context,
+            TideTunesRenderersFactory(context, dspProcessor),
+        )
             .setAudioAttributes(
                 mediaAudioAttributes(),
                 false,
@@ -201,6 +215,7 @@ class PlaybackService : MediaSessionService() {
                 reason: Int
             ) {
                 playerRepository.notifyDurationChanged()
+                dspAudioProcessor?.resetDspState()
             }
         })
         AppLogger.info(
@@ -211,8 +226,10 @@ class PlaybackService : MediaSessionService() {
 
         serviceScope.launch(Dispatchers.Main) {
             settingsRepository.settings.collect { settings ->
+                currentSettings = settings
                 audioFocusController?.updateMode(settings.audioFocusMode)
                 player.setHandleAudioBecomingNoisy(settings.pauseOnDisconnect)
+                updateAudioDsp(settings)
             }
         }
 
@@ -268,6 +285,8 @@ class PlaybackService : MediaSessionService() {
             releasePlaybackResource()
         }
         _mediaSession?.player?.release()
+        dspAudioProcessor?.close()
+        dspAudioProcessor = null
         lyricOutputController?.destroy()
         lyricOutputController = null
         audioFocusController?.release()
@@ -299,6 +318,7 @@ class PlaybackService : MediaSessionService() {
             }
             playbackResource = resource
             playerRepository.setCurrent(music, playlist)
+            updateAudioDsp(currentSettings, music.meta.id.value)
             playUtil(
                 cx = BuildMediaContext(bridge = bridge, scope = serviceScope),
                 music = music,
@@ -312,6 +332,38 @@ class PlaybackService : MediaSessionService() {
         val resource = playbackResource ?: return
         playbackResource = null
         playbackResourceResolver.release(resource)
+    }
+
+    private suspend fun updateAudioDsp(
+        settings: AppSettings,
+        trackId: Long? = playerRepository.music.value?.meta?.id?.value,
+    ) {
+        val replayGainDb = if (
+            trackId == null ||
+            settings.playbackAdvanced.replayGainMode == ReplayGainMode.Off
+        ) {
+            0f
+        } else {
+            val replayGain = withContext(Dispatchers.IO) {
+                roomLibraryStore.getTrackReplayGain(trackId)
+            }
+            val (metadataGain, peak) = when (settings.playbackAdvanced.replayGainMode) {
+                ReplayGainMode.Off -> null to null
+                ReplayGainMode.Track -> replayGain?.trackGainDb to replayGain?.trackPeak
+                ReplayGainMode.Album -> replayGain?.albumGainDb to replayGain?.albumPeak
+                ReplayGainMode.Auto -> {
+                    (replayGain?.trackGainDb ?: replayGain?.albumGainDb) to
+                        (replayGain?.trackPeak ?: replayGain?.albumPeak)
+                }
+            }
+            var gain = (metadataGain ?: 0.0) +
+                settings.playbackAdvanced.replayGainPreampTenthsDb / 10.0
+            if (peak != null && peak > 0.0) {
+                gain = min(gain, -20.0 * log10(peak))
+            }
+            gain.toFloat()
+        }
+        dspAudioProcessor?.updateSettings(settings.audioEffects, replayGainDb)
     }
 
     private fun playOnComplete() {

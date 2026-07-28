@@ -27,13 +27,16 @@ actual fun getPlatformName(): String = "ios"
 actual fun getProcessName(): String =
     NSBundle.mainBundle.bundleIdentifier ?: AppIdentifiers.BRAND_NAME
 
-actual fun isSystemDynamicColorAvailable(): Boolean = false
-
 actual fun platformSettingsCapabilities() =
     io.github.julystar.musicapp.core.domain.model.SettingsCapabilities(
-        dynamicColorSupported = false,
         customMusicDirectorySupported = true,
         secureCredentialStoreSupported = true,
+        replayGainSupported = true,
+        audioEffectsSupported = true,
+        audioDsp =
+            io.github.julystar.musicapp.core.domain.model.AudioDspCapabilities.SharedCore.copy(
+                resourceDependent = true,
+            ),
         diagnosticsExportSupported = true,
         diagnosticsCenterSupported = true,
         safeModeSupported = true,

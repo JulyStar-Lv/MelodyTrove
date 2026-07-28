@@ -1,12 +1,16 @@
 package io.github.julystar.musicapp.core.presentation.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
@@ -14,7 +18,9 @@ import androidx.compose.ui.unit.sp
 import io.github.julystar.musicapp.core.presentation.platform.SystemBarsEffect
 import top.yukonga.miuix.kmp.theme.ColorSchemeMode
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import top.yukonga.miuix.kmp.theme.ThemeColorSpec
 import top.yukonga.miuix.kmp.theme.ThemeController
+import top.yukonga.miuix.kmp.theme.ThemePaletteStyle
 
 enum class AppThemeMode {
     FollowSystem,
@@ -22,29 +28,37 @@ enum class AppThemeMode {
     Dark,
 }
 
-@Suppress("UNUSED_PARAMETER")
 @Composable
 fun AppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false,
-    themeMode: AppThemeMode = AppThemeMode.Dark,
+    themeMode: AppThemeMode = AppThemeMode.FollowSystem,
+    themeSeedState: ThemeSeedState = ThemeSeedState.Default,
     content: @Composable () -> Unit,
 ) {
     val colorSchemeMode = when (themeMode) {
-        AppThemeMode.FollowSystem -> ColorSchemeMode.System
-        AppThemeMode.Light -> ColorSchemeMode.Light
-        AppThemeMode.Dark -> ColorSchemeMode.Dark
+        AppThemeMode.FollowSystem -> ColorSchemeMode.MonetSystem
+        AppThemeMode.Light -> ColorSchemeMode.MonetLight
+        AppThemeMode.Dark -> ColorSchemeMode.MonetDark
     }
     val effectiveDarkTheme = when (themeMode) {
         AppThemeMode.FollowSystem -> darkTheme
         AppThemeMode.Light -> false
         AppThemeMode.Dark -> true
     }
-    val controller = remember(colorSchemeMode, effectiveDarkTheme) {
+    val targetSeed = Color(themeSeedState.effectiveSeedArgb.toInt())
+    val animatedSeed by animateColorAsState(
+        targetValue = targetSeed,
+        animationSpec = tween(DesignMotion().themeMillis),
+        label = "Theme color transition",
+    )
+    val controller = remember(colorSchemeMode, effectiveDarkTheme, animatedSeed) {
         ThemeController(
             colorSchemeMode = colorSchemeMode,
             lightColors = DesignLightColors,
             darkColors = DesignDarkColors,
+            keyColor = animatedSeed,
+            colorSpec = ThemeColorSpec.Spec2021,
+            paletteStyle = ThemePaletteStyle.TonalSpot,
             isDark = effectiveDarkTheme,
         )
     }
@@ -64,9 +78,29 @@ fun AppTheme(
             LocalDesignAdaptive provides DesignAdaptive(),
             LocalDesignNavigation provides DesignNavigation(),
             LocalDesignPlayer provides DesignPlayer(),
+            LocalDesignColorPicker provides DesignColorPicker(),
+            LocalThemeSeedState provides themeSeedState,
             content = content,
         )
     }
+}
+
+@Composable
+fun ThemeSeedPreviewTheme(
+    seedColor: Color,
+    darkTheme: Boolean,
+    content: @Composable () -> Unit,
+) {
+    val controller = remember(seedColor, darkTheme) {
+        ThemeController(
+            colorSchemeMode = if (darkTheme) ColorSchemeMode.MonetDark else ColorSchemeMode.MonetLight,
+            keyColor = seedColor,
+            colorSpec = ThemeColorSpec.Spec2021,
+            paletteStyle = ThemePaletteStyle.TonalSpot,
+            isDark = darkTheme,
+        )
+    }
+    MiuixTheme(controller = controller, textStyles = designTextStyles(), content = content)
 }
 
 object DesignTokens {
@@ -101,6 +135,10 @@ object DesignTokens {
     val player: DesignPlayer
         @Composable @ReadOnlyComposable
         get() = LocalDesignPlayer.current
+
+    val colorPicker: DesignColorPicker
+        @Composable @ReadOnlyComposable
+        get() = LocalDesignColorPicker.current
 }
 
 @Immutable
@@ -142,7 +180,7 @@ data class DesignMotion(
     val standardMillis: Int = 280,
     val emphasizedMillis: Int = 380,
     val morphMillis: Int = 500,
-    val themeMillis: Int = 240,
+    val themeMillis: Int = 400,
     val playerExpandMillis: Int = 380,
 )
 
@@ -196,6 +234,20 @@ data class DesignPlayer(
     val compactMiniBarHeight: Dp = 76.dp,
 )
 
+@Immutable
+data class DesignColorPicker(
+    val swatchSize: Dp = 48.dp,
+    val dialogMaxWidth: Dp = 760.dp,
+    val mediumDialogMaxWidth: Dp = 640.dp,
+    val contentMaxHeight: Dp = 720.dp,
+    val saturationValueHeight: Dp = 180.dp,
+    val saturationValueCompactMinHeight: Dp = 160.dp,
+    val indicatorSize: Dp = 20.dp,
+    val hueVisualHeight: Dp = 32.dp,
+    val gridGap: Dp = 12.dp,
+    val sectionGap: Dp = 20.dp,
+)
+
 private val LocalDesignSpacing = staticCompositionLocalOf { DesignSpacing() }
 private val LocalDesignShapes = staticCompositionLocalOf { DesignShapes() }
 private val LocalDesignMotion = staticCompositionLocalOf { DesignMotion() }
@@ -204,3 +256,5 @@ private val LocalDesignElevation = staticCompositionLocalOf { DesignElevation() 
 private val LocalDesignAdaptive = staticCompositionLocalOf { DesignAdaptive() }
 private val LocalDesignNavigation = staticCompositionLocalOf { DesignNavigation() }
 private val LocalDesignPlayer = staticCompositionLocalOf { DesignPlayer() }
+private val LocalDesignColorPicker = staticCompositionLocalOf { DesignColorPicker() }
+val LocalThemeSeedState = staticCompositionLocalOf { ThemeSeedState.Default }

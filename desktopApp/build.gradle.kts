@@ -8,7 +8,7 @@ plugins {
     alias(libs.plugins.jetbrains.compose)
 }
 
-val appVersionName = providers.gradleProperty("appVersionName").get()
+val appPackageVersion = rootProject.extra["appPackageVersion"] as String
 
 kotlin {
     jvm("desktop")
@@ -32,8 +32,9 @@ compose.desktop {
         mainClass = "io.github.julystar.musicapp.MainKt"
         nativeDistributions {
             targetFormats(TargetFormat.Deb, TargetFormat.Msi, TargetFormat.Dmg)
+            modules("jdk.unsupported")
             packageName = "MelodyTrove"
-            packageVersion = appVersionName
+            packageVersion = appPackageVersion
             linux {
                 iconFile.set(project.file("src/desktopMain/resources/icon.png"))
             }

@@ -11,6 +11,7 @@ crate-type = ["cdylib", "staticlib", "rlib"]
 
 [dependencies]
 audio-metadata = { path = "../audio-metadata" }
+audio-dsp = { workspace = true }
 storage-backend = { path = "../storage-backend" }
 plugin-runtime = { path = "../plugin-runtime" }
 async-runtime = { workspace = true }
@@ -48,7 +49,11 @@ postcard = { workspace = true }
 order-key = { workspace = true }
 chrono = { workspace = true }
 anyhow = { workspace = true }
+triple_buffer = { workspace = true }
 reqwest = { version = "0.11", default-features = false, features = ["blocking", "rustls-tls"] }
 zip = { version = "2.4.2", default-features = false, features = ["deflate"] }
+
+[target.'cfg(target_os = "android")'.dependencies]
+jni = "0.21"
 
 [dev-dependencies]

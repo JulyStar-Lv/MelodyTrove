@@ -78,7 +78,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 @Composable
 @Suppress("DEPRECATION")
 fun DiagnosticsScreen(
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     viewModel: DiagnosticsViewModel = koinViewModel(),
 ) {
     val state by viewModel.state.collectAsState()

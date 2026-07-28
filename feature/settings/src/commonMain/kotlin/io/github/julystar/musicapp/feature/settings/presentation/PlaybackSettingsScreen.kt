@@ -2,16 +2,13 @@ package io.github.julystar.musicapp.feature.settings.presentation
 
 import androidx.compose.runtime.Composable
 import io.github.julystar.musicapp.core.domain.model.AudioFocusMode
-import io.github.julystar.musicapp.core.domain.model.MAX_EQ_BAND_GAIN_DB
 import io.github.julystar.musicapp.core.domain.model.MAX_REPLAY_GAIN_PREAMP_TENTHS_DB
-import io.github.julystar.musicapp.core.domain.model.MIN_EQ_BAND_GAIN_DB
 import io.github.julystar.musicapp.core.domain.model.MIN_REPLAY_GAIN_PREAMP_TENTHS_DB
 import io.github.julystar.musicapp.core.domain.model.LyricTimingEditorApp
 import io.github.julystar.musicapp.core.domain.model.MetadataEditorApp
 import io.github.julystar.musicapp.core.domain.model.PlayNextMode
 import io.github.julystar.musicapp.core.domain.model.PreviousButtonBehavior
 import io.github.julystar.musicapp.core.domain.model.ReplayGainMode
-import io.github.julystar.musicapp.core.domain.model.ReverbPreset
 import io.github.julystar.musicapp.core.domain.model.ShuffleStrategy
 import io.github.julystar.musicapp.core.domain.model.StartupPlaybackMode
 import org.jetbrains.compose.resources.stringResource
@@ -20,7 +17,7 @@ import musicapp.feature.settings.generated.resources.*
 @Composable
 fun PlaybackSettingsSection(
     state: SettingsUiState,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     onAction: (SettingsAction) -> Unit,
 ) {
     val settings = state.settings
@@ -303,122 +300,6 @@ fun PlaybackSettingsSection(
     }
 }
 
-@Composable
-private fun AudioEffectsSettingsSection(
-    state: SettingsUiState,
-    onAction: (SettingsAction) -> Unit,
-) {
-    val effects = state.settings.audioEffects
-    SettingsSection(title = stringResource(Res.string.settings_audio_effects_section)) {
-        SettingsSwitchRow(
-            title = stringResource(Res.string.settings_audio_effects_enabled),
-            checked = effects.enabled,
-            onCheckedChange = {
-                onAction(SettingsAction.SetAudioEffectSettings(effects.copy(enabled = it)))
-            },
-        )
-        effects.eqBandGainsDb.forEachIndexed { index, gain ->
-            SettingsSliderRow(
-                title = stringResource(Res.string.settings_eq_band, EQ_BAND_LABELS[index]),
-                value = gain,
-                valueRange = MIN_EQ_BAND_GAIN_DB..MAX_EQ_BAND_GAIN_DB,
-                valueText = stringResource(Res.string.settings_db_value, gain),
-                enabled = effects.enabled,
-                onValueChange = { updatedGain ->
-                    val gains = effects.eqBandGainsDb.toMutableList().apply {
-                        this[index] = updatedGain
-                    }
-                    onAction(
-                        SettingsAction.SetAudioEffectSettings(
-                            effects.copy(eqBandGainsDb = gains)
-                        )
-                    )
-                },
-            )
-        }
-        SettingsSliderRow(
-            title = stringResource(Res.string.settings_bass),
-            value = effects.bassDb,
-            valueRange = MIN_EQ_BAND_GAIN_DB..MAX_EQ_BAND_GAIN_DB,
-            valueText = stringResource(Res.string.settings_db_value, effects.bassDb),
-            enabled = effects.enabled,
-            onValueChange = {
-                onAction(SettingsAction.SetAudioEffectSettings(effects.copy(bassDb = it)))
-            },
-        )
-        SettingsSliderRow(
-            title = stringResource(Res.string.settings_treble),
-            value = effects.trebleDb,
-            valueRange = MIN_EQ_BAND_GAIN_DB..MAX_EQ_BAND_GAIN_DB,
-            valueText = stringResource(Res.string.settings_db_value, effects.trebleDb),
-            enabled = effects.enabled,
-            onValueChange = {
-                onAction(SettingsAction.SetAudioEffectSettings(effects.copy(trebleDb = it)))
-            },
-        )
-        SettingsSwitchRow(
-            title = stringResource(Res.string.settings_compressor),
-            checked = effects.compressorEnabled,
-            enabled = effects.enabled,
-            onCheckedChange = {
-                onAction(
-                    SettingsAction.SetAudioEffectSettings(effects.copy(compressorEnabled = it))
-                )
-            },
-        )
-        SettingsSliderRow(
-            title = stringResource(Res.string.settings_compressor_threshold),
-            value = effects.compressorThresholdDb,
-            valueRange = -60..0,
-            valueText = stringResource(Res.string.settings_db_value, effects.compressorThresholdDb),
-            enabled = effects.enabled && effects.compressorEnabled,
-            onValueChange = {
-                onAction(
-                    SettingsAction.SetAudioEffectSettings(effects.copy(compressorThresholdDb = it))
-                )
-            },
-        )
-        SettingsSliderRow(
-            title = stringResource(Res.string.settings_compressor_ratio),
-            value = effects.compressorRatio,
-            valueRange = 1..20,
-            valueText = "${effects.compressorRatio}:1",
-            enabled = effects.enabled && effects.compressorEnabled,
-            onValueChange = {
-                onAction(
-                    SettingsAction.SetAudioEffectSettings(effects.copy(compressorRatio = it))
-                )
-            },
-        )
-        SettingsSliderRow(
-            title = stringResource(Res.string.settings_stereo_width),
-            value = effects.stereoWidthPercent,
-            valueRange = 0..200,
-            valueText = "${effects.stereoWidthPercent}%",
-            enabled = effects.enabled,
-            onValueChange = {
-                onAction(
-                    SettingsAction.SetAudioEffectSettings(effects.copy(stereoWidthPercent = it))
-                )
-            },
-        )
-        SettingsSelectRow(
-            label = stringResource(Res.string.settings_reverb),
-            selected = effects.reverbPreset,
-            options = ReverbPreset.entries.toList(),
-            optionLabel = { preset -> stringResource(preset.titleResource()) },
-            enabled = effects.enabled,
-            onSelect = { preset ->
-                onAction(
-                    SettingsAction.SetAudioEffectSettings(effects.copy(reverbPreset = preset))
-                )
-            },
-        )
-    }
-}
-
-private val EQ_BAND_LABELS = listOf("31 Hz", "62 Hz", "125 Hz", "250 Hz", "500 Hz", "1 kHz", "2 kHz", "4 kHz", "8 kHz", "16 kHz")
-
 private fun Int.formatTenthsDb(): String {
     val sign = if (this > 0) "+" else ""
     return "$sign${this / 10}.${kotlin.math.abs(this % 10)} dB"
@@ -468,13 +349,4 @@ private fun ReplayGainMode.titleResource() = when (this) {
     ReplayGainMode.Track -> Res.string.settings_replay_gain_track
     ReplayGainMode.Album -> Res.string.settings_replay_gain_album
     ReplayGainMode.Auto -> Res.string.settings_replay_gain_auto
-}
-
-private fun ReverbPreset.titleResource() = when (this) {
-    ReverbPreset.None -> Res.string.settings_reverb_none
-    ReverbPreset.SmallRoom -> Res.string.settings_reverb_small_room
-    ReverbPreset.MediumRoom -> Res.string.settings_reverb_medium_room
-    ReverbPreset.LargeRoom -> Res.string.settings_reverb_large_room
-    ReverbPreset.Hall -> Res.string.settings_reverb_hall
-    ReverbPreset.Plate -> Res.string.settings_reverb_plate
 }

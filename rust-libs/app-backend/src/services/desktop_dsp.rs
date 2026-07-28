@@ -1,162 +1,99 @@
-use std::{collections::VecDeque, f32::consts::PI, time::Duration};
+use std::{
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
+use audio_dsp::{AudioDspConfig, AudioDspProcessor};
 use rodio::{source::SeekError, ChannelCount, SampleRate, Source};
+use triple_buffer::{triple_buffer, Input, Output};
 
-const EQ_FREQUENCIES_HZ: [f32; 10] = [
-    31.0, 62.0, 125.0, 250.0, 500.0, 1_000.0, 2_000.0, 4_000.0, 8_000.0, 16_000.0,
-];
+const BLOCK_SAMPLE_CAPACITY: usize = 2_048;
 
-#[derive(Clone)]
-pub struct DesktopDspSettings {
-    pub enabled: bool,
-    pub eq_band_gains_db: Vec<f32>,
-    pub eq_q: f32,
-    pub bass_db: f32,
-    pub treble_db: f32,
-    pub compressor_enabled: bool,
-    pub compressor_threshold_db: f32,
-    pub compressor_ratio: f32,
-    pub compressor_makeup_db: f32,
-    pub stereo_width: f32,
-    pub reverb_preset: u8,
-    pub replay_gain_db: f32,
-    pub crossfade_duration_ms: u64,
+#[derive(Clone, Debug)]
+pub struct DesktopDspConfigInput {
+    inner: Arc<Mutex<Input<AudioDspConfig>>>,
 }
 
-impl Default for DesktopDspSettings {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            eq_band_gains_db: vec![0.0; EQ_FREQUENCIES_HZ.len()],
-            eq_q: 1.0,
-            bass_db: 0.0,
-            treble_db: 0.0,
-            compressor_enabled: false,
-            compressor_threshold_db: -18.0,
-            compressor_ratio: 4.0,
-            compressor_makeup_db: 0.0,
-            stereo_width: 1.0,
-            reverb_preset: 0,
-            replay_gain_db: 0.0,
-            crossfade_duration_ms: 0,
+impl DesktopDspConfigInput {
+    pub fn publish(&self, config: AudioDspConfig) {
+        if let Ok(mut input) = self.inner.lock() {
+            input.write(config);
         }
     }
 }
 
 pub struct DesktopDspSource<S> {
     inner: S,
-    settings: DesktopDspSettings,
-    filters: Vec<Vec<Biquad>>,
-    pending: VecDeque<f32>,
-    reverb: Vec<f32>,
-    reverb_cursor: usize,
-    reverb_mix: f32,
-    reverb_feedback: f32,
+    processor: Option<AudioDspProcessor>,
+    config_output: Output<AudioDspConfig>,
+    samples: [f32; BLOCK_SAMPLE_CAPACITY],
+    sample_count: usize,
+    read_cursor: usize,
 }
 
 impl<S: Source> DesktopDspSource<S> {
-    pub fn new(inner: S, settings: DesktopDspSettings) -> Self {
-        let sample_rate = inner.sample_rate().get() as f32;
+    pub fn new(inner: S, config: AudioDspConfig) -> (Self, DesktopDspConfigInput) {
         let channels = inner.channels().get() as usize;
-        let mut coefficients = settings
-            .eq_band_gains_db
-            .iter()
-            .copied()
-            .zip(EQ_FREQUENCIES_HZ)
-            .filter(|(gain, frequency)| gain.abs() > 0.01 && *frequency < sample_rate * 0.48)
-            .map(|(gain, frequency)| {
-                BiquadCoefficients::peaking(sample_rate, frequency, settings.eq_q, gain)
-            })
-            .collect::<Vec<_>>();
-        if settings.bass_db.abs() > 0.01 {
-            coefficients.push(BiquadCoefficients::peaking(
-                sample_rate,
-                100.0,
-                0.7,
-                settings.bass_db,
-            ));
+        let sample_rate = inner.sample_rate().get();
+        let processor = AudioDspProcessor::new(config)
+            .ok()
+            .and_then(|mut processor| {
+                processor
+                    .configure_format(sample_rate, channels)
+                    .ok()
+                    .map(|()| processor)
+            });
+        let (input, output) = triple_buffer(&config);
+        (
+            Self {
+                inner,
+                processor,
+                config_output: output,
+                samples: [0.0; BLOCK_SAMPLE_CAPACITY],
+                sample_count: 0,
+                read_cursor: 0,
+            },
+            DesktopDspConfigInput {
+                inner: Arc::new(Mutex::new(input)),
+            },
+        )
+    }
+
+    fn fill_block(&mut self) -> bool {
+        let channels = self.inner.channels().get() as usize;
+        let capacity = BLOCK_SAMPLE_CAPACITY - BLOCK_SAMPLE_CAPACITY % channels.max(1);
+        let mut count = 0;
+        while count < capacity {
+            let Some(sample) = self.inner.next() else {
+                break;
+            };
+            self.samples[count] = sample;
+            count += 1;
         }
-        if settings.treble_db.abs() > 0.01 {
-            coefficients.push(BiquadCoefficients::peaking(
-                sample_rate,
-                10_000.0_f32.min(sample_rate * 0.45),
-                0.7,
-                settings.treble_db,
-            ));
+        count -= count % channels.max(1);
+        if count == 0 {
+            return false;
         }
-        let filters = (0..channels)
-            .map(|_| coefficients.iter().copied().map(Biquad::new).collect())
-            .collect();
-        let (delay_ms, reverb_mix, reverb_feedback) = match settings.reverb_preset {
-            1 => (35.0, 0.10, 0.22),
-            2 => (55.0, 0.14, 0.30),
-            3 => (80.0, 0.18, 0.38),
-            4 => (115.0, 0.22, 0.45),
-            5 => (70.0, 0.20, 0.34),
-            _ => (0.0, 0.0, 0.0),
-        };
-        let delay_samples = ((sample_rate * delay_ms / 1_000.0) as usize)
-            .saturating_mul(channels)
-            .max(1);
-        Self {
-            inner,
-            settings,
-            filters,
-            pending: VecDeque::with_capacity(channels),
-            reverb: vec![0.0; delay_samples],
-            reverb_cursor: 0,
-            reverb_mix,
-            reverb_feedback,
+        if self.config_output.update() {
+            if let Some(processor) = self.processor.as_mut() {
+                let config = *self.config_output.output_buffer();
+                let _ = processor.update_config(config);
+            }
         }
+        if let Some(processor) = self.processor.as_mut() {
+            let _ = processor.process_interleaved_f32(&mut self.samples[..count]);
+        }
+        self.sample_count = count;
+        self.read_cursor = 0;
+        true
     }
 
     fn reset_processing_state(&mut self) {
-        self.pending.clear();
-        self.reverb.fill(0.0);
-        self.reverb_cursor = 0;
-        for channel in &mut self.filters {
-            for filter in channel {
-                filter.reset();
-            }
+        self.sample_count = 0;
+        self.read_cursor = 0;
+        if let Some(processor) = self.processor.as_mut() {
+            processor.reset();
         }
-    }
-
-    fn process_frame(&mut self) -> Option<()> {
-        let channels = self.inner.channels().get() as usize;
-        let mut frame = Vec::with_capacity(channels);
-        for channel in 0..channels {
-            let mut sample = self.inner.next()?;
-            for filter in &mut self.filters[channel] {
-                sample = filter.process(sample);
-            }
-            if self.settings.compressor_enabled {
-                sample = compress_sample(
-                    sample,
-                    self.settings.compressor_threshold_db,
-                    self.settings.compressor_ratio,
-                    self.settings.compressor_makeup_db,
-                );
-            }
-            frame.push(sample);
-        }
-
-        if frame.len() >= 2 {
-            let mid = (frame[0] + frame[1]) * 0.5;
-            let side = (frame[0] - frame[1]) * 0.5 * self.settings.stereo_width;
-            frame[0] = mid + side;
-            frame[1] = mid - side;
-        }
-        for sample in &mut frame {
-            if self.reverb_mix > 0.0 {
-                let delayed = self.reverb[self.reverb_cursor];
-                self.reverb[self.reverb_cursor] = *sample + delayed * self.reverb_feedback;
-                *sample = *sample * (1.0 - self.reverb_mix) + delayed * self.reverb_mix;
-                self.reverb_cursor = (self.reverb_cursor + 1) % self.reverb.len();
-            }
-            *sample = sample.clamp(-1.0, 1.0);
-        }
-        self.pending.extend(frame);
-        Some(())
     }
 }
 
@@ -164,11 +101,12 @@ impl<S: Source> Iterator for DesktopDspSource<S> {
     type Item = f32;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(sample) = self.pending.pop_front() {
-            return Some(sample);
+        if self.read_cursor == self.sample_count && !self.fill_block() {
+            return None;
         }
-        self.process_frame()?;
-        self.pending.pop_front()
+        let sample = self.samples[self.read_cursor];
+        self.read_cursor += 1;
+        Some(sample)
     }
 }
 
@@ -196,77 +134,53 @@ impl<S: Source> Source for DesktopDspSource<S> {
     }
 }
 
-#[derive(Clone, Copy)]
-struct BiquadCoefficients {
-    b0: f32,
-    b1: f32,
-    b2: f32,
-    a1: f32,
-    a2: f32,
-}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rodio::buffer::SamplesBuffer;
+    use std::num::NonZero;
 
-impl BiquadCoefficients {
-    fn peaking(sample_rate: f32, frequency: f32, q: f32, gain_db: f32) -> Self {
-        let amplitude = 10.0_f32.powf(gain_db / 40.0);
-        let omega = 2.0 * PI * frequency.max(10.0) / sample_rate.max(1.0);
-        let alpha = omega.sin() / (2.0 * q.clamp(0.1, 10.0));
-        let cos = omega.cos();
-        let a0 = 1.0 + alpha / amplitude;
-        Self {
-            b0: (1.0 + alpha * amplitude) / a0,
-            b1: (-2.0 * cos) / a0,
-            b2: (1.0 - alpha * amplitude) / a0,
-            a1: (-2.0 * cos) / a0,
-            a2: (1.0 - alpha / amplitude) / a0,
+    #[test]
+    fn source_processes_in_blocks_and_preserves_length() {
+        let source = SamplesBuffer::new(
+            NonZero::new(2).unwrap(),
+            NonZero::new(48_000).unwrap(),
+            vec![0.25; 4_096],
+        );
+        let config = AudioDspConfig {
+            enabled: true,
+            tone: audio_dsp::ToneControlConfig {
+                enabled: true,
+                bass_gain_db: 6.0,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let (source, _) = DesktopDspSource::new(source, config);
+        let output = source.collect::<Vec<_>>();
+        assert_eq!(output.len(), 4_096);
+        assert!(output.iter().all(|sample| sample.is_finite()));
+    }
+
+    #[test]
+    fn live_config_update_is_consumed_at_next_block_boundary() {
+        let source = SamplesBuffer::new(
+            NonZero::new(1).unwrap(),
+            NonZero::new(48_000).unwrap(),
+            vec![0.25; 8_192],
+        );
+        let (mut source, input) = DesktopDspSource::new(source, AudioDspConfig::default());
+        let first = source.next().unwrap();
+        input.publish(AudioDspConfig {
+            enabled: true,
+            input_gain_db: -12.0,
+            ..Default::default()
+        });
+        for _ in 1..BLOCK_SAMPLE_CAPACITY {
+            source.next();
         }
+        let after_update = source.next().unwrap();
+        assert_eq!(first, 0.25);
+        assert!(after_update < first);
     }
-}
-
-struct Biquad {
-    coefficients: BiquadCoefficients,
-    x1: f32,
-    x2: f32,
-    y1: f32,
-    y2: f32,
-}
-
-impl Biquad {
-    fn new(coefficients: BiquadCoefficients) -> Self {
-        Self {
-            coefficients,
-            x1: 0.0,
-            x2: 0.0,
-            y1: 0.0,
-            y2: 0.0,
-        }
-    }
-
-    fn process(&mut self, sample: f32) -> f32 {
-        let c = self.coefficients;
-        let output =
-            c.b0 * sample + c.b1 * self.x1 + c.b2 * self.x2 - c.a1 * self.y1 - c.a2 * self.y2;
-        self.x2 = self.x1;
-        self.x1 = sample;
-        self.y2 = self.y1;
-        self.y1 = output;
-        output
-    }
-
-    fn reset(&mut self) {
-        self.x1 = 0.0;
-        self.x2 = 0.0;
-        self.y1 = 0.0;
-        self.y2 = 0.0;
-    }
-}
-
-fn compress_sample(sample: f32, threshold_db: f32, ratio: f32, makeup_db: f32) -> f32 {
-    let amplitude = sample.abs().max(1.0e-8);
-    let input_db = 20.0 * amplitude.log10();
-    let output_db = if input_db > threshold_db {
-        threshold_db + (input_db - threshold_db) / ratio.max(1.0)
-    } else {
-        input_db
-    } + makeup_db;
-    sample * 10.0_f32.powf((output_db - input_db) / 20.0)
 }

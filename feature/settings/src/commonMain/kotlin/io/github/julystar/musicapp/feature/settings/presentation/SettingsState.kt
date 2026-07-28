@@ -27,6 +27,7 @@ import io.github.julystar.musicapp.core.domain.model.SourceConnectionTestStatus
 import io.github.julystar.musicapp.core.domain.model.StorageUsage
 import io.github.julystar.musicapp.service.librarysync.domain.LibrarySyncFailure
 import io.github.julystar.musicapp.service.librarysync.domain.LibrarySyncTask
+import io.github.julystar.musicapp.core.domain.repository.AudioDspFrequencyResponse
 
 @Immutable
 data class SettingsUiState(
@@ -48,6 +49,7 @@ data class SettingsUiState(
     val webDavConnectionTestMessage: String? = null,
     val failureDialogTaskId: String? = null,
     val failureDetails: List<LibrarySyncFailure> = emptyList(),
+    val audioDspFrequencyResponse: AudioDspFrequencyResponse = AudioDspFrequencyResponse.Empty,
 ) {
     val enabledSourceCount: Int
         get() = sourceAccounts.count(SourceAccountSettingsItem::enabled)
@@ -90,7 +92,9 @@ sealed interface SettingsConfirmation {
 
 sealed interface SettingsAction {
     data class SetThemeMode(val mode: AppThemeMode) : SettingsAction
-    data class SetDynamicColorEnabled(val enabled: Boolean) : SettingsAction
+    data class SetArtworkThemeEnabled(val enabled: Boolean) : SettingsAction
+    data class SetManualThemeSeedArgb(val argb: Long) : SettingsAction
+    data class SetCustomThemeSeedArgbValues(val argbValues: List<Long>) : SettingsAction
     data class SetLanguageMode(val mode: AppLanguageMode) : SettingsAction
     data class SetAudioFocusMode(val mode: AudioFocusMode) : SettingsAction
     data class SetPauseOnDisconnect(val enabled: Boolean) : SettingsAction

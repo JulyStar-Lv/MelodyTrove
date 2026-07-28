@@ -4,11 +4,11 @@ import {
   rmSync,
   mkdirSync,
   cpSync,
-  readFileSync,
   renameSync,
 } from "fs";
-import path from "path";
-import { BUILD_GRADLE_KTS, ROOT, TARGETS } from "./base";
+import path from "node:path";
+import { ROOT, TARGETS } from "./base";
+import { resolveAppVersion } from "./app-version";
 import fs from "node:fs";
 import zlib from "node:zlib";
 
@@ -23,18 +23,9 @@ function decodeAndDecompress(
 
 const { ANDROID_SIGN_PASSWORD, ANDROID_SIGN_JKS } = process.env;
 
-const version = (() => {
-  const buildGradleKts = readFileSync(BUILD_GRADLE_KTS, "utf8");
-  const versionRegex = /versionName\s*=\s*['"]([^'"]+)['"]/;
-  const match = buildGradleKts.match(versionRegex);
-  if (!match) {
-    throw Error("Failed to extract version from build.gradle.kts");
-  }
-  return match[1];
-})();
-console.log(`App version: ${version}`);
-
 const rootDir = ROOT;
+const version = resolveAppVersion(rootDir);
+console.log(`App version: ${version.name} (${version.code})`);
 const jksPath = path.resolve(rootDir, "androidApp/root.jks");
 const keyPropertiesPath = path.resolve(rootDir, "androidApp/key.properties");
 const srcDir = path.resolve(rootDir, "./androidApp/build/outputs/apk/release");
@@ -64,6 +55,6 @@ cpSync(srcDir, dstDir, { recursive: true });
 for (const target of TARGETS) {
   renameSync(
     path.join(dstDir, `androidApp-${target}-release.apk`),
-    path.join(dstDir, `melodytrove-${target}-${version}.apk`),
+    path.join(dstDir, `melodytrove-${target}-${version.name}.apk`),
   );
 }

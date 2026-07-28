@@ -8,6 +8,9 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -18,12 +21,16 @@ import io.github.julystar.musicapp.core.domain.repository.ToastRepository
 import io.github.julystar.musicapp.core.domain.recovery.StartupMode
 import io.github.julystar.musicapp.core.presentation.theme.AppTheme
 import io.github.julystar.musicapp.core.presentation.theme.AppThemeMode as PresentationAppThemeMode
+import io.github.julystar.musicapp.core.presentation.theme.ArtworkThemeSeedStatus
+import io.github.julystar.musicapp.core.presentation.theme.ThemeSeedState
+import io.github.julystar.musicapp.core.presentation.theme.resolveThemeSeed
+import io.github.julystar.musicapp.core.presentation.media.rememberArtworkThemeSeed
 import io.github.julystar.musicapp.feature.home.presentation.HomeViewModel
 import io.github.julystar.musicapp.feature.home.presentation.LocalPreloadedHomeViewModel
 import io.github.julystar.musicapp.core.LocalNavController
 import io.github.julystar.musicapp.core.RoutesProvider
 import io.github.julystar.musicapp.navigation.AppNavigation
-import io.github.julystar.musicapp.platform.isSystemDynamicColorAvailable
+import io.github.julystar.musicapp.service.playback.domain.NowPlayingRepository
 import io.github.julystar.musicapp.diagnostics.DiagnosticsBootstrapState
 import io.github.julystar.musicapp.diagnostics.RustDiagnosticsRepository
 import io.github.julystar.musicapp.diagnostics.SafeModeScreen
@@ -51,7 +58,9 @@ fun Root(
         val controller = LocalNavController.current
         val settingsRepository = koinInject<SettingsRepository>()
         val toastRepository = koinInject<ToastRepository>()
+        val nowPlayingRepository = koinInject<NowPlayingRepository>()
         val settings by settingsRepository.settings.collectAsState<AppSettings, AppSettings?>(null)
+        val currentTrack by nowPlayingRepository.currentTrackInfo.collectAsState()
         val homeViewModel = koinViewModel<HomeViewModel>()
         val homeState by homeViewModel.state.collectAsState()
         val loadedSettings = settings
@@ -60,9 +69,32 @@ fun Root(
             return@RoutesProvider
         }
 
+        val artworkSeed = rememberArtworkThemeSeed(
+            artwork = currentTrack?.artwork,
+            enabled = loadedSettings.artworkThemeEnabled,
+        )
+        var previousValidArtworkSeed by remember { mutableStateOf<Long?>(null) }
+        LaunchedEffect(artworkSeed.status, artworkSeed.argb) {
+            if (artworkSeed.status == ArtworkThemeSeedStatus.Available) {
+                previousValidArtworkSeed = artworkSeed.argb
+            }
+        }
+        val seedResolution = resolveThemeSeed(
+            artworkThemeEnabled = loadedSettings.artworkThemeEnabled,
+            artworkStatus = artworkSeed.status,
+            artworkSeedArgb = artworkSeed.argb,
+            previousValidArtworkSeedArgb = previousValidArtworkSeed,
+            manualSeedArgb = loadedSettings.manualThemeSeedArgb,
+        )
         AppTheme(
             themeMode = loadedSettings.themeMode.toPresentationThemeMode(),
-            dynamicColor = loadedSettings.dynamicColorEnabled && isSystemDynamicColorAvailable(),
+            themeSeedState = ThemeSeedState(
+                artworkThemeEnabled = loadedSettings.artworkThemeEnabled,
+                manualSeedArgb = loadedSettings.manualThemeSeedArgb,
+                effectiveSeedArgb = seedResolution.effectiveSeedArgb,
+                artworkStatus = artworkSeed.status,
+                source = seedResolution.source,
+            ),
         ) {
             CompositionLocalProvider(LocalPreloadedHomeViewModel provides homeViewModel) {
                 AppNavigation(navController = controller)

@@ -1,5 +1,12 @@
 package io.github.julystar.musicapp.singleton
 
+import io.github.julystar.musicapp.core.domain.model.AudioEffectProfile
+import io.github.julystar.musicapp.core.domain.model.AudioEffectSettings
+import io.github.julystar.musicapp.core.domain.model.EqualizerMode
+import io.github.julystar.musicapp.core.domain.model.ParametricEqBand
+import io.github.julystar.musicapp.core.domain.model.ParametricEqualizerSettings
+import io.github.julystar.musicapp.core.domain.model.PlaybackAdvancedSettings
+import io.github.julystar.musicapp.core.domain.model.withAudioEffectProfile
 import io.github.julystar.musicapp.service.playback.domain.PlayableItem
 import io.github.julystar.musicapp.service.playback.domain.PlaybackEngineFailureReason
 import io.github.julystar.musicapp.service.playback.domain.PlaybackEngineLoadRequest
@@ -10,6 +17,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import uniffi.app_backend.DspConfiguration
+import uniffi.app_backend.DspEqMode
 
 class DesktopPlaybackEngineTest {
     @Test
@@ -104,6 +113,43 @@ class DesktopPlaybackEngineTest {
         assertEquals(emptyList(), runtime.loadedUris)
     }
 
+    @Test
+    fun rodioEnginePassesTheCompleteSharedDspConfiguration() {
+        val runtime = RecordingDesktopRodioRuntime(loadResult = true)
+        val engine = RodioDesktopPlaybackEngine(runtime)
+        val effects = AudioEffectSettings.Default.copy(enabled = true)
+            .withAudioEffectProfile(
+                AudioEffectProfile.Default.copy(
+                    equalizerMode = EqualizerMode.Parametric,
+                    parametricEqualizer = ParametricEqualizerSettings(
+                        enabled = true,
+                        bands = listOf(
+                            ParametricEqBand(
+                                frequencyHz = 2_500,
+                                gainTenthsDb = 35,
+                                qHundredths = 175,
+                            )
+                        ),
+                    ),
+                    moogFilter = AudioEffectProfile.Default.moogFilter.copy(enabled = true),
+                )
+            )
+
+        engine.configureAudioProcessing(
+            effects = effects,
+            playback = PlaybackAdvancedSettings.Default.copy(crossfadeDurationMs = 2_000),
+            replayGainDb = -4.5f,
+        )
+
+        val config = requireNotNull(runtime.configuredDsp)
+        assertEquals(DspEqMode.PARAMETRIC, config.equalizerMode)
+        assertEquals(2_500f, config.parametricEqualizer.bands.single().frequencyHz)
+        assertEquals(3.5f, config.parametricEqualizer.bands.single().gainDb)
+        assertTrue(config.moogFilter.enabled)
+        assertEquals(-4.5f, config.inputGainDb)
+        assertEquals(2_000UL, runtime.configuredCrossfadeMs)
+    }
+
     private fun loadRequest(
         headers: Map<String, String> = emptyMap(),
     ): PlaybackEngineLoadRequest {
@@ -130,6 +176,10 @@ private class RecordingDesktopRodioRuntime(
     var pauseCalls = 0
         private set
     var stopCalls = 0
+        private set
+    var configuredDsp: DspConfiguration? = null
+        private set
+    var configuredCrossfadeMs: ULong? = null
         private set
 
     override fun load(uri: String, headers: Map<String, String>): Boolean {
@@ -164,4 +214,12 @@ private class RecordingDesktopRodioRuntime(
     override fun bufferedPositionMs(): Long = 1_000L
 
     override fun durationMs(): Long = 123_000L
+
+    override fun configureAudioProcessing(
+        config: DspConfiguration,
+        crossfadeDurationMs: ULong,
+    ) {
+        configuredDsp = config
+        configuredCrossfadeMs = crossfadeDurationMs
+    }
 }

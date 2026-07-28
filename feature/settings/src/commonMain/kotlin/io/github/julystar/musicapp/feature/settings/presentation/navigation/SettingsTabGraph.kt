@@ -31,6 +31,13 @@ fun SettingsTabGraph(
         navController.navigate(route)
     }
 
+    fun navigateSection(route: String) {
+        navController.navigate(route) {
+            popUpTo(ROUTE_SETTINGS)
+            launchSingleTop = true
+        }
+    }
+
     @Composable
     fun Route(page: SettingsPage) {
         SettingsRoot(
@@ -38,15 +45,15 @@ fun SettingsTabGraph(
             appVersion = appVersion,
             appBuildInfo = appBuildInfo,
             gitCommitSha = gitCommitSha,
-            onNavigateToAppearance = { navigate(ROUTE_APPEARANCE) },
-            onNavigateToPlayback = { navigate(ROUTE_PLAYBACK) },
-            onNavigateToLyrics = { navigate(ROUTE_LYRICS) },
-            onNavigateToSource = { navigate(ROUTE_SOURCE) },
+            onNavigateToAppearance = { navigateSection(ROUTE_APPEARANCE) },
+            onNavigateToPlayback = { navigateSection(ROUTE_PLAYBACK) },
+            onNavigateToLyrics = { navigateSection(ROUTE_LYRICS) },
+            onNavigateToSource = { navigateSection(ROUTE_SOURCE) },
             onNavigateToPlugins = onNavigateToPlugins,
-            onNavigateToNetworkCache = { navigate(ROUTE_NETWORK_CACHE) },
-            onNavigateToStorage = { navigate(ROUTE_STORAGE) },
-            onNavigateToDiagnostics = { navigate(ROUTE_DIAGNOSTICS) },
-            onNavigateToAbout = { navigate(ROUTE_ABOUT) },
+            onNavigateToNetworkCache = { navigateSection(ROUTE_NETWORK_CACHE) },
+            onNavigateToStorage = { navigateSection(ROUTE_STORAGE) },
+            onNavigateToDiagnostics = { navigateSection(ROUTE_DIAGNOSTICS) },
+            onNavigateToAbout = { navigateSection(ROUTE_ABOUT) },
             onNavigateToLicenses = { navigate(ROUTE_LICENSES) },
             onNavigateToLibraryFolderImport = onNavigateToLibraryFolderImport,
             onBack = { navController.navigateUp() },

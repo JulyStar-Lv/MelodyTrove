@@ -12,6 +12,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,6 +42,7 @@ data class DesignStickyHeaderState(
     val title: String,
     val subtitle: String?,
     val collapseFraction: Float,
+    val onNavigateBack: (() -> Unit)? = null,
 )
 
 val LocalDesignStickyHeaderStateSink =
@@ -120,8 +123,17 @@ fun DesignStickyGlassActionBar(
     collapseFraction: Float,
     modifier: Modifier = Modifier,
     statusBarInset: Dp = 0.dp,
+    onNavigateBack: (() -> Unit)? = null,
 ) {
     val fraction = collapseFraction.coerceIn(0f, 1f)
+    val latestOnNavigateBack = rememberUpdatedState(onNavigateBack)
+    val stableOnNavigateBack: (() -> Unit)? = remember(onNavigateBack != null) {
+        if (onNavigateBack == null) {
+            null
+        } else {
+            { latestOnNavigateBack.value?.invoke() }
+        }
+    }
     val stateSink = LocalDesignStickyHeaderStateSink.current
     if (stateSink != null) {
         SideEffect {
@@ -130,6 +142,7 @@ fun DesignStickyGlassActionBar(
                     title = title,
                     subtitle = subtitle,
                     collapseFraction = fraction,
+                    onNavigateBack = stableOnNavigateBack,
                 ),
             )
         }
@@ -169,14 +182,25 @@ fun DesignStickyGlassActionBar(
                 .height(adaptive.compactHeaderHeight),
             contentAlignment = Alignment.Center,
         ) {
-            DesignPageHeader(
-                title = title,
-                subtitle = subtitle,
-                compact = true,
-                modifier = Modifier
-                    .padding(horizontal = 20.dp)
-                    .alpha(titleFraction),
-            )
+            if (stableOnNavigateBack != null) {
+                DesignTopBar(
+                    title = title,
+                    height = adaptive.compactHeaderHeight,
+                    navigationIcon = {
+                        DesignTopBarBackButton(onClick = stableOnNavigateBack)
+                    },
+                    modifier = Modifier.alpha(titleFraction),
+                )
+            } else {
+                DesignPageHeader(
+                    title = title,
+                    subtitle = subtitle,
+                    compact = true,
+                    modifier = Modifier
+                        .padding(horizontal = 20.dp)
+                        .alpha(titleFraction),
+                )
+            }
         }
     }
 }

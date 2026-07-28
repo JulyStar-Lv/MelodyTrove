@@ -53,6 +53,7 @@ import io.github.julystar.musicapp.core.presentation.components.DesignDialog
 import io.github.julystar.musicapp.core.presentation.components.DesignPreferenceRow
 import io.github.julystar.musicapp.core.presentation.components.DesignSettingsGroup
 import io.github.julystar.musicapp.core.presentation.components.DesignSlider
+import io.github.julystar.musicapp.core.presentation.components.DesignStickyGlassActionBar
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButton
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonSize
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonVariant
@@ -94,67 +95,41 @@ internal fun SettingsPageLayout(
     val bottomContentInset = LocalDesignBottomContentInset.current
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val pageWidth = minOf(maxWidth, 800.dp)
+        val pagePadding = spacing.pageExpanded
         val showTopBar = maxWidth < 1024.dp || onBack != null
-        Column(
+        Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .width(pageWidth)
                 .fillMaxHeight()
                 .background(MiuixTheme.colorScheme.background),
         ) {
-            if (showTopBar) {
-                SettingsTopBar(title = title, onBack = onBack)
-            }
             Column(
                 modifier = Modifier
-                    .weight(1f)
+                    .fillMaxSize()
                     .verticalScroll(rememberScrollState())
                     .padding(
-                        start = spacing.pageCompact,
-                        top = spacing.xs,
-                        end = spacing.pageCompact,
+                        start = pagePadding,
+                        top = if (showTopBar) {
+                            DesignTokens.adaptive.compactHeaderHeight + spacing.xs
+                        } else {
+                            spacing.xs
+                        },
+                        end = pagePadding,
                         bottom = maxOf(DesignTokens.player.miniBarHeight, bottomContentInset) + spacing.lg,
                     ),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
                 content = content,
             )
-        }
-    }
-}
-
-@Composable
-private fun SettingsTopBar(
-    title: String,
-    onBack: (() -> Unit)?,
-) {
-    val spacing = DesignTokens.spacing
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .padding(horizontal = spacing.xs),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (onBack != null) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(MiuixTheme.colorScheme.surfaceContainerHigh)
-                    .clickable(onClick = onBack),
-                contentAlignment = Alignment.Center,
-            ) {
-                DesignChevron(direction = DesignChevronDirection.Left)
+            if (showTopBar) {
+                DesignStickyGlassActionBar(
+                    title = title,
+                    collapseFraction = 1f,
+                    onNavigateBack = onBack,
+                    modifier = Modifier.align(Alignment.TopCenter),
+                )
             }
         }
-        Text(
-            text = title,
-            style = MiuixTheme.textStyles.title1,
-            color = MiuixTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(start = if (onBack != null) 4.dp else 16.dp),
-        )
     }
 }
 
@@ -293,7 +268,7 @@ internal fun SettingsSliderRow(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(1.dp)
-                    .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.55f)),
+                    .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.05f)),
             )
         }
     }
@@ -643,7 +618,7 @@ internal fun SettingsSelectRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(1.dp)
-                .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.48f)),
+                .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.05f)),
         )
     }
 }

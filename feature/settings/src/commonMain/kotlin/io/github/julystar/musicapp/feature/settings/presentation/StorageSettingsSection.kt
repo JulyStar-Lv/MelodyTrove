@@ -13,7 +13,7 @@ import musicapp.feature.settings.generated.resources.*
 @Composable
 fun StorageSettingsSection(
     state: SettingsUiState,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     onAction: (SettingsAction) -> Unit,
 ) {
     val usage = state.storageUsage

@@ -60,7 +60,12 @@ class DesktopPlayerController(
     init {
         settingsRepository?.let { repository ->
             scope.launch {
-                repository.settings.collect { settings -> currentSettings = settings }
+                repository.settings.collect { settings ->
+                    currentSettings = settings
+                    playerRepository.music.value?.meta?.id?.value?.let { trackId ->
+                        configureAudioProcessing(trackId)
+                    }
+                }
             }
         }
         scope.launch {

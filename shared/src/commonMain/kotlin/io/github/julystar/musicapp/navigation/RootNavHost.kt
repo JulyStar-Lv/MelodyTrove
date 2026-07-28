@@ -8,13 +8,17 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideIn
 import androidx.compose.animation.slideOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -26,6 +30,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.IntOffset
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -37,6 +42,9 @@ import io.github.julystar.musicapp.core.domain.model.AppSettings
 import io.github.julystar.musicapp.core.domain.model.AppThemeMode
 import io.github.julystar.musicapp.core.domain.repository.SettingsRepository
 import io.github.julystar.musicapp.core.presentation.components.DesignGlassOverlayScene
+import io.github.julystar.musicapp.core.presentation.components.DesignStickyGlassActionBar
+import io.github.julystar.musicapp.core.presentation.components.DesignStickyHeaderState
+import io.github.julystar.musicapp.core.presentation.components.LocalDesignStickyHeaderStateSink
 import io.github.julystar.musicapp.core.presentation.components.getBottomBarSpace
 import io.github.julystar.musicapp.core.presentation.layout.WindowSizeClass
 import io.github.julystar.musicapp.core.presentation.layout.rememberWindowSizeClass
@@ -73,6 +81,7 @@ import io.github.julystar.musicapp.widgets.appbar.SidebarBar
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
@@ -250,6 +259,8 @@ internal fun RootNavHost(
                             navController.navigate(MusicGraph.Home)
                         }
                     },
+                    captureStickyHeader =
+                        currentRoute == MusicGraph.PluginSettings::class.qualifiedName,
                     content = navigationContent,
                 )
             } else {
@@ -294,6 +305,7 @@ private fun SecondaryRootNavigationLayout(
     onOpenNowPlaying: () -> Unit,
     onOpenQueue: () -> Unit,
     onBrowseLibrary: () -> Unit,
+    captureStickyHeader: Boolean,
     content: @Composable (Modifier) -> Unit,
 ) {
     val settingsRepository = koinInject<SettingsRepository>()
@@ -307,26 +319,54 @@ private fun SecondaryRootNavigationLayout(
         )
     }
 
-    BoxWithConstraints(
-        modifier = Modifier
-            .fillMaxSize()
-            .statusBarsPadding(),
-    ) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val windowSizeClass = rememberWindowSizeClass(
             containerSize = androidx.compose.ui.unit.DpSize(maxWidth, maxHeight),
         )
+        val statusBarInset = WindowInsets.statusBars
+            .asPaddingValues()
+            .calculateTopPadding()
+        var stickyHeaderState by remember(captureStickyHeader) {
+            mutableStateOf<DesignStickyHeaderState?>(null)
+        }
+        val stickyHeaderStateSink = remember(captureStickyHeader) {
+            { state: DesignStickyHeaderState? -> stickyHeaderState = state }
+        }
         when (windowSizeClass) {
                 WindowSizeClass.Compact -> {
                     DesignGlassOverlayScene(
                         modifier = Modifier.fillMaxSize(),
                         contentBottomInset = getBottomBarSpace(true, scaffoldPadding),
                         backdropContent = {
-                            content(
-                                Modifier
+                            Box(
+                                modifier = Modifier
                                     .fillMaxSize()
-                            )
+                                    .background(MiuixTheme.colorScheme.background)
+                                    .statusBarsPadding(),
+                            ) {
+                                if (captureStickyHeader) {
+                                    CompositionLocalProvider(
+                                        LocalDesignStickyHeaderStateSink provides
+                                            stickyHeaderStateSink,
+                                    ) {
+                                        content(Modifier.fillMaxSize())
+                                    }
+                                } else {
+                                    content(Modifier.fillMaxSize())
+                                }
+                            }
                         },
                         overlayContent = {
+                            stickyHeaderState?.let { state ->
+                                DesignStickyGlassActionBar(
+                                    title = state.title,
+                                    subtitle = state.subtitle,
+                                    collapseFraction = state.collapseFraction,
+                                    statusBarInset = statusBarInset,
+                                    onNavigateBack = state.onNavigateBack,
+                                    modifier = Modifier.align(Alignment.TopCenter),
+                                )
+                            }
                             BottomBar(
                                 currentTab = currentTab,
                                 onTabSelected = onTabSelected,
@@ -340,7 +380,11 @@ private fun SecondaryRootNavigationLayout(
                 }
 
                 WindowSizeClass.Medium -> {
-                    Row(modifier = Modifier.fillMaxSize()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .statusBarsPadding(),
+                    ) {
                         NavigationRailBar(
                             currentTab = currentTab,
                             onTabSelected = onTabSelected,
@@ -362,7 +406,11 @@ private fun SecondaryRootNavigationLayout(
                 WindowSizeClass.Expanded,
                 WindowSizeClass.Large,
                 WindowSizeClass.XL -> {
-                    Row(modifier = Modifier.fillMaxSize()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .statusBarsPadding(),
+                    ) {
                         SidebarBar(
                             currentTab = currentTab,
                             onTabSelected = onTabSelected,

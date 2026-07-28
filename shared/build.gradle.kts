@@ -54,7 +54,9 @@ val generatedGitInfoDirectory = layout.buildDirectory.dir("generated/gitInfo/com
 val gitCommitShaProvider = providers.exec {
     commandLine("git", "rev-parse", "--short=12", "HEAD")
 }.standardOutput.asText.map(String::trim)
-val appVersionNameProvider = providers.gradleProperty("appVersionName")
+val appVersionNameProvider = providers.provider {
+    rootProject.extra["appVersionName"] as String
+}
 
 val generateGitInfo by tasks.registering(GenerateGitInfoTask::class) {
     gitCommitSha.set(gitCommitShaProvider)
@@ -73,6 +75,12 @@ kotlin {
             baseName = "SharedKit"
             isStatic = true
             binaryOption("bundleId", "io.github.julystar.musicapp.shared")
+        }
+        iosTarget.compilations.getByName("main").cinterops.create("tideDspAudioTap") {
+            definitionFile.set(
+                layout.projectDirectory.file("src/nativeInterop/cinterop/TideDspAudioTap.def")
+            )
+            includeDirs(layout.projectDirectory.dir("../iosApp"))
         }
     }
 

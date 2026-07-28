@@ -27,17 +27,16 @@ actual fun getPlatformName(): String = "android"
 actual fun getProcessName(): String =
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) Application.getProcessName() else appContext.packageName
 
-actual fun isSystemDynamicColorAvailable(): Boolean {
-    return false
-}
-
 actual fun platformSettingsCapabilities() =
     io.github.julystar.musicapp.core.domain.model.SettingsCapabilities(
-        dynamicColorSupported = isSystemDynamicColorAvailable(),
         customMusicDirectorySupported = true,
         secureCredentialStoreSupported = true,
         audioFocusSupported = true,
         deviceDisconnectSupported = true,
+        replayGainSupported = true,
+        audioEffectsSupported = true,
+        audioDsp =
+            io.github.julystar.musicapp.core.domain.model.AudioDspCapabilities.SharedCore,
         networkStatusSupported = true,
         diagnosticsExportSupported = true,
         diagnosticsCenterSupported = true,

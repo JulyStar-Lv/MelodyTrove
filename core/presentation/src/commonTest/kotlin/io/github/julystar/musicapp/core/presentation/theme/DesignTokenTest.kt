@@ -30,4 +30,21 @@ class DesignTokenTest {
         assertEquals(72.dp, player.miniBarHeight)
         assertEquals(76.dp, player.compactMiniBarHeight)
     }
+
+    @Test
+    fun `theme color tokens match the product design system`() {
+        val picker = DesignColorPicker()
+        val motion = DesignMotion()
+
+        assertEquals(48.dp, picker.swatchSize)
+        assertEquals(760.dp, picker.dialogMaxWidth)
+        assertEquals(640.dp, picker.mediumDialogMaxWidth)
+        assertEquals(720.dp, picker.contentMaxHeight)
+        assertEquals(180.dp, picker.saturationValueHeight)
+        assertEquals(20.dp, picker.indicatorSize)
+        assertEquals(32.dp, picker.hueVisualHeight)
+        assertEquals(12.dp, picker.gridGap)
+        assertEquals(20.dp, picker.sectionGap)
+        assertEquals(400, motion.themeMillis)
+    }
 }

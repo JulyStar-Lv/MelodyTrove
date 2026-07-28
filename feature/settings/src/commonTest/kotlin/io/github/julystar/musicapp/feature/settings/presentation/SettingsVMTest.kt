@@ -28,6 +28,8 @@ import io.github.julystar.musicapp.core.domain.repository.DiagnosticsService
 import io.github.julystar.musicapp.core.domain.repository.AppDataClearService
 import io.github.julystar.musicapp.core.domain.repository.LibraryMaintenanceService
 import io.github.julystar.musicapp.core.domain.repository.SettingsRepository
+import io.github.julystar.musicapp.core.domain.repository.AudioDspAnalysisRepository
+import io.github.julystar.musicapp.core.domain.repository.AudioDspFrequencyResponse
 import io.github.julystar.musicapp.core.domain.repository.SourceSettingsRepository
 import io.github.julystar.musicapp.core.domain.repository.StorageRepository
 import io.github.julystar.musicapp.core.domain.repository.StorageUsageRepository
@@ -80,23 +82,31 @@ class SettingsVMTest {
         val repository = FakeSettingsRepository(
             AppSettings.Default.copy(
                 themeMode = AppThemeMode.Light,
-                dynamicColorEnabled = false,
+                artworkThemeEnabled = false,
                 scanSubdirectories = false,
             )
         )
         val environment = TestEnvironment(settingsRepository = repository)
         withStartedViewModel(environment) { viewModel ->
             assertEquals(AppThemeMode.Light, viewModel.state.value.settings.themeMode)
-            assertFalse(viewModel.state.value.capabilities.dynamicColorSupported)
 
             viewModel.onAction(SettingsAction.SetThemeMode(AppThemeMode.Dark))
             advanceUntilIdle()
             assertEquals(AppThemeMode.Dark, repository.values.value.themeMode)
 
-            viewModel.onAction(SettingsAction.SetDynamicColorEnabled(true))
+            viewModel.onAction(SettingsAction.SetArtworkThemeEnabled(true))
+            viewModel.onAction(SettingsAction.SetManualThemeSeedArgb(0xFF3D9AFFL))
+            viewModel.onAction(
+                SettingsAction.SetCustomThemeSeedArgbValues(listOf(0xFF3D9AFFL, 0xFFFFD93DL)),
+            )
             viewModel.onAction(SettingsAction.SetGaplessPlaybackEnabled(true))
             advanceUntilIdle()
-            assertFalse(repository.values.value.dynamicColorEnabled)
+            assertTrue(repository.values.value.artworkThemeEnabled)
+            assertEquals(0xFF3D9AFFL, repository.values.value.manualThemeSeedArgb)
+            assertEquals(
+                listOf(0xFF3D9AFFL, 0xFFFFD93DL),
+                repository.values.value.customThemeSeedArgbValues,
+            )
             assertFalse(repository.values.value.gaplessPlaybackEnabled)
 
             repository.failThemeUpdates = true
@@ -363,9 +373,17 @@ private class TestEnvironment(
         importRepository = FakeImportRepository(),
         librarySyncController = librarySyncController,
         metadataRefreshController = FakeMetadataRefreshController(),
+        audioDspAnalysisRepository = FakeAudioDspAnalysisRepository,
         capabilities = SettingsCapabilities(),
         textProvider = FakeSettingsTextProvider(),
     )
+}
+
+private object FakeAudioDspAnalysisRepository : AudioDspAnalysisRepository {
+    override fun calculateFrequencyResponse(
+        settings: io.github.julystar.musicapp.core.domain.model.AudioEffectSettings,
+        sampleRate: UInt,
+    ): AudioDspFrequencyResponse = AudioDspFrequencyResponse.Empty
 }
 
 private class FakeSettingsTextProvider : SettingsTextProvider {
@@ -389,7 +407,12 @@ private class FakeSettingsRepository(initial: AppSettings = AppSettings.Default)
         update { it.copy(themeMode = mode) }
     }
 
-    override suspend fun setDynamicColorEnabled(enabled: Boolean) = update { it.copy(dynamicColorEnabled = enabled) }
+    override suspend fun setArtworkThemeEnabled(enabled: Boolean) =
+        update { it.copy(artworkThemeEnabled = enabled) }
+    override suspend fun setManualThemeSeedArgb(argb: Long) =
+        update { it.copy(manualThemeSeedArgb = argb) }
+    override suspend fun setCustomThemeSeedArgbValues(argbValues: List<Long>) =
+        update { it.copy(customThemeSeedArgbValues = argbValues) }
     override suspend fun setLanguageMode(mode: AppLanguageMode) = update { it.copy(languageMode = mode) }
     override suspend fun setAudioFocusMode(mode: AudioFocusMode) = update { it.copy(audioFocusMode = mode) }
     override suspend fun setPauseOnDisconnect(enabled: Boolean) = update { it.copy(pauseOnDisconnect = enabled) }

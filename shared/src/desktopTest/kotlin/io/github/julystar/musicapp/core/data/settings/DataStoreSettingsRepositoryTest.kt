@@ -6,6 +6,9 @@ import io.github.julystar.musicapp.core.domain.model.AppLanguageMode
 import io.github.julystar.musicapp.core.domain.model.AppSettings
 import io.github.julystar.musicapp.core.domain.model.AppThemeMode
 import io.github.julystar.musicapp.core.domain.model.AudioFocusMode
+import io.github.julystar.musicapp.core.domain.model.AudioEffectPreset
+import io.github.julystar.musicapp.core.domain.model.AudioEffectProfile
+import io.github.julystar.musicapp.core.domain.model.AudioEffectSettings
 import io.github.julystar.musicapp.core.domain.model.AutoScanMode
 import io.github.julystar.musicapp.core.domain.model.DuplicateTrackPolicy
 import io.github.julystar.musicapp.core.domain.model.MAX_AUDIO_CACHE_LIMIT_BYTES
@@ -13,6 +16,11 @@ import io.github.julystar.musicapp.core.domain.model.MAX_IMAGE_CACHE_LIMIT_BYTES
 import io.github.julystar.musicapp.core.domain.model.LyricTextAlignment
 import io.github.julystar.musicapp.core.domain.model.MissingFilePolicy
 import io.github.julystar.musicapp.core.domain.model.MetadataScanMode
+import io.github.julystar.musicapp.core.domain.model.MoogFilterSettings
+import io.github.julystar.musicapp.core.domain.model.ParametricEqBand
+import io.github.julystar.musicapp.core.domain.model.ParametricEqualizerSettings
+import io.github.julystar.musicapp.core.domain.model.EqualizerMode
+import io.github.julystar.musicapp.core.domain.model.withAudioEffectProfile
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -29,7 +37,9 @@ class DataStoreSettingsRepositoryTest {
         assertEquals(AppSettings.Default, repository.settingsValue())
 
         repository.setThemeMode(AppThemeMode.Light)
-        repository.setDynamicColorEnabled(false)
+        repository.setArtworkThemeEnabled(false)
+        repository.setManualThemeSeedArgb(0xFF3D9AFFL)
+        repository.setCustomThemeSeedArgbValues(listOf(0xFF3D9AFFL, 0xFFFFD93DL))
         repository.setLanguageMode(AppLanguageMode.English)
         repository.setAudioFocusMode(AudioFocusMode.Duck)
         repository.setPauseOnDisconnect(false)
@@ -65,7 +75,9 @@ class DataStoreSettingsRepositoryTest {
         repository.setImageCacheLimitBytes(128L * 1024L * 1024L)
         val settings = DataStoreSettingsRepository(dataStore).settingsValue()
         assertEquals(AppThemeMode.Light, settings.themeMode)
-        assertFalse(settings.dynamicColorEnabled)
+        assertFalse(settings.artworkThemeEnabled)
+        assertEquals(0xFF3D9AFFL, settings.manualThemeSeedArgb)
+        assertEquals(listOf(0xFF3D9AFFL, 0xFFFFD93DL), settings.customThemeSeedArgbValues)
         assertEquals(AppLanguageMode.English, settings.languageMode)
         assertEquals(AudioFocusMode.Duck, settings.audioFocusMode)
         assertFalse(settings.pauseOnDisconnect)
@@ -121,6 +133,76 @@ class DataStoreSettingsRepositoryTest {
         val second = repository.settingsValue()
         assertEquals(AudioFocusMode.Pause, second.audioFocusMode)
         assertEquals(30_000L, second.minimumAudioDurationMs)
+    }
+
+    @Test
+    fun migratesLegacyDynamicColorAndNormalizesThemeSeeds() = withRepository { dataStore, repository ->
+        dataStore.edit { preferences ->
+            preferences[DYNAMIC_COLOR_ENABLED_KEY] = false
+            preferences[MANUAL_THEME_SEED_ARGB_KEY] = 0x003D9AFFL
+            preferences[CUSTOM_THEME_SEED_ARGB_VALUES_KEY] =
+                "FF3D9AFF,003D9AFF,FFFFD93D,invalid"
+        }
+
+        val migrated = repository.settingsValue()
+
+        assertFalse(migrated.artworkThemeEnabled)
+        assertEquals(0xFF3D9AFFL, migrated.manualThemeSeedArgb)
+        assertEquals(
+            listOf(0xFF3D9AFFL, 0xFFFFD93DL),
+            migrated.customThemeSeedArgbValues,
+        )
+    }
+
+    @Test
+    fun persistsCompleteDspProfileAndUserPresets() = withRepository { dataStore, repository ->
+        val profile = AudioEffectProfile.Default.copy(
+            equalizerMode = EqualizerMode.Parametric,
+            parametricEqualizer = ParametricEqualizerSettings(
+                enabled = true,
+                bands = listOf(
+                    ParametricEqBand(frequencyHz = 2_400, gainTenthsDb = 45)
+                ),
+            ),
+            moogFilter = MoogFilterSettings(enabled = true, cutoffHz = 7_500),
+        )
+        val effects = AudioEffectSettings.Default.copy(enabled = true)
+            .withAudioEffectProfile(profile)
+            .copy(
+                userPresets = listOf(
+                    AudioEffectPreset("user:test", "Test", profile)
+                )
+            )
+
+        repository.setAudioEffectSettings(effects)
+        val restored = DataStoreSettingsRepository(dataStore).settingsValue().audioEffects
+
+        assertEquals(EqualizerMode.Parametric, restored.profile.equalizerMode)
+        assertEquals(2_400, restored.profile.parametricEqualizer.bands.single().frequencyHz)
+        assertEquals(45, restored.profile.parametricEqualizer.bands.single().gainTenthsDb)
+        assertTrue(restored.profile.moogFilter.enabled)
+        assertEquals(7_500, restored.profile.moogFilter.cutoffHz)
+        assertEquals("Test", restored.userPresets.single().name)
+        assertEquals(profile, restored.userPresets.single().profile)
+    }
+
+    @Test
+    fun migratesLegacyAudioEffectKeysIntoSharedProfile() = withRepository { dataStore, repository ->
+        dataStore.edit { preferences ->
+            preferences[AUDIO_EFFECTS_ENABLED_KEY] = true
+            preferences[EQ_BAND_GAINS_DB_KEY] = "6,5,4,3,2,1,0,-1,-2,-3"
+            preferences[BASS_DB_KEY] = 5
+            preferences[COMPRESSOR_ENABLED_KEY] = true
+            preferences[STEREO_WIDTH_PERCENT_KEY] = 130
+        }
+
+        val migrated = repository.settingsValue().audioEffects
+
+        assertTrue(migrated.enabled)
+        assertEquals(6, migrated.profile.graphicEqualizer.bandGainsDb.first())
+        assertEquals(5, migrated.profile.tone.bassGainDb)
+        assertTrue(migrated.profile.compressor.enabled)
+        assertEquals(130, migrated.profile.stereoWidth.widthPercent)
     }
 
     @Test

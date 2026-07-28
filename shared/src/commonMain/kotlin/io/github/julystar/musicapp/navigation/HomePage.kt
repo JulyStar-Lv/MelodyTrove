@@ -38,6 +38,7 @@ import io.github.julystar.musicapp.core.presentation.components.DesignGlassOverl
 import io.github.julystar.musicapp.core.presentation.components.DesignStickyGlassActionBar
 import io.github.julystar.musicapp.core.presentation.components.DesignStickyHeaderState
 import io.github.julystar.musicapp.core.presentation.components.getBottomBarSpace
+import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import io.github.julystar.musicapp.feature.importing.presentation.navigation.RouteImportType
 import io.github.julystar.musicapp.service.playback.presentation.shell.PlaybackMiniPlayerHost
 import io.github.julystar.musicapp.widgets.appbar.BottomBar
@@ -161,6 +162,7 @@ fun HomePage(
                                 subtitle = state.subtitle,
                                 collapseFraction = state.collapseFraction,
                                 statusBarInset = statusBarInset,
+                                onNavigateBack = state.onNavigateBack,
                                 modifier = Modifier.align(Alignment.TopCenter),
                             )
                         }
@@ -253,6 +255,7 @@ internal fun RootContentPane(
 
     DesignGlassOverlayScene(
         modifier = modifier,
+        contentBottomInset = DesignTokens.player.miniBarHeight + DesignTokens.spacing.xs,
         backdropContent = { content() },
         overlayContent = {
             Box(

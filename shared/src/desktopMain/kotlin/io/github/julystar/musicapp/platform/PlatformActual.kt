@@ -26,13 +26,8 @@ actual fun getPlatformName(): String = "desktop"
 
 actual fun getProcessName(): String = AppIdentifiers.BRAND_NAME
 
-actual fun isSystemDynamicColorAvailable(): Boolean {
-    return false
-}
-
 actual fun platformSettingsCapabilities() =
     io.github.julystar.musicapp.core.domain.model.SettingsCapabilities(
-        dynamicColorSupported = false,
         customMusicDirectorySupported = true,
         secureCredentialStoreSupported = desktopSecureCredentialStoreAvailable(),
         desktopMediaKeysSupported = true,
@@ -41,6 +36,8 @@ actual fun platformSettingsCapabilities() =
         crossfadeSupported = true,
         replayGainSupported = true,
         audioEffectsSupported = true,
+        audioDsp =
+            io.github.julystar.musicapp.core.domain.model.AudioDspCapabilities.SharedCore,
         diagnosticsExportSupported = true,
         diagnosticsCenterSupported = true,
         safeModeSupported = true,

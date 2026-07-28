@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		4B7E65A412C12F383676EF9B /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B63257C864A4CD0354037581 /* Foundation.framework */; };
 		711971A24B157733B8631409 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 043ECD1E526256B9C5F1C86F /* Assets.xcassets */; };
+		D51A14C94BBA4F3785A61720 /* TideDspAudioTap.m in Sources */ = {isa = PBXBuildFile; fileRef = D51A14C94BBA4F3785A61721 /* TideDspAudioTap.m */; };
 		DEBE64CE3FE666FFD94767BF /* AppMain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76C11CD3ED1E5907F51F2525 /* AppMain.swift */; };
 /* End PBXBuildFile section */
 
@@ -19,6 +20,8 @@
 		7DEFE6DE66572B0FE3B2781F /* MelodyTrove.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = MelodyTrove.app; path = MelodyTrove.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B63257C864A4CD0354037581 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS14.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		CA1A135A77F066C1EC1A5309 /* App.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };
+		D51A14C94BBA4F3785A61721 /* TideDspAudioTap.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = TideDspAudioTap.m; sourceTree = "<group>"; };
+		D51A14C94BBA4F3785A61722 /* TideDspAudioTap.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = TideDspAudioTap.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -37,6 +40,8 @@
 			isa = PBXGroup;
 			children = (
 				76C11CD3ED1E5907F51F2525 /* AppMain.swift */,
+				D51A14C94BBA4F3785A61721 /* TideDspAudioTap.m */,
+				D51A14C94BBA4F3785A61722 /* TideDspAudioTap.h */,
 				712142BF81D7B6F111698BE7 /* Info.plist */,
 				CA1A135A77F066C1EC1A5309 /* App.entitlements */,
 				043ECD1E526256B9C5F1C86F /* Assets.xcassets */,
@@ -163,6 +168,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D51A14C94BBA4F3785A61720 /* TideDspAudioTap.m in Sources */,
 				DEBE64CE3FE666FFD94767BF /* AppMain.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -293,9 +299,10 @@
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_ENTITLEMENTS = App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 319;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
@@ -304,13 +311,19 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				MARKETING_VERSION = 0.3.0;
+				MARKETING_VERSION = 1.0.319;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-framework",
 					SharedKit,
 					"-framework",
 					AudioToolbox,
+					"-framework",
+					AVFoundation,
+					"-framework",
+					MediaToolbox,
+					"-framework",
+					CoreMedia,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = io.github.julystar.musicapp;
 				PRODUCT_NAME = MelodyTrove;
@@ -330,9 +343,10 @@
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_ENTITLEMENTS = App.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 319;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
@@ -341,13 +355,19 @@
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				MARKETING_VERSION = 0.3.0;
+				MARKETING_VERSION = 1.0.319;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-framework",
 					SharedKit,
 					"-framework",
 					AudioToolbox,
+					"-framework",
+					AVFoundation,
+					"-framework",
+					MediaToolbox,
+					"-framework",
+					CoreMedia,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = io.github.julystar.musicapp;
 				PRODUCT_NAME = MelodyTrove;

@@ -213,8 +213,204 @@ enum class ReverbPreset {
 }
 
 @Serializable
+enum class EqualizerMode {
+    Graphic,
+    Parametric,
+}
+
+@Serializable
+enum class ParametricEqFilterType {
+    Peak,
+    LowShelf,
+    HighShelf,
+    LowPass,
+    HighPass,
+    BandPass,
+    Notch,
+}
+
+@Serializable
+data class ParametricEqBand(
+    val enabled: Boolean = true,
+    val type: ParametricEqFilterType = ParametricEqFilterType.Peak,
+    val frequencyHz: Int = 1_000,
+    val gainTenthsDb: Int = 0,
+    val qHundredths: Int = 100,
+)
+
+@Serializable
+data class GraphicEqualizerSettings(
+    val enabled: Boolean = true,
+    val bandGainsDb: List<Int> = DEFAULT_EQ_BAND_GAINS_DB,
+    val qHundredths: Int = DEFAULT_EQ_Q_HUNDREDTHS,
+    val preampTenthsDb: Int = 0,
+)
+
+@Serializable
+data class ParametricEqualizerSettings(
+    val enabled: Boolean = false,
+    val preampTenthsDb: Int = 0,
+    val bands: List<ParametricEqBand> = emptyList(),
+)
+
+@Serializable
+data class ToneControlSettings(
+    val enabled: Boolean = true,
+    val bassGainDb: Int = 0,
+    val bassFrequencyHz: Int = 120,
+    val trebleGainDb: Int = 0,
+    val trebleFrequencyHz: Int = 8_000,
+)
+
+@Serializable
+data class CompressorSettings(
+    val enabled: Boolean = false,
+    val thresholdDb: Int = DEFAULT_COMPRESSOR_THRESHOLD_DB,
+    val ratio: Int = DEFAULT_COMPRESSOR_RATIO,
+    val attackMs: Int = 10,
+    val releaseMs: Int = 120,
+    val makeupGainDb: Int = 0,
+    val kneeDb: Int = 6,
+)
+
+@Serializable
+data class LoudnessSettings(
+    val enabled: Boolean = false,
+    val amountPercent: Int = 0,
+    val balancePercent: Int = 0,
+)
+
+@Serializable
+data class DynamicEqSettings(
+    val enabled: Boolean = false,
+    val amountPercent: Int = 0,
+    val deEsserAmountPercent: Int = 0,
+    val deEsserFrequencyHz: Int = 6_500,
+)
+
+@Serializable
+data class MonoBassSettings(
+    val enabled: Boolean = false,
+    val crossoverHz: Int = 120,
+    val amountPercent: Int = 100,
+)
+
+@Serializable
+data class StereoWidthSettings(
+    val enabled: Boolean = false,
+    val widthPercent: Int = DEFAULT_STEREO_WIDTH_PERCENT,
+)
+
+@Serializable
+data class CrossfeedSettings(
+    val enabled: Boolean = false,
+    val lowCutHz: Int = 120,
+    val highCutHz: Int = 700,
+    val attenuationTenthsDb: Int = 60,
+)
+
+@Serializable
+enum class SpatialAudioMode {
+    None,
+    CrossfeedAndWidth,
+    Surround360,
+    Panoramic360,
+}
+
+@Serializable
+data class SpatialAudioSettings(
+    val mode: SpatialAudioMode = SpatialAudioMode.None,
+    val intensityPercent: Int = 0,
+    val azimuthDegrees: Int = 0,
+    val elevationDegrees: Int = 0,
+    val autoRotateDegreesPerSecond: Int = 0,
+    val roomAmountPercent: Int = 15,
+)
+
+@Serializable
+enum class MoogFilterMode {
+    LowPass24,
+    LowPass12,
+    HighPass24,
+    BandPass12,
+    Notch,
+}
+
+@Serializable
+data class MoogFilterSettings(
+    val enabled: Boolean = false,
+    val mode: MoogFilterMode = MoogFilterMode.LowPass24,
+    val cutoffHz: Int = 8_000,
+    val resonancePercent: Int = 0,
+    val driveTenthsDb: Int = 0,
+    val mixPercent: Int = 100,
+)
+
+@Serializable
+enum class SpeakerOutputMode {
+    Elasticity,
+    Powerful,
+    Wide,
+}
+
+@Serializable
+data class SpeakerOutputSettings(
+    val enabled: Boolean = false,
+    val mode: SpeakerOutputMode = SpeakerOutputMode.Elasticity,
+    val strengthPercent: Int = 50,
+)
+
+@Serializable
+data class LimiterSettings(
+    val enabled: Boolean = true,
+    val ceilingTenthsDb: Int = -5,
+    val attackHundredthsMs: Int = 25,
+    val releaseMs: Int = 80,
+    val truePeakEnabled: Boolean = false,
+    val oversampling: Int = 1,
+)
+
+@Serializable
+data class ReverbSettings(
+    val preset: ReverbPreset = ReverbPreset.None,
+    val wetPercent: Int = 15,
+)
+
+@Serializable
+data class AudioEffectProfile(
+    val equalizerMode: EqualizerMode = EqualizerMode.Graphic,
+    val graphicEqualizer: GraphicEqualizerSettings = GraphicEqualizerSettings(),
+    val parametricEqualizer: ParametricEqualizerSettings = ParametricEqualizerSettings(),
+    val tone: ToneControlSettings = ToneControlSettings(),
+    val compressor: CompressorSettings = CompressorSettings(),
+    val loudness: LoudnessSettings = LoudnessSettings(),
+    val dynamicEq: DynamicEqSettings = DynamicEqSettings(),
+    val monoBass: MonoBassSettings = MonoBassSettings(),
+    val stereoWidth: StereoWidthSettings = StereoWidthSettings(),
+    val crossfeed: CrossfeedSettings = CrossfeedSettings(),
+    val spatialAudio: SpatialAudioSettings = SpatialAudioSettings(),
+    val moogFilter: MoogFilterSettings = MoogFilterSettings(),
+    val speakerOutput: SpeakerOutputSettings = SpeakerOutputSettings(),
+    val limiter: LimiterSettings = LimiterSettings(),
+    val reverb: ReverbSettings = ReverbSettings(),
+) {
+    companion object {
+        val Default = AudioEffectProfile()
+    }
+}
+
+@Serializable
+data class AudioEffectPreset(
+    val id: String,
+    val name: String,
+    val profile: AudioEffectProfile,
+)
+
+@Serializable
 data class AudioEffectSettings(
     val enabled: Boolean = false,
+    // Legacy mirrors are retained so old backups and DataStore keys migrate
+    // without losing the existing ten-band settings.
     val eqBandGainsDb: List<Int> = DEFAULT_EQ_BAND_GAINS_DB,
     val eqQHundredths: Int = DEFAULT_EQ_Q_HUNDREDTHS,
     val bassDb: Int = 0,
@@ -225,9 +421,12 @@ data class AudioEffectSettings(
     val compressorMakeupDb: Int = 0,
     val stereoWidthPercent: Int = DEFAULT_STEREO_WIDTH_PERCENT,
     val reverbPreset: ReverbPreset = ReverbPreset.None,
+    val schemaVersion: Int = 0,
+    val profile: AudioEffectProfile = AudioEffectProfile.Default,
+    val userPresets: List<AudioEffectPreset> = emptyList(),
 ) {
     companion object {
-        val Default = AudioEffectSettings()
+        val Default = AudioEffectSettings(schemaVersion = AUDIO_DSP_SCHEMA_VERSION)
     }
 }
 
@@ -289,8 +488,10 @@ data class SettingsBackupSettings(
 
 @Serializable
 data class AppSettings(
-    val themeMode: AppThemeMode = AppThemeMode.Dark,
-    val dynamicColorEnabled: Boolean = true,
+    val themeMode: AppThemeMode = AppThemeMode.System,
+    val artworkThemeEnabled: Boolean = true,
+    val manualThemeSeedArgb: Long = DEFAULT_MANUAL_THEME_SEED_ARGB,
+    val customThemeSeedArgbValues: List<Long> = emptyList(),
     val languageMode: AppLanguageMode = AppLanguageMode.System,
     val audioFocusMode: AudioFocusMode = AudioFocusMode.Pause,
     val pauseOnDisconnect: Boolean = true,
@@ -330,8 +531,55 @@ fun AppSettings.metadataScanModeFor(isWebDav: Boolean): MetadataScanMode {
     return if (isWebDav) webDavMetadataScanMode else MetadataScanMode.Full
 }
 
+data class AudioDspCapabilities(
+    val graphicEqualizer: Boolean = false,
+    val parametricEqualizer: Boolean = false,
+    val toneControl: Boolean = false,
+    val compressor: Boolean = false,
+    val dynamicEq: Boolean = false,
+    val loudness: Boolean = false,
+    val monoBass: Boolean = false,
+    val stereoWidth: Boolean = false,
+    val crossfeed: Boolean = false,
+    val surround360: Boolean = false,
+    val panoramic360: Boolean = false,
+    val convolution: Boolean = false,
+    val moogFilter: Boolean = false,
+    val speakerOutput: Boolean = false,
+    val reverb: Boolean = false,
+    val peakLimiter: Boolean = false,
+    val maxParametricBands: Int = 0,
+    val supportedChannelCounts: Set<Int> = emptySet(),
+    val resourceDependent: Boolean = false,
+) {
+    val anySoftwareDsp: Boolean
+        get() = graphicEqualizer || parametricEqualizer
+
+    companion object {
+        val SharedCore = AudioDspCapabilities(
+            graphicEqualizer = true,
+            parametricEqualizer = true,
+            toneControl = true,
+            compressor = true,
+            dynamicEq = true,
+            loudness = true,
+            monoBass = true,
+            stereoWidth = true,
+            crossfeed = true,
+            surround360 = true,
+            panoramic360 = true,
+            convolution = false,
+            moogFilter = true,
+            speakerOutput = true,
+            reverb = true,
+            peakLimiter = true,
+            maxParametricBands = MAX_PARAMETRIC_EQ_BANDS,
+            supportedChannelCounts = setOf(1, 2),
+        )
+    }
+}
+
 data class SettingsCapabilities(
-    val dynamicColorSupported: Boolean = false,
     val backgroundScanSupported: Boolean = false,
     val customMusicDirectorySupported: Boolean = false,
     val customCacheDirectorySupported: Boolean = false,
@@ -346,6 +594,7 @@ data class SettingsCapabilities(
     val crossfadeSupported: Boolean = false,
     val replayGainSupported: Boolean = false,
     val audioEffectsSupported: Boolean = false,
+    val audioDsp: AudioDspCapabilities = AudioDspCapabilities(),
     val lyricFontSelectionSupported: Boolean = true,
     val networkStatusSupported: Boolean = false,
     val audioPreloadSupported: Boolean = false,
@@ -440,6 +689,8 @@ enum class LibraryRebuildStatus {
 }
 
 const val AUDIO_CACHE_LIMIT_DISABLED_BYTES = 0L
+const val DEFAULT_MANUAL_THEME_SEED_ARGB = 0xFFFF5B8AL
+const val MAX_CUSTOM_THEME_SEEDS = 12
 const val DEFAULT_AUDIO_CACHE_LIMIT_BYTES = 1_073_741_824L
 const val MAX_AUDIO_CACHE_LIMIT_BYTES = 10_737_418_240L
 const val DEFAULT_IMAGE_CACHE_LIMIT_BYTES = 268_435_456L
@@ -474,7 +725,9 @@ const val MIN_REPLAY_GAIN_PREAMP_TENTHS_DB = -200
 const val MAX_REPLAY_GAIN_PREAMP_TENTHS_DB = 200
 const val DEFAULT_ARTIST_SEPARATORS = ";,/&、，"
 const val DEFAULT_GENRE_SEPARATORS = ";,/、，"
+const val AUDIO_DSP_SCHEMA_VERSION = 1
 const val EQ_BAND_COUNT = 10
+const val MAX_PARAMETRIC_EQ_BANDS = 40
 const val MIN_EQ_BAND_GAIN_DB = -12
 const val MAX_EQ_BAND_GAIN_DB = 12
 const val DEFAULT_EQ_Q_HUNDREDTHS = 100
@@ -487,6 +740,15 @@ const val MIN_SCANNED_AUDIO_DURATION_MS = DEFAULT_MINIMUM_AUDIO_DURATION_MS
 
 val DEFAULT_LYRIC_SOURCE_PRIORITY = LyricSourceKind.entries.toList()
 val DEFAULT_EQ_BAND_GAINS_DB = List(EQ_BAND_COUNT) { 0 }
+
+fun normalizeThemeSeedArgb(value: Long): Long = 0xFF000000L or (value and 0x00FFFFFFL)
+
+fun normalizeCustomThemeSeedArgbValues(values: List<Long>): List<Long> {
+    return values
+        .map(::normalizeThemeSeedArgb)
+        .distinct()
+        .take(MAX_CUSTOM_THEME_SEEDS)
+}
 
 val AUDIO_CACHE_LIMIT_PRESETS_BYTES = listOf(
     AUDIO_CACHE_LIMIT_DISABLED_BYTES,
@@ -577,21 +839,163 @@ fun normalizePlaybackAdvancedSettings(value: PlaybackAdvancedSettings): Playback
 }
 
 fun normalizeAudioEffectSettings(value: AudioEffectSettings): AudioEffectSettings {
-    val gains = value.eqBandGainsDb
+    val normalizedProfile = if (value.schemaVersion < AUDIO_DSP_SCHEMA_VERSION) {
+        val gains = value.eqBandGainsDb
+            .take(EQ_BAND_COUNT)
+            .map { it.coerceIn(MIN_EQ_BAND_GAIN_DB, MAX_EQ_BAND_GAIN_DB) }
+            .let { it + List(EQ_BAND_COUNT - it.size) { 0 } }
+        normalizeAudioEffectProfile(value.profile).let { profile ->
+            normalizeAudioEffectProfile(
+                profile.copy(
+                    graphicEqualizer = profile.graphicEqualizer.copy(
+                        bandGainsDb = gains,
+                        qHundredths = value.eqQHundredths,
+                    ),
+                    tone = profile.tone.copy(
+                        bassGainDb = value.bassDb,
+                        trebleGainDb = value.trebleDb,
+                    ),
+                    compressor = profile.compressor.copy(
+                        enabled = value.compressorEnabled,
+                        thresholdDb = value.compressorThresholdDb,
+                        ratio = value.compressorRatio,
+                        makeupGainDb = value.compressorMakeupDb,
+                    ),
+                    stereoWidth = profile.stereoWidth.copy(
+                        enabled = value.stereoWidthPercent != DEFAULT_STEREO_WIDTH_PERCENT,
+                        widthPercent = value.stereoWidthPercent,
+                    ),
+                    reverb = profile.reverb.copy(preset = value.reverbPreset),
+                )
+            )
+        }
+    } else {
+        normalizeAudioEffectProfile(value.profile)
+    }
+    return value.copy(
+        eqBandGainsDb = normalizedProfile.graphicEqualizer.bandGainsDb,
+        eqQHundredths = normalizedProfile.graphicEqualizer.qHundredths,
+        bassDb = normalizedProfile.tone.bassGainDb,
+        trebleDb = normalizedProfile.tone.trebleGainDb,
+        compressorEnabled = normalizedProfile.compressor.enabled,
+        compressorThresholdDb = normalizedProfile.compressor.thresholdDb,
+        compressorRatio = normalizedProfile.compressor.ratio,
+        compressorMakeupDb = normalizedProfile.compressor.makeupGainDb,
+        stereoWidthPercent = normalizedProfile.stereoWidth.widthPercent,
+        reverbPreset = normalizedProfile.reverb.preset,
+        schemaVersion = AUDIO_DSP_SCHEMA_VERSION,
+        profile = normalizedProfile,
+        userPresets = value.userPresets
+            .asSequence()
+            .filter { it.id.isNotBlank() && it.name.isNotBlank() }
+            .distinctBy(AudioEffectPreset::id)
+            .take(64)
+            .map { preset ->
+                preset.copy(
+                    id = preset.id.take(128),
+                    name = preset.name.take(128),
+                    profile = normalizeAudioEffectProfile(preset.profile),
+                )
+            }
+            .toList(),
+    )
+}
+
+fun AudioEffectSettings.withAudioEffectProfile(
+    profile: AudioEffectProfile,
+): AudioEffectSettings {
+    return normalizeAudioEffectSettings(
+        copy(
+            schemaVersion = AUDIO_DSP_SCHEMA_VERSION,
+            profile = profile,
+        )
+    )
+}
+
+fun normalizeAudioEffectProfile(value: AudioEffectProfile): AudioEffectProfile {
+    val graphicGains = value.graphicEqualizer.bandGainsDb
         .take(EQ_BAND_COUNT)
         .map { it.coerceIn(MIN_EQ_BAND_GAIN_DB, MAX_EQ_BAND_GAIN_DB) }
         .let { it + List(EQ_BAND_COUNT - it.size) { 0 } }
     return value.copy(
-        eqBandGainsDb = gains,
-        eqQHundredths = value.eqQHundredths.coerceIn(
-            MIN_EQ_Q_HUNDREDTHS,
-            MAX_EQ_Q_HUNDREDTHS,
+        graphicEqualizer = value.graphicEqualizer.copy(
+            bandGainsDb = graphicGains,
+            qHundredths = value.graphicEqualizer.qHundredths.coerceIn(10, 1_000),
+            preampTenthsDb = value.graphicEqualizer.preampTenthsDb.coerceIn(-240, 120),
         ),
-        bassDb = value.bassDb.coerceIn(MIN_EQ_BAND_GAIN_DB, MAX_EQ_BAND_GAIN_DB),
-        trebleDb = value.trebleDb.coerceIn(MIN_EQ_BAND_GAIN_DB, MAX_EQ_BAND_GAIN_DB),
-        compressorThresholdDb = value.compressorThresholdDb.coerceIn(-60, 0),
-        compressorRatio = value.compressorRatio.coerceIn(1, 20),
-        compressorMakeupDb = value.compressorMakeupDb.coerceIn(0, 24),
-        stereoWidthPercent = value.stereoWidthPercent.coerceIn(0, 200),
+        parametricEqualizer = value.parametricEqualizer.copy(
+            preampTenthsDb = value.parametricEqualizer.preampTenthsDb.coerceIn(-960, 120),
+            bands = value.parametricEqualizer.bands
+                .take(MAX_PARAMETRIC_EQ_BANDS)
+                .map { band ->
+                    band.copy(
+                        frequencyHz = band.frequencyHz.coerceIn(10, 20_000),
+                        gainTenthsDb = band.gainTenthsDb.coerceIn(-240, 240),
+                        qHundredths = band.qHundredths.coerceIn(5, 2_400),
+                    )
+                },
+        ),
+        tone = value.tone.copy(
+            bassGainDb = value.tone.bassGainDb.coerceIn(-24, 24),
+            bassFrequencyHz = value.tone.bassFrequencyHz.coerceIn(50, 500),
+            trebleGainDb = value.tone.trebleGainDb.coerceIn(-24, 24),
+            trebleFrequencyHz = value.tone.trebleFrequencyHz.coerceIn(2_000, 16_000),
+        ),
+        compressor = value.compressor.copy(
+            thresholdDb = value.compressor.thresholdDb.coerceIn(-60, 0),
+            ratio = value.compressor.ratio.coerceIn(1, 30),
+            attackMs = value.compressor.attackMs.coerceIn(1, 500),
+            releaseMs = value.compressor.releaseMs.coerceIn(5, 5_000),
+            makeupGainDb = value.compressor.makeupGainDb.coerceIn(-12, 24),
+            kneeDb = value.compressor.kneeDb.coerceIn(0, 24),
+        ),
+        loudness = value.loudness.copy(
+            amountPercent = value.loudness.amountPercent.coerceIn(0, 100),
+            balancePercent = value.loudness.balancePercent.coerceIn(-100, 100),
+        ),
+        dynamicEq = value.dynamicEq.copy(
+            amountPercent = value.dynamicEq.amountPercent.coerceIn(0, 100),
+            deEsserAmountPercent = value.dynamicEq.deEsserAmountPercent.coerceIn(0, 100),
+            deEsserFrequencyHz = value.dynamicEq.deEsserFrequencyHz.coerceIn(4_000, 10_000),
+        ),
+        monoBass = value.monoBass.copy(
+            crossoverHz = value.monoBass.crossoverHz.coerceIn(60, 300),
+            amountPercent = value.monoBass.amountPercent.coerceIn(0, 100),
+        ),
+        stereoWidth = value.stereoWidth.copy(
+            widthPercent = value.stereoWidth.widthPercent.coerceIn(0, 200),
+        ),
+        crossfeed = value.crossfeed.copy(
+            lowCutHz = value.crossfeed.lowCutHz.coerceIn(50, 1_000),
+            highCutHz = value.crossfeed.highCutHz.coerceIn(500, 8_000),
+            attenuationTenthsDb = value.crossfeed.attenuationTenthsDb.coerceIn(0, 150),
+        ),
+        spatialAudio = value.spatialAudio.copy(
+            intensityPercent = value.spatialAudio.intensityPercent.coerceIn(0, 100),
+            azimuthDegrees = value.spatialAudio.azimuthDegrees.mod(360),
+            elevationDegrees = value.spatialAudio.elevationDegrees.coerceIn(-90, 90),
+            autoRotateDegreesPerSecond =
+                value.spatialAudio.autoRotateDegreesPerSecond.coerceIn(-180, 180),
+            roomAmountPercent = value.spatialAudio.roomAmountPercent.coerceIn(0, 100),
+        ),
+        moogFilter = value.moogFilter.copy(
+            cutoffHz = value.moogFilter.cutoffHz.coerceIn(20, 20_000),
+            resonancePercent = value.moogFilter.resonancePercent.coerceIn(0, 100),
+            driveTenthsDb = value.moogFilter.driveTenthsDb.coerceIn(0, 180),
+            mixPercent = value.moogFilter.mixPercent.coerceIn(0, 100),
+        ),
+        speakerOutput = value.speakerOutput.copy(
+            strengthPercent = value.speakerOutput.strengthPercent.coerceIn(0, 100),
+        ),
+        limiter = value.limiter.copy(
+            ceilingTenthsDb = value.limiter.ceilingTenthsDb.coerceIn(-120, 0),
+            attackHundredthsMs = value.limiter.attackHundredthsMs.coerceIn(1, 2_000),
+            releaseMs = value.limiter.releaseMs.coerceIn(5, 2_000),
+            truePeakEnabled = false,
+            oversampling = 1,
+        ),
+        reverb = value.reverb.copy(
+            wetPercent = value.reverb.wetPercent.coerceIn(0, 50),
+        ),
     )
 }

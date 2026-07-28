@@ -1,7 +1,6 @@
 package io.github.julystar.musicapp.plugin.management
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,10 +30,9 @@ import io.github.julystar.musicapp.core.presentation.components.AppSwitch
 import io.github.julystar.musicapp.core.presentation.components.AppTextField
 import io.github.julystar.musicapp.core.presentation.components.ConfirmDialog
 import io.github.julystar.musicapp.core.presentation.components.LocalDesignBottomContentInset
-import io.github.julystar.musicapp.core.presentation.components.DesignChevron
-import io.github.julystar.musicapp.core.presentation.components.DesignChevronDirection
 import io.github.julystar.musicapp.core.presentation.components.DesignPreferenceRow
 import io.github.julystar.musicapp.core.presentation.components.DesignSettingsGroup
+import io.github.julystar.musicapp.core.presentation.components.DesignStickyGlassActionBar
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButton
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonSize
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonVariant
@@ -133,40 +131,18 @@ fun PluginSettingsRoot(
         )
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MiuixTheme.colorScheme.background),
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .padding(horizontal = DesignTokens.spacing.xs),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clickable(onClick = onBack),
-                contentAlignment = Alignment.Center,
-            ) {
-                DesignChevron(direction = DesignChevronDirection.Left)
-            }
-            Text(
-                text = "Metadata plugins",
-                style = MiuixTheme.textStyles.title1,
-                color = MiuixTheme.colorScheme.onSurface,
-            )
-        }
-
         Column(
             modifier = Modifier
-                .weight(1f)
+                .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(
                     start = DesignTokens.spacing.pageCompact,
-                    top = 8.dp,
+                    top = DesignTokens.adaptive.compactHeaderHeight + 8.dp,
                     end = DesignTokens.spacing.pageCompact,
                     bottom = 8.dp + bottomContentInset,
                 ),
@@ -275,6 +251,12 @@ fun PluginSettingsRoot(
             }
             Spacer(modifier = Modifier.height(24.dp))
         }
+        DesignStickyGlassActionBar(
+            title = "Metadata plugins",
+            collapseFraction = 1f,
+            onNavigateBack = onBack,
+            modifier = Modifier.align(Alignment.TopCenter),
+        )
     }
 }
 

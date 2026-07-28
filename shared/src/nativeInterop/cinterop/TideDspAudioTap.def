@@ -1,0 +1,4 @@
+headers = TideDspAudioTap.h
+package = io.github.julystar.musicapp.core.audio.tap
+language = Objective-C
+linkerOpts = -framework AVFoundation -framework AudioToolbox -framework MediaToolbox -framework CoreMedia

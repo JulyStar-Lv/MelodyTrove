@@ -9,7 +9,6 @@ expect fun getAppCacheDir(): String
 expect fun getAppDatabasePath(): String?
 expect fun getPlatformName(): String
 expect fun getProcessName(): String
-expect fun isSystemDynamicColorAvailable(): Boolean
 expect fun platformSettingsCapabilities(): io.github.julystar.musicapp.core.domain.model.SettingsCapabilities
 expect fun applyAppLanguageMode(mode: AppLanguageMode)
 expect fun currentTimeMillis(): Long

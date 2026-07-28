@@ -4,6 +4,7 @@
 resolver = "2"
 members = [
     "app-backend",
+    "audio-dsp",
     "uniffi-bindgen",
     "async-runtime",
     "order-key",
@@ -30,6 +31,8 @@ thiserror = "1.0.57"
 chrono = "0.4.41"
 anyhow = "1.0"
 tracing = "0.1"
+audio-dsp = { path = "./audio-dsp" }
+triple_buffer = "9.0.0"
 async-runtime = { path = "./async-runtime" }
 order-key = { path = "./order-key" }
 

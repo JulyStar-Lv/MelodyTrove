@@ -156,7 +156,9 @@ private fun AppSettings.mergeBackup(
     if (selection.appearance) {
         merged = merged.copy(
             themeMode = backup.themeMode,
-            dynamicColorEnabled = backup.dynamicColorEnabled,
+            artworkThemeEnabled = backup.artworkThemeEnabled,
+            manualThemeSeedArgb = backup.manualThemeSeedArgb,
+            customThemeSeedArgbValues = backup.customThemeSeedArgbValues,
             languageMode = backup.languageMode,
         )
     }

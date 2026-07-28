@@ -30,7 +30,9 @@ interface SettingsRepository {
     val settings: Flow<AppSettings>
 
     suspend fun setThemeMode(mode: AppThemeMode)
-    suspend fun setDynamicColorEnabled(enabled: Boolean)
+    suspend fun setArtworkThemeEnabled(enabled: Boolean)
+    suspend fun setManualThemeSeedArgb(argb: Long)
+    suspend fun setCustomThemeSeedArgbValues(argbValues: List<Long>)
     suspend fun setLanguageMode(mode: AppLanguageMode)
     suspend fun setAudioFocusMode(mode: AudioFocusMode)
     suspend fun setPauseOnDisconnect(enabled: Boolean)

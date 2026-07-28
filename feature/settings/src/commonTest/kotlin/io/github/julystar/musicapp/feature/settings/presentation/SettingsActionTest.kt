@@ -16,6 +16,19 @@ class SettingsActionTest {
     }
 
     @Test
+    fun `theme color actions carry artwork manual and palette values`() {
+        val artwork = SettingsAction.SetArtworkThemeEnabled(false)
+        val manual = SettingsAction.SetManualThemeSeedArgb(0xFFFF5B8AL)
+        val palette = SettingsAction.SetCustomThemeSeedArgbValues(
+            listOf(0xFFFF5B8AL, 0xFF3D9AFFL),
+        )
+
+        assertEquals(false, artwork.enabled)
+        assertEquals(0xFFFF5B8AL, manual.argb)
+        assertEquals(listOf(0xFFFF5B8AL, 0xFF3D9AFFL), palette.argbValues)
+    }
+
+    @Test
     fun `language action carries selected mode`() {
         val action = SettingsAction.SetLanguageMode(AppLanguageMode.English)
         assertEquals(AppLanguageMode.English, action.mode)

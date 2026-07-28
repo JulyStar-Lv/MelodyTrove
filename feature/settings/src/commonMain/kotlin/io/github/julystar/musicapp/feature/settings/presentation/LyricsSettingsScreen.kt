@@ -26,7 +26,7 @@ import musicapp.feature.settings.generated.resources.*
 @Composable
 internal fun LyricsSettingsScreen(
     state: SettingsUiState,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     onAction: (SettingsAction) -> Unit,
 ) {
     val lyrics = state.settings.lyrics

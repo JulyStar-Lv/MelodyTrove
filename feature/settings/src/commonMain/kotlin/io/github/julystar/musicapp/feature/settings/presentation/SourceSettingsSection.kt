@@ -41,7 +41,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 @Composable
 fun SourceSettingsSection(
     state: SettingsUiState,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     onAction: (SettingsAction) -> Unit,
 ) {
     val settings = state.settings

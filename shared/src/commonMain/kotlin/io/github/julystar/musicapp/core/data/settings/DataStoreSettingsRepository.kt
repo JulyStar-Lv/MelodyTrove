@@ -16,6 +16,7 @@ import io.github.julystar.musicapp.core.domain.model.AudioFocusMode
 import io.github.julystar.musicapp.core.domain.model.AutoScanMode
 import io.github.julystar.musicapp.core.domain.model.BackupSchedule
 import io.github.julystar.musicapp.core.domain.model.DuplicateTrackPolicy
+import io.github.julystar.musicapp.core.domain.model.DEFAULT_MANUAL_THEME_SEED_ARGB
 import io.github.julystar.musicapp.core.domain.model.LyricFontChoice
 import io.github.julystar.musicapp.core.domain.model.LyricFontSettings
 import io.github.julystar.musicapp.core.domain.model.LyricOutputSettings
@@ -54,10 +55,15 @@ import io.github.julystar.musicapp.core.domain.model.normalizeLyricSourcePriorit
 import io.github.julystar.musicapp.core.domain.model.normalizeMinimumAudioDurationMs
 import io.github.julystar.musicapp.core.domain.model.normalizeNetworkRetryCount
 import io.github.julystar.musicapp.core.domain.model.normalizePlaybackAdvancedSettings
+import io.github.julystar.musicapp.core.domain.model.normalizeCustomThemeSeedArgbValues
+import io.github.julystar.musicapp.core.domain.model.normalizeThemeSeedArgb
 import io.github.julystar.musicapp.core.domain.repository.SettingsRepository
 import io.github.julystar.musicapp.platform.applyAppLanguageMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 class DataStoreSettingsRepository(
     private val dataStore: DataStore<Preferences>,
@@ -66,8 +72,16 @@ class DataStoreSettingsRepository(
 
     override val settings: Flow<AppSettings> = dataStore.data.map { preferences ->
         AppSettings(
-            themeMode = preferences[THEME_MODE_KEY].enumOrDefault(AppThemeMode.Dark),
-            dynamicColorEnabled = preferences[DYNAMIC_COLOR_ENABLED_KEY] ?: true,
+            themeMode = preferences[THEME_MODE_KEY].enumOrDefault(AppSettings.Default.themeMode),
+            artworkThemeEnabled = preferences[ARTWORK_THEME_ENABLED_KEY]
+                ?: preferences[DYNAMIC_COLOR_ENABLED_KEY]
+                ?: true,
+            manualThemeSeedArgb = normalizeThemeSeedArgb(
+                preferences[MANUAL_THEME_SEED_ARGB_KEY] ?: DEFAULT_MANUAL_THEME_SEED_ARGB,
+            ),
+            customThemeSeedArgbValues = normalizeCustomThemeSeedArgbValues(
+                preferences[CUSTOM_THEME_SEED_ARGB_VALUES_KEY].toThemeSeedList(),
+            ),
             languageMode = preferences[LANGUAGE_MODE_KEY].enumOrDefault(AppLanguageMode.System),
             audioFocusMode = preferences[AUDIO_FOCUS_MODE_KEY]
                 .enumOrNull<AudioFocusMode>()
@@ -170,7 +184,9 @@ class DataStoreSettingsRepository(
                 ignoreTagCase = preferences[TAG_IGNORE_CASE_KEY] ?: false,
             ),
             audioEffects = normalizeAudioEffectSettings(
-                AudioEffectSettings(
+                preferences[AUDIO_EFFECTS_CONFIG_JSON_KEY]
+                    ?.let(::decodeAudioEffectSettings)
+                    ?: AudioEffectSettings(
                     enabled = preferences[AUDIO_EFFECTS_ENABLED_KEY] ?: false,
                     eqBandGainsDb = preferences[EQ_BAND_GAINS_DB_KEY].toIntList(),
                     eqQHundredths = preferences[EQ_Q_HUNDREDTHS_KEY]
@@ -258,8 +274,19 @@ class DataStoreSettingsRepository(
 
     override suspend fun setThemeMode(mode: AppThemeMode) = set(THEME_MODE_KEY, mode.name)
 
-    override suspend fun setDynamicColorEnabled(enabled: Boolean) =
-        set(DYNAMIC_COLOR_ENABLED_KEY, enabled)
+    override suspend fun setArtworkThemeEnabled(enabled: Boolean) =
+        set(ARTWORK_THEME_ENABLED_KEY, enabled)
+
+    override suspend fun setManualThemeSeedArgb(argb: Long) =
+        set(MANUAL_THEME_SEED_ARGB_KEY, normalizeThemeSeedArgb(argb))
+
+    override suspend fun setCustomThemeSeedArgbValues(argbValues: List<Long>) =
+        set(
+            CUSTOM_THEME_SEED_ARGB_VALUES_KEY,
+            normalizeCustomThemeSeedArgbValues(argbValues).joinToString(",") { value ->
+                value.toString(16).uppercase()
+            },
+        )
 
     override suspend fun setLanguageMode(mode: AppLanguageMode) {
         set(LANGUAGE_MODE_KEY, mode.name)
@@ -399,6 +426,8 @@ class DataStoreSettingsRepository(
             preferences[COMPRESSOR_MAKEUP_DB_KEY] = normalized.compressorMakeupDb
             preferences[STEREO_WIDTH_PERCENT_KEY] = normalized.stereoWidthPercent
             preferences[REVERB_PRESET_KEY] = normalized.reverbPreset.name
+            preferences[AUDIO_EFFECTS_CONFIG_JSON_KEY] =
+                AUDIO_EFFECTS_JSON.encodeToString(normalized)
         }
     }
 
@@ -434,7 +463,9 @@ class DataStoreSettingsRepository(
     override suspend fun replaceSettings(settings: AppSettings) {
         resetToDefaults()
         setThemeMode(settings.themeMode)
-        setDynamicColorEnabled(settings.dynamicColorEnabled)
+        setArtworkThemeEnabled(settings.artworkThemeEnabled)
+        setManualThemeSeedArgb(settings.manualThemeSeedArgb)
+        setCustomThemeSeedArgbValues(settings.customThemeSeedArgbValues)
         setLanguageMode(settings.languageMode)
         setAudioFocusMode(settings.audioFocusMode)
         setPauseOnDisconnect(settings.pauseOnDisconnect)
@@ -585,7 +616,19 @@ private fun Boolean?.toLegacyMinimumDurationMs(): Long? = when (this) {
     null -> null
 }
 
+private fun String?.toThemeSeedList(): List<Long> {
+    return this
+        ?.split(',')
+        ?.mapNotNull { value -> value.toLongOrNull(radix = 16) }
+        .orEmpty()
+}
+
 internal val THEME_MODE_KEY = stringPreferencesKey("settings.themeMode")
+internal val ARTWORK_THEME_ENABLED_KEY = booleanPreferencesKey("settings.artworkThemeEnabled")
+internal val MANUAL_THEME_SEED_ARGB_KEY = longPreferencesKey("settings.manualThemeSeedArgb")
+internal val CUSTOM_THEME_SEED_ARGB_VALUES_KEY =
+    stringPreferencesKey("settings.customThemeSeedArgbValues")
+// Read-only migration input from the former Android system-wallpaper setting.
 internal val DYNAMIC_COLOR_ENABLED_KEY = booleanPreferencesKey("settings.dynamicColorEnabled")
 internal val LANGUAGE_MODE_KEY = stringPreferencesKey("settings.languageMode")
 internal val AUDIO_FOCUS_MODE_KEY = stringPreferencesKey("settings.audioFocusMode")
@@ -652,6 +695,8 @@ internal val GENRE_SEPARATORS_KEY = stringPreferencesKey("settings.metadata.genr
 internal val GENRE_PROTECTED_NAMES_KEY = stringPreferencesKey("settings.metadata.genreProtectedNames")
 internal val TAG_IGNORE_CASE_KEY = booleanPreferencesKey("settings.metadata.ignoreTagCase")
 internal val AUDIO_EFFECTS_ENABLED_KEY = booleanPreferencesKey("settings.audioEffects.enabled")
+internal val AUDIO_EFFECTS_CONFIG_JSON_KEY =
+    stringPreferencesKey("settings.audioEffects.configJson")
 internal val EQ_BAND_GAINS_DB_KEY = stringPreferencesKey("settings.audioEffects.eqBandGainsDb")
 internal val EQ_Q_HUNDREDTHS_KEY = intPreferencesKey("settings.audioEffects.eqQHundredths")
 internal val BASS_DB_KEY = intPreferencesKey("settings.audioEffects.bassDb")
@@ -712,6 +757,9 @@ internal val WEB_DAV_ROOT_PATHS_KEY = stringPreferencesKey("settings.webDavRootP
 
 private val SETTINGS_KEYS = setOf(
     THEME_MODE_KEY,
+    ARTWORK_THEME_ENABLED_KEY,
+    MANUAL_THEME_SEED_ARGB_KEY,
+    CUSTOM_THEME_SEED_ARGB_VALUES_KEY,
     DYNAMIC_COLOR_ENABLED_KEY,
     LANGUAGE_MODE_KEY,
     AUDIO_FOCUS_MODE_KEY,
@@ -763,6 +811,7 @@ private val SETTINGS_KEYS = setOf(
     GENRE_PROTECTED_NAMES_KEY,
     TAG_IGNORE_CASE_KEY,
     AUDIO_EFFECTS_ENABLED_KEY,
+    AUDIO_EFFECTS_CONFIG_JSON_KEY,
     EQ_BAND_GAINS_DB_KEY,
     EQ_Q_HUNDREDTHS_KEY,
     BASS_DB_KEY,
@@ -812,3 +861,13 @@ private val SETTINGS_KEYS = setOf(
     WEB_DAV_ENABLED_KEY,
     WEB_DAV_SCAN_SUBDIRECTORIES_KEY,
 )
+
+private val AUDIO_EFFECTS_JSON = Json {
+    ignoreUnknownKeys = true
+    encodeDefaults = true
+}
+
+private fun decodeAudioEffectSettings(value: String): AudioEffectSettings? =
+    runCatching {
+        AUDIO_EFFECTS_JSON.decodeFromString<AudioEffectSettings>(value)
+    }.getOrNull()

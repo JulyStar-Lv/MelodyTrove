@@ -1,5 +1,6 @@
 package io.github.julystar.musicapp.singleton
 
+import io.github.julystar.musicapp.core.audio.toNativeDspConfiguration
 import io.github.julystar.musicapp.core.domain.model.AudioEffectSettings
 import io.github.julystar.musicapp.core.domain.model.PlaybackAdvancedSettings
 import io.github.julystar.musicapp.service.playback.domain.PlaybackEngine
@@ -10,6 +11,7 @@ import io.github.julystar.musicapp.service.playback.domain.PlaybackEngineUnsuppo
 import io.github.julystar.musicapp.service.playback.domain.PlaybackPosition
 import uniffi.app_backend.DesktopRodioLoadResult
 import uniffi.app_backend.DesktopRodioPlayer
+import uniffi.app_backend.DspConfiguration
 import uniffi.app_backend.ctCreateDesktopRodioPlayer
 
 interface DesktopPlaybackEngine : PlaybackEngine {
@@ -49,18 +51,7 @@ class RodioDesktopPlaybackEngine internal constructor(
         replayGainDb: Float,
     ) {
         runtime.configureAudioProcessing(
-            enabled = effects.enabled,
-            eqBandGainsDb = effects.eqBandGainsDb.map(Int::toFloat),
-            eqQ = effects.eqQHundredths / 100f,
-            bassDb = effects.bassDb.toFloat(),
-            trebleDb = effects.trebleDb.toFloat(),
-            compressorEnabled = effects.compressorEnabled,
-            compressorThresholdDb = effects.compressorThresholdDb.toFloat(),
-            compressorRatio = effects.compressorRatio.toFloat(),
-            compressorMakeupDb = effects.compressorMakeupDb.toFloat(),
-            stereoWidth = effects.stereoWidthPercent / 100f,
-            reverbPreset = effects.reverbPreset.ordinal.toUByte(),
-            replayGainDb = replayGainDb,
+            config = effects.toNativeDspConfiguration(inputGainDb = replayGainDb),
             crossfadeDurationMs = playback.crossfadeDurationMs.toULong(),
         )
     }
@@ -118,18 +109,7 @@ internal interface DesktopRodioRuntime {
     fun bufferedPositionMs(): Long
     fun durationMs(): Long
     fun configureAudioProcessing(
-        enabled: Boolean,
-        eqBandGainsDb: List<Float>,
-        eqQ: Float,
-        bassDb: Float,
-        trebleDb: Float,
-        compressorEnabled: Boolean,
-        compressorThresholdDb: Float,
-        compressorRatio: Float,
-        compressorMakeupDb: Float,
-        stereoWidth: Float,
-        reverbPreset: UByte,
-        replayGainDb: Float,
+        config: DspConfiguration,
         crossfadeDurationMs: ULong,
     ) = Unit
 }
@@ -167,33 +147,11 @@ private class UniffiDesktopRodioRuntime(
     override fun durationMs(): Long = player.durationMs()
 
     override fun configureAudioProcessing(
-        enabled: Boolean,
-        eqBandGainsDb: List<Float>,
-        eqQ: Float,
-        bassDb: Float,
-        trebleDb: Float,
-        compressorEnabled: Boolean,
-        compressorThresholdDb: Float,
-        compressorRatio: Float,
-        compressorMakeupDb: Float,
-        stereoWidth: Float,
-        reverbPreset: UByte,
-        replayGainDb: Float,
+        config: DspConfiguration,
         crossfadeDurationMs: ULong,
     ) {
-        player.configureAudioProcessing(
-            enabled = enabled,
-            eqBandGainsDb = eqBandGainsDb,
-            eqQ = eqQ,
-            bassDb = bassDb,
-            trebleDb = trebleDb,
-            compressorEnabled = compressorEnabled,
-            compressorThresholdDb = compressorThresholdDb,
-            compressorRatio = compressorRatio,
-            compressorMakeupDb = compressorMakeupDb,
-            stereoWidth = stereoWidth,
-            reverbPreset = reverbPreset,
-            replayGainDb = replayGainDb,
+        player.configureDsp(
+            config = config,
             crossfadeDurationMs = crossfadeDurationMs,
         )
     }

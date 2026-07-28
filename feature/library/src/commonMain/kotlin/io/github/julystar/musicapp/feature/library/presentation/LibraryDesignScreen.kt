@@ -169,6 +169,7 @@ fun LibraryDesignScreen(
                         onArtistLetterChange = { activeArtistLetter = it },
                         compact = false,
                         pagePadding = pagePadding,
+                        bottomContentInset = bottomContentInset,
                     )
                 }
             }
@@ -410,6 +411,7 @@ private fun LibraryContent(
     onArtistLetterChange: (String?) -> Unit,
     compact: Boolean,
     pagePadding: Dp,
+    bottomContentInset: Dp,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
         val listState = rememberLazyListState()
@@ -432,7 +434,10 @@ private fun LibraryContent(
                 .fillMaxSize()
                 .widthIn(max = 800.dp)
                 .padding(horizontal = pagePadding),
-            contentPadding = PaddingValues(top = 8.dp, bottom = 28.dp),
+            contentPadding = PaddingValues(
+                top = 8.dp,
+                bottom = 28.dp + bottomContentInset,
+            ),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             if (!compact) {

@@ -1,5 +1,57 @@
 # Design QA
 
+## Artwork and manual theme colors — 2026-07-28
+
+- Source: repository-maintained Figma Make export plus
+  `Design/docs/MelodyTrove-PDS-v3.md`.
+- Maintained source: `Design/src/app/ThemeColorDesign.tsx`, integrated into
+  Appearance and Design System → Theme Colors.
+- Prototype build: passed with Vite 6.3.5.
+- Responsive render checks: Compact `390 × 844`, Medium `840 × 900`, Expanded
+  `1440 × 900`.
+- Exports:
+  `Design/exports/theme-color/design-compact-theme-colors.png`,
+  `design-compact-theme-picker.png`, `design-medium-theme-colors.png`,
+  `design-medium-theme-picker.png`, `design-expanded-theme-colors.png`, and
+  `design-expanded-theme-picker.png`.
+- State coverage: artwork available/loading/missing/failed/off, picker
+  initial/dragging/invalid/duplicate/limit/empty/delete/cancel/applied, and Swatch
+  default/hover/pressed/focus/selected/removable/built-in/disabled.
+- Contrast boards: Brand Pink, Yellow, and Blue in generated light/dark previews.
+- Interaction: artwork switch, picker open/close, preset selection, HSV pointer
+  surface, Hue slider, custom-color deletion, and palette actions are exposed as
+  semantic controls.
+- Validation: invalid `GG0000` Hex rendered the icon/message and disabled Apply.
+- Responsive result: Compact uses a scrollable one-column dialog with vertical
+  actions; Medium/Expanded use a bounded two-column dialog and horizontal
+  actions.
+- Desktop runtime comparison: the current Compose application was exercised in
+  an isolated temporary bundle/user home at `1018 × 683`. Appearance, picker,
+  invalid Hex, Yellow light/dark, artwork-off, Apply, and Cancel behavior matched
+  the maintained design source.
+- Desktop runtime exports:
+  `actual-desktop-expanded-appearance-dark.png`,
+  `actual-desktop-expanded-picker-dark.png`,
+  `actual-desktop-picker-invalid-hex.png`,
+  `actual-desktop-yellow-dark.png`, `actual-desktop-yellow-light.png`, and
+  `actual-desktop-expanded-appearance-artwork-off.png` in
+  `Design/exports/theme-color/`.
+- Android build: `:androidApp:assembleDebug` passed. A connected Android 13
+  device rejected USB installation with `INSTALL_FAILED_USER_RESTRICTED`, so no
+  Android screenshot was fabricated.
+- iOS runtime: unverified because no simulator was booted and Xcode 26.4 fails
+  the current project cinterop before installation.
+- Legacy cleanup: no system-wallpaper, Android 12+, device-support, or
+  user-visible Monet control remains on the redesigned Appearance surface.
+- External Figma: not modified. The target URL opened but did not expose an
+  editable document in this environment. Manual node/copy/token instructions are
+  in `Design/docs/figma-theme-color-sync-checklist.md`.
+- Full design-to-Compose and platform audit:
+  `docs/design/theme-color-implementation.md`.
+
+Final design-source result: passed; Desktop runtime passed; Android/iOS runtime
+evidence remains explicitly unverified.
+
 - Source: Figma Make, `Design System for MelodyTrove`, Version 31.
 - Mobile: Home layout, Daily Picks, Recently Played, Continue Playing, mini player, and bottom navigation visually checked against the source design; mini player and bottom navigation verified in both light and dark themes.
 - Desktop: sidebar, responsive content layout, and bottom player visually checked at 1440 × 900; the removed App Cover page and removed top toolbar do not reappear.
@@ -28,6 +80,43 @@ Final result: passed
 - Add source flow: `audits/add-source/mobile-form.png`, `audits/add-source/mobile-added.png`, and `audits/add-source/desktop-form.png` verify responsive WebDAV configuration, required-field errors, anonymous mode, password visibility, connection testing, disabled-before-test submission, and immediate list/summary updates after adding.
 - WebDAV management: `audits/manage-webdav/mobile-editor.png`, `audits/manage-webdav/mobile-directories.png`, `audits/manage-webdav/mobile-delete-confirm.png`, and `audits/manage-webdav/desktop-editor.png` verify the clickable WebDAV management entry, editable connection details, connection retesting, selectable import directories, immediate source-summary updates, and guarded deletion. Local Storage remains read-only.
 - Runtime: production build passes, the browser error log is empty, and the menu opens and closes without leaving an overlay behind.
+
+Final result: passed
+
+## Library & sources repository-aligned refinement — 2026-07-28
+
+- Product grounding: aligned the prototype with
+  `SourceSettingsSection`, `SettingsUiState`, `SettingsAction`, and the
+  repository defaults in `SettingsModels.kt`.
+- Information architecture: reordered the page into library health, source
+  accounts, scan status, automatic scanning, import rules, advanced rules, and
+  maintenance.
+- Source state: Local, WebDAV, and SMB now expose enabled/paused state, indexed
+  track counts, last-scan status, add actions, and remote-source management.
+- Add-source architecture: replaced separate Local, WebDAV, and SMB actions with
+  one Add source entry. Its catalog groups the repository-backed types into Local
+  storage, Network storage, Cloud storage, and Media servers, covering Local
+  directory, WebDAV, SMB, OneDrive, Navidrome, OpenSubsonic, and Emby.
+- SMB fidelity: added the repository-backed SMB2/3 flow with server, port, share,
+  root folder, guest access, credentials, domain, signing, encryption, connection
+  testing, editing, and guarded deletion. SMB1 is explicitly excluded.
+- Scan state: Scan now exposes an in-progress state, progress feedback,
+  cancellation, and a completed-without-failures state.
+- Settings fidelity: added background scanning, unmetered-network preference,
+  minimum duration, missing-file policy, duplicate policy, supported formats,
+  ignored directories, and metadata parsing. Advanced rules remain collapsed
+  until requested.
+- Data fidelity: the supported-format and ignored-directory summaries match
+  `SUPPORTED_AUDIO_EXTENSIONS` and `DEFAULT_IGNORED_SOURCE_DIRECTORIES`;
+  fabricated missing-artwork and missing-lyrics counts were removed.
+- Responsive verification: visually checked at the default desktop viewport and
+  at `390 × 844`; the mini player and navigation remain clear of all content.
+- Interaction verification: source enable/disable, Scan now, scan completion,
+  advanced-rule disclosure, the unified source catalog, WebDAV/SMB routing,
+  OneDrive flow guidance, SMB required-field validation, connection testing,
+  add/edit flows, and guarded deletion were exercised. The browser error log is
+  empty.
+- Runtime: Vite 6.3.5 production build and `git diff --check` pass.
 
 Final result: passed
 

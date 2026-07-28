@@ -9,7 +9,7 @@ fun AboutSettingsSection(
     appVersion: String,
     appBuildInfo: String,
     gitCommitSha: String,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     onOpenLicenses: () -> Unit,
     onOpenRepository: () -> Unit,
     onOpenIssues: () -> Unit,
@@ -59,7 +59,7 @@ fun AboutSettingsSection(
 }
 
 @Composable
-fun LicensesSettingsScreen(onBack: () -> Unit) {
+fun LicensesSettingsScreen(onBack: (() -> Unit)?) {
     SettingsPageLayout(title = stringResource(Res.string.settings_licenses_title), onBack = onBack) {
         SettingsSection(title = stringResource(Res.string.settings_licenses_title)) {
             SettingsInfoRow(

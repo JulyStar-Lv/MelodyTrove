@@ -29,7 +29,9 @@ class DataStoreSettingsRepositoryTest {
         assertEquals(AppSettings.Default, repository.settingsValue())
 
         repository.setThemeMode(AppThemeMode.Light)
-        repository.setDynamicColorEnabled(false)
+        repository.setArtworkThemeEnabled(false)
+        repository.setManualThemeSeedArgb(0xFF3D9AFFL)
+        repository.setCustomThemeSeedArgbValues(listOf(0xFF3D9AFFL, 0xFFFFD93DL))
         repository.setLanguageMode(AppLanguageMode.English)
         repository.setAudioFocusMode(AudioFocusMode.Duck)
         repository.setPauseOnDisconnect(false)
@@ -66,7 +68,9 @@ class DataStoreSettingsRepositoryTest {
 
         val settings = DataStoreSettingsRepository(dataStore).settingsValue()
         assertEquals(AppThemeMode.Light, settings.themeMode)
-        assertFalse(settings.dynamicColorEnabled)
+        assertFalse(settings.artworkThemeEnabled)
+        assertEquals(0xFF3D9AFFL, settings.manualThemeSeedArgb)
+        assertEquals(listOf(0xFF3D9AFFL, 0xFFFFD93DL), settings.customThemeSeedArgbValues)
         assertEquals(AppLanguageMode.English, settings.languageMode)
         assertEquals(AudioFocusMode.Duck, settings.audioFocusMode)
         assertFalse(settings.pauseOnDisconnect)
@@ -122,6 +126,25 @@ class DataStoreSettingsRepositoryTest {
         val second = repository.settingsValue()
         assertEquals(AudioFocusMode.Pause, second.audioFocusMode)
         assertEquals(30_000L, second.minimumAudioDurationMs)
+    }
+
+    @Test
+    fun migratesLegacyDynamicColorAndNormalizesThemeSeeds() = withRepository { dataStore, repository ->
+        dataStore.edit { preferences ->
+            preferences[DYNAMIC_COLOR_ENABLED_KEY] = false
+            preferences[MANUAL_THEME_SEED_ARGB_KEY] = 0x003D9AFFL
+            preferences[CUSTOM_THEME_SEED_ARGB_VALUES_KEY] =
+                "FF3D9AFF,003D9AFF,FFFFD93D,invalid"
+        }
+
+        val migrated = repository.settingsValue()
+
+        assertFalse(migrated.artworkThemeEnabled)
+        assertEquals(0xFF3D9AFFL, migrated.manualThemeSeedArgb)
+        assertEquals(
+            listOf(0xFF3D9AFFL, 0xFFFFD93DL),
+            migrated.customThemeSeedArgbValues,
+        )
     }
 
     @Test

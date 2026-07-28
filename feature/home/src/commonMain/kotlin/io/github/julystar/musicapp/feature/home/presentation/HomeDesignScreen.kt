@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.sp
 import io.github.julystar.musicapp.core.presentation.components.DesignPageHeader
 import io.github.julystar.musicapp.core.presentation.components.DesignGlassScene
 import io.github.julystar.musicapp.core.presentation.components.DesignStickyGlassActionBar
+import io.github.julystar.musicapp.core.presentation.components.LocalDesignBottomContentInset
 import io.github.julystar.musicapp.core.presentation.components.designLiquidGlass
 import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
@@ -129,6 +130,7 @@ fun HomeDesignScreen(
     val dailyPicksTrackTitle = currentMiniPlayerTitle
         ?: fallbackTrack?.title
         ?: stringResource(Res.string.home_no_track)
+    val bottomContentInset = LocalDesignBottomContentInset.current
     DesignGlassScene(modifier = Modifier.fillMaxSize()) {
         BoxWithConstraints(
             modifier = Modifier
@@ -167,7 +169,10 @@ fun HomeDesignScreen(
                     start = pagePadding,
                     top = 0.dp,
                     end = pagePadding,
-                    bottom = scaffoldPadding.calculateBottomPadding() + 28.dp,
+                    bottom = maxOf(
+                        scaffoldPadding.calculateBottomPadding(),
+                        bottomContentInset,
+                    ) + 28.dp,
                 ),
                 verticalArrangement = Arrangement.spacedBy(28.dp),
             ) {

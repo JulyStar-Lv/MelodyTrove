@@ -12,7 +12,9 @@ import io.github.julystar.musicapp.core.data.settings.RoomAppDataClearService
 import io.github.julystar.musicapp.core.data.settings.RoomSettingsMigration
 import io.github.julystar.musicapp.core.data.settings.RoomSourceSettingsRepository
 import io.github.julystar.musicapp.core.data.settings.JsonSettingsBackupService
+import io.github.julystar.musicapp.core.data.settings.RustAudioDspAnalysisRepository
 import io.github.julystar.musicapp.core.domain.model.SettingsCapabilities
+import io.github.julystar.musicapp.core.domain.repository.AudioDspAnalysisRepository
 import io.github.julystar.musicapp.core.domain.repository.DiagnosticsService
 import io.github.julystar.musicapp.core.domain.repository.DiagnosticsRepository
 import io.github.julystar.musicapp.core.domain.repository.AppDataClearService
@@ -75,6 +77,7 @@ val coreDataModule = module {
     single { createAppDataStore() }
     single { AppPreferencesRepository(get()) }
     single<SettingsRepository> { DataStoreSettingsRepository(get()) }
+    single<AudioDspAnalysisRepository> { RustAudioDspAnalysisRepository }
     single<SettingsBackupService>(createdAtStart = true) {
         JsonSettingsBackupService(get(), getAppDataDirectory(), get(), get())
     }

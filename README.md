@@ -7,7 +7,7 @@ MelodyTrove（旋律珍藏）is a self-hosted and local-first music player built
 > This project was formerly published as TideTunes. Existing installs and integrations are covered by the documented compatibility migration.
 
 > [!IMPORTANT]
-> MelodyTrove is under active development. The current app version is `0.3.0`; user-facing behavior, database migrations, and extension APIs may continue to evolve before a stable release.
+> MelodyTrove is under active development. Release versions follow Git tags, while development builds include the commit count and SHA; user-facing behavior, database migrations, and extension APIs may continue to evolve before a stable release.
 
 ## Highlights
 
@@ -16,6 +16,7 @@ MelodyTrove（旋律珍藏）is a self-hosted and local-first music player built
 - **Source-agnostic Room KMP library** for tracks, albums, artists, genres, artwork, lyrics, playlists, downloads, and sync state.
 - **Adaptive UI** with compact bottom navigation, medium navigation rail, and large-screen desktop sidebar layouts.
 - **Cross-platform playback abstraction** backed by Android Media3, iOS AVPlayer, and a Rust/rodio Desktop engine.
+- **One shared Rust software DSP** for Android Media3 PCM, iOS AVPlayer processing taps, and Desktop rodio, with live 10-band/parametric EQ and advanced effects.
 - **Offline downloads** through Android WorkManager, iOS background URLSession, and a Desktop coroutine scheduler.
 - **Selective remote metadata scanning** for WebDAV and SMB with Fast, Standard, and Full modes.
 - **JavaScript metadata plugins** compatible with Lyrico Plugin API v1-v3, executed in isolated QuickJS runtimes.
@@ -148,6 +149,9 @@ More detailed documents:
 - [Room KMP schema](./docs/database/schema.md)
 - [SMB music source](./docs/music-sources/smb.md)
 - [Plugin runtime](./docs/plugin-runtime.md)
+- [Shared DSP architecture](./docs/audio/dsp-architecture.md)
+- [DSP effects and parameters](./docs/audio/dsp-effects.md)
+- [DSP platform support and benchmarks](./docs/audio/dsp-platform-support.md)
 - [Test report](./docs/testing/test-report.md)
 
 ## Repository Structure
@@ -177,6 +181,7 @@ MelodyTrove/
 │   └── librarysync/data/        Sync persistence and coordination
 ├── feature/                     Home, library, search, settings, sources, playlists, etc.
 ├── rust-libs/
+│   ├── audio-dsp/               Platform-independent realtime DSP core
 │   ├── backend/                 UniFFI-facing backend facade
 │   ├── async-runtime/           Shared Rust async runtime support
 │   ├── storage-backend/         Remote storage and scanning
@@ -255,6 +260,11 @@ Clone the repository:
 git clone https://github.com/JulyStar-Lv/MelodyTrove.git
 cd MelodyTrove
 ```
+
+Development builds resolve to `appVersionBase-dev.<commit-count>+<short-sha>`.
+Tags named `vX.Y.Z` or `pre-vX.Y.Z-beta.N` become the release version. For
+reproducible external builds, set `APP_VERSION_NAME` and `APP_VERSION_CODE`
+explicitly; `./gradlew printAppVersion` prints the resolved values.
 
 ### Android
 

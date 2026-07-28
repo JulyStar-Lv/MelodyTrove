@@ -28,6 +28,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -63,6 +64,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 fun SettingsScreen(
     state: SettingsUiState,
     appVersion: String,
+    selectedPage: SettingsPage? = null,
     onNavigateToAppearance: () -> Unit,
     onNavigateToPlayback: () -> Unit,
     onNavigateToLyrics: () -> Unit,
@@ -146,6 +148,7 @@ fun SettingsScreen(
                         summary = stringResource(Res.string.settings_appearance_card_summary),
                         icon = CoreRes.drawable.icon_image,
                         onClick = onNavigateToAppearance,
+                        selected = selectedPage == SettingsPage.Appearance,
                         showDivider = showLyrics,
                     )
                 }
@@ -155,6 +158,7 @@ fun SettingsScreen(
                         summary = stringResource(Res.string.settings_lyrics_card_summary),
                         icon = CoreRes.drawable.icon_lyrics,
                         onClick = onNavigateToLyrics,
+                        selected = selectedPage == SettingsPage.Lyrics,
                         showDivider = false,
                     )
                 }
@@ -169,6 +173,7 @@ fun SettingsScreen(
                     summary = stringResource(Res.string.settings_playback_card_summary),
                     icon = CoreRes.drawable.icon_play,
                     onClick = onNavigateToPlayback,
+                    selected = selectedPage == SettingsPage.Playback,
                     showDivider = false,
                 )
             }
@@ -193,6 +198,7 @@ fun SettingsScreen(
                         ),
                         icon = CoreRes.drawable.icon_cloud,
                         onClick = onNavigateToSource,
+                        selected = selectedPage == SettingsPage.Source,
                         showDivider = showPlugins || showNetworkCache || showStorage,
                     )
                 }
@@ -211,6 +217,7 @@ fun SettingsScreen(
                         summary = stringResource(Res.string.settings_network_cache_card_summary),
                         icon = CoreRes.drawable.icon_wifitethering,
                         onClick = onNavigateToNetworkCache,
+                        selected = selectedPage == SettingsPage.NetworkCache,
                         showDivider = showStorage,
                     )
                 }
@@ -223,6 +230,7 @@ fun SettingsScreen(
                         ),
                         icon = CoreRes.drawable.icon_album,
                         onClick = onNavigateToStorage,
+                        selected = selectedPage == SettingsPage.Storage,
                         showDivider = false,
                     )
                 }
@@ -251,6 +259,7 @@ fun SettingsScreen(
                         summary = stringResource(Res.string.diagnostics_card_summary),
                         icon = CoreRes.drawable.icon_setting,
                         onClick = onNavigateToDiagnostics,
+                        selected = selectedPage == SettingsPage.Diagnostics,
                     )
                 }
                 SettingsNavRow(
@@ -261,6 +270,8 @@ fun SettingsScreen(
                     ),
                     icon = CoreRes.drawable.icon_music_note,
                     onClick = onNavigateToAbout,
+                    selected = selectedPage == SettingsPage.About ||
+                        selectedPage == SettingsPage.Licenses,
                     showDivider = false,
                 )
             }
@@ -351,12 +362,23 @@ private fun SettingsNavRow(
     summary: String,
     icon: DrawableResource,
     onClick: () -> Unit,
+    selected: Boolean = false,
     showDivider: Boolean = true,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .background(
+                if (selected) {
+                    MiuixTheme.colorScheme.primary.copy(alpha = 0.08f)
+                } else {
+                    Color.Transparent
+                },
+            )
+            .clickable(
+                enabled = !selected,
+                onClick = onClick,
+            )
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -372,7 +394,11 @@ private fun SettingsNavRow(
             Icon(
                 painter = painterResource(icon),
                 contentDescription = null,
-                tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                tint = if (selected) {
+                    MiuixTheme.colorScheme.primary
+                } else {
+                    MiuixTheme.colorScheme.onSurfaceVariantSummary
+                },
                 modifier = Modifier.size(18.dp),
             )
         }
@@ -383,7 +409,11 @@ private fun SettingsNavRow(
         ) {
             Text(
                 text = title,
-                color = MiuixTheme.colorScheme.onSurface,
+                color = if (selected) {
+                    MiuixTheme.colorScheme.primary
+                } else {
+                    MiuixTheme.colorScheme.onSurface
+                },
                 style = MiuixTheme.textStyles.body1,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,

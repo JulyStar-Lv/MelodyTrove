@@ -1,4 +1,5 @@
 mod app;
+mod audio_dsp_bridge;
 mod desktop_dsp;
 mod desktop_rodio;
 mod music;

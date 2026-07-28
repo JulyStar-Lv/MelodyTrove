@@ -1,0 +1,17 @@
+[package]
+name = "audio-dsp"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0"
+publish = false
+description = "Platform-independent realtime audio DSP core for MelodyTrove"
+
+[dependencies]
+thiserror = { workspace = true }
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "pipeline"
+harness = false

@@ -1,10 +1,7 @@
 package io.github.julystar.musicapp.platform
 
-import platform.Foundation.NSBundle
-
 actual fun getAppVersion(): String {
-    return NSBundle.mainBundle.objectForInfoDictionaryKey("CFBundleShortVersionString") as? String
-        ?: "<unknown>"
+    return GeneratedBuildInfo.appVersionName
 }
 
 actual fun getAppBuildInfo(): String {

@@ -14,8 +14,8 @@ val keystorePropertiesFile = rootProject.file("androidApp/key.properties")
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
-val appVersionName = providers.gradleProperty("appVersionName").get()
-val appVersionCode = providers.gradleProperty("appVersionCode").map(String::toInt).get()
+val appVersionName = rootProject.extra["appVersionName"] as String
+val appVersionCode = rootProject.extra["appVersionCode"] as Int
 
 android {
     namespace = "io.github.julystar.musicapp"

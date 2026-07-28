@@ -9,7 +9,7 @@ import musicapp.feature.settings.generated.resources.*
 @Composable
 fun NetworkCacheSettingsSection(
     state: SettingsUiState,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     onAction: (SettingsAction) -> Unit,
 ) {
     val settings = state.settings

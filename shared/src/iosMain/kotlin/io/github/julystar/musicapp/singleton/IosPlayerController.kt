@@ -13,6 +13,8 @@ import io.github.julystar.musicapp.service.playback.data.PlaybackPreparationResu
 import io.github.julystar.musicapp.service.playback.data.preparePlayback
 import io.github.julystar.musicapp.core.domain.repository.NetworkStatusProvider
 import io.github.julystar.musicapp.core.domain.repository.SettingsRepository
+import io.github.julystar.musicapp.core.domain.model.AppSettings
+import io.github.julystar.musicapp.core.domain.model.ReplayGainMode
 import io.github.julystar.musicapp.source.api.PlaybackResource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -25,12 +27,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import uniffi.app_backend.MusicId
 import uniffi.app_backend.Playlist
 import uniffi.app_backend.PlaylistId
 import io.github.julystar.musicapp.core.domain.model.DiagnosticLogCategory
 import io.github.julystar.musicapp.diagnostics.AppLogger
 import kotlin.math.max
+import kotlin.math.log10
+import kotlin.math.min
 
 class IosPlayerController internal constructor(
     private val playerRepository: PlayerRepository,
@@ -52,6 +57,7 @@ class IosPlayerController internal constructor(
     private var pendingNetworkRecovery: Pair<MusicId, PlaylistId>? = null
     private var pendingSeekPositionMs: Long? = null
     private var seekGeneration = 0L
+    private var currentSettings = AppSettings.Default
 
     override val sleepState = sleep.asStateFlow()
 
@@ -82,6 +88,14 @@ class IosPlayerController internal constructor(
     init {
         scope.launch {
             playerRepository.pauseRequest.collect { pause() }
+        }
+        settingsRepository?.let { repository ->
+            scope.launch {
+                repository.settings.collect { settings ->
+                    currentSettings = settings
+                    updateAudioDsp(settings)
+                }
+            }
         }
         scope.launch {
             playbackEngine.playbackCompleted.collect {
@@ -193,6 +207,7 @@ class IosPlayerController internal constructor(
                 }
 
                 playerRepository.setCurrent(music, playlist)
+                updateAudioDsp(currentSettings, music.meta.id.value)
                 playbackEngine.play()
                 playerRepository.setIsPlaying(true)
                 playerRepository.notifyDurationChanged()
@@ -295,6 +310,38 @@ class IosPlayerController internal constructor(
         val resource = playbackResource ?: return
         playbackResource = null
         playbackResourceResolver.release(resource)
+    }
+
+    private suspend fun updateAudioDsp(
+        settings: AppSettings,
+        trackId: Long? = playerRepository.music.value?.meta?.id?.value,
+    ) {
+        val replayGainDb = if (
+            trackId == null ||
+            settings.playbackAdvanced.replayGainMode == ReplayGainMode.Off
+        ) {
+            0f
+        } else {
+            val replayGain = withContext(Dispatchers.Default) {
+                roomLibraryStore.getTrackReplayGain(trackId)
+            }
+            val (metadataGain, peak) = when (settings.playbackAdvanced.replayGainMode) {
+                ReplayGainMode.Off -> null to null
+                ReplayGainMode.Track -> replayGain?.trackGainDb to replayGain?.trackPeak
+                ReplayGainMode.Album -> replayGain?.albumGainDb to replayGain?.albumPeak
+                ReplayGainMode.Auto -> {
+                    (replayGain?.trackGainDb ?: replayGain?.albumGainDb) to
+                        (replayGain?.trackPeak ?: replayGain?.albumPeak)
+                }
+            }
+            var gain = (metadataGain ?: 0.0) +
+                settings.playbackAdvanced.replayGainPreampTenthsDb / 10.0
+            if (peak != null && peak > 0.0) {
+                gain = min(gain, -20.0 * log10(peak))
+            }
+            gain.toFloat()
+        }
+        playbackEngine.updateAudioDsp(settings.audioEffects, replayGainDb)
     }
 
     private fun releasePlaybackResourceAsync() {

@@ -24,6 +24,8 @@ import io.github.julystar.musicapp.core.domain.model.storageSourceAccountId
 import io.github.julystar.musicapp.core.domain.model.toStorageRouteIdOrNull
 import io.github.julystar.musicapp.core.domain.repository.DiagnosticsService
 import io.github.julystar.musicapp.core.domain.repository.AppDataClearService
+import io.github.julystar.musicapp.core.domain.repository.AudioDspAnalysisRepository
+import io.github.julystar.musicapp.core.domain.repository.AudioDspFrequencyResponse
 import io.github.julystar.musicapp.core.domain.repository.LibraryMaintenanceService
 import io.github.julystar.musicapp.core.domain.repository.SettingsRepository
 import io.github.julystar.musicapp.core.domain.repository.SettingsBackupService
@@ -53,6 +55,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -72,6 +75,7 @@ class SettingsVM(
     private val importRepository: ImportRepository,
     private val librarySyncController: LibrarySyncController,
     private val metadataRefreshController: MetadataRefreshController,
+    private val audioDspAnalysisRepository: AudioDspAnalysisRepository,
     private val capabilities: SettingsCapabilities,
     private val textProvider: SettingsTextProvider,
     private val backupService: SettingsBackupService? = null,
@@ -88,6 +92,22 @@ class SettingsVM(
     private val webDavConnectionTestMessage = MutableStateFlow<String?>(null)
     private val failureDialogTaskId = MutableStateFlow<String?>(null)
     private val events = Channel<SettingsEvent>(Channel.BUFFERED)
+
+    private val audioDspFrequencyResponse = settingsRepository.settings
+        .map { settings ->
+            if (!capabilities.audioDsp.anySoftwareDsp) {
+                AudioDspFrequencyResponse.Empty
+            } else {
+                runCatching {
+                    audioDspAnalysisRepository.calculateFrequencyResponse(settings.audioEffects)
+                }.getOrDefault(AudioDspFrequencyResponse.Empty)
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = AudioDspFrequencyResponse.Empty,
+        )
 
     val eventFlow = events.receiveAsFlow()
 
@@ -122,6 +142,7 @@ class SettingsVM(
         webDavConnectionTestMessage,
         failureDialogTaskId,
         failureDetails,
+        audioDspFrequencyResponse,
     ) { values ->
         val settings = values[0] as AppSettings
         val localDirectories = values[6] as List<LocalMusicDirectory>
@@ -154,6 +175,7 @@ class SettingsVM(
             webDavConnectionTestMessage = values[14] as String?,
             failureDialogTaskId = values[15] as String?,
             failureDetails = values[16] as List<LibrarySyncFailure>,
+            audioDspFrequencyResponse = values[17] as AudioDspFrequencyResponse,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -169,10 +191,14 @@ class SettingsVM(
     fun onAction(action: SettingsAction) {
         when (action) {
             is SettingsAction.SetThemeMode -> updateSetting { settingsRepository.setThemeMode(action.mode) }
-            is SettingsAction.SetDynamicColorEnabled -> updateSetting {
-                if (capabilities.dynamicColorSupported || !action.enabled) {
-                    settingsRepository.setDynamicColorEnabled(action.enabled)
-                }
+            is SettingsAction.SetArtworkThemeEnabled -> updateSetting {
+                settingsRepository.setArtworkThemeEnabled(action.enabled)
+            }
+            is SettingsAction.SetManualThemeSeedArgb -> updateSetting {
+                settingsRepository.setManualThemeSeedArgb(action.argb)
+            }
+            is SettingsAction.SetCustomThemeSeedArgbValues -> updateSetting {
+                settingsRepository.setCustomThemeSeedArgbValues(action.argbValues)
             }
             is SettingsAction.SetLanguageMode -> updateSetting {
                 settingsRepository.setLanguageMode(action.mode)

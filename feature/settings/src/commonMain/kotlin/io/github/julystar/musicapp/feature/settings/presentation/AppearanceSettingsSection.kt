@@ -1,20 +1,43 @@
 package io.github.julystar.musicapp.feature.settings.presentation
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import io.github.julystar.musicapp.core.domain.model.AppLanguageMode
 import io.github.julystar.musicapp.core.domain.model.AppThemeMode
+import io.github.julystar.musicapp.core.presentation.components.DesignPreferenceRow
+import io.github.julystar.musicapp.core.presentation.theme.ArtworkThemeSeedStatus
+import io.github.julystar.musicapp.core.presentation.theme.LocalThemeSeedState
+import io.github.julystar.musicapp.core.presentation.theme.canSelectManualThemeColor
 import org.jetbrains.compose.resources.stringResource
 import musicapp.feature.settings.generated.resources.*
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun AppearanceSettingsSection(
     state: SettingsUiState,
-    onBack: () -> Unit,
+    onBack: (() -> Unit)?,
     onAction: (SettingsAction) -> Unit,
 ) {
     val settings = state.settings
-    val dynamicColorSupported = state.capabilities.dynamicColorSupported
-    val effectiveDynamicColor = settings.dynamicColorEnabled && dynamicColorSupported
+    val themeSeedState = LocalThemeSeedState.current
+    var colorPickerOpen by remember { mutableStateOf(false) }
+    val manualThemeColorEnabled = canSelectManualThemeColor(settings.artworkThemeEnabled)
+    LaunchedEffect(manualThemeColorEnabled) {
+        if (!manualThemeColorEnabled) colorPickerOpen = false
+    }
 
     SettingsPageLayout(title = stringResource(Res.string.settings_appearance_title), onBack = onBack) {
         SettingsSection(title = stringResource(Res.string.settings_theme_section)) {
@@ -29,20 +52,51 @@ fun AppearanceSettingsSection(
         }
 
         SettingsSection(title = stringResource(Res.string.settings_color_section)) {
-            if (dynamicColorSupported) {
-                SettingsSwitchRow(
-                    title = stringResource(Res.string.settings_dynamic_color),
-                    summary = stringResource(Res.string.settings_dynamic_color_summary),
-                    checked = effectiveDynamicColor,
-                    onCheckedChange = { onAction(SettingsAction.SetDynamicColorEnabled(it)) },
-                )
-            }
-            SettingsInfoRow(
-                title = stringResource(Res.string.settings_default_color),
-                value = if (dynamicColorSupported) {
-                    stringResource(Res.string.settings_default_color_summary)
+            SettingsSwitchRow(
+                title = stringResource(Res.string.settings_artwork_color),
+                summary = stringResource(Res.string.settings_artwork_color_summary),
+                checked = settings.artworkThemeEnabled,
+                onCheckedChange = { onAction(SettingsAction.SetArtworkThemeEnabled(it)) },
+            )
+            DesignPreferenceRow(
+                title = stringResource(Res.string.settings_theme_color),
+                summary = if (settings.artworkThemeEnabled) {
+                    val artworkSummary = when (themeSeedState.artworkStatus) {
+                        ArtworkThemeSeedStatus.Available ->
+                            stringResource(Res.string.settings_theme_color_artwork_active)
+                        ArtworkThemeSeedStatus.Loading ->
+                            stringResource(Res.string.settings_theme_color_artwork_loading)
+                        ArtworkThemeSeedStatus.Failed ->
+                            stringResource(Res.string.settings_theme_color_artwork_failed)
+                        ArtworkThemeSeedStatus.Missing ->
+                            stringResource(Res.string.settings_theme_color_artwork_missing)
+                        else -> stringResource(
+                            Res.string.settings_theme_color_current,
+                            formatThemeSeedHex(settings.manualThemeSeedArgb),
+                        )
+                    }
+                    "$artworkSummary · ${
+                        stringResource(Res.string.settings_theme_color_edit_after_artwork_off)
+                    }"
                 } else {
-                    stringResource(Res.string.settings_dynamic_color_unavailable)
+                    stringResource(
+                        Res.string.settings_theme_color_current,
+                        formatThemeSeedHex(settings.manualThemeSeedArgb),
+                    )
+                },
+                enabled = manualThemeColorEnabled,
+                onClick = {
+                    if (manualThemeColorEnabled) colorPickerOpen = true
+                },
+                showDivider = false,
+                trailing = {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(Color(settings.manualThemeSeedArgb.toInt()))
+                            .border(1.dp, MiuixTheme.colorScheme.outline, CircleShape),
+                    )
                 },
             )
         }
@@ -58,6 +112,20 @@ fun AppearanceSettingsSection(
             )
         }
     }
+
+    ThemeColorPickerDialog(
+        show = colorPickerOpen && manualThemeColorEnabled,
+        savedArgb = settings.manualThemeSeedArgb,
+        customArgbValues = settings.customThemeSeedArgbValues,
+        onApply = { argb ->
+            onAction(SettingsAction.SetManualThemeSeedArgb(argb))
+            colorPickerOpen = false
+        },
+        onCustomColorsChange = { values ->
+            onAction(SettingsAction.SetCustomThemeSeedArgbValues(values))
+        },
+        onDismiss = { colorPickerOpen = false },
+    )
 }
 
 private fun AppThemeMode.titleResource() = when (this) {

@@ -5,12 +5,14 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.window.Dialog
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -20,6 +22,8 @@ fun DesignDialog(
     show: Boolean,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    maxWidth: Dp = 520.dp,
+    maxHeight: Dp? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     if (!show) return
@@ -29,7 +33,8 @@ fun DesignDialog(
     Dialog(onDismissRequest = onDismiss) {
         Column(
             modifier = modifier
-                .widthIn(min = 280.dp, max = 520.dp)
+                .widthIn(min = 280.dp, max = maxWidth)
+                .then(maxHeight?.let { Modifier.heightIn(max = it) } ?: Modifier)
                 .clip(shape)
                 .background(MiuixTheme.colorScheme.surfaceContainer)
                 .border(1.dp, MiuixTheme.colorScheme.outline, shape)

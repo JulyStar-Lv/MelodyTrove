@@ -23,6 +23,8 @@ use runtime::DiagnosticsRuntime;
 static RUNTIME: OnceLock<Arc<DiagnosticsRuntime>> = OnceLock::new();
 static INITIALIZE_LOCK: Mutex<()> = Mutex::new(());
 static PANIC_HOOK: Once = Once::new();
+#[cfg(any(target_os = "android", test))]
+const ANDROID_TRACING_TAG: &str = "MelodyTrove";
 
 pub fn logs_dir(dir: &str) -> std::path::PathBuf {
     std::path::Path::new(dir).join("diagnostics/logs/sessions")
@@ -68,13 +70,11 @@ pub fn initialize_diagnostics_runtime(
     let runtime = DiagnosticsRuntime::start(init)?;
     let subscriber = tracing_subscriber::registry().with(runtime.log_store().layer());
     #[cfg(target_os = "android")]
-    let subscriber = subscriber.with(
-        tracing_android::layer("io.github.julystar.musicapp").map_err(|error| {
-            BError::CustomError {
-                message: format!("failed to initialize Android tracing layer: {error}"),
-            }
-        })?,
-    );
+    let subscriber = subscriber.with(tracing_android::layer(ANDROID_TRACING_TAG).map_err(
+        |error| BError::CustomError {
+            message: format!("failed to initialize Android tracing layer: {error}"),
+        },
+    )?);
     set_global_default(subscriber).map_err(|error| BError::CustomError {
         message: format!("failed to initialize diagnostics tracing subscriber: {error}"),
     })?;
@@ -316,4 +316,15 @@ fn runtime() -> BResult<Arc<DiagnosticsRuntime>> {
     RUNTIME.get().cloned().ok_or_else(|| BError::CustomError {
         message: "diagnostics runtime is not initialized".to_string(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ANDROID_TRACING_TAG;
+
+    #[test]
+    fn android_tracing_tag_meets_layer_constraints() {
+        assert!(!ANDROID_TRACING_TAG.contains('\0'));
+        assert!(ANDROID_TRACING_TAG.len() <= 23);
+    }
 }

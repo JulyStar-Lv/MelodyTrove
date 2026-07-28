@@ -20,6 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -86,6 +88,9 @@ fun DesignPreferenceRow(
         modifier = modifier
             .fillMaxWidth()
             .alpha(if (enabled) 1f else 0.45f)
+            .semantics {
+                if (!enabled) disabled()
+            }
             .then(
                 if (enabled && onClick != null) {
                     Modifier.clickable(onClick = onClick)
@@ -138,7 +143,7 @@ fun DesignPreferenceRow(
                     .fillMaxWidth()
                     .padding(start = if (leading != null) 66.dp else 16.dp)
                     .height(1.dp)
-                    .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.48f)),
+                    .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.05f)),
             )
         }
     }

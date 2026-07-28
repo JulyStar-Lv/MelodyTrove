@@ -59,10 +59,10 @@ xcodebuild -project iosApp/App.xcodeproj -scheme App \
   ARCHS=arm64 ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO build
 ```
 
-An additional macOS packaging check reaches `jpackage` but rejects the existing
-cross-platform version `0.3.0`: macOS package versions must start with a
-positive integer. The rename intentionally does not invent a new release
-version; choose the next `1.x` product version before producing the DMG.
+macOS package versions must start with a positive integer. The application
+version line now begins at `1.0.0`; development packages use the compatible
+numeric form `1.0.<build-number>` while the in-app version retains its
+development suffix and commit SHA.
 
 The final pull request records the exact command outcomes and any external
 operator actions that remain.

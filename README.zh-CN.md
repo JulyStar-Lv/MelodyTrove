@@ -7,7 +7,7 @@ MelodyTrove（旋律珍藏）是一款使用 Kotlin Multiplatform、Compose Mult
 > 本项目原名 TideTunes；已有安装与外部集成由迁移兼容层和兼容清单继续支持。
 
 > [!IMPORTANT]
-> MelodyTrove 仍在积极开发中。当前应用版本为 `0.3.0`；在稳定版本发布前，用户界面、数据库迁移和扩展 API 仍可能继续调整。
+> MelodyTrove 仍在积极开发中。发布版本跟随 Git 标签，开发版本会包含提交数和短 SHA；在稳定版本发布前，用户界面、数据库迁移和扩展 API 仍可能继续调整。
 
 ## 项目亮点
 
@@ -16,6 +16,7 @@ MelodyTrove（旋律珍藏）是一款使用 Kotlin Multiplatform、Compose Mult
 - 使用 **Room KMP 统一曲库** 管理曲目、专辑、艺术家、流派、封面、歌词、播放列表、下载和同步状态。
 - 提供 **自适应界面**：手机使用底部导航，中等窗口使用导航栏，大屏和桌面使用侧边栏布局。
 - 使用统一播放抽象，并分别接入 Android Media3、iOS AVPlayer 和 Desktop Rust/rodio 播放引擎。
+- Android Media3 PCM、iOS AVPlayer Processing Tap 和 Desktop rodio 使用**同一套 Rust 软件 DSP**，支持实时 10 段/参数均衡与高级音效。
 - 支持跨平台离线下载：Android WorkManager、iOS 后台 URLSession、Desktop 协程调度器。
 - WebDAV 和 SMB 支持 Fast、Standard、Full 三种可选元数据扫描模式。
 - 支持兼容 Lyrico Plugin API v1-v3 的 JavaScript 元数据插件，并在隔离的 QuickJS Runtime 中运行。
@@ -144,6 +145,9 @@ flowchart TD
 - [Room KMP 数据库结构](./docs/database/schema.md)
 - [SMB 音源](./docs/music-sources/smb.md)
 - [插件运行时](./docs/plugin-runtime.md)
+- [共享 DSP 架构](./docs/audio/dsp-architecture.md)
+- [DSP 效果与参数](./docs/audio/dsp-effects.md)
+- [DSP 平台支持与基准](./docs/audio/dsp-platform-support.md)
 - [测试报告](./docs/testing/test-report.md)
 
 ## 仓库结构
@@ -173,6 +177,7 @@ MelodyTrove/
 │   └── librarysync/data/        同步持久化与协调逻辑
 ├── feature/                     首页、曲库、搜索、设置、音源、播放列表等功能
 ├── rust-libs/
+│   ├── audio-dsp/               平台无关的实时 DSP 核心
 │   ├── backend/                 面向 UniFFI 的后端门面
 │   ├── async-runtime/           Rust 异步运行时支持
 │   ├── storage-backend/         远端存储和扫描
@@ -251,6 +256,11 @@ sudo apt-get install --yes libasound2-dev pkg-config
 git clone https://github.com/JulyStar-Lv/MelodyTrove.git
 cd MelodyTrove
 ```
+
+开发构建的版本格式为 `appVersionBase-dev.<提交数>+<短 SHA>`。
+`vX.Y.Z` 或 `pre-vX.Y.Z-beta.N` 标签会成为发布版本。外部构建可显式设置
+`APP_VERSION_NAME` 和 `APP_VERSION_CODE`；运行 `./gradlew printAppVersion`
+可以查看最终解析结果。
 
 ### Android
 

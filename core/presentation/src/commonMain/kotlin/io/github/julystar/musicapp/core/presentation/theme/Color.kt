@@ -13,6 +13,7 @@ import top.yukonga.miuix.kmp.theme.Colors
  */
 object DesignPalette {
     val Primary = Color(0xFFFF5B8A)
+    val DefaultManualThemeSeed = Primary
     val Secondary = Color(0xFF7A6CFF)
     val SupportBlue = Color(0xFF3D9AFF)
     val SupportOrange = Color(0xFFFF8A3D)
