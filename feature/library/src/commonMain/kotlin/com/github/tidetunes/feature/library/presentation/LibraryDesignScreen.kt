@@ -1092,7 +1092,8 @@ private fun LibraryAlbumGrid(
             maxWidth >= 500.dp -> 3
             else -> 2
         }
-        val gap = 16.dp
+        val itemPadding = TideTunesTokens.spacing.xxs
+        val gap = 16.dp - itemPadding * 2
         val width = (maxWidth - gap * (columns - 1)) / columns
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
@@ -1101,7 +1102,7 @@ private fun LibraryAlbumGrid(
             maxItemsInEachRow = columns,
         ) {
             albums.forEachIndexed { index, album ->
-                AlbumCard(album, index, width, onOpenAlbum)
+                AlbumCard(album, index, width, itemPadding, onOpenAlbum)
             }
         }
     }
@@ -1112,9 +1113,11 @@ private fun AlbumCard(
     album: LibraryAlbumCardItem,
     index: Int,
     width: Dp,
+    contentPadding: Dp,
     onOpenAlbum: (LibraryAlbumCardItem) -> Unit,
 ) {
     val artworkShape = RoundedCornerShape(14.dp)
+    val artworkSize = width - contentPadding * 2
     val metadata = listOfNotNull(
         album.artist?.takeIf(String::isNotBlank),
         album.year?.toString(),
@@ -1123,11 +1126,12 @@ private fun AlbumCard(
         modifier = Modifier
             .width(width)
             .clip(RoundedCornerShape(14.dp))
-            .clickable { onOpenAlbum(album) },
+            .clickable { onOpenAlbum(album) }
+            .padding(contentPadding),
     ) {
         Box(
             modifier = Modifier
-                .size(width)
+                .size(artworkSize)
                 .shadow(TideTunesTokens.elevation.card, artworkShape, clip = false)
                 .clip(artworkShape)
                 .background(libraryArtworkBrush(index)),

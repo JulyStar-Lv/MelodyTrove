@@ -1,9 +1,9 @@
 # TideTunes Room KMP Schema
 
-Date: 2026-07-27
+Date: 2026-07-28
 
 The shared Room database is `tidetunes.db`. Android, iOS, and Desktop use
-platform-specific builders with bundled SQLite. Schema versions 1 through 17 are
+platform-specific builders with bundled SQLite. Schema versions 1 through 19 are
 exported under
 `shared/schemas/com.github.tidetunes.database.TideTunesDatabase/`.
 
@@ -31,7 +31,7 @@ exported under
 | `library_root` | User-selected import roots and root-level sync state | Unique source-account/provider-root and source-account/path identities |
 | `source_item` | Provider inventory item identity and file facts | Unique source-account/provider-item and source-account/path identities; deletion and scan markers |
 | `source_item_property` | Extensible provider-specific item attributes | Key/value rows scoped to one source item |
-| `track_source_ref` | Relationship between canonical tracks and playable source items | One source item maps to one canonical track; availability/download/preference flags |
+| `track_source_ref` | Relationship between canonical tracks and playable source items | One source item maps to one canonical track; availability/download/preference flags and embedded-artwork presence |
 | `source_sync_cursor` | Delta or scan checkpoint state | One cursor per source account, library root, and cursor type |
 | `source_error` | Persisted source/import errors | Scoped to account, root, and optionally source item |
 | `track` | Canonical normalized audio metadata | No provider ownership fields; indexed title, ISRC, MusicBrainz IDs |
@@ -42,6 +42,7 @@ exported under
 | `raw_metadata` | Unmapped source tags | Indexed by track and tag key |
 | `import_job` | Resumable import progress and errors | References `library_root` |
 | `download_task` | Offline download task state and progress | Unique source/media/remote ID; indexed status and update time |
+| `listening_history` | Per-play listening history and accumulated listen time | Indexed track ID and playback time |
 | `playlist`, `playlist_track` | User playlists and stable ordering | Foreign-key cascades and ordered indexes |
 | `track_fts` | Full-text search index for local library search | FTS4 content table backed by `track` |
 
@@ -151,6 +152,7 @@ exported under
 | `lossless` | 是否无损。 |
 | `createdAt` | 引用创建时间。 |
 | `updatedAt` | 引用最近更新时间。 |
+| `hasEmbeddedArtwork` | 来源音乐文件是否包含内嵌图片：`NULL` 表示尚未探测，`1` 表示存在，`0` 表示不存在。Fast/Standard 扫描只记录该状态，不把图片二进制写入 Room。 |
 
 ### `source_sync_cursor`
 
@@ -401,6 +403,21 @@ exported under
 | `createdAt` | 任务创建时间。 |
 | `updatedAt` | 任务最近更新时间。 |
 
+### `listening_history`
+
+用途：保存每次播放的曲目快照和累计收听时长。删除或修改曲目元数据后，历史记录仍保留播放当时的标题、艺术家和专辑。
+
+| 字段 | 含义 |
+| --- | --- |
+| `id` | 自增主键。 |
+| `trackId` | 播放时对应的 `track.id`。 |
+| `title` | 播放时的曲目标题快照。 |
+| `artist` | 播放时的艺术家快照。 |
+| `album` | 播放时的专辑快照。 |
+| `durationMs` | 曲目时长，单位毫秒。 |
+| `listenedMs` | 本次记录累计的实际收听时长，单位毫秒。 |
+| `playedAtEpochMs` | 开始播放时间，Unix epoch 毫秒。 |
+
 ### `playlist`
 
 用途：保存用户创建的播放列表。
@@ -526,6 +543,11 @@ can show complete task status, counters, and per-task failure details.
 Schema version 15 adds canonical metadata provenance and the file-reset lock to
 `track`. Existing tracks migrate as unlocked `FILE` metadata.
 
+Schema version 19 adds nullable embedded-artwork presence to each
+`track_source_ref`. Existing rows remain `NULL` until that source file is scanned
+again. A successful Fast or Standard scan stores presence without persisting or
+caching the image payload.
+
 `import_job` is not sufficient by itself for a future background enrichment
 workflow where metadata, artwork, lyrics, and raw tags continue after the
 initial import result is visible. That workflow should add explicit phase and
@@ -590,3 +612,7 @@ user playlist data as part of source disappearance.
   accounts migrate with `NULL`; SMB accounts use it only for non-secret
   structured connection settings, while credentials remain behind
   `credentialRef`.
+- `MIGRATION_17_18` creates `listening_history` and its track/time indexes.
+- `MIGRATION_18_19` adds nullable `track_source_ref.hasEmbeddedArtwork`.
+  Existing source references remain unknown (`NULL`) until a successful
+  metadata scan records presence.

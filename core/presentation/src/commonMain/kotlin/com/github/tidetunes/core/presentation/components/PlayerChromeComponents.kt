@@ -131,8 +131,7 @@ fun TideMiniPlayerBar(
                         contentDescription = "$title, $subtitle"
                         this.role = Role.Button
                         onClick { onClick(); true }
-                    }
-                    .padding(4.dp),
+                    },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 artwork()
@@ -234,7 +233,7 @@ fun TideExpandedMiniPlayerBar(
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(start = 4.dp, top = 4.dp, end = 4.dp, bottom = 5.dp),
+                        .padding(bottom = 5.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     artwork()

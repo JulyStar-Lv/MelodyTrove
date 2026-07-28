@@ -23,10 +23,25 @@ pub(in crate::mp4) fn parse_ilst<R>(
 where
 	R: Read + Seek,
 {
-	let parsing_mode = parse_options.parsing_mode;
 	let start = reader.stream_position()?;
+	let bounds = reader.bounds();
 	reader.reset_bounds(start, len);
-	let ilst_reader = reader;
+
+	let result = parse_ilst_inner(reader, parse_options);
+	let seek_result = reader.seek(SeekFrom::End(0));
+	reader.restore_bounds(bounds, len);
+	seek_result?;
+	result
+}
+
+fn parse_ilst_inner<R>(
+	ilst_reader: &mut AtomReader<R>,
+	parse_options: ParseOptions,
+) -> Result<Ilst>
+where
+	R: Read + Seek,
+{
+	let parsing_mode = parse_options.parsing_mode;
 
 	let mut tag = Ilst::default();
 

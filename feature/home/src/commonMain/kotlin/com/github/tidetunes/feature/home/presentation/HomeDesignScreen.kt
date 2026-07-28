@@ -894,16 +894,18 @@ private fun NewSongRow(
     cardWidth: Dp,
     onPlay: (HomeRecentTrack) -> Unit,
 ) {
+    val itemPadding = TideTunesTokens.spacing.xxs
     LazyRow(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp - itemPadding * 2),
     ) {
         items(tracks) { track ->
             Column(
                 modifier = Modifier
-                    .width(cardWidth)
+                    .width(cardWidth + itemPadding * 2)
                     .clip(RoundedCornerShape(14.dp))
-                    .clickable { onPlay(track) },
+                    .clickable { onPlay(track) }
+                    .padding(itemPadding),
             ) {
                 val shape = RoundedCornerShape(14.dp)
                 Box(
@@ -953,16 +955,18 @@ private fun AlbumRow(
     cardWidth: Dp,
     onClick: () -> Unit,
 ) {
+    val itemPadding = TideTunesTokens.spacing.xxs
     LazyRow(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp - itemPadding * 2),
     ) {
         items(albums) { album ->
             Column(
                 modifier = Modifier
-                    .width(cardWidth)
+                    .width(cardWidth + itemPadding * 2)
                     .clip(RoundedCornerShape(14.dp))
-                    .clickable(onClick = onClick),
+                    .clickable(onClick = onClick)
+                    .padding(itemPadding),
             ) {
                 val shape = RoundedCornerShape(14.dp)
                 Box(

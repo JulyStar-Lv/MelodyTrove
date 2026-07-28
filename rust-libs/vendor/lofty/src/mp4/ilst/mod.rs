@@ -1518,6 +1518,8 @@ mod tests {
 		bytes.extend_from_slice(&((payload_size + 8) as u32).to_be_bytes());
 		bytes.extend_from_slice(b"covr");
 		bytes.resize(payload_size + 8, 0x5A);
+		bytes.extend_from_slice(&8_u32.to_be_bytes());
+		bytes.extend_from_slice(b"free");
 
 		let source = CountingReader {
 			cursor: Cursor::new(bytes),
@@ -1532,9 +1534,11 @@ mod tests {
 			(payload_size + 8) as u64,
 		)
 		.unwrap();
+		let sibling = reader.next().unwrap().unwrap();
 		let source = reader.into_inner();
 
 		assert_eq!(ilst.pictures().unwrap().count(), 1);
+		assert_eq!(sibling.ident, AtomIdent::Fourcc(*b"free"));
 		assert!(source.bytes_read < payload_size / 8);
 	}
 

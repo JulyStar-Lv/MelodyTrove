@@ -8,7 +8,7 @@ use crate::id3::v2::read::parse_id3v2;
 use crate::id3::{FindId3v2Config, ID3FindResults, find_id3v2};
 use crate::macros::{decode_err, err};
 use crate::ogg::read::read_comments;
-use crate::picture::Picture;
+use crate::picture::{Picture, PictureInformation};
 
 use std::io::{Read, Seek, SeekFrom};
 

@@ -14,6 +14,11 @@ class MetadataRepositoryOptionsTest {
         assertFalse(fast.readLyrics)
         assertFalse(fast.readRawMetadata)
 
+        val standard = MetadataScanMode.Standard.toOptions().toRustOptions()
+        assertFalse(standard.readArtwork)
+        assertTrue(standard.readLyrics)
+        assertFalse(standard.readRawMetadata)
+
         val full = MetadataScanMode.Full.toOptions().toRustOptions()
         assertTrue(full.readArtwork)
         assertTrue(full.readLyrics)

@@ -6,6 +6,7 @@ use crate::ape::tag::item::{ApeItem, ApeItemRef};
 use crate::config::WriteOptions;
 use crate::error::{LoftyError, Result};
 use crate::id3::v2::util::pairs::{NUMBER_PAIR_KEYS, format_number_pair, set_number};
+use crate::picture::Picture;
 use crate::tag::item::ItemValueRef;
 use crate::tag::items::Timestamp;
 use crate::tag::{
@@ -94,6 +95,7 @@ pub struct ApeTag {
 	/// Whether or not to mark the tag as read only
 	pub read_only: bool,
 	pub(super) items: Vec<ApeItem>,
+	pub(super) has_skipped_picture: bool,
 }
 
 impl ApeTag {
@@ -486,6 +488,7 @@ impl TagExt for ApeTag {
 
 	fn clear(&mut self) {
 		self.items.clear();
+		self.has_skipped_picture = false;
 	}
 }
 
@@ -588,6 +591,10 @@ impl SplitTag for ApeTag {
 				},
 			}
 		});
+
+		if self.has_skipped_picture {
+			tag.push_picture(Picture::EMPTY);
+		}
 
 		(SplitTagRemainder(self), tag)
 	}
@@ -1052,25 +1059,35 @@ mod tests {
 			.mime_type(MimeType::Jpeg)
 			.build();
 
-		let mut tag = Tag::new(TagType::Ape);
-		tag.push_picture(p);
-
-		tag.set_artist(String::from("Foo artist"));
+		let mut ape = ApeTag::new();
+		ape.insert(
+			ApeItem::new(
+				String::from("Cover Art (Front)"),
+				ItemValue::Binary(p.as_ape_bytes()),
+			)
+			.unwrap(),
+		);
+		ape.set_artist(String::from("Foo artist"));
 
 		let mut writer = Vec::new();
-		tag.dump_to(&mut writer, WriteOptions::new()).unwrap();
+		ape.dump_to(&mut writer, WriteOptions::new()).unwrap();
 
 		let mut reader = Cursor::new(writer);
 		let (Some(ape), _) = crate::ape::tag::read::read_ape_tag(
 			&mut reader,
 			false,
-			ParseOptions::new().read_cover_art(false),
+			ParseOptions::new()
+				.read_cover_art(false)
+				.read_cover_art_presence(true),
 		)
 		.unwrap() else {
 			unreachable!()
 		};
 
 		assert_eq!(ape.len(), 1);
+		assert!(ape.has_skipped_picture);
+		let tag: Tag = ape.into();
+		assert_eq!(tag.pictures().len(), 1);
 	}
 
 	#[test_log::test]

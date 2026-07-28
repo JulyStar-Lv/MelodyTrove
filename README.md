@@ -45,11 +45,13 @@ Source adapters authenticate, browse, search, and resolve playback resources. Th
 
 | Mode | Behavior |
 | --- | --- |
-| **Fast** | Reads core tags and audio properties while skipping embedded artwork, lyrics, and raw tags. |
-| **Standard** | Reads core tags, audio properties, and embedded lyrics while skipping artwork and raw tags. This is the default for new installations. |
+| **Fast** | Reads core tags and audio properties, detects embedded-artwork presence without extracting or caching the image, and skips lyrics and raw tags. |
+| **Standard** | Reads core tags, audio properties, and embedded lyrics, detects embedded-artwork presence without extracting or caching the image, and skips raw tags. This is the default for new installations. |
 | **Full** | Reads core tags, audio properties, artwork, lyrics, and raw metadata. |
 
 Skipped optional metadata is preserved rather than deleted. Missing artwork or lyrics can be backfilled later from Settings without forcing the remote file fingerprint to change.
+
+Fast and Standard persist per-source artwork presence in `track_source_ref` without storing image bytes in Room. Seekable formats such as MP3, M4A/MP4, FLAC, APE/WavPack, and ID3 inside WAV/AIFF skip the image payload. Ogg/Opus artwork is commonly embedded in a Vorbis Comment packet, so the containing comment packet may still need to be read.
 
 ### Playback and downloads
 

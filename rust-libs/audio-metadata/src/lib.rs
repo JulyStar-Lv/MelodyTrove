@@ -397,11 +397,17 @@ fn read_metadata_attempt(
             .read()?;
         let properties = tagged_file.properties();
         let file_type = tagged_file.file_type();
+        let has_embedded_artwork = tagged_file
+            .tags()
+            .iter()
+            .any(|tag| !tag.pictures().is_empty());
         let tag = tagged_file
             .primary_tag()
             .or_else(|| tagged_file.first_tag());
 
-        normalize_metadata(tag, properties, file_type, options)
+        let mut metadata = normalize_metadata(tag, properties, file_type, options)?;
+        metadata.has_embedded_artwork = has_embedded_artwork;
+        Ok(metadata)
     })();
     let state = state.lock().unwrap();
     let stats = MetadataReadStats {

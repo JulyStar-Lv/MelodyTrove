@@ -53,6 +53,16 @@ where
 		self.len = len;
 	}
 
+	pub(crate) fn bounds(&self) -> (u64, u64, u64) {
+		(self.start, self.remaining_size, self.len)
+	}
+
+	pub(crate) fn restore_bounds(&mut self, bounds: (u64, u64, u64), consumed: u64) {
+		self.start = bounds.0;
+		self.remaining_size = bounds.1.saturating_sub(consumed);
+		self.len = bounds.2;
+	}
+
 	pub(crate) fn read_u8(&mut self) -> std::io::Result<u8> {
 		self.remaining_size = self.remaining_size.saturating_sub(1);
 		self.reader.read_u8()

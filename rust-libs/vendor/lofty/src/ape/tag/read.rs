@@ -53,6 +53,7 @@ where
 		}
 
 		if APE_PICTURE_TYPES.contains(&&*key) && !parse_options.read_cover_art {
+			tag.has_skipped_picture |= parse_options.read_cover_art_presence;
 			data.seek(SeekFrom::Current(i64::from(value_size)))?;
 			continue;
 		}
