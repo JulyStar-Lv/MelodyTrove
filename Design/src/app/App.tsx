@@ -3724,11 +3724,119 @@ const INITIAL_METADATA_PLUGINS: MetadataPluginModel[] = [
   },
 ];
 
-function MetadataPluginDialog({ plugin, onClose, onChange, onRemove }: {
+function FloatingSelectRow({ label, subtitle, value, onChange, options }: {
+  label:string;
+  subtitle?:string;
+  value:string;
+  onChange:(value:string)=>void;
+  options:{ value:string; label:string }[];
+}) {
+  const [open,setOpen] = useState(false);
+  const [darkMenu,setDarkMenu] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [menuPosition,setMenuPosition] = useState({top:0,right:16,maxHeight:360});
+  const selectedLabel = options.find(option=>option.value===value)?.label??value;
+
+  function showOptions() {
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const viewportPadding = 16;
+    const gap = 8;
+    const estimatedHeight = Math.min(options.length*56+16,360,window.innerHeight-viewportPadding*2);
+    const below = rect.bottom+gap;
+    const placeAbove = rect.top>window.innerHeight/2||below+estimatedHeight>window.innerHeight-viewportPadding;
+    const top = placeAbove?Math.max(viewportPadding,rect.top-estimatedHeight-gap):below;
+    const right = Math.max(viewportPadding,window.innerWidth-rect.right);
+    setMenuPosition({top,right,maxHeight:window.innerHeight-top-viewportPadding});
+    setDarkMenu(Boolean(triggerRef.current.closest(".dark")));
+    setOpen(true);
+  }
+
+  function closeOptions(restoreFocus=true) {
+    setOpen(false);
+    if (restoreFocus) window.requestAnimationFrame(()=>triggerRef.current?.focus());
+  }
+
+  useEffect(()=>{
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event:KeyboardEvent) => {
+      if (event.key!=="Escape") return;
+      event.stopImmediatePropagation();
+      closeOptions();
+    };
+    const handleResize = () => closeOptions(false);
+    document.body.style.overflow = "hidden";
+    const focusFrame = window.requestAnimationFrame(()=>menuRef.current?.focus());
+    window.addEventListener("keydown",handleKeyDown,true);
+    window.addEventListener("resize",handleResize);
+    return ()=>{
+      document.body.style.overflow = previousOverflow;
+      window.cancelAnimationFrame(focusFrame);
+      window.removeEventListener("keydown",handleKeyDown,true);
+      window.removeEventListener("resize",handleResize);
+    };
+  },[open]);
+
+  return (
+    <>
+      <button ref={triggerRef} type="button" aria-label={`${label}, ${selectedLabel}`} aria-haspopup="listbox" aria-expanded={open}
+        onClick={showOptions}
+        className="flex min-h-[64px] w-full items-center gap-4 px-4 py-2.5 text-left outline-none transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-primary/40">
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-medium leading-tight text-foreground">{label}</span>
+          {subtitle&&<span className="mt-1 block text-[12px] leading-[17px] text-muted-foreground">{subtitle}</span>}
+        </span>
+        <span className={cn("flex max-w-[48%] shrink-0 items-center gap-2 text-[13px]",open?"text-[#4F8DFF]":"text-muted-foreground")}>
+          <span className="truncate">{selectedLabel}</span>
+          <span className="flex flex-col -space-y-1" aria-hidden="true">
+            <ChevronUp className="h-3.5 w-3.5"/>
+            <ChevronDown className="h-3.5 w-3.5"/>
+          </span>
+        </span>
+      </button>
+      {open&&createPortal(
+        <AnimatePresence>
+          <motion.div className={cn("fixed inset-0 z-[210]",darkMenu?"bg-black/45":"bg-black/25")}
+            initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:0.16}}
+            onClick={()=>closeOptions()}>
+            <motion.div ref={menuRef} role="listbox" aria-label={label} tabIndex={-1}
+              className={cn("fixed w-max min-w-[200px] max-w-[calc(100vw-32px)] overflow-y-auto rounded-[28px] p-2 shadow-[0_24px_80px_rgba(0,0,0,0.34)] outline-none",darkMenu?"bg-[#2b2b2d]":"bg-[#f3f3f5]")}
+              style={{top:menuPosition.top,right:menuPosition.right,maxHeight:menuPosition.maxHeight}}
+              initial={{opacity:0,scale:0.94,y:-6}} animate={{opacity:1,scale:1,y:0}} exit={{opacity:0,scale:0.96,y:-4}}
+              transition={{type:"spring",stiffness:430,damping:34,mass:0.72}}
+              onClick={event=>event.stopPropagation()}>
+              {options.map(option=>{
+                const selected = option.value===value;
+                return (
+                  <button key={option.value} type="button" role="option" aria-selected={selected}
+                    onClick={()=>{onChange(option.value);closeOptions();}}
+                    className={cn(
+                      "flex h-14 w-max min-w-full items-center gap-4 rounded-[20px] px-5 text-left text-[16px] font-medium outline-none transition-colors",
+                      darkMenu?"hover:bg-white/[0.06] focus-visible:bg-white/[0.08]":"hover:bg-black/[0.045] focus-visible:bg-black/[0.06]",
+                      selected?"text-[#4F8DFF]":darkMenu?"text-white":"text-[#1f1f21]",
+                    )}>
+                    <span className="flex-1 whitespace-nowrap">{option.label}</span>
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center" aria-hidden="true">
+                      {selected&&<Check className="h-6 w-6 stroke-[2.5]"/>}
+                    </span>
+                  </button>
+                );
+              })}
+            </motion.div>
+          </motion.div>
+        </AnimatePresence>,
+        document.body,
+      )}
+    </>
+  );
+}
+
+function MetadataPluginDialog({ plugin, onClose, onChange }: {
   plugin:MetadataPluginModel|null;
   onClose:()=>void;
   onChange:(plugin:MetadataPluginModel)=>void;
-  onRemove:(plugin:MetadataPluginModel)=>void;
 }) {
   const [configValues,setConfigValues] = useState<Record<string,string>>({});
   const [clearingCache,setClearingCache] = useState(false);
@@ -3778,13 +3886,7 @@ function MetadataPluginDialog({ plugin, onClose, onChange, onRemove }: {
               <Puzzle className="h-5 w-5"/>
             </span>
             <div className="min-w-0 flex-1 px-10 text-center sm:px-0 sm:text-left">
-              <div className="flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-                <h2 id="metadata-plugin-title" className="text-[19px] font-semibold text-foreground">{plugin.name}</h2>
-                <span className={cn("inline-flex h-5 items-center rounded-full px-2 text-[10px] font-semibold",
-                  plugin.enabled?"bg-[#3DCA8A]/12 text-[#2EAE75]":"bg-muted text-muted-foreground")}>
-                  {plugin.enabled?"Enabled":"Disabled"}
-                </span>
-              </div>
+              <h2 id="metadata-plugin-title" className="text-[19px] font-semibold text-foreground">{plugin.name}</h2>
               <p className="mt-1 text-[12px] leading-[17px] text-muted-foreground">{plugin.author} · v{plugin.version}</p>
             </div>
             <button type="button" aria-label="Close plugin settings" onClick={onClose}
@@ -3792,8 +3894,6 @@ function MetadataPluginDialog({ plugin, onClose, onChange, onRemove }: {
               <X className="h-4 w-4"/>
             </button>
           </div>
-
-          <p className="mt-4 rounded-[18px] bg-muted/55 px-4 py-3 text-[12px] leading-[18px] text-muted-foreground">{plugin.description}</p>
 
           {markdownFields.map(field=>(
             <section key={field.key} className="mt-5 rounded-[22px] border border-border bg-card p-4 sm:p-5" aria-labelledby={`plugin-guide-${field.key}`}>
@@ -3814,24 +3914,10 @@ function MetadataPluginDialog({ plugin, onClose, onChange, onRemove }: {
               <p id="plugin-configuration-title" className="mb-2 px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Configuration</p>
               <div className="divide-y divide-border/60 overflow-hidden rounded-[22px] border border-border bg-card">
                 {editableFields.map(field=>field.type==="select"?(
-                  <label key={field.key} className="relative flex min-h-[72px] cursor-pointer items-center gap-4 px-4 py-3 transition-colors hover:bg-muted/30">
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[15px] font-medium text-foreground">{field.title}</span>
-                      {field.summary&&<span className="mt-1 block text-[11px] leading-4 text-muted-foreground">{field.summary}</span>}
-                    </span>
-                    <span className="flex max-w-[42%] shrink-0 items-center gap-2 text-right text-[13px] text-muted-foreground">
-                      <span className="truncate">{field.options.find(option=>option.value===configValues[field.key])?.label??field.options[0]?.label}</span>
-                      <span className="flex flex-col -space-y-1" aria-hidden="true">
-                        <ChevronUp className="h-3.5 w-3.5"/>
-                        <ChevronDown className="h-3.5 w-3.5"/>
-                      </span>
-                    </span>
-                    <select aria-label={field.title} value={configValues[field.key]??field.options[0]?.value}
-                      onChange={event=>updateConfigValue(field.key,event.target.value)}
-                      className="absolute inset-0 h-full w-full cursor-pointer opacity-0">
-                      {field.options.map(option=><option key={option.value} value={option.value}>{option.label}</option>)}
-                    </select>
-                  </label>
+                  <FloatingSelectRow key={field.key} label={field.title} subtitle={field.summary}
+                    value={configValues[field.key]??field.options[0]?.value??""}
+                    onChange={value=>updateConfigValue(field.key,value)}
+                    options={field.options}/>
                 ):(
                   <label key={field.key} className="block px-4 py-4">
                     <span className="block text-[14px] font-medium text-foreground">{field.title}</span>
@@ -3844,19 +3930,6 @@ function MetadataPluginDialog({ plugin, onClose, onChange, onRemove }: {
               </div>
             </section>
           )}
-
-          <section className="mt-5" aria-labelledby="plugin-availability-title">
-            <p id="plugin-availability-title" className="mb-2 px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Availability</p>
-            <div className="overflow-hidden rounded-[22px] border border-border bg-card">
-              <div className="flex min-h-[64px] items-center gap-4 px-4 py-2.5">
-                <div className="min-w-0 flex-1">
-                  <p className="text-[15px] font-medium text-foreground">Enable plugin</p>
-                  <p className="mt-1 text-[12px] leading-[17px] text-muted-foreground">Makes this provider available for manual lookup</p>
-                </div>
-                <DesignSwitch ariaLabel={`Enable ${plugin.name}`} checked={plugin.enabled} onChange={enabled=>patchPlugin({enabled})}/>
-              </div>
-            </div>
-          </section>
 
           <section className="mt-5" aria-labelledby="plugin-permissions-title">
             <p id="plugin-permissions-title" className="mb-2 px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Additional access</p>
@@ -3877,24 +3950,11 @@ function MetadataPluginDialog({ plugin, onClose, onChange, onRemove }: {
             </div>
           </section>
 
-          <section className="mt-5" aria-labelledby="plugin-capabilities-title">
-            <p id="plugin-capabilities-title" className="mb-2 px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">Capabilities</p>
-            <div className="flex flex-wrap gap-2 rounded-[22px] border border-border bg-card p-4">
-              {plugin.capabilities.map(capability=>
-                <span key={capability} className="inline-flex h-7 items-center rounded-full bg-muted px-3 text-[11px] font-medium text-foreground">{capability}</span>
-              )}
-            </div>
-          </section>
-
           <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-border/70 pt-5">
             <button type="button" onClick={clearCache} disabled={clearingCache}
               className="inline-flex h-10 items-center gap-2 rounded-full bg-muted px-4 text-[12px] font-semibold text-foreground outline-none hover:bg-muted/80 disabled:opacity-55 focus-visible:ring-2 focus-visible:ring-primary/40">
               <RefreshCw className={cn("h-3.5 w-3.5",clearingCache&&"animate-spin")}/>
               {clearingCache?"Clearing…":"Clear cache"}
-            </button>
-            <button type="button" onClick={()=>onRemove(plugin)}
-              className="inline-flex h-10 items-center gap-2 rounded-full px-4 text-[12px] font-semibold text-destructive outline-none hover:bg-destructive/10 focus-visible:ring-2 focus-visible:ring-destructive/35">
-              <Trash2 className="h-3.5 w-3.5"/>Uninstall
             </button>
             <button type="button" onClick={()=>{patchPlugin({configValues});onClose();}}
               className="ml-auto inline-flex h-10 items-center rounded-full bg-primary px-5 text-[12px] font-semibold text-primary-foreground outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-primary/40">
@@ -4122,103 +4182,9 @@ function SettingsPage({ sub, onSubChange, themeMode, onThemeModeChange }: {
     label:string; subtitle?:string; value:string;
     onChange:(value:string)=>void; options:{v:string;l:string}[];
   }) {
-    const [open, setOpen] = useState(false);
-    const [darkMenu, setDarkMenu] = useState(false);
-    const triggerRef = useRef<HTMLButtonElement>(null);
-    const menuRef = useRef<HTMLDivElement>(null);
-    const [menuPosition, setMenuPosition] = useState({top:0,right:16,maxHeight:360});
-    const selectedLabel = options.find(option=>option.v===value)?.l ?? value;
-
-    function showOptions() {
-      const rect = triggerRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      const viewportPadding = 16;
-      const gap = 8;
-      const estimatedHeight = Math.min(options.length*56+16,360,window.innerHeight-viewportPadding*2);
-      const below = rect.bottom+gap;
-      const placeAbove = rect.top>window.innerHeight/2||below+estimatedHeight>window.innerHeight-viewportPadding;
-      const top = placeAbove?Math.max(viewportPadding,rect.top-estimatedHeight-gap):below;
-      const right = Math.max(viewportPadding,window.innerWidth-rect.right);
-      setMenuPosition({top,right,maxHeight:window.innerHeight-top-viewportPadding});
-      setDarkMenu(Boolean(triggerRef.current?.closest(".dark")));
-      setOpen(true);
-    }
-
-    function closeOptions(restoreFocus=true) {
-      setOpen(false);
-      if (restoreFocus) window.requestAnimationFrame(()=>triggerRef.current?.focus());
-    }
-
-    useEffect(()=>{
-      if (!open) return;
-      const previousOverflow = document.body.style.overflow;
-      const handleKeyDown = (event:KeyboardEvent) => {
-        if (event.key==="Escape") closeOptions();
-      };
-      const handleResize = () => closeOptions(false);
-      document.body.style.overflow = "hidden";
-      const focusFrame = window.requestAnimationFrame(()=>menuRef.current?.focus());
-      window.addEventListener("keydown",handleKeyDown);
-      window.addEventListener("resize",handleResize);
-      return ()=>{
-        document.body.style.overflow = previousOverflow;
-        window.cancelAnimationFrame(focusFrame);
-        window.removeEventListener("keydown",handleKeyDown);
-        window.removeEventListener("resize",handleResize);
-      };
-    },[open]);
-
     return (
-      <>
-        <button ref={triggerRef} type="button" aria-label={`${label}, ${selectedLabel}`} aria-haspopup="listbox" aria-expanded={open}
-          onClick={showOptions}
-          className="w-full flex items-center gap-4 px-4 min-h-[64px] py-2.5 text-left outline-none hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-primary/40 transition-colors">
-          <div className="flex-1 min-w-0">
-            <p className="text-[15px] font-medium text-foreground leading-tight">{label}</p>
-            {subtitle&&<p className="text-[12px] text-muted-foreground mt-1 leading-[17px]">{subtitle}</p>}
-          </div>
-          <span className={cn("flex items-center gap-2 shrink-0 max-w-[48%] text-[13px]",open?"text-[#4F8DFF]":"text-muted-foreground")}>
-            <span className="truncate">{selectedLabel}</span>
-            <span className="flex flex-col -space-y-1" aria-hidden="true">
-              <ChevronUp className="w-3.5 h-3.5"/>
-              <ChevronDown className="w-3.5 h-3.5"/>
-            </span>
-          </span>
-        </button>
-        {open&&createPortal(
-          <AnimatePresence>
-            <motion.div className={cn("fixed inset-0 z-[150]",darkMenu?"bg-black/45":"bg-black/25")}
-              initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:0.16}}
-              onClick={()=>closeOptions()}>
-              <motion.div ref={menuRef} role="listbox" aria-label={label} tabIndex={-1}
-                className={cn("fixed w-max min-w-[200px] max-w-[calc(100vw-32px)] overflow-y-auto rounded-[28px] p-2 shadow-[0_24px_80px_rgba(0,0,0,0.34)] outline-none",darkMenu?"bg-[#2b2b2d]":"bg-[#f3f3f5]")}
-                style={{top:menuPosition.top,right:menuPosition.right,maxHeight:menuPosition.maxHeight}}
-                initial={{opacity:0,scale:0.94,y:-6}} animate={{opacity:1,scale:1,y:0}} exit={{opacity:0,scale:0.96,y:-4}}
-                transition={{type:"spring",stiffness:430,damping:34,mass:0.72}}
-                onClick={event=>event.stopPropagation()}>
-                {options.map(option=>{
-                  const selected = option.v===value;
-                  return (
-                    <button key={option.v} type="button" role="option" aria-selected={selected}
-                      onClick={()=>{onChange(option.v);closeOptions();}}
-                      className={cn(
-                        "flex h-14 w-max min-w-full items-center gap-4 rounded-[20px] px-5 text-left text-[16px] font-medium outline-none transition-colors",
-                        darkMenu?"hover:bg-white/[0.06] focus-visible:bg-white/[0.08]":"hover:bg-black/[0.045] focus-visible:bg-black/[0.06]",
-                        selected?"text-[#4F8DFF]":darkMenu?"text-white":"text-[#1f1f21]",
-                      )}>
-                      <span className="flex-1 whitespace-nowrap">{option.l}</span>
-                      <span className="flex h-6 w-6 shrink-0 items-center justify-center" aria-hidden="true">
-                        {selected&&<Check className="h-6 w-6 stroke-[2.5]"/>}
-                      </span>
-                    </button>
-                  );
-                })}
-              </motion.div>
-            </motion.div>
-          </AnimatePresence>,
-          document.body,
-        )}
-      </>
+      <FloatingSelectRow label={label} subtitle={subtitle} value={value} onChange={onChange}
+        options={options.map(option=>({value:option.v,label:option.l}))}/>
     );
   }
 
@@ -4682,7 +4648,7 @@ function SettingsPage({ sub, onSubChange, themeMode, onThemeModeChange }: {
         </div>
         <AddWebDavSourceDialog open={addSourceOpen} existingNames={sources.map(source=>source.name)} onClose={()=>setAddSourceOpen(false)} onAdd={addWebDavSource}/>
         <ManageWebDavSourceDialog source={editingSource} existingNames={sources.map(source=>source.name)} onClose={()=>setEditingSourceId(null)} onSave={saveWebDavSource} onDelete={deleteWebDavSource}/>
-        <MetadataPluginDialog plugin={editingPlugin} onClose={()=>setEditingPluginId(null)} onChange={updateMetadataPlugin} onRemove={requestPluginRemoval}/>
+        <MetadataPluginDialog plugin={editingPlugin} onClose={()=>setEditingPluginId(null)} onChange={updateMetadataPlugin}/>
         <MetadataPluginRemovalDialog plugin={pendingPluginRemoval} onClose={()=>setPendingPluginRemovalId(null)} onConfirm={confirmPluginRemoval}/>
       </>
     );
@@ -4695,7 +4661,7 @@ function SettingsPage({ sub, onSubChange, themeMode, onThemeModeChange }: {
       </div>
       <AddWebDavSourceDialog open={addSourceOpen} existingNames={sources.map(source=>source.name)} onClose={()=>setAddSourceOpen(false)} onAdd={addWebDavSource}/>
       <ManageWebDavSourceDialog source={editingSource} existingNames={sources.map(source=>source.name)} onClose={()=>setEditingSourceId(null)} onSave={saveWebDavSource} onDelete={deleteWebDavSource}/>
-      <MetadataPluginDialog plugin={editingPlugin} onClose={()=>setEditingPluginId(null)} onChange={updateMetadataPlugin} onRemove={requestPluginRemoval}/>
+      <MetadataPluginDialog plugin={editingPlugin} onClose={()=>setEditingPluginId(null)} onChange={updateMetadataPlugin}/>
       <MetadataPluginRemovalDialog plugin={pendingPluginRemoval} onClose={()=>setPendingPluginRemovalId(null)} onConfirm={confirmPluginRemoval}/>
     </>
   );
