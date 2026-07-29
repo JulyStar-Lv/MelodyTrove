@@ -1,0 +1,149 @@
+package io.github.julystar.musicapp.plugin.management
+
+import io.github.julystar.musicapp.core.data.shouldLookupPreferredExternalLyrics
+import io.github.julystar.musicapp.core.domain.repository.SettingsRepository
+import io.github.julystar.musicapp.database.MetadataDao
+import io.github.julystar.musicapp.database.TrackDao
+import io.github.julystar.musicapp.platform.currentTimeMillis
+import io.github.julystar.musicapp.plugin.runtime.PluginLookupMode
+import io.github.julystar.musicapp.source.api.MetaSongCandidate
+import io.github.julystar.musicapp.source.api.MetaSongQuery
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.math.abs
+
+class PlaybackLyricsEnricher(
+    private val lookup: MetadataLookupUseCase,
+    private val metadataDao: MetadataDao,
+    private val trackDao: TrackDao,
+    private val settingsRepository: SettingsRepository,
+    private val pluginRepository: PluginRepository,
+    private val timeoutMs: Long = DEFAULT_PLAYBACK_LYRICS_LOOKUP_TIMEOUT_MS,
+) {
+    private val stateMutex = Mutex()
+    private val inFlight = mutableSetOf<Long>()
+    private val attempted = mutableSetOf<Long>()
+
+    suspend fun enrich(trackId: Long): Boolean {
+        val settings = settingsRepository.settings.first().lyrics
+        val candidates = metadataDao.getLyricsCandidates(trackId)
+        if (!candidates.shouldLookupPreferredExternalLyrics(settings)) return false
+
+        val acquired = stateMutex.withLock {
+            if (trackId in inFlight || trackId in attempted) {
+                false
+            } else {
+                inFlight += trackId
+                true
+            }
+        }
+        if (!acquired) return false
+
+        var completed = false
+        return try {
+            val updated = withTimeoutOrNull(timeoutMs.coerceAtLeast(1)) {
+                lookupAndPersist(trackId)
+            } ?: false
+            completed = true
+            updated
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            completed = true
+            false
+        } finally {
+            stateMutex.withLock {
+                inFlight -= trackId
+                if (completed) attempted += trackId
+            }
+        }
+    }
+
+    private suspend fun lookupAndPersist(trackId: Long): Boolean {
+        val track = trackDao.get(trackId) ?: return false
+        val artist = metadataDao.artistNamesForTrack(trackId)
+            .joinToString(" / ")
+            .ifBlank { track.artist.orEmpty() }
+            .takeIf(String::isNotBlank)
+        val album = track.albumId?.let { albumId -> metadataDao.getAlbum(albumId)?.name }
+        val query = MetaSongQuery(
+            title = track.title,
+            artist = artist,
+            album = album,
+            durationMs = track.durationMs,
+            pageSize = PLAYBACK_LYRICS_RESULTS_PER_SOURCE,
+        )
+        val sourceIds = pluginRepository.allSnapshot()
+            .filter { plugin ->
+                plugin.enabled &&
+                    plugin.allowAutomaticLookup &&
+                    "searchSongs" in plugin.capabilities &&
+                    "getLyrics" in plugin.capabilities
+            }
+            .mapTo(mutableSetOf(), PluginSummary::id)
+        if (sourceIds.isEmpty()) return false
+        val candidate = lookup.searchSongs(
+            query = query,
+            mode = PluginLookupMode.AUTOMATIC,
+            sourceIds = sourceIds,
+        ).items
+            .mapNotNull { value ->
+                value.matchScore(query)?.let { score -> value to score }
+            }
+            .maxByOrNull { (_, score) -> score }
+            ?.first
+            ?: return false
+        val lyrics = lookup.getLyrics(
+            candidate = candidate,
+            mode = PluginLookupMode.AUTOMATIC,
+        ).value ?: return false
+        val entity = lyrics.toEntity(trackId, currentTimeMillis()) ?: return false
+        metadataDao.upsertLyrics(listOf(entity))
+        return true
+    }
+}
+
+private fun MetaSongCandidate.matchScore(query: MetaSongQuery): Int? {
+    if (title.matchKey() != query.title.matchKey()) return null
+
+    var score = 100
+    val expectedArtist = query.artist?.matchKey().orEmpty()
+    val candidateArtist = artist?.matchKey().orEmpty()
+    if (expectedArtist.isNotEmpty() && candidateArtist.isNotEmpty()) {
+        if (
+            expectedArtist != candidateArtist &&
+            expectedArtist !in candidateArtist &&
+            candidateArtist !in expectedArtist
+        ) {
+            return null
+        }
+        score += if (expectedArtist == candidateArtist) 30 else 15
+    }
+
+    val expectedAlbum = query.album?.matchKey().orEmpty()
+    val candidateAlbum = album?.matchKey().orEmpty()
+    if (expectedAlbum.isNotEmpty() && expectedAlbum == candidateAlbum) score += 10
+
+    val expectedDuration = query.durationMs
+    val candidateDuration = durationMs
+    if (expectedDuration != null && candidateDuration != null) {
+        val difference = abs(expectedDuration - candidateDuration)
+        if (difference > MAX_PLAYBACK_LYRICS_DURATION_DIFFERENCE_MS) return null
+        score += when {
+            difference <= 2_000 -> 30
+            difference <= 5_000 -> 15
+            else -> 5
+        }
+    }
+    return score
+}
+
+private fun String.matchKey(): String =
+    lowercase().filter(Char::isLetterOrDigit)
+
+private const val PLAYBACK_LYRICS_RESULTS_PER_SOURCE = 3
+private const val MAX_PLAYBACK_LYRICS_DURATION_DIFFERENCE_MS = 10_000L
+private const val DEFAULT_PLAYBACK_LYRICS_LOOKUP_TIMEOUT_MS = 15_000L

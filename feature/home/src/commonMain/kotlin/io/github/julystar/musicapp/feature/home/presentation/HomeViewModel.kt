@@ -78,6 +78,7 @@ class HomeViewModel(
             HomeAction.PlayDailyPicks -> return
             HomeAction.NavigateToDownloads -> HomeEvent.NavigateToDownloads
             HomeAction.NavigateToLibrary -> HomeEvent.NavigateToLibrary
+            HomeAction.NavigateToSourceSettings -> HomeEvent.NavigateToSourceSettings
             HomeAction.NavigateToSearch -> HomeEvent.NavigateToSearch
             HomeAction.NavigateToListening -> HomeEvent.NavigateToListening
             HomeAction.OpenSleepTimer -> HomeEvent.OpenSleepTimer

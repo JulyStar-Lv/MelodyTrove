@@ -42,6 +42,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.julystar.musicapp.core.presentation.components.DesignCardSurface
+import io.github.julystar.musicapp.core.presentation.components.DesignButton
+import io.github.julystar.musicapp.core.presentation.components.DesignButtonVariant
 import io.github.julystar.musicapp.core.presentation.components.DesignCheckbox
 import io.github.julystar.musicapp.core.presentation.components.DesignChevron
 import io.github.julystar.musicapp.core.presentation.components.DesignFab
@@ -69,6 +71,7 @@ import musicapp.feature.importing.generated.resources.import_library_title
 import musicapp.feature.importing.generated.resources.import_musics_error_authentication_desc
 import musicapp.feature.importing.generated.resources.import_musics_error_authentication_title
 import musicapp.feature.importing.generated.resources.import_musics_error_permission_desc
+import musicapp.feature.importing.generated.resources.import_musics_error_permission_action
 import musicapp.feature.importing.generated.resources.import_musics_error_permission_title
 import musicapp.feature.importing.generated.resources.import_musics_error_timeout_desc
 import musicapp.feature.importing.generated.resources.import_musics_error_timeout_title
@@ -463,23 +466,27 @@ private fun ImportMusicsWarningImpl(
     color: Color,
     iconPainter: Painter,
     horizontalPadding: Dp,
+    actionLabel: String? = null,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     val spacing = DesignTokens.spacing
 
     Box(
         contentAlignment = Alignment.Center,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
-            .padding(horizontalPadding)
+            .padding(horizontal = horizontalPadding, vertical = spacing.lg),
     ) {
         DesignCardSurface(
             modifier = Modifier
-                .widthIn(max = 360.dp)
-                .heightIn(min = 220.dp),
-            cornerRadius = DesignTokens.shapes.xl,
-            contentPadding = PaddingValues(spacing.lg),
-            onClick = onClick,
+                .widthIn(max = 336.dp),
+            cornerRadius = 28.dp,
+            contentPadding = PaddingValues(24.dp),
+            backgroundColor = color.copy(alpha = 0.06f),
+            borderColor = color.copy(alpha = 0.16f),
+            elevation = 0.dp,
+            onClick = if (actionLabel == null) onClick else null,
         ) {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -488,7 +495,7 @@ private fun ImportMusicsWarningImpl(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(64.dp)
+                        .size(72.dp)
                         .clip(RoundedCornerShape(DesignTokens.shapes.full))
                         .background(color.copy(alpha = 0.12f)),
                     contentAlignment = Alignment.Center,
@@ -497,7 +504,7 @@ private fun ImportMusicsWarningImpl(
                         painter = iconPainter,
                         contentDescription = null,
                         tint = color,
-                        modifier = Modifier.size(28.dp),
+                        modifier = Modifier.size(32.dp),
                     )
                 }
                 Text(
@@ -515,8 +522,18 @@ private fun ImportMusicsWarningImpl(
                     style = MiuixTheme.textStyles.footnote1,
                     textAlign = TextAlign.Center,
                     modifier = Modifier
-                        .widthIn(0.dp, 220.dp)
+                        .widthIn(0.dp, 256.dp),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
+                actionLabel?.let { label ->
+                    DesignButton(
+                        text = label,
+                        variant = DesignButtonVariant.Primary,
+                        minWidth = 144.dp,
+                        onClick = onClick,
+                    )
+                }
             }
         }
     }
@@ -526,6 +543,7 @@ private fun ImportMusicsWarningImpl(
 private fun ImportMusicsError(
     loadState: ImportLoadState,
     horizontalPadding: Dp,
+    modifier: Modifier = Modifier,
     onAction: (ImportAction) -> Unit,
 ) {
     val title = when (loadState) {
@@ -555,6 +573,12 @@ private fun ImportMusicsError(
         color = MiuixTheme.colorScheme.error,
         iconPainter = painterResource(Res.drawable.icon_warning),
         horizontalPadding = horizontalPadding,
+        actionLabel = if (loadState == ImportLoadState.NeedsPermission) {
+            stringResource(Res.string.import_musics_error_permission_action)
+        } else {
+            null
+        },
+        modifier = modifier,
         onClick = {
             onAction(ImportAction.RecoverFromLoadError)
         }
@@ -645,6 +669,9 @@ fun ImportScreen(
                 ImportLoadState.NeedsPermission -> ImportMusicsError(
                     loadState = state.loadState,
                     horizontalPadding = horizontalPadding,
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
                     onAction = onAction,
                 )
                 ImportLoadState.Ready -> {

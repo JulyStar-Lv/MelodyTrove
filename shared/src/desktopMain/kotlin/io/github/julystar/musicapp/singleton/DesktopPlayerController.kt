@@ -53,7 +53,7 @@ class DesktopPlayerController(
     private var playbackResource: PlaybackResource? = null
     private var pendingNetworkRecovery: Pair<MusicId, PlaylistId>? = null
     private var currentSettings: AppSettings = AppSettings.Default
-    private var autoAdvancedTrackId: Long? = null
+    private var crossfadeAdvancedTrackId: Long? = null
 
     override val sleepState: StateFlow<SleepModeState> = sleep.asStateFlow()
 
@@ -109,30 +109,35 @@ class DesktopPlayerController(
         }
         scope.launch {
             while (true) {
+                delay(25)
+                if (playbackEngine.takePlaybackCompleted()) {
+                    playOnCompletion()
+                }
+            }
+        }
+        scope.launch {
+            while (true) {
                 delay(100)
                 val currentId = playerRepository.music.value?.meta?.id?.value
                 if (currentId == null || !playerRepository.playing.value) {
-                    autoAdvancedTrackId = null
+                    crossfadeAdvancedTrackId = null
                     continue
                 }
+                val crossfadeDurationMs = currentSettings.playbackAdvanced.crossfadeDurationMs.toLong()
+                if (crossfadeDurationMs <= 0L) continue
                 val position = playbackEngine.readPosition()
                 if (position.durationMs <= 0L) continue
-                val leadMs = currentSettings.playbackAdvanced.crossfadeDurationMs
-                    .toLong()
-                    .coerceAtLeast(50L)
-                val nextMusic = playerRepository.nextMusic.value
+                val nextMusic = playerRepository.onCompleteMusic.value
+                val playlist = playerRepository.playlist.value
                 if (
                     nextMusic != null &&
-                    position.positionMs >= (position.durationMs - leadMs).coerceAtLeast(0L) &&
-                    autoAdvancedTrackId != currentId
+                    playlist != null &&
+                    nextMusic.meta.id.value != currentId &&
+                    position.positionMs >= (position.durationMs - crossfadeDurationMs).coerceAtLeast(0L) &&
+                    crossfadeAdvancedTrackId != currentId
                 ) {
-                    autoAdvancedTrackId = currentId
-                    playNext()
-                } else if (
-                    nextMusic == null &&
-                    position.positionMs >= position.durationMs
-                ) {
-                    playerRepository.setIsPlaying(false)
+                    crossfadeAdvancedTrackId = currentId
+                    play(nextMusic.meta.id, playlist.abstr.meta.id)
                 }
             }
         }
@@ -145,7 +150,17 @@ class DesktopPlayerController(
     override fun getDuration(): Long = playbackEngine.readPosition().durationMs
 
     override fun play(id: MusicId, playlistId: PlaylistId) {
+        play(id, playlistId, forceReload = false, allowTransition = true)
+    }
+
+    private fun play(
+        id: MusicId,
+        playlistId: PlaylistId,
+        forceReload: Boolean,
+        allowTransition: Boolean,
+    ) {
         if (
+            !forceReload &&
             playerRepository.music.value?.meta?.id == id &&
             playerRepository.playlist.value?.abstr?.meta?.id == playlistId
         ) {
@@ -157,7 +172,9 @@ class DesktopPlayerController(
         playbackJob = scope.launch(Dispatchers.Main) {
             playerRepository.setIsLoading(true)
             val transitionDurationMs = currentSettings.playbackAdvanced.crossfadeDurationMs
-            val canTransition = transitionDurationMs > 0 && playerRepository.playing.value
+            val canTransition = allowTransition &&
+                transitionDurationMs > 0 &&
+                playerRepository.playing.value
             val previousResource = playbackResource.takeIf { canTransition }
             try {
                 stopForPlayback(canTransition)
@@ -191,6 +208,7 @@ class DesktopPlayerController(
                         playerRepository.setCurrent(music, playlist)
                         playbackEngine.play()
                         playerRepository.setIsPlaying(true)
+                        crossfadeAdvancedTrackId = null
                         playerRepository.notifyDurationChanged()
                         previousResource?.let { resource ->
                             scope.launch {
@@ -249,6 +267,22 @@ class DesktopPlayerController(
         val playlist = playerRepository.playlist.value
         if (music != null && playlist != null) {
             play(music.meta.id, playlist.abstr.meta.id)
+        }
+    }
+
+    private fun playOnCompletion() {
+        if (!playerRepository.playing.value) return
+        val music = playerRepository.onCompleteMusic.value
+        val playlist = playerRepository.playlist.value
+        if (music != null && playlist != null) {
+            play(
+                id = music.meta.id,
+                playlistId = playlist.abstr.meta.id,
+                forceReload = true,
+                allowTransition = false,
+            )
+        } else {
+            playerRepository.setIsPlaying(false)
         }
     }
 

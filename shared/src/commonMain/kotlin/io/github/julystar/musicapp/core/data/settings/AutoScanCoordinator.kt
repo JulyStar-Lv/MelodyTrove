@@ -32,7 +32,7 @@ class AutoScanCoordinator(
         if (settings.autoScanMode == AutoScanMode.Off) return@withLock
         val network = networkStatusProvider.status.value
         if (!network.isOnline) return@withLock
-        if (settings.scanOnlyOnUnmeteredNetwork && network.isMetered) return@withLock
+        if (!settings.allowMeteredNetworkUsage && network.isMetered) return@withLock
         if (librarySyncController.recentTasks.first().any { task -> task.status.isActiveScan() }) {
             return@withLock
         }

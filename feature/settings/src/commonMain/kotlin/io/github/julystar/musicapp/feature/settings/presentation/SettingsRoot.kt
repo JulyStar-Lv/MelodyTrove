@@ -15,6 +15,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
+import io.github.vinceglb.filekit.dialogs.compose.rememberDirectoryPickerLauncher
+import io.github.vinceglb.filekit.path
 import org.koin.compose.viewmodel.koinViewModel
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -34,17 +36,27 @@ fun SettingsRoot(
     onNavigateToDiagnostics: () -> Unit,
     onNavigateToAbout: () -> Unit,
     onNavigateToLicenses: () -> Unit,
-    onNavigateToLibraryFolderImport: () -> Unit,
     onBack: () -> Unit,
     settingsVM: SettingsVM = koinViewModel(),
 ) {
     val state by settingsVM.state.collectAsState()
     val uriHandler = LocalUriHandler.current
+    val directoryPicker = rememberDirectoryPickerLauncher { directory ->
+        val path = directory?.path ?: return@rememberDirectoryPickerLauncher
+        val localPath = normalizePickedDirectoryPath(path)
+        settingsVM.onAction(
+            if (localPath == null) {
+                SettingsAction.ReportUnsupportedLocalDirectory
+            } else {
+                SettingsAction.AddLocalDirectory(localPath)
+            },
+        )
+    }
 
     LaunchedEffect(settingsVM) {
         settingsVM.eventFlow.collect { event ->
             when (event) {
-                SettingsEvent.OpenLibraryFolderImport -> onNavigateToLibraryFolderImport()
+                SettingsEvent.OpenLibraryFolderPicker -> directoryPicker.launch()
             }
         }
     }

@@ -17,7 +17,7 @@ import kotlinx.collections.immutable.toPersistentList
 import kotlin.time.Duration.Companion.milliseconds
 
 internal fun LyricsEntity.toPlaybackLyrics(): Lyrics {
-    if (!synchronized) {
+    if (!synchronized && !format.equals("TTML", ignoreCase = true) && !content.hasWordTiming()) {
         return Lyrics(
             lines = persistentListOf(LyricLine(0.milliseconds, content)),
             loadState = LyricsLoadState.Loaded,
@@ -60,19 +60,67 @@ internal fun List<LyricsEntity>.selectLyrics(settings: LyricDisplaySettings): Ly
 }
 
 internal fun LyricsEntity.resolvedSourceKind(): LyricSourceKind =
-    runCatching { LyricSourceKind.valueOf(sourceKind) }.getOrElse {
+    run {
         val embedded = sourcePath.isNullOrBlank() || sourcePath.startsWith("embedded", ignoreCase = true)
         val ttml = format.equals("TTML", ignoreCase = true)
+        val stored = runCatching { LyricSourceKind.valueOf(sourceKind) }.getOrNull()
         when {
             embedded && ttml -> LyricSourceKind.EmbeddedTtml
-            embedded -> LyricSourceKind.EmbeddedPlain
             ttml -> LyricSourceKind.ExternalTtml
+            embedded && (stored == LyricSourceKind.EmbeddedWordTimed || content.hasWordTiming()) ->
+                LyricSourceKind.EmbeddedWordTimed
+            !embedded && (stored == LyricSourceKind.ExternalWordTimed || content.hasWordTiming()) ->
+                LyricSourceKind.ExternalWordTimed
+            embedded -> LyricSourceKind.EmbeddedPlain
             else -> LyricSourceKind.ExternalPlain
         }
     }
 
 private val LyricSourceKind.isEmbedded: Boolean
-    get() = this == LyricSourceKind.EmbeddedTtml || this == LyricSourceKind.EmbeddedPlain
+    get() = this == LyricSourceKind.EmbeddedTtml ||
+        this == LyricSourceKind.EmbeddedWordTimed ||
+        this == LyricSourceKind.EmbeddedPlain
+
+internal fun List<LyricsEntity>.shouldLookupPreferredExternalLyrics(
+    settings: LyricDisplaySettings,
+): Boolean {
+    if (settings.sourceMode == LyricSourceMode.Embedded) return false
+
+    val priority = settings.sourcePriority.withIndex().associate { (index, kind) -> kind to index }
+    val qualityRank = listOf(
+        LyricSourceKind.ExternalTtml,
+        LyricSourceKind.ExternalWordTimed,
+    ).minOf { kind -> priority[kind] ?: Int.MAX_VALUE }
+    val fallbackKinds = when (settings.sourceMode) {
+        LyricSourceMode.Auto -> listOf(
+            LyricSourceKind.EmbeddedPlain,
+            LyricSourceKind.ExternalPlain,
+        )
+        LyricSourceMode.External -> listOf(LyricSourceKind.ExternalPlain)
+        LyricSourceMode.Embedded -> emptyList()
+    }
+    val fallbackRank = fallbackKinds.minOfOrNull { kind ->
+        priority[kind] ?: Int.MAX_VALUE
+    } ?: Int.MAX_VALUE
+    if (qualityRank >= fallbackRank) return false
+
+    val selected = selectLyrics(settings) ?: return true
+    val selectedKind = selected.resolvedSourceKind()
+    if (
+        selectedKind == LyricSourceKind.ExternalTtml ||
+        selectedKind == LyricSourceKind.ExternalWordTimed
+    ) {
+        return false
+    }
+    return (priority[selectedKind] ?: Int.MAX_VALUE) > qualityRank
+}
+
+private fun String.hasWordTiming(): Boolean =
+    runCatching {
+        AutoParser().parse(this).lines.any { line ->
+            line is KaraokeLine && line.syllables.isNotEmpty()
+        }
+    }.getOrDefault(false)
 
 private fun parseBasicLrcLine(rawLine: String): LyricLine? {
     val line = rawLine.trim()

@@ -22,11 +22,9 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -38,9 +36,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import io.github.julystar.musicapp.core.isRouteHome
 import io.github.julystar.musicapp.core.isRouteNowPlaying
-import io.github.julystar.musicapp.core.domain.model.AppSettings
-import io.github.julystar.musicapp.core.domain.model.AppThemeMode
-import io.github.julystar.musicapp.core.domain.repository.SettingsRepository
 import io.github.julystar.musicapp.core.presentation.components.DesignGlassOverlayScene
 import io.github.julystar.musicapp.core.presentation.components.DesignStickyGlassActionBar
 import io.github.julystar.musicapp.core.presentation.components.DesignStickyHeaderState
@@ -49,6 +44,7 @@ import io.github.julystar.musicapp.core.presentation.components.getBottomBarSpac
 import io.github.julystar.musicapp.core.presentation.layout.WindowSizeClass
 import io.github.julystar.musicapp.core.presentation.layout.rememberWindowSizeClass
 import io.github.julystar.musicapp.core.presentation.navigation.MusicGraph
+import io.github.julystar.musicapp.core.presentation.platform.LocalDesktopTitleBarInset
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import io.github.julystar.musicapp.feature.album.presentation.navigation.albumGraph
 import io.github.julystar.musicapp.feature.artist.presentation.navigation.artistGraph
@@ -74,12 +70,11 @@ import io.github.julystar.musicapp.plugin.management.ManualMetadataSearchDialog
 import io.github.julystar.musicapp.service.playback.presentation.nowplaying.NowPlayingTrackItem
 import io.github.julystar.musicapp.service.playback.presentation.navigation.playerGraph
 import io.github.julystar.musicapp.service.playback.presentation.shell.PlaybackMiniPlayerHost
+import io.github.julystar.musicapp.service.playback.presentation.shell.rememberHasPlaybackItem
 import io.github.julystar.musicapp.service.playback.presentation.transition.LocalPlayerArtworkSharedTransitionScope
 import io.github.julystar.musicapp.widgets.appbar.BottomBar
 import io.github.julystar.musicapp.widgets.appbar.NavigationRailBar
 import io.github.julystar.musicapp.widgets.appbar.SidebarBar
-import kotlinx.coroutines.launch
-import org.koin.compose.koinInject
 import org.koin.compose.viewmodel.koinViewModel
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -253,12 +248,6 @@ internal fun RootNavHost(
                     scaffoldPadding = scaffoldPadding,
                     onOpenNowPlaying = { navController.navigate(MusicGraph.NowPlaying) },
                     onOpenQueue = { showQueue = true },
-                    onBrowseLibrary = {
-                        onRootTabSelected(HomeTab.LIBRARY)
-                        if (!navController.popBackStack<MusicGraph.Home>(inclusive = false)) {
-                            navController.navigate(MusicGraph.Home)
-                        }
-                    },
                     captureStickyHeader =
                         currentRoute == MusicGraph.PluginSettings::class.qualifiedName,
                     content = navigationContent,
@@ -272,6 +261,7 @@ internal fun RootNavHost(
             )
             QueueRoot(
                 show = showQueue,
+                coverNowPlayingLyrics = isRouteNowPlaying(currentRoute),
                 onDismiss = { showQueue = false },
             )
         }
@@ -304,17 +294,14 @@ private fun SecondaryRootNavigationLayout(
     scaffoldPadding: PaddingValues,
     onOpenNowPlaying: () -> Unit,
     onOpenQueue: () -> Unit,
-    onBrowseLibrary: () -> Unit,
     captureStickyHeader: Boolean,
     content: @Composable (Modifier) -> Unit,
 ) {
-    val settingsRepository = koinInject<SettingsRepository>()
-    val settings by settingsRepository.settings.collectAsState(AppSettings.Default)
-    val themeScope = rememberCoroutineScope()
+    val titleBarInset = LocalDesktopTitleBarInset.current
+    val hasPlaybackItem = rememberHasPlaybackItem()
     val miniPlayerContent: @Composable () -> Unit = {
         PlaybackMiniPlayerHost(
             onOpenNowPlaying = onOpenNowPlaying,
-            onBrowseLibrary = onBrowseLibrary,
             onOpenQueue = onOpenQueue,
         )
     }
@@ -325,24 +312,25 @@ private fun SecondaryRootNavigationLayout(
         )
         val statusBarInset = WindowInsets.statusBars
             .asPaddingValues()
-            .calculateTopPadding()
+            .calculateTopPadding() + titleBarInset
         var stickyHeaderState by remember(captureStickyHeader) {
             mutableStateOf<DesignStickyHeaderState?>(null)
         }
         val stickyHeaderStateSink = remember(captureStickyHeader) {
-            { state: DesignStickyHeaderState? -> stickyHeaderState = state }
+            OwnedDesignStickyHeaderStateSink { state -> stickyHeaderState = state }
         }
         when (windowSizeClass) {
                 WindowSizeClass.Compact -> {
                     DesignGlassOverlayScene(
                         modifier = Modifier.fillMaxSize(),
-                        contentBottomInset = getBottomBarSpace(true, scaffoldPadding),
+                        contentBottomInset = getBottomBarSpace(hasPlaybackItem, scaffoldPadding),
                         backdropContent = {
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .background(MiuixTheme.colorScheme.background)
-                                    .statusBarsPadding(),
+                                    .statusBarsPadding()
+                                    .padding(top = titleBarInset),
                             ) {
                                 if (captureStickyHeader) {
                                     CompositionLocalProvider(
@@ -364,6 +352,9 @@ private fun SecondaryRootNavigationLayout(
                                     collapseFraction = state.collapseFraction,
                                     statusBarInset = statusBarInset,
                                     onNavigateBack = state.onNavigateBack,
+                                    showBackButtonBackground = state.showBackButtonBackground,
+                                    centerTitle = true,
+                                    compactTitle = state.compactTitle,
                                     modifier = Modifier.align(Alignment.TopCenter),
                                 )
                             }
@@ -371,7 +362,7 @@ private fun SecondaryRootNavigationLayout(
                                 currentTab = currentTab,
                                 onTabSelected = onTabSelected,
                                 miniPlayerContent = miniPlayerContent,
-                                showMiniPlayer = true,
+                                showMiniPlayer = hasPlaybackItem,
                                 showChrome = true,
                                 scaffoldPadding = scaffoldPadding,
                             )
@@ -394,8 +385,9 @@ private fun SecondaryRootNavigationLayout(
                         RootContentPane(
                             modifier = Modifier
                                 .weight(1f)
-                                .fillMaxHeight(),
-                            showMiniPlayer = true,
+                                .fillMaxHeight()
+                                .padding(top = titleBarInset),
+                            showMiniPlayer = hasPlaybackItem,
                             miniPlayerContent = miniPlayerContent,
                         ) {
                             content(Modifier.fillMaxSize())
@@ -414,26 +406,15 @@ private fun SecondaryRootNavigationLayout(
                         SidebarBar(
                             currentTab = currentTab,
                             onTabSelected = onTabSelected,
-                            isDark = settings.themeMode != AppThemeMode.Light,
-                            onToggleTheme = {
-                                themeScope.launch {
-                                    settingsRepository.setThemeMode(
-                                        if (settings.themeMode == AppThemeMode.Dark) {
-                                            AppThemeMode.Light
-                                        } else {
-                                            AppThemeMode.Dark
-                                        },
-                                    )
-                                }
-                            },
                             modifier = Modifier.fillMaxHeight(),
                             windowSizeClass = windowSizeClass,
                         )
                         RootContentPane(
                             modifier = Modifier
                                 .weight(1f)
-                                .fillMaxHeight(),
-                            showMiniPlayer = true,
+                                .fillMaxHeight()
+                                .padding(top = titleBarInset),
+                            showMiniPlayer = hasPlaybackItem,
                             miniPlayerContent = miniPlayerContent,
                         ) {
                             content(Modifier.fillMaxSize())

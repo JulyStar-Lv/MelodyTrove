@@ -28,7 +28,7 @@
     <string name="home_artists">Artists</string>
     <string name="home_empty_title">Your library is empty</string>
     <string name="home_empty_message">Add a music source or import a folder to see it here.</string>
-    <string name="home_open_library">Open Library</string>
+    <string name="home_add_source">Add music source</string>
     <string name="home_listening_tracks_played">Tracks played</string>
     <string name="home_listening_today">Today</string>
     <string name="home_listening_total_time">Total time</string>

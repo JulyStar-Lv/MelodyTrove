@@ -82,6 +82,16 @@
     <string name="debug_trigger_kt_exception">Trigger Kotlin Exception</string>
     <string name="debug_trigger_kt_async_exception">Trigger Kotlin Async Exception</string>
     <string name="log_title">Log</string>
+    <string name="notification_previous">Previous</string>
+    <string name="notification_play">Play</string>
+    <string name="notification_pause">Pause</string>
+    <string name="notification_next">Next</string>
+    <string name="notification_add_favorite">Add to favorites</string>
+    <string name="notification_remove_favorite">Remove from favorites</string>
+    <string name="notification_playback_mode_repeat_off">Play in order</string>
+    <string name="notification_playback_mode_repeat_all">Repeat all</string>
+    <string name="notification_playback_mode_repeat_one">Repeat one</string>
+    <string name="notification_playback_mode_shuffle">Shuffle</string>
     <plurals name="log_desc">
         <item quantity="one">%d log file found</item>
         <item quantity="other">%d log files found</item>

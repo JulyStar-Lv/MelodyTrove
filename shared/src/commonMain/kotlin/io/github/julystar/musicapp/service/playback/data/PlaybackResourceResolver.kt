@@ -1,15 +1,16 @@
 package io.github.julystar.musicapp.service.playback.data
 
 import io.github.julystar.musicapp.database.ProviderTypes
+import io.github.julystar.musicapp.database.TrackSourcePlaybackCandidate
 import io.github.julystar.musicapp.database.TrackSourceRefDao
 import io.github.julystar.musicapp.source.api.BuiltInSourceIds
+import io.github.julystar.musicapp.source.api.LegacyStoragePlaybackResolver
 import io.github.julystar.musicapp.source.api.MusicSourceRegistry
 import io.github.julystar.musicapp.source.api.PlaybackResource
 import io.github.julystar.musicapp.source.api.SourcePlaybackFailureReason
 import io.github.julystar.musicapp.source.api.SourcePlaybackResult
-import io.github.julystar.musicapp.source.api.LegacyStoragePlaybackResolver
-import io.github.julystar.musicapp.source.storage.LegacyStorageLookup
 import io.github.julystar.musicapp.source.api.legacyStorageTrackMediaId
+import io.github.julystar.musicapp.source.storage.LegacyStorageLookup
 import io.github.julystar.musicapp.source.storage.toLegacyStorageSourceAccountId
 import uniffi.app_backend.Music
 import uniffi.app_backend.StorageId
@@ -20,40 +21,105 @@ class PlaybackResourceResolver(
     private val trackSourceRefDao: TrackSourceRefDao,
     private val sourceRegistry: MusicSourceRegistry,
     private val legacyStoragePlaybackResolver: LegacyStoragePlaybackResolver,
+    private val playbackAudioCache: PlaybackAudioCache = PlaybackAudioCache.Disabled,
 ) {
     suspend fun resolve(music: Music): SourcePlaybackResult {
         val candidates = trackSourceRefDao.playbackCandidates(music.meta.id.value)
-        for (candidate in candidates) {
-            val path = candidate.item.canonicalPath ?: continue
-            val sourceId = candidate.account.providerType.toBuiltInSourceId()
-            val source = sourceRegistry.sourceOrNull(sourceId) ?: continue
-            val result = source.resolvePlayback(
-                legacyStorageTrackMediaId(
-                    sourceId = sourceId,
-                    accountId = StorageId(candidate.item.sourceAccountId).toLegacyStorageSourceAccountId(),
-                    path = path,
-                )
-            )
-            if (result is SourcePlaybackResult.Success) return result
+        val localCandidates = candidates.filter { candidate ->
+            candidate.account.providerType == ProviderTypes.Local
+        }
+        for (candidate in localCandidates) {
+            resolveCandidate(candidate)?.let { result ->
+                if (result is SourcePlaybackResult.Success) return result
+            }
         }
 
         val storage = storageLookup.storageForPlayback(music.loc.storageId)
-            ?: return SourcePlaybackResult.Failure(SourcePlaybackFailureReason.UnsupportedAccount)
-        val sourceId = storage.typ.toBuiltInSourceId()
-        val source = sourceRegistry.sourceOrNull(sourceId)
-            ?: return SourcePlaybackResult.Failure(SourcePlaybackFailureReason.Unavailable)
+        if (storage?.typ == StorageType.LOCAL) {
+            resolveLegacyLocation(storage, music.loc.path)?.let { result ->
+                if (result is SourcePlaybackResult.Success) return result
+            }
+        }
 
+        val remoteCandidates = candidates.filterNot { candidate ->
+            candidate.account.providerType == ProviderTypes.Local
+        }
+        for (candidate in remoteCandidates) {
+            val identity = candidate.cacheIdentity() ?: continue
+            playbackAudioCache.resolveCompleted(identity, candidate.item.mimeType)?.let { resource ->
+                return SourcePlaybackResult.Success(resource)
+            }
+        }
+        if (storage != null && storage.typ != StorageType.LOCAL) {
+            val identity = PlaybackCacheIdentity(storage.id.value, music.loc.path)
+            playbackAudioCache.resolveCompleted(identity, mimeType = null)?.let { resource ->
+                return SourcePlaybackResult.Success(resource)
+            }
+        }
+
+        for (candidate in remoteCandidates) {
+            val identity = candidate.cacheIdentity() ?: continue
+            when (val result = resolveCandidate(candidate)) {
+                is SourcePlaybackResult.Success -> {
+                    return SourcePlaybackResult.Success(
+                        playbackAudioCache.wrapRemote(identity, result.resource)
+                    )
+                }
+                is SourcePlaybackResult.Failure,
+                null -> Unit
+            }
+        }
+
+        storage ?: return SourcePlaybackResult.Failure(
+            SourcePlaybackFailureReason.UnsupportedAccount
+        )
+        val result = resolveLegacyLocation(storage, music.loc.path)
+            ?: return SourcePlaybackResult.Failure(SourcePlaybackFailureReason.Unavailable)
+        if (result !is SourcePlaybackResult.Success || storage.typ == StorageType.LOCAL) {
+            return result
+        }
+        return SourcePlaybackResult.Success(
+            playbackAudioCache.wrapRemote(
+                identity = PlaybackCacheIdentity(storage.id.value, music.loc.path),
+                resource = result.resource,
+            )
+        )
+    }
+
+    private suspend fun resolveCandidate(
+        candidate: TrackSourcePlaybackCandidate,
+    ): SourcePlaybackResult? {
+        val path = candidate.item.canonicalPath ?: return null
+        val sourceId = candidate.account.providerType.toBuiltInSourceId()
+        val source = sourceRegistry.sourceOrNull(sourceId) ?: return null
         return source.resolvePlayback(
             legacyStorageTrackMediaId(
                 sourceId = sourceId,
-                accountId = music.loc.storageId.toLegacyStorageSourceAccountId(),
-                path = music.loc.path,
+                accountId = StorageId(candidate.item.sourceAccountId)
+                    .toLegacyStorageSourceAccountId(),
+                path = path,
+            )
+        )
+    }
+
+    private suspend fun resolveLegacyLocation(
+        storage: uniffi.app_backend.Storage,
+        path: String,
+    ): SourcePlaybackResult? {
+        val sourceId = storage.typ.toBuiltInSourceId()
+        val source = sourceRegistry.sourceOrNull(sourceId) ?: return null
+        return source.resolvePlayback(
+            legacyStorageTrackMediaId(
+                sourceId = sourceId,
+                accountId = storage.id.toLegacyStorageSourceAccountId(),
+                path = path,
             )
         )
     }
 
     suspend fun release(resource: PlaybackResource) {
-        legacyStoragePlaybackResolver.release(resource.uri)
+        val original = playbackAudioCache.release(resource) ?: return
+        legacyStoragePlaybackResolver.release(original.uri)
     }
 
     suspend fun release(uri: String) {
@@ -61,8 +127,20 @@ class PlaybackResourceResolver(
     }
 
     suspend fun releaseAll() {
+        playbackAudioCache.releaseAll()
         legacyStoragePlaybackResolver.releaseAll()
     }
+}
+
+private fun TrackSourcePlaybackCandidate.cacheIdentity(): PlaybackCacheIdentity? {
+    val path = item.canonicalPath ?: return null
+    val version = item.contentHash
+        ?: item.etag
+        ?: item.revision
+        ?: item.modifiedAtRemote?.let { modifiedAt ->
+            "$modifiedAt:${item.sizeBytes?.toString().orEmpty()}"
+        }
+    return PlaybackCacheIdentity(item.sourceAccountId, path, version)
 }
 
 private fun StorageType.toBuiltInSourceId() = when (this) {

@@ -1,40 +1,77 @@
 package io.github.julystar.musicapp.feature.settings.presentation
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import io.github.julystar.musicapp.core.domain.model.AutoScanMode
-import io.github.julystar.musicapp.core.domain.model.DEFAULT_IGNORED_SOURCE_DIRECTORIES
 import io.github.julystar.musicapp.core.domain.model.DuplicateTrackPolicy
+import io.github.julystar.musicapp.core.domain.model.LocalMusicDirectory
 import io.github.julystar.musicapp.core.domain.model.MAX_MINIMUM_AUDIO_DURATION_MS
 import io.github.julystar.musicapp.core.domain.model.MissingFilePolicy
-import io.github.julystar.musicapp.core.domain.model.MetadataScanMode
-import io.github.julystar.musicapp.core.domain.model.SUPPORTED_AUDIO_EXTENSIONS
 import io.github.julystar.musicapp.core.domain.model.SourceConnectionTestStatus
+import io.github.julystar.musicapp.core.presentation.components.AppSwitch
+import io.github.julystar.musicapp.core.presentation.components.DesignButton
+import io.github.julystar.musicapp.core.presentation.components.DesignButtonVariant
+import io.github.julystar.musicapp.core.presentation.components.DesignCardSurface
+import io.github.julystar.musicapp.core.presentation.components.DesignChevron
+import io.github.julystar.musicapp.core.presentation.components.DesignChevronDirection
 import io.github.julystar.musicapp.core.presentation.components.DesignDialog
+import io.github.julystar.musicapp.core.presentation.components.DesignLinearProgressIndicator
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButton
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonSize
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonVariant
 import io.github.julystar.musicapp.core.presentation.components.DesignTextField
+import io.github.julystar.musicapp.core.presentation.theme.DesignGradients
+import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.service.librarysync.domain.LibrarySyncFailure
 import io.github.julystar.musicapp.service.librarysync.domain.LibrarySyncStatus
 import io.github.julystar.musicapp.service.librarysync.domain.LibrarySyncTask
-import kotlin.time.Instant
+import kotlin.time.Clock
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import musicapp.feature.settings.generated.resources.*
+import musicapp.core.presentation.generated.resources.Res as CorePresentationRes
+import musicapp.core.presentation.generated.resources.icon_vertialcal_more
+import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -47,99 +84,38 @@ fun SourceSettingsSection(
     val settings = state.settings
     var customDurationDialogOpen by remember { mutableStateOf(false) }
     var customDurationInputSeconds by remember { mutableStateOf("") }
-    var editingMetadataField by remember { mutableStateOf<MetadataField?>(null) }
-    var metadataFieldValue by remember { mutableStateOf("") }
+    var addSourceDialogOpen by remember { mutableStateOf(false) }
+    var localDirectoriesDialogOpen by remember { mutableStateOf(false) }
 
-    SettingsPageLayout(title = stringResource(Res.string.settings_sources_title), onBack = onBack) {
+    SettingsPageLayout(
+        title = stringResource(Res.string.settings_sources_title),
+        onBack = onBack,
+        compactHorizontalPadding = 16.dp,
+    ) {
+        UnifiedLibraryCard(state)
+
         SettingsSection(title = stringResource(Res.string.settings_sources_section)) {
             state.sourceAccounts.forEach { account ->
-                val sourceTitle = if (account.isLocal) {
-                    stringResource(Res.string.settings_source_local)
-                } else {
-                    account.title.ifBlank { stringResource(Res.string.settings_source_webdav) }
-                }
-                SettingsSwitchRow(
-                    title = sourceTitle,
-                    summary = stringResource(
-                        Res.string.settings_source_summary,
-                        account.sourceLabel,
-                        if (account.enabled) {
-                            stringResource(Res.string.settings_source_enabled)
-                        } else {
-                            stringResource(Res.string.settings_source_disabled)
-                        },
-                        account.trackCount,
-                    ),
-                    checked = account.enabled,
-                    onCheckedChange = {
-                        onAction(SettingsAction.SetAccountEnabled(account.accountId, it))
+                SourceAccountRow(
+                    account = account,
+                    localDirectories = state.localDirectories,
+                    activeTask = state.scanTasks.firstOrNull { task ->
+                        task.accountId == account.accountId && task.status.isActiveInSettings()
                     },
-                )
-                if (account.isWebDav) {
-                    SettingsInfoRow(
-                        title = stringResource(Res.string.settings_source_edit, sourceTitle),
-                        value = stringResource(
-                            Res.string.settings_source_edit_summary,
-                            account.subtitle,
-                            account.rootPath ?: "/",
-                        ),
-                        enabled = account.enabled,
-                        onClick = {
-                            onAction(SettingsAction.OpenEditWebDavDialog(account.accountId))
-                        },
-                    )
-                }
-                if (!account.isRemoteServer) {
-                    SettingsInfoRow(
-                        title = stringResource(Res.string.settings_source_scan, sourceTitle),
-                        value = stringResource(Res.string.settings_source_scan_summary),
-                        enabled = account.enabled,
-                        onClick = { onAction(SettingsAction.ScanSourceAccount(account.accountId)) },
-                    )
-                    SettingsInfoRow(
-                        title = stringResource(Res.string.settings_source_last_scan),
-                        value = account.lastScanSummary(),
-                    )
-                }
-            }
-            if (state.localDirectories.isEmpty()) {
-                SettingsInfoRow(
-                    title = stringResource(Res.string.settings_source_local),
-                    value = stringResource(Res.string.settings_source_no_directory),
-                )
-            } else {
-                state.localDirectories.forEach { directory ->
-                    SettingsInfoRow(
-                        title = directory.displayName.ifBlank { directory.path },
-                        value = stringResource(Res.string.settings_source_remove_hint),
-                        onClick = {
-                            onAction(
-                                SettingsAction.RequestRemoveLocalDirectory(
-                                    id = directory.id,
-                                    title = directory.displayName.ifBlank { directory.path },
-                                )
-                            )
-                        },
-                    )
-                }
-            }
-            if (state.capabilities.customMusicDirectorySupported) {
-                SettingsInfoRow(
-                    title = stringResource(Res.string.settings_source_add_local),
-                    value = stringResource(Res.string.settings_source_add_local_summary),
-                    onClick = { onAction(SettingsAction.RequestAddLocalDirectory) },
+                    onManageLocal = { localDirectoriesDialogOpen = true },
+                    onAction = onAction,
                 )
             }
-            if (state.capabilities.secureCredentialStoreSupported) {
-                SettingsInfoRow(
-                    title = stringResource(Res.string.settings_source_add_webdav),
-                    value = stringResource(Res.string.settings_source_add_webdav_summary),
-                    onClick = { onAction(SettingsAction.OpenAddWebDavDialog) },
-                )
-            }
+            AddSourceRow(
+                enabled = state.capabilities.customMusicDirectorySupported ||
+                    state.capabilities.secureCredentialStoreSupported,
+                onClick = { addSourceDialogOpen = true },
+            )
         }
 
-        SettingsSection(title = stringResource(Res.string.settings_scan_section)) {
+        LibraryScanStatusCard(state = state, onAction = onAction)
+
+        SettingsSection(title = stringResource(Res.string.settings_automatic_scanning_section)) {
             val autoScanModes = if (state.capabilities.backgroundScanSupported) {
                 AutoScanMode.entries.toList()
             } else {
@@ -152,36 +128,9 @@ fun SourceSettingsSection(
                 optionLabel = { mode -> stringResource(mode.titleResource()) },
                 onSelect = { onAction(SettingsAction.SetAutoScanMode(it)) },
             )
-            if (state.capabilities.backgroundScanSupported) {
-                SettingsSwitchRow(
-                    title = stringResource(Res.string.settings_background_scan),
-                    summary = stringResource(Res.string.settings_background_scan_summary),
-                    checked = settings.backgroundScanEnabled,
-                    onCheckedChange = { onAction(SettingsAction.SetBackgroundScanEnabled(it)) },
-                )
-                SettingsSwitchRow(
-                    title = stringResource(Res.string.settings_scan_unmetered),
-                    summary = stringResource(Res.string.settings_scan_unmetered_summary),
-                    checked = settings.scanOnlyOnUnmeteredNetwork,
-                    onCheckedChange = {
-                        onAction(SettingsAction.SetScanOnlyOnUnmeteredNetwork(it))
-                    },
-                )
-            }
-            SettingsSwitchRow(
-                title = stringResource(Res.string.settings_scan_subdirectories),
-                summary = stringResource(Res.string.settings_scan_subdirectories_summary),
-                checked = settings.scanSubdirectories,
-                onCheckedChange = { onAction(SettingsAction.SetScanSubdirectories(it)) },
-            )
-            SettingsSelectRow(
-                label = stringResource(Res.string.settings_metadata_scan),
-                subtitle = settings.webDavMetadataScanMode.description(),
-                selected = settings.webDavMetadataScanMode,
-                options = MetadataScanMode.entries.toList(),
-                optionLabel = { mode -> mode.title() },
-                onSelect = { onAction(SettingsAction.SetWebDavMetadataScanMode(it)) },
-            )
+        }
+
+        SettingsSection(title = stringResource(Res.string.settings_import_rules_section)) {
             MinimumDurationSelectRow(
                 selectedDurationMs = settings.minimumAudioDurationMs,
                 onSelectDuration = { onAction(SettingsAction.SetMinimumAudioDurationMs(it)) },
@@ -193,62 +142,23 @@ fun SourceSettingsSection(
             )
             SettingsSelectRow(
                 label = stringResource(Res.string.settings_missing_file),
+                subtitle = stringResource(Res.string.settings_missing_file_design_summary),
                 selected = settings.missingFilePolicy,
                 options = MissingFilePolicy.entries.toList(),
-                optionLabel = { policy -> stringResource(policy.summaryResource()) },
+                optionLabel = { policy -> stringResource(policy.titleResource()) },
                 onSelect = { onAction(SettingsAction.SetMissingFilePolicy(it)) },
             )
             SettingsSelectRow(
                 label = stringResource(Res.string.settings_duplicate_policy),
+                subtitle = stringResource(Res.string.settings_duplicate_policy_design_summary),
                 selected = settings.duplicateTrackPolicy,
                 options = DuplicateTrackPolicy.entries.toList(),
-                optionLabel = { policy -> stringResource(policy.summaryResource()) },
+                optionLabel = { policy -> stringResource(policy.titleResource()) },
                 onSelect = { onAction(SettingsAction.SetDuplicateTrackPolicy(it)) },
             )
         }
 
-        SettingsSection(title = stringResource(Res.string.settings_scan_status_section)) {
-            val latestTask = state.scanTasks.firstOrNull()
-            if (latestTask == null) {
-                SettingsInfoRow(
-                    title = stringResource(Res.string.settings_scan_status_section),
-                    value = stringResource(Res.string.settings_scan_no_history),
-                )
-            } else {
-                SettingsInfoRow(
-                    title = latestTask.folderDisplayPath,
-                    value = latestTask.statusSummary(),
-                    onClick = if (latestTask.status.isActiveInSettings()) {
-                        { onAction(SettingsAction.CancelScan(latestTask.id)) }
-                    } else null,
-                )
-                if (latestTask.failedCount > 0L) {
-                    SettingsInfoRow(
-                        title = stringResource(Res.string.settings_scan_failure_details),
-                        value = stringResource(
-                            Res.string.settings_scan_failure_count,
-                            latestTask.failedCount,
-                        ),
-                        onClick = { onAction(SettingsAction.OpenScanFailures(latestTask.id)) },
-                    )
-                } else {
-                    latestTask.errorMessage?.let { message ->
-                        SettingsInfoRow(
-                            title = stringResource(Res.string.settings_scan_failure_details),
-                            value = message,
-                        )
-                    }
-                }
-            }
-        }
-
         SettingsSection(title = stringResource(Res.string.settings_maintenance_section)) {
-            SettingsInfoRow(
-                title = stringResource(Res.string.settings_scan_all),
-                value = stringResource(Res.string.settings_scan_all_summary),
-                enabled = !state.maintenanceOperationInProgress,
-                onClick = { onAction(SettingsAction.ScanAllSources) },
-            )
             SettingsInfoRow(
                 title = stringResource(Res.string.settings_refresh_missing_artwork),
                 value = stringResource(Res.string.settings_refresh_missing_artwork_summary),
@@ -268,77 +178,45 @@ fun SourceSettingsSection(
                 onClick = { onAction(SettingsAction.RequestRebuildLibrary) },
             )
         }
-
-        SettingsSection(title = stringResource(Res.string.settings_scan_section)) {
-            SettingsInfoRow(
-                title = stringResource(Res.string.settings_supported_formats),
-                value = SUPPORTED_AUDIO_EXTENSIONS.joinToString(", "),
-            )
-            SettingsInfoRow(
-                title = stringResource(Res.string.settings_hidden_files),
-                value = stringResource(Res.string.settings_hidden_files_summary),
-            )
-            SettingsInfoRow(
-                title = stringResource(Res.string.settings_ignored_directories),
-                value = DEFAULT_IGNORED_SOURCE_DIRECTORIES.joinToString(", "),
-            )
-        }
-
-        SettingsSection(title = stringResource(Res.string.settings_metadata_parsing_section)) {
-            SettingsInfoRow(
-                title = stringResource(Res.string.settings_artist_separators),
-                value = settings.metadataParsing.artistSeparators,
-                onClick = {
-                    editingMetadataField = MetadataField.ArtistSeparators
-                    metadataFieldValue = settings.metadataParsing.artistSeparators
-                },
-            )
-            SettingsInfoRow(
-                title = stringResource(Res.string.settings_artist_protected_names),
-                value = stringResource(
-                    Res.string.settings_protected_names_count,
-                    settings.metadataParsing.artistProtectedNames.lineSequence()
-                        .count(String::isNotBlank),
-                ),
-                onClick = {
-                    editingMetadataField = MetadataField.ArtistProtectedNames
-                    metadataFieldValue = settings.metadataParsing.artistProtectedNames
-                },
-            )
-            SettingsInfoRow(
-                title = stringResource(Res.string.settings_genre_separators),
-                value = settings.metadataParsing.genreSeparators,
-                onClick = {
-                    editingMetadataField = MetadataField.GenreSeparators
-                    metadataFieldValue = settings.metadataParsing.genreSeparators
-                },
-            )
-            SettingsInfoRow(
-                title = stringResource(Res.string.settings_genre_protected_names),
-                value = stringResource(
-                    Res.string.settings_protected_names_count,
-                    settings.metadataParsing.genreProtectedNames.lineSequence()
-                        .count(String::isNotBlank),
-                ),
-                onClick = {
-                    editingMetadataField = MetadataField.GenreProtectedNames
-                    metadataFieldValue = settings.metadataParsing.genreProtectedNames
-                },
-            )
-            SettingsSwitchRow(
-                title = stringResource(Res.string.settings_ignore_tag_case),
-                summary = stringResource(Res.string.settings_ignore_tag_case_summary),
-                checked = settings.metadataParsing.ignoreTagCase,
-                onCheckedChange = {
-                    onAction(
-                        SettingsAction.SetMetadataParsingSettings(
-                            settings.metadataParsing.copy(ignoreTagCase = it)
-                        )
-                    )
-                },
-            )
-        }
     }
+
+    AddSourceDialog(
+        show = addSourceDialogOpen,
+        canAddLocal = state.capabilities.customMusicDirectorySupported,
+        canAddWebDav = state.capabilities.secureCredentialStoreSupported,
+        canAddSmb = state.capabilities.secureCredentialStoreSupported,
+        onAddLocal = {
+            addSourceDialogOpen = false
+            onAction(SettingsAction.RequestAddLocalDirectory)
+        },
+        onAddWebDav = {
+            addSourceDialogOpen = false
+            onAction(SettingsAction.OpenAddWebDavDialog)
+        },
+        onAddSmb = {
+            addSourceDialogOpen = false
+            onAction(SettingsAction.OpenAddSmbDialog)
+        },
+        onDismiss = { addSourceDialogOpen = false },
+    )
+    LocalDirectoriesDialog(
+        show = localDirectoriesDialogOpen,
+        directories = state.localDirectories,
+        onAdd = {
+            localDirectoriesDialogOpen = false
+            onAction(SettingsAction.RequestAddLocalDirectory)
+        },
+        onRemove = { directory ->
+            localDirectoriesDialogOpen = false
+            onAction(
+                SettingsAction.RequestRemoveLocalDirectory(
+                    id = directory.id,
+                    title = directory.displayName,
+                ),
+            )
+        },
+        onDismiss = { localDirectoriesDialogOpen = false },
+    )
 
     SettingsInputDialog(
         show = customDurationDialogOpen,
@@ -359,36 +237,8 @@ fun SourceSettingsSection(
         },
         onDismiss = { customDurationDialogOpen = false },
     )
-    val selectedMetadataField = editingMetadataField
-    SettingsInputDialog(
-        show = selectedMetadataField != null,
-        title = stringResource(selectedMetadataField?.titleResource() ?: Res.string.settings_artist_separators),
-        message = stringResource(
-            if (selectedMetadataField?.multiline == true) {
-                Res.string.settings_protected_names_hint
-            } else {
-                Res.string.settings_separators_hint
-            },
-        ),
-        value = metadataFieldValue,
-        label = stringResource(selectedMetadataField?.titleResource() ?: Res.string.settings_artist_separators),
-        singleLine = selectedMetadataField?.multiline != true,
-        onValueChange = { metadataFieldValue = it },
-        onConfirm = {
-            val current = settings.metadataParsing
-            val updated = when (selectedMetadataField) {
-                MetadataField.ArtistSeparators -> current.copy(artistSeparators = metadataFieldValue)
-                MetadataField.ArtistProtectedNames -> current.copy(artistProtectedNames = metadataFieldValue)
-                MetadataField.GenreSeparators -> current.copy(genreSeparators = metadataFieldValue)
-                MetadataField.GenreProtectedNames -> current.copy(genreProtectedNames = metadataFieldValue)
-                null -> current
-            }
-            onAction(SettingsAction.SetMetadataParsingSettings(updated))
-            editingMetadataField = null
-        },
-        onDismiss = { editingMetadataField = null },
-    )
     WebDavAccountDialog(state = state, dialog = state.webDavDialog, onAction = onAction)
+    SmbAccountDialog(state = state, dialog = state.smbDialog, onAction = onAction)
     SettingsConfirmDialog(
         show = state.pendingConfirmation is SettingsConfirmation.RemoveLocalDirectory,
         title = stringResource(Res.string.settings_confirm_remove_directory_title),
@@ -401,6 +251,14 @@ fun SourceSettingsSection(
         show = state.pendingConfirmation is SettingsConfirmation.DeleteWebDavAccount,
         title = stringResource(Res.string.settings_confirm_delete_webdav_title),
         message = stringResource(Res.string.settings_confirm_delete_webdav_message),
+        confirmText = stringResource(Res.string.settings_delete),
+        onConfirm = { onAction(SettingsAction.ConfirmPendingAction) },
+        onDismiss = { onAction(SettingsAction.DismissConfirmation) },
+    )
+    SettingsConfirmDialog(
+        show = state.pendingConfirmation is SettingsConfirmation.DeleteSmbAccount,
+        title = stringResource(Res.string.settings_confirm_delete_smb_title),
+        message = stringResource(Res.string.settings_confirm_delete_smb_message),
         confirmText = stringResource(Res.string.settings_delete),
         onConfirm = { onAction(SettingsAction.ConfirmPendingAction) },
         onDismiss = { onAction(SettingsAction.DismissConfirmation) },
@@ -421,17 +279,1134 @@ fun SourceSettingsSection(
 }
 
 @Composable
-private fun MetadataScanMode.title(): String = when (this) {
-    MetadataScanMode.Fast -> stringResource(Res.string.settings_metadata_scan_fast)
-    MetadataScanMode.Standard -> stringResource(Res.string.settings_metadata_scan_standard)
-    MetadataScanMode.Full -> stringResource(Res.string.settings_metadata_scan_full)
+private fun UnifiedLibraryCard(state: SettingsUiState) {
+    val sourceCount = state.sourceAccounts.size
+    val enabledCount = state.enabledSourceCount
+    val pausedCount = sourceCount - enabledCount
+    val isUpToDate = sourceCount > 0 && pausedCount == 0
+    val statusText = when {
+        sourceCount == 0 -> stringResource(Res.string.settings_library_no_sources)
+        isUpToDate -> stringResource(Res.string.settings_library_up_to_date)
+        else -> stringResource(Res.string.settings_library_sources_paused, pausedCount)
+    }
+    val statusColor = if (isUpToDate) {
+        DesignPalette.SupportGreen
+    } else {
+        DesignPalette.SupportYellow
+    }
+    val lastScanAt = state.sourceAccounts.mapNotNull { it.lastScanAtEpochMs }.maxOrNull()
+
+    DesignCardSurface(
+        cornerRadius = 28.dp,
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
+        borderColor = MiuixTheme.colorScheme.primary.copy(alpha = 0.15f),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                SettingsIconBadge(
+                    drawable = Res.drawable.icon_source_layers,
+                    colors = DesignGradients.PinkPurple.colors,
+                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(Res.string.settings_unified_library),
+                            color = MiuixTheme.colorScheme.onSurface,
+                            style = MiuixTheme.textStyles.body1,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.weight(1f),
+                        )
+                        StatusPill(label = statusText, color = statusColor)
+                    }
+                    Text(
+                        text = stringResource(Res.string.settings_unified_library_summary),
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        style = MiuixTheme.textStyles.body2,
+                        lineHeight = 18.sp,
+                    )
+                }
+            }
+
+            Spacer(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.6f)),
+            )
+            Row(modifier = Modifier.fillMaxWidth()) {
+                LibraryStat(
+                    value = state.trackCount.groupedCount(),
+                    label = stringResource(Res.string.settings_tracks_indexed),
+                    modifier = Modifier.weight(1f),
+                )
+                StatDivider()
+                LibraryStat(
+                    value = "$enabledCount/$sourceCount",
+                    label = stringResource(Res.string.settings_sources_enabled),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 12.dp),
+                )
+                StatDivider()
+                LibraryStat(
+                    value = lastScanAt.relativeScanLabel(compact = true),
+                    label = stringResource(Res.string.settings_source_last_scan),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 12.dp),
+                )
+            }
+        }
+    }
 }
 
 @Composable
-private fun MetadataScanMode.description(): String = when (this) {
-    MetadataScanMode.Fast -> stringResource(Res.string.settings_metadata_scan_fast_description)
-    MetadataScanMode.Standard -> stringResource(Res.string.settings_metadata_scan_standard_description)
-    MetadataScanMode.Full -> stringResource(Res.string.settings_metadata_scan_full_description)
+private fun StatusPill(label: String, color: Color) {
+    Text(
+        text = label,
+        color = color,
+        style = MiuixTheme.textStyles.footnote2,
+        fontWeight = FontWeight.SemiBold,
+        maxLines = 1,
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(color.copy(alpha = 0.12f))
+            .padding(horizontal = 10.dp, vertical = 5.dp),
+    )
+}
+
+@Composable
+private fun LibraryStat(
+    value: String,
+    label: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(
+            text = value,
+            color = MiuixTheme.colorScheme.onSurface,
+            style = MiuixTheme.textStyles.title3,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = label,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            style = MiuixTheme.textStyles.footnote2,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun StatDivider() {
+    Spacer(
+        modifier = Modifier
+            .width(1.dp)
+            .height(36.dp)
+            .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.6f)),
+    )
+}
+
+@Composable
+private fun SourceAccountRow(
+    account: SourceAccountSettingsItem,
+    localDirectories: List<LocalMusicDirectory>,
+    activeTask: LibrarySyncTask?,
+    onManageLocal: () -> Unit,
+    onAction: (SettingsAction) -> Unit,
+) {
+    val sourceTitle = if (account.isLocal) {
+        stringResource(Res.string.settings_source_local)
+    } else {
+        account.title.ifBlank { account.sourceLabel }
+    }
+    val location = when {
+        account.isLocal -> stringResource(
+            if (localDirectories.size == 1) {
+                Res.string.settings_source_directory_count_one
+            } else {
+                Res.string.settings_source_directory_count_other
+            },
+            localDirectories.size,
+        )
+        !account.rootPath.isNullOrBlank() -> account.rootPath
+        else -> account.subtitle
+    }
+    val metadata = listOf(
+        account.sourceLabel,
+        location,
+        stringResource(Res.string.settings_track_count, account.trackCount.groupedCount()),
+    ).filter(String::isNotBlank).joinToString(" · ")
+    val isScanning = activeTask != null || account.lastScanStatus == "RUNNING"
+    val connectionLabel = when {
+        !account.enabled -> stringResource(Res.string.settings_source_disconnected)
+        account.isLocal -> stringResource(Res.string.settings_source_available)
+        else -> stringResource(Res.string.settings_source_connected)
+    }
+    val indexLabel = when {
+        isScanning -> stringResource(Res.string.settings_source_scanning)
+        account.trackCount > 0L -> stringResource(Res.string.settings_source_indexed)
+        else -> stringResource(Res.string.settings_source_not_indexed)
+    }
+    val visual = account.sourceVisual()
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 88.dp)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            SettingsIconBadge(
+                drawable = visual.icon,
+                colors = visual.colors,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(top = 1.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = sourceTitle,
+                        color = MiuixTheme.colorScheme.onSurface,
+                        style = MiuixTheme.textStyles.body1,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
+                    StatusPill(
+                        label = stringResource(
+                            if (account.enabled) {
+                                Res.string.settings_source_enabled
+                            } else {
+                                Res.string.settings_source_paused
+                            },
+                        ),
+                        color = if (account.enabled) {
+                            DesignPalette.SupportGreen
+                        } else {
+                            MiuixTheme.colorScheme.onSurfaceVariantSummary
+                        },
+                    )
+                }
+                Text(
+                    text = metadata,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    style = MiuixTheme.textStyles.body2,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                SourceHealthLine(
+                    connectionLabel = connectionLabel,
+                    indexLabel = indexLabel,
+                    lastScanLabel = account.lastScanAtEpochMs.relativeScanLabel(compact = true),
+                    connected = account.enabled,
+                    scanning = isScanning,
+                )
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(0.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                AppSwitch(
+                    checked = account.enabled,
+                    onCheckedChange = {
+                        onAction(SettingsAction.SetAccountEnabled(account.accountId, it))
+                    },
+                )
+                SourceActionsButton(
+                    account = account,
+                    sourceTitle = sourceTitle,
+                    onManageLocal = onManageLocal,
+                    onAction = onAction,
+                )
+            }
+        }
+        Spacer(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 68.dp)
+                .height(1.dp)
+                .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.45f)),
+        )
+    }
+}
+
+@Composable
+private fun SourceHealthLine(
+    connectionLabel: String,
+    indexLabel: String,
+    lastScanLabel: String,
+    connected: Boolean,
+    scanning: Boolean,
+) {
+    val transition = rememberInfiniteTransition()
+    val rotation by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 900, easing = LinearEasing),
+        ),
+    )
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Spacer(
+            modifier = Modifier
+                .size(6.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .background(
+                    if (connected) {
+                        DesignPalette.SupportGreen
+                    } else {
+                        MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.55f)
+                    },
+                ),
+        )
+        Text(
+            text = connectionLabel,
+            color = if (connected) {
+                DesignPalette.SupportGreen
+            } else {
+                MiuixTheme.colorScheme.onSurfaceVariantSummary
+            },
+            style = MiuixTheme.textStyles.footnote2,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
+        )
+        Text(
+            text = "·",
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            style = MiuixTheme.textStyles.footnote2,
+        )
+        if (scanning) {
+            Icon(
+                painter = painterResource(Res.drawable.icon_source_refresh),
+                contentDescription = null,
+                tint = MiuixTheme.colorScheme.primary,
+                modifier = Modifier
+                    .size(11.dp)
+                    .graphicsLayer(rotationZ = rotation),
+            )
+        }
+        Text(
+            text = indexLabel,
+            color = if (scanning) {
+                MiuixTheme.colorScheme.primary
+            } else {
+                MiuixTheme.colorScheme.onSurfaceVariantSummary
+            },
+            style = MiuixTheme.textStyles.footnote2,
+            maxLines = 1,
+        )
+        if (!scanning) {
+            Text(
+                text = "·",
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                style = MiuixTheme.textStyles.footnote2,
+            )
+            Text(
+                text = lastScanLabel,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                style = MiuixTheme.textStyles.footnote2,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SourceActionsButton(
+    account: SourceAccountSettingsItem,
+    sourceTitle: String,
+    onManageLocal: () -> Unit,
+    onAction: (SettingsAction) -> Unit,
+) {
+    var menuOpen by remember(account.accountId) { mutableStateOf(false) }
+    Box {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .clickable { menuOpen = true },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(CorePresentationRes.drawable.icon_vertialcal_more),
+                contentDescription = stringResource(Res.string.settings_source_more_actions),
+                tint = MiuixTheme.colorScheme.onSurfaceVariantActions,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        if (menuOpen) {
+            Popup(
+                alignment = Alignment.TopEnd,
+                properties = PopupProperties(focusable = true),
+                onDismissRequest = { menuOpen = false },
+            ) {
+                Column(
+                    modifier = Modifier
+                        .width(224.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(MiuixTheme.colorScheme.surfaceContainerHighest)
+                        .padding(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    if (account.isLocal) {
+                        SourceMenuItem(
+                            icon = Res.drawable.icon_source_sliders,
+                            label = stringResource(Res.string.settings_source_manage),
+                            onClick = {
+                                menuOpen = false
+                                onManageLocal()
+                            },
+                        )
+                    }
+                    if (account.isWebDav || account.isSmb) {
+                        SourceMenuItem(
+                            icon = Res.drawable.icon_source_pencil,
+                            label = stringResource(Res.string.settings_source_edit_action),
+                            onClick = {
+                                menuOpen = false
+                                onAction(
+                                    if (account.isWebDav) {
+                                        SettingsAction.OpenEditWebDavDialog(account.accountId)
+                                    } else {
+                                        SettingsAction.OpenEditSmbDialog(account.accountId)
+                                    },
+                                )
+                            },
+                        )
+                    }
+                    if (!account.isRemoteServer) {
+                        SourceMenuItem(
+                            icon = Res.drawable.icon_source_refresh,
+                            label = stringResource(Res.string.settings_source_scan_action),
+                            enabled = account.enabled,
+                            onClick = {
+                                menuOpen = false
+                                onAction(SettingsAction.ScanSourceAccount(account.accountId))
+                            },
+                        )
+                    }
+                    if (account.isWebDav || account.isSmb) {
+                        Spacer(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(1.dp)
+                                .background(MiuixTheme.colorScheme.dividerLine),
+                        )
+                        SourceMenuItem(
+                            icon = Res.drawable.icon_source_trash,
+                            label = stringResource(Res.string.settings_source_delete_action),
+                            color = MiuixTheme.colorScheme.error,
+                            onClick = {
+                                menuOpen = false
+                                onAction(if (account.isWebDav) {
+                                    SettingsAction.RequestDeleteWebDavAccount(
+                                        accountId = account.accountId,
+                                        title = sourceTitle,
+                                    )
+                                } else {
+                                    SettingsAction.RequestDeleteSmbAccount(
+                                        accountId = account.accountId,
+                                        title = sourceTitle,
+                                    )
+                                })
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SourceMenuItem(
+    icon: DrawableResource,
+    label: String,
+    enabled: Boolean = true,
+    color: Color = MiuixTheme.colorScheme.onSurface,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .alpha(if (enabled) 1f else 0.4f)
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painter = painterResource(icon),
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(16.dp),
+        )
+        Text(
+            text = label,
+            color = color,
+            style = MiuixTheme.textStyles.body2,
+            fontWeight = FontWeight.Medium,
+        )
+    }
+}
+
+@Composable
+private fun AddSourceRow(
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 76.dp)
+            .alpha(if (enabled) 1f else 0.4f)
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SettingsIconBadge(
+            drawable = Res.drawable.icon_source_plus,
+            colors = DesignGradients.PinkOrange.colors,
+        )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Text(
+                text = stringResource(Res.string.settings_add_source),
+                color = MiuixTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.body2,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = stringResource(Res.string.settings_add_source_summary),
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                style = MiuixTheme.textStyles.footnote1,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        DesignChevron(direction = DesignChevronDirection.Right)
+    }
+}
+
+@Composable
+private fun LibraryScanStatusCard(
+    state: SettingsUiState,
+    onAction: (SettingsAction) -> Unit,
+) {
+    val activeTasks = state.scanTasks.filter { it.status.isActiveInSettings() }
+    val active = activeTasks.isNotEmpty()
+    val latestTask = state.scanTasks.firstOrNull()
+    val attentionTaskId = latestTask?.takeIf {
+        it.failedCount > 0L ||
+            it.status == LibrarySyncStatus.Failed ||
+            it.status == LibrarySyncStatus.CompletedWithErrors
+    }?.id
+    val latestNeedsAttention = attentionTaskId != null
+    val title = when {
+        active -> stringResource(Res.string.settings_library_scanning)
+        latestNeedsAttention -> stringResource(Res.string.settings_library_scan_attention)
+        else -> stringResource(Res.string.settings_library_up_to_date)
+    }
+    val summary = when {
+        active -> stringResource(
+            Res.string.settings_library_scanning_summary,
+            activeTasks.sumOf(LibrarySyncTask::scannedCount).groupedCount(),
+        )
+        latestTask == null -> stringResource(
+            Res.string.settings_library_no_scan_summary,
+            state.trackCount.groupedCount(),
+        )
+        latestTask.failedCount == 0L -> stringResource(
+            Res.string.settings_library_scan_complete_no_failures_summary,
+            latestTask.updatedAtEpochMs.relativeScanLabel(compact = false),
+            state.trackCount.groupedCount(),
+        )
+        else -> stringResource(
+            Res.string.settings_library_scan_complete_summary,
+            latestTask.updatedAtEpochMs.relativeScanLabel(compact = false),
+            state.trackCount.groupedCount(),
+            latestTask.failedCount.groupedCount(),
+        )
+    }
+    val processed = activeTasks.sumOf(LibrarySyncTask::processedCount)
+    val scanned = activeTasks.sumOf(LibrarySyncTask::scannedCount)
+    val progress = if (scanned > 0L) {
+        (processed.toFloat() / scanned.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+    val canScan = state.enabledSourceCount > 0 && !state.maintenanceOperationInProgress
+
+    DesignCardSurface(
+        cornerRadius = 24.dp,
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+        backgroundColor = if (active) {
+            MiuixTheme.colorScheme.primary.copy(alpha = 0.06f)
+        } else {
+            MiuixTheme.colorScheme.surfaceContainer
+        },
+        borderColor = if (active) {
+            MiuixTheme.colorScheme.primary.copy(alpha = 0.25f)
+        } else {
+            MiuixTheme.colorScheme.outline
+        },
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                SettingsIconBadge(
+                    drawable = if (active) {
+                        Res.drawable.icon_source_refresh
+                    } else {
+                        Res.drawable.icon_source_circle_check
+                    },
+                    colors = if (active) {
+                        DesignGradients.PinkPurple.colors
+                    } else {
+                        DesignGradients.GreenBlue.colors
+                    },
+                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                ) {
+                    Text(
+                        text = title,
+                        color = MiuixTheme.colorScheme.onSurface,
+                        style = MiuixTheme.textStyles.body1,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = summary,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        style = MiuixTheme.textStyles.footnote1,
+                        lineHeight = 16.sp,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = if (attentionTaskId != null) {
+                            Modifier.clickable {
+                                onAction(SettingsAction.OpenScanFailures(attentionTaskId))
+                            }
+                        } else {
+                            Modifier
+                        },
+                    )
+                }
+                DesignButton(
+                    text = stringResource(
+                        if (active) {
+                            Res.string.settings_cancel
+                        } else {
+                            Res.string.settings_scan_now
+                        },
+                    ),
+                    variant = if (active) {
+                        DesignButtonVariant.Secondary
+                    } else {
+                        DesignButtonVariant.Primary
+                    },
+                    enabled = active || canScan,
+                    minHeight = 40.dp,
+                    insideMargin = androidx.compose.foundation.layout.PaddingValues(
+                        horizontal = 14.dp,
+                        vertical = 8.dp,
+                    ),
+                    onClick = {
+                        onAction(
+                            if (active) {
+                                SettingsAction.CancelActiveScans
+                            } else {
+                                SettingsAction.ScanAllSources
+                            },
+                        )
+                    },
+                )
+            }
+            if (active) {
+                DesignLinearProgressIndicator(
+                    progress = progress,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LocalDirectoriesDialog(
+    show: Boolean,
+    directories: List<LocalMusicDirectory>,
+    onAdd: () -> Unit,
+    onRemove: (LocalMusicDirectory) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    DesignDialog(show = show, onDismiss = onDismiss) {
+        Text(
+            text = stringResource(Res.string.settings_source_manage),
+            color = MiuixTheme.colorScheme.onSurface,
+            style = MiuixTheme.textStyles.title3,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = stringResource(Res.string.settings_source_manage_summary),
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            style = MiuixTheme.textStyles.body2,
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 420.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(MiuixTheme.colorScheme.surfaceContainerHigh)
+                .verticalScroll(rememberScrollState()),
+        ) {
+            directories.forEachIndexed { index, directory ->
+                LocalDirectoryRow(directory = directory, onRemove = { onRemove(directory) })
+                if (index != directories.lastIndex) {
+                    SourceRowDivider()
+                }
+            }
+            if (directories.isNotEmpty()) {
+                SourceRowDivider()
+            }
+            SourcePickerRow(
+                icon = Res.drawable.icon_source_plus,
+                colors = DesignGradients.PinkOrange.colors,
+                title = stringResource(Res.string.settings_source_add_local),
+                summary = stringResource(Res.string.settings_source_add_local_summary),
+                onClick = onAdd,
+            )
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            DesignTextButton(
+                text = stringResource(Res.string.settings_close),
+                variant = DesignTextButtonVariant.Default,
+                size = DesignTextButtonSize.Medium,
+                onClick = onDismiss,
+            )
+        }
+    }
+}
+
+@Composable
+private fun LocalDirectoryRow(
+    directory: LocalMusicDirectory,
+    onRemove: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 76.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SettingsIconBadge(
+            drawable = Res.drawable.icon_source_hard_drive,
+            colors = DesignGradients.PinkOrange.colors,
+        )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Text(
+                text = directory.displayName,
+                color = MiuixTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.body1,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = directory.path,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                style = MiuixTheme.textStyles.footnote1,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .clickable(onClick = onRemove),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(Res.drawable.icon_source_trash),
+                contentDescription = stringResource(Res.string.settings_delete),
+                tint = MiuixTheme.colorScheme.error,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SourceRowDivider() {
+    Spacer(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 68.dp)
+            .height(1.dp)
+            .background(MiuixTheme.colorScheme.dividerLine),
+    )
+}
+
+@Composable
+private fun AddSourceDialog(
+    show: Boolean,
+    canAddLocal: Boolean,
+    canAddWebDav: Boolean,
+    canAddSmb: Boolean,
+    onAddLocal: () -> Unit,
+    onAddWebDav: () -> Unit,
+    onAddSmb: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var deviceNetworkExpanded by remember(show) { mutableStateOf(false) }
+    DesignDialog(show = show, onDismiss = onDismiss) {
+        Text(
+            text = stringResource(Res.string.settings_add_source),
+            color = MiuixTheme.colorScheme.onSurface,
+            style = MiuixTheme.textStyles.title3,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = stringResource(Res.string.settings_add_source_dialog_summary),
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            style = MiuixTheme.textStyles.body2,
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = stringResource(Res.string.settings_source_quick_access),
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            style = MiuixTheme.textStyles.footnote1,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (canAddLocal) {
+                SourcePickerQuickOption(
+                    modifier = Modifier.weight(1f),
+                    icon = Res.drawable.icon_source_hard_drive,
+                    colors = DesignGradients.PinkOrange.colors,
+                    title = stringResource(Res.string.settings_source_quick_local),
+                    onClick = onAddLocal,
+                )
+            }
+            if (canAddWebDav) {
+                SourcePickerQuickOption(
+                    modifier = Modifier.weight(1f),
+                    icon = Res.drawable.icon_source_server,
+                    colors = DesignGradients.BluePurple.colors,
+                    title = stringResource(Res.string.settings_source_quick_webdav),
+                    onClick = onAddWebDav,
+                )
+            }
+            if (canAddSmb) {
+                SourcePickerQuickOption(
+                    modifier = Modifier.weight(1f),
+                    icon = Res.drawable.icon_source_database,
+                    colors = DesignGradients.OrangeYellow.colors,
+                    title = stringResource(Res.string.settings_source_quick_smb),
+                    onClick = onAddSmb,
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(20.dp))
+        Text(
+            text = stringResource(Res.string.settings_source_browse_by_type),
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            style = MiuixTheme.textStyles.footnote1,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(MiuixTheme.colorScheme.surfaceContainerHigh),
+        ) {
+            SourcePickerCategoryRow(
+                expanded = deviceNetworkExpanded,
+                onClick = { deviceNetworkExpanded = !deviceNetworkExpanded },
+            )
+            if (deviceNetworkExpanded) {
+                if (canAddLocal) {
+                    SourceRowDivider()
+                    SourcePickerRow(
+                        icon = Res.drawable.icon_source_hard_drive,
+                        colors = DesignGradients.PinkOrange.colors,
+                        title = stringResource(Res.string.settings_source_add_local),
+                        summary = stringResource(Res.string.settings_source_add_local_summary),
+                        onClick = onAddLocal,
+                    )
+                }
+                if (canAddWebDav) {
+                    SourceRowDivider()
+                    SourcePickerRow(
+                        icon = Res.drawable.icon_source_server,
+                        colors = DesignGradients.BluePurple.colors,
+                        title = stringResource(Res.string.settings_source_add_webdav),
+                        summary = stringResource(Res.string.settings_source_add_webdav_summary),
+                        onClick = onAddWebDav,
+                    )
+                }
+                if (canAddSmb) {
+                    SourceRowDivider()
+                    SourcePickerRow(
+                        icon = Res.drawable.icon_source_database,
+                        colors = DesignGradients.OrangeYellow.colors,
+                        title = stringResource(Res.string.settings_source_add_smb),
+                        summary = stringResource(Res.string.settings_source_add_smb_summary),
+                        onClick = onAddSmb,
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            DesignTextButton(
+                text = stringResource(Res.string.settings_cancel),
+                variant = DesignTextButtonVariant.Default,
+                size = DesignTextButtonSize.Medium,
+                onClick = onDismiss,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SourcePickerQuickOption(
+    modifier: Modifier,
+    icon: DrawableResource,
+    colors: List<Color>,
+    title: String,
+    onClick: () -> Unit,
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(18.dp))
+            .background(MiuixTheme.colorScheme.surfaceContainerHigh)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        SettingsIconBadge(drawable = icon, colors = colors)
+        Text(
+            text = title,
+            color = MiuixTheme.colorScheme.onSurface,
+            style = MiuixTheme.textStyles.footnote1,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun SourcePickerCategoryRow(
+    expanded: Boolean,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 76.dp)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SettingsIconBadge(
+            drawable = Res.drawable.icon_source_layers,
+            colors = DesignGradients.GreenBlue.colors,
+        )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Text(
+                text = stringResource(Res.string.settings_source_device_network),
+                color = MiuixTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.body1,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = stringResource(Res.string.settings_source_device_network_summary),
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                style = MiuixTheme.textStyles.footnote1,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Text(
+            text = stringResource(
+                if (expanded) Res.string.settings_source_collapse else Res.string.settings_source_expand,
+            ),
+            color = MiuixTheme.colorScheme.primary,
+            style = MiuixTheme.textStyles.footnote1,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+@Composable
+private fun SourcePickerRow(
+    icon: DrawableResource,
+    colors: List<Color>,
+    title: String,
+    summary: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 76.dp)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SettingsIconBadge(drawable = icon, colors = colors)
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Text(
+                text = title,
+                color = MiuixTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.body1,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = summary,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                style = MiuixTheme.textStyles.footnote1,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        DesignChevron(direction = DesignChevronDirection.Right)
+    }
+}
+
+private data class SourceVisual(
+    val icon: DrawableResource,
+    val colors: List<Color>,
+)
+
+private fun SourceAccountSettingsItem.sourceVisual(): SourceVisual = when {
+    isLocal -> SourceVisual(
+        icon = Res.drawable.icon_source_hard_drive,
+        colors = DesignGradients.PinkOrange.colors,
+    )
+    isWebDav -> SourceVisual(
+        icon = Res.drawable.icon_source_server,
+        colors = DesignGradients.BluePurple.colors,
+    )
+    isSmb -> SourceVisual(
+        icon = Res.drawable.icon_source_database,
+        colors = DesignGradients.OrangeYellow.colors,
+    )
+    else -> SourceVisual(
+        icon = Res.drawable.icon_source_server,
+        colors = DesignGradients.GreenBlue.colors,
+    )
+}
+
+@Composable
+private fun Long?.relativeScanLabel(compact: Boolean): String {
+    if (this == null) return stringResource(Res.string.settings_source_never_scanned)
+    val elapsedMs = (Clock.System.now().toEpochMilliseconds() - this).coerceAtLeast(0L)
+    val minutes = elapsedMs / 60_000L
+    return when {
+        minutes < 1L -> stringResource(Res.string.settings_relative_now)
+        minutes < 60L -> stringResource(
+            if (compact) {
+                Res.string.settings_relative_minutes_short
+            } else {
+                Res.string.settings_relative_minutes
+            },
+            minutes,
+        )
+        minutes < 1_440L -> stringResource(
+            if (compact) {
+                Res.string.settings_relative_hours_short
+            } else {
+                Res.string.settings_relative_hours
+            },
+            minutes / 60L,
+        )
+        else -> stringResource(
+            if (compact) {
+                Res.string.settings_relative_days_short
+            } else {
+                Res.string.settings_relative_days
+            },
+            minutes / 1_440L,
+        )
+    }
+}
+
+private fun Long.groupedCount(): String {
+    val raw = toString()
+    return raw.reversed().chunked(3).joinToString(",").reversed()
 }
 
 @Composable
@@ -541,13 +1516,24 @@ private fun WebDavAccountDialog(
     dialog: WebDavAccountDialogState?,
     onAction: (SettingsAction) -> Unit,
 ) {
-    if (dialog == null) return
-    var password by remember(dialog.accountId, dialog.isEditing) { mutableStateOf("") }
-    DesignDialog(show = true, onDismiss = { onAction(SettingsAction.DismissWebDavDialog) }) {
+    val dialogVisible = dialog != null
+    var retainedDialog by remember { mutableStateOf(dialog) }
+    SideEffect {
+        if (dialog != null) retainedDialog = dialog
+    }
+    val activeDialog = dialog ?: retainedDialog ?: return
+    var password by remember(activeDialog.accountId, activeDialog.isEditing) { mutableStateOf("") }
+    LaunchedEffect(dialogVisible, activeDialog.accountId, activeDialog.isEditing) {
+        if (dialogVisible) password = ""
+    }
+    DesignDialog(
+        show = dialogVisible,
+        onDismiss = { onAction(SettingsAction.DismissWebDavDialog) },
+    ) {
         Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
             Text(
                 text = stringResource(
-                    if (dialog.isEditing) Res.string.settings_webdav_edit_title
+                    if (activeDialog.isEditing) Res.string.settings_webdav_edit_title
                     else Res.string.settings_webdav_add_title
                 ),
                 style = MiuixTheme.textStyles.title3,
@@ -555,7 +1541,7 @@ private fun WebDavAccountDialog(
             )
             Spacer(modifier = Modifier.height(12.dp))
             DesignTextField(
-                value = dialog.name,
+                value = activeDialog.name,
                 onValueChange = { onAction(SettingsAction.SetWebDavDialogName(it)) },
                 label = stringResource(Res.string.settings_webdav_name),
                 singleLine = true,
@@ -563,7 +1549,7 @@ private fun WebDavAccountDialog(
             )
             Spacer(modifier = Modifier.height(8.dp))
             DesignTextField(
-                value = dialog.serverUrl,
+                value = activeDialog.serverUrl,
                 onValueChange = { onAction(SettingsAction.SetWebDavDialogServerUrl(it)) },
                 label = stringResource(Res.string.settings_webdav_url),
                 singleLine = true,
@@ -571,7 +1557,7 @@ private fun WebDavAccountDialog(
             )
             Spacer(modifier = Modifier.height(8.dp))
             DesignTextField(
-                value = dialog.username,
+                value = activeDialog.username,
                 onValueChange = { onAction(SettingsAction.SetWebDavDialogUsername(it)) },
                 label = stringResource(Res.string.settings_webdav_username),
                 singleLine = true,
@@ -585,7 +1571,7 @@ private fun WebDavAccountDialog(
                     onAction(SettingsAction.ResetWebDavConnectionTest)
                 },
                 label = stringResource(
-                    if (dialog.isEditing) Res.string.settings_webdav_password_edit
+                    if (activeDialog.isEditing) Res.string.settings_webdav_password_edit
                     else Res.string.settings_webdav_password_new
                 ),
                 singleLine = true,
@@ -594,7 +1580,7 @@ private fun WebDavAccountDialog(
             )
             Spacer(modifier = Modifier.height(8.dp))
             DesignTextField(
-                value = dialog.rootPath,
+                value = activeDialog.rootPath,
                 onValueChange = { onAction(SettingsAction.SetWebDavDialogRootPath(it)) },
                 label = stringResource(Res.string.settings_webdav_root),
                 singleLine = true,
@@ -612,7 +1598,7 @@ private fun WebDavAccountDialog(
             }
             Spacer(modifier = Modifier.height(16.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                if (dialog.isEditing && dialog.accountId != null) {
+                if (activeDialog.isEditing && activeDialog.accountId != null) {
                     DesignTextButton(
                         text = stringResource(Res.string.settings_delete),
                         variant = DesignTextButtonVariant.Error,
@@ -620,8 +1606,8 @@ private fun WebDavAccountDialog(
                         onClick = {
                             onAction(
                                 SettingsAction.RequestDeleteWebDavAccount(
-                                    dialog.accountId,
-                                    dialog.name.ifBlank { dialog.serverUrl },
+                                    activeDialog.accountId,
+                                    activeDialog.name.ifBlank { activeDialog.serverUrl },
                                 )
                             )
                         },
@@ -651,55 +1637,228 @@ private fun WebDavAccountDialog(
 }
 
 @Composable
-private fun LibrarySyncTask.statusSummary(): String {
-    val statusText = when (status) {
-        LibrarySyncStatus.Queued -> stringResource(Res.string.settings_scan_status_queued)
-        LibrarySyncStatus.Running -> stringResource(Res.string.settings_scan_status_running)
-        LibrarySyncStatus.Paused -> stringResource(Res.string.settings_scan_status_paused)
-        LibrarySyncStatus.Completed -> stringResource(Res.string.settings_scan_status_completed)
-        LibrarySyncStatus.CompletedWithErrors -> {
-            stringResource(Res.string.settings_scan_status_completed_errors)
-        }
-        LibrarySyncStatus.Failed -> stringResource(Res.string.settings_scan_status_failed)
-        LibrarySyncStatus.Cancelled -> stringResource(Res.string.settings_scan_status_cancelled)
-        LibrarySyncStatus.Unknown -> stringResource(Res.string.settings_scan_status_unknown)
+private fun SmbAccountDialog(
+    state: SettingsUiState,
+    dialog: SmbAccountDialogState?,
+    onAction: (SettingsAction) -> Unit,
+) {
+    val dialogVisible = dialog != null
+    var retainedDialog by remember { mutableStateOf(dialog) }
+    SideEffect {
+        if (dialog != null) retainedDialog = dialog
     }
-    return stringResource(
-        Res.string.settings_scan_status_summary,
-        statusText,
-        syncMode,
-        scannedCount.toString(),
-        addedCount.toString(),
-        (modifiedCount + renamedCount).toString(),
-        deletedCount.toString(),
-        skippedCount.toString(),
-        metadataRequestCount.toString(),
-        totalElapsedMs.toString(),
-    )
+    val activeDialog = dialog ?: retainedDialog ?: return
+    var password by remember(activeDialog.accountId, activeDialog.isEditing) { mutableStateOf("") }
+    LaunchedEffect(dialogVisible, activeDialog.accountId, activeDialog.isEditing) {
+        if (dialogVisible) password = ""
+    }
+    DesignDialog(
+        show = dialogVisible,
+        onDismiss = { onAction(SettingsAction.DismissSmbDialog) },
+    ) {
+        Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+            Text(
+                text = stringResource(
+                    if (activeDialog.isEditing) Res.string.settings_smb_edit_title
+                    else Res.string.settings_smb_add_title,
+                ),
+                style = MiuixTheme.textStyles.title3,
+                color = MiuixTheme.colorScheme.onSurface,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = stringResource(Res.string.settings_smb_dialog_summary),
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            DesignTextField(
+                value = activeDialog.name,
+                onValueChange = { onAction(SettingsAction.SetSmbDialogName(it)) },
+                label = stringResource(Res.string.settings_smb_name),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            DesignTextField(
+                value = activeDialog.host,
+                onValueChange = { onAction(SettingsAction.SetSmbDialogHost(it)) },
+                label = stringResource(Res.string.settings_smb_host),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                DesignTextField(
+                    value = activeDialog.port,
+                    onValueChange = { onAction(SettingsAction.SetSmbDialogPort(it)) },
+                    label = stringResource(Res.string.settings_smb_port),
+                    singleLine = true,
+                    modifier = Modifier.weight(0.36f),
+                )
+                DesignTextField(
+                    value = activeDialog.share,
+                    onValueChange = { onAction(SettingsAction.SetSmbDialogShare(it)) },
+                    label = stringResource(Res.string.settings_smb_share),
+                    singleLine = true,
+                    modifier = Modifier.weight(0.64f),
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            DesignTextField(
+                value = activeDialog.rootPath,
+                onValueChange = { onAction(SettingsAction.SetSmbDialogRootPath(it)) },
+                label = stringResource(Res.string.settings_smb_root),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            SourceDialogSwitchRow(
+                title = stringResource(Res.string.settings_smb_guest),
+                summary = stringResource(Res.string.settings_smb_guest_summary),
+                checked = activeDialog.guestAccess,
+                onCheckedChange = {
+                    if (it) password = ""
+                    onAction(SettingsAction.SetSmbDialogGuestAccess(it))
+                },
+            )
+            if (!activeDialog.guestAccess) {
+                Spacer(modifier = Modifier.height(8.dp))
+                DesignTextField(
+                    value = activeDialog.username,
+                    onValueChange = { onAction(SettingsAction.SetSmbDialogUsername(it)) },
+                    label = stringResource(Res.string.settings_smb_username),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                DesignTextField(
+                    value = password,
+                    onValueChange = {
+                        password = it
+                        onAction(SettingsAction.ResetSmbConnectionTest)
+                    },
+                    label = stringResource(
+                        if (activeDialog.isEditing) Res.string.settings_smb_password_edit
+                        else Res.string.settings_smb_password_new,
+                    ),
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                DesignTextField(
+                    value = activeDialog.domain,
+                    onValueChange = { onAction(SettingsAction.SetSmbDialogDomain(it)) },
+                    label = stringResource(Res.string.settings_smb_domain),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            SourceDialogSwitchRow(
+                title = stringResource(Res.string.settings_smb_signing),
+                summary = stringResource(Res.string.settings_smb_signing_summary),
+                checked = activeDialog.requireSigning,
+                onCheckedChange = { onAction(SettingsAction.SetSmbDialogRequireSigning(it)) },
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            SourceDialogSwitchRow(
+                title = stringResource(Res.string.settings_smb_encryption),
+                summary = stringResource(Res.string.settings_smb_encryption_summary),
+                checked = activeDialog.requireEncryption,
+                onCheckedChange = { onAction(SettingsAction.SetSmbDialogRequireEncryption(it)) },
+            )
+            state.smbConnectionTestMessage?.let { message ->
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    text = message,
+                    style = MiuixTheme.textStyles.body2,
+                    color = if (state.smbConnectionTestStatus == SourceConnectionTestStatus.Error) {
+                        MiuixTheme.colorScheme.error
+                    } else {
+                        MiuixTheme.colorScheme.onSurfaceVariantSummary
+                    },
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                if (activeDialog.isEditing && activeDialog.accountId != null) {
+                    DesignTextButton(
+                        text = stringResource(Res.string.settings_delete),
+                        variant = DesignTextButtonVariant.Error,
+                        size = DesignTextButtonSize.Medium,
+                        onClick = {
+                            onAction(
+                                SettingsAction.RequestDeleteSmbAccount(
+                                    activeDialog.accountId,
+                                    activeDialog.name.ifBlank { activeDialog.host },
+                                ),
+                            )
+                        },
+                    )
+                }
+                DesignTextButton(
+                    text = stringResource(Res.string.settings_cancel),
+                    variant = DesignTextButtonVariant.Default,
+                    size = DesignTextButtonSize.Medium,
+                    onClick = { onAction(SettingsAction.DismissSmbDialog) },
+                )
+                DesignTextButton(
+                    text = stringResource(Res.string.settings_test),
+                    variant = DesignTextButtonVariant.Default,
+                    size = DesignTextButtonSize.Medium,
+                    onClick = { onAction(SettingsAction.TestSmbConnection(password)) },
+                )
+                DesignTextButton(
+                    text = stringResource(Res.string.settings_save),
+                    variant = DesignTextButtonVariant.Primary,
+                    size = DesignTextButtonSize.Medium,
+                    onClick = { onAction(SettingsAction.SaveSmbAccount(password)) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SourceDialogSwitchRow(
+    title: String,
+    summary: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(MiuixTheme.colorScheme.surfaceContainerHigh)
+            .clickable { onCheckedChange(!checked) }
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                color = MiuixTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.body2,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = summary,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                style = MiuixTheme.textStyles.footnote1,
+            )
+        }
+        AppSwitch(checked = checked, onCheckedChange = onCheckedChange)
+    }
 }
 
 private fun LibrarySyncStatus.isActiveInSettings(): Boolean {
     return this == LibrarySyncStatus.Queued ||
         this == LibrarySyncStatus.Running ||
         this == LibrarySyncStatus.Paused
-}
-
-@Composable
-private fun SourceAccountSettingsItem.lastScanSummary(): String {
-    val timestamp = lastScanAtEpochMs?.let { epochMs ->
-        runCatching { Instant.fromEpochMilliseconds(epochMs).toString() }.getOrNull()
-    }
-    if (timestamp == null) return stringResource(Res.string.settings_source_never_scanned)
-    val status = when (lastScanStatus) {
-        "RUNNING" -> stringResource(Res.string.settings_scan_status_running)
-        "PAUSED" -> stringResource(Res.string.settings_scan_status_paused)
-        "SYNCED" -> stringResource(Res.string.settings_scan_status_completed)
-        "SYNCED_WITH_ERRORS" -> stringResource(Res.string.settings_scan_status_completed_errors)
-        "CANCELLED" -> stringResource(Res.string.settings_scan_status_cancelled)
-        "FAILED" -> stringResource(Res.string.settings_scan_status_failed)
-        else -> stringResource(Res.string.settings_scan_status_unknown)
-    }
-    return stringResource(Res.string.settings_source_last_scan_summary, status, timestamp)
 }
 
 @Composable
@@ -746,29 +1905,15 @@ private fun AutoScanMode.titleResource() = when (this) {
     AutoScanMode.Periodic -> Res.string.settings_auto_scan_periodic
 }
 
-private fun MissingFilePolicy.summaryResource() = when (this) {
-    MissingFilePolicy.MarkUnavailable -> Res.string.settings_missing_mark_summary
-    MissingFilePolicy.RemoveOnScan -> Res.string.settings_missing_remove_summary
+private fun MissingFilePolicy.titleResource() = when (this) {
+    MissingFilePolicy.MarkUnavailable -> Res.string.settings_missing_mark
+    MissingFilePolicy.RemoveOnScan -> Res.string.settings_missing_remove
 }
 
-private fun DuplicateTrackPolicy.summaryResource() = when (this) {
-    DuplicateTrackPolicy.SeparateBySource -> Res.string.settings_duplicate_separate_summary
-    DuplicateTrackPolicy.KeepAll -> Res.string.settings_duplicate_keep_all_summary
+private fun DuplicateTrackPolicy.titleResource() = when (this) {
+    DuplicateTrackPolicy.SeparateBySource -> Res.string.settings_duplicate_separate
+    DuplicateTrackPolicy.KeepAll -> Res.string.settings_duplicate_keep_all
 }
 
 private val MINIMUM_DURATION_PRESETS_MS = listOf(0L, 15_000L, 30_000L, 60_000L)
 private const val CUSTOM_DURATION_VALUE = "custom"
-
-private enum class MetadataField(val multiline: Boolean) {
-    ArtistSeparators(false),
-    ArtistProtectedNames(true),
-    GenreSeparators(false),
-    GenreProtectedNames(true),
-}
-
-private fun MetadataField.titleResource() = when (this) {
-    MetadataField.ArtistSeparators -> Res.string.settings_artist_separators
-    MetadataField.ArtistProtectedNames -> Res.string.settings_artist_protected_names
-    MetadataField.GenreSeparators -> Res.string.settings_genre_separators
-    MetadataField.GenreProtectedNames -> Res.string.settings_genre_protected_names
-}

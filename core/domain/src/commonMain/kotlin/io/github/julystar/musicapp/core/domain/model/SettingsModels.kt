@@ -59,8 +59,10 @@ enum class LyricSourceMode {
 @Serializable
 enum class LyricSourceKind {
     EmbeddedTtml,
+    EmbeddedWordTimed,
     EmbeddedPlain,
     ExternalTtml,
+    ExternalWordTimed,
     ExternalPlain,
 }
 
@@ -507,18 +509,16 @@ data class AppSettings(
     val lyricOutput: LyricOutputSettings = LyricOutputSettings.Default,
     val backup: SettingsBackupSettings = SettingsBackupSettings.Default,
     val autoScanMode: AutoScanMode = AutoScanMode.Off,
-    val backgroundScanEnabled: Boolean = false,
-    val scanOnlyOnUnmeteredNetwork: Boolean = true,
     val scanSubdirectories: Boolean = true,
     val webDavMetadataScanMode: MetadataScanMode = MetadataScanMode.Standard,
     val minimumAudioDurationMs: Long = DEFAULT_MINIMUM_AUDIO_DURATION_MS,
     val missingFilePolicy: MissingFilePolicy = MissingFilePolicy.MarkUnavailable,
     val duplicateTrackPolicy: DuplicateTrackPolicy = DuplicateTrackPolicy.SeparateBySource,
-    val allowMeteredStreaming: Boolean = true,
-    val backgroundSyncOnlyOnUnmeteredNetwork: Boolean = true,
+    val allowMeteredNetworkUsage: Boolean = false,
     val networkRetryCount: Int = DEFAULT_NETWORK_RETRY_COUNT,
     val connectionTimeoutSeconds: Int = DEFAULT_CONNECTION_TIMEOUT_SECONDS,
     val audioPreloadBytes: Long = DEFAULT_AUDIO_PRELOAD_BYTES,
+    val listenAndCacheEnabled: Boolean = true,
     val audioCacheLimitBytes: Long = DEFAULT_AUDIO_CACHE_LIMIT_BYTES,
     val imageCacheLimitBytes: Long = DEFAULT_IMAGE_CACHE_LIMIT_BYTES,
 ) {

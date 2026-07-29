@@ -8,6 +8,7 @@ import io.github.julystar.musicapp.core.presentation.components.LocalDesignBotto
 import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -20,6 +21,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -37,10 +39,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -57,6 +63,7 @@ import io.github.julystar.musicapp.core.presentation.components.DesignStickyGlas
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButton
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonSize
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonVariant
+import io.github.julystar.musicapp.core.presentation.theme.DesignGradients
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.Icon
@@ -89,13 +96,18 @@ import kotlin.math.roundToInt
 internal fun SettingsPageLayout(
     title: String,
     onBack: (() -> Unit)? = null,
+    compactHorizontalPadding: Dp? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val spacing = DesignTokens.spacing
     val bottomContentInset = LocalDesignBottomContentInset.current
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val pageWidth = minOf(maxWidth, 800.dp)
-        val pagePadding = spacing.pageExpanded
+        val pagePadding = if (maxWidth <= DesignTokens.adaptive.compactMaxWidth) {
+            compactHorizontalPadding ?: spacing.pageExpanded
+        } else {
+            spacing.pageExpanded
+        }
         val showTopBar = maxWidth < 1024.dp || onBack != null
         Box(
             modifier = Modifier
@@ -126,6 +138,8 @@ internal fun SettingsPageLayout(
                     title = title,
                     collapseFraction = 1f,
                     onNavigateBack = onBack,
+                    showBackButtonBackground = false,
+                    compactTitle = true,
                     modifier = Modifier.align(Alignment.TopCenter),
                 )
             }
@@ -157,19 +171,46 @@ internal fun SettingsEntryCard(
 
 @Composable
 private fun SettingsLeadingIcon(drawable: DrawableResource) {
+    SettingsIconBadge(drawable = drawable)
+}
+
+@Composable
+internal fun SettingsIconBadge(
+    drawable: DrawableResource,
+    colors: List<Color> = DesignGradients.Brand.colors,
+    modifier: Modifier = Modifier,
+    preserveDrawableColors: Boolean = false,
+) {
+    val shape = RoundedCornerShape(14.dp)
     Box(
-        modifier = Modifier
-            .size(36.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(MiuixTheme.colorScheme.surfaceContainerHigh),
+        modifier = modifier
+            .size(40.dp)
+            .shadow(4.dp, shape, clip = false)
+            .clip(shape)
+            .then(
+                if (preserveDrawableColors) {
+                    Modifier
+                } else {
+                    Modifier.background(Brush.linearGradient(colors))
+                },
+            ),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            painter = painterResource(drawable),
-            contentDescription = null,
-            tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-            modifier = Modifier.size(16.dp),
-        )
+        if (preserveDrawableColors) {
+            Image(
+                painter = painterResource(drawable),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        } else {
+            Icon(
+                painter = painterResource(drawable),
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(18.dp),
+            )
+        }
     }
 }
 
@@ -322,30 +363,42 @@ private fun SettingsLeadingIcon(
     marker: String,
     accentColor: Color,
 ) {
-    Box(
-        modifier = Modifier
-            .size(36.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(MiuixTheme.colorScheme.surfaceContainerHigh),
-        contentAlignment = Alignment.Center,
-    ) {
-        val drawable = markerDrawable(marker)
-        if (drawable != null) {
-            Icon(
-                painter = painterResource(drawable),
-                contentDescription = null,
-                tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                modifier = Modifier.size(16.dp),
-            )
-        } else {
+    val drawable = markerDrawable(marker)
+    if (drawable != null) {
+        SettingsIconBadge(
+            drawable = drawable,
+            colors = markerGradient(marker, accentColor),
+        )
+    } else {
+        val shape = RoundedCornerShape(14.dp)
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .shadow(4.dp, shape, clip = false)
+                .clip(shape)
+                .background(Brush.linearGradient(markerGradient(marker, accentColor))),
+            contentAlignment = Alignment.Center,
+        ) {
             Text(
                 text = marker,
-                color = if (marker == "●") accentColor else MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                color = Color.White,
                 style = MiuixTheme.textStyles.body2,
+                fontWeight = FontWeight.Bold,
                 maxLines = 1,
             )
         }
     }
+}
+
+private fun markerGradient(marker: String, accentColor: Color): List<Color> = when (marker) {
+    "≋", "◎", "W", "G", "E", "P", "J", "N", "D", "C", "O" ->
+        DesignGradients.BluePurple.colors
+    "◠", "≡", "◈", "DS", "▢", "☾" -> DesignGradients.PurplePink.colors
+    "↓", "⌁", "S", "▦", "▣" -> DesignGradients.OrangeYellow.colors
+    "▷", "↻", "↺", "♫", "♪" -> DesignGradients.PinkOrange.colors
+    "◇", "文", "§", "◐", "◌", "⌕" -> DesignGradients.GreenBlue.colors
+    "●" -> listOf(accentColor, DesignPalette.Primary)
+    else -> DesignGradients.Brand.colors
 }
 
 private fun markerDrawable(marker: String): DrawableResource? = when (marker) {
@@ -498,6 +551,7 @@ internal fun SettingsSelectRow(
     selectedLabel: String,
     options: List<SettingsSelectOption>,
     enabled: Boolean = true,
+    menuMinWidth: Dp = 200.dp,
     onSelect: (String) -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
@@ -570,7 +624,8 @@ internal fun SettingsSelectRow(
                 ) {
                 Column(
                     modifier = Modifier
-                        .widthIn(min = 200.dp, max = 300.dp)
+                        .width(IntrinsicSize.Max)
+                        .widthIn(min = menuMinWidth, max = 300.dp)
                         .clip(RoundedCornerShape(28.dp))
                         .background(MiuixTheme.colorScheme.surfaceContainerHighest)
                         .padding(8.dp),
@@ -637,6 +692,7 @@ internal fun <T> SettingsSelectRow(
     optionLabel: @Composable (T) -> String,
     subtitle: String? = null,
     enabled: Boolean = true,
+    menuMinWidth: Dp = 200.dp,
     onSelect: (T) -> Unit,
 ) {
     val selectedIndex = options.indexOf(selected)
@@ -649,6 +705,7 @@ internal fun <T> SettingsSelectRow(
             SettingsSelectOption(value = index.toString(), label = optionLabel(option))
         },
         enabled = enabled,
+        menuMinWidth = menuMinWidth,
         onSelect = { value ->
             value.toIntOrNull()?.let(options::getOrNull)?.let(onSelect)
         },

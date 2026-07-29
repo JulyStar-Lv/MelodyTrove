@@ -7,6 +7,8 @@ import io.github.julystar.musicapp.core.domain.model.LyricSourceMode
 import io.github.julystar.musicapp.database.LyricsEntity
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 class PersistedLyricsTest {
     @Test
@@ -35,7 +37,7 @@ class PersistedLyricsTest {
 
     @Test
     fun restoresEnhancedLrcAsWordTimedLyrics() {
-        val lyrics = LyricsEntity(
+        val entity = LyricsEntity(
             trackId = 1,
             format = "LRC",
             language = null,
@@ -43,9 +45,11 @@ class PersistedLyricsTest {
             content = "[00:02.00]<00:02.000>Hello<00:02.500> world<00:03.000>",
             sourcePath = null,
             updatedAt = 2,
-        ).toPlaybackLyrics()
+        )
+        val lyrics = entity.toPlaybackLyrics()
 
         assertEquals(LyricsLoadState.Loaded, lyrics.loadState)
+        assertEquals(LyricSourceKind.EmbeddedWordTimed, entity.resolvedSourceKind())
         val line = lyrics.lines.single()
         assertEquals(2_000, line.duration.inWholeMilliseconds)
         assertEquals("Hello world", line.text)
@@ -54,6 +58,57 @@ class PersistedLyricsTest {
         assertEquals(500, line.words[0].duration.inWholeMilliseconds)
         assertEquals(500, line.words[1].startOffset.inWholeMilliseconds)
         assertEquals(500, line.words[1].duration.inWholeMilliseconds)
+    }
+
+    @Test
+    fun onlyRequestsPluginWhenExternalQualityPrecedesPlainFallback() {
+        val embeddedPlain = listOf(lyricEntity("EmbeddedPlain", 1))
+
+        assertFalse(
+            embeddedPlain.shouldLookupPreferredExternalLyrics(LyricDisplaySettings.Default),
+        )
+        assertTrue(
+            embeddedPlain.shouldLookupPreferredExternalLyrics(
+                LyricDisplaySettings.Default.copy(
+                    sourcePriority = listOf(
+                        LyricSourceKind.ExternalWordTimed,
+                        LyricSourceKind.ExternalTtml,
+                        LyricSourceKind.EmbeddedPlain,
+                        LyricSourceKind.ExternalPlain,
+                        LyricSourceKind.EmbeddedTtml,
+                        LyricSourceKind.EmbeddedWordTimed,
+                    ),
+                ),
+            ),
+        )
+        assertFalse(
+            listOf(lyricEntity("ExternalWordTimed", 2)).shouldLookupPreferredExternalLyrics(
+                LyricDisplaySettings.Default.copy(sourceMode = LyricSourceMode.External),
+            ),
+        )
+    }
+
+    @Test
+    fun parsesLegacyTtmlEvenWhenStoredAsUnsynchronized() {
+        val lyrics = LyricsEntity(
+            trackId = 1,
+            format = "TTML",
+            language = null,
+            synchronized = false,
+            content = """
+                <tt xmlns="http://www.w3.org/ns/ttml"><body><div>
+                    <p begin="00:01.000" end="00:02.000">
+                        <span begin="00:01.000" end="00:02.000">Line</span>
+                    </p>
+                </div></body></tt>
+            """.trimIndent(),
+            sourcePath = "embedded",
+            updatedAt = 2,
+            sourceKind = "EmbeddedTtml",
+        ).toPlaybackLyrics()
+
+        assertEquals("Line", lyrics.lines.single().text)
+        assertTrue(lyrics.lines.single().words.isNotEmpty())
     }
 
     @Test

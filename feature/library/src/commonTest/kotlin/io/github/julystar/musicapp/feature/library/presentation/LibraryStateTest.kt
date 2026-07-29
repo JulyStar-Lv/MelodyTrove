@@ -19,6 +19,7 @@ class LibraryStateTest {
 
         assertTrue(state.tracks.isEmpty())
         assertTrue(state.playlists.isEmpty())
+        assertTrue(!state.hasIndexedTracks)
     }
 
     @Test
@@ -30,6 +31,7 @@ class LibraryStateTest {
         val state = LibraryState(tracks = tracks)
 
         assertEquals(2, state.tracks.size)
+        assertTrue(state.hasIndexedTracks)
         assertEquals("Track 1", state.tracks[0].title)
         assertEquals(240_000, state.tracks[0].durationMs)
     }

@@ -750,3 +750,11 @@ val MIGRATION_18_19 = object : Migration(18, 19) {
         ).use { statement -> statement.step() }
     }
 }
+
+val MIGRATION_19_20 = object : Migration(19, 20) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.prepare(
+            "ALTER TABLE track_source_ref ADD COLUMN embeddedLyricsKind TEXT"
+        ).use { statement -> statement.step() }
+    }
+}

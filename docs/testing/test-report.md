@@ -1,9 +1,27 @@
 # MelodyTrove test report
 
-Last updated: 2026-07-27
+Last updated: 2026-07-28
 
 This report tracks verified migration gates. Secrets used for live WebDAV
 checks were provided at runtime and are not stored in this repository.
+
+## Embedded lyric classification and playback lookup (2026-07-28)
+
+Fast metadata scanning now classifies embedded lyrics without returning the
+lyrics payload. Standard/Full scanning persists plain, line-timed, word-timed,
+or TTML classification in `track_source_ref.embeddedLyricsKind`. Automatic
+Lyrico lookup is restricted to the playback path and only runs when the user
+ranks external word-timed/TTML lyrics ahead of the available plain fallback;
+scanning does not invoke plugins and playback startup does not wait for lookup.
+
+| Command | Actual result |
+| --- | --- |
+| `cargo test -p audio-metadata` | Passed; 15 tests, including no-payload Fast classification and word-timed/TTML detection |
+| `cargo test -p app-backend` | Passed; 53 tests and all doc tests |
+| Focused `:shared:desktopTest` plus `:feature:settings:desktopTest` | Passed; 67 tests covering lyric selection/classification, plugin persistence, remote import/refresh, and Room migration 19-to-20 |
+| `./gradlew :shared:desktopTest --stacktrace` | Passed; 233 tests, 1 skipped, 0 failures |
+| `./gradlew :shared:compileDebugKotlinAndroid :desktopApp:compileKotlinDesktop --stacktrace` | Passed |
+| `./gradlew :shared:compileKotlinIosSimulatorArm64 --no-daemon --no-configuration-cache --stacktrace` | Passed; Kotlin/Native, Rust, and regenerated UniFFI bindings compiled for iOS Simulator |
 
 ## SMB music source validation (2026-07-27)
 

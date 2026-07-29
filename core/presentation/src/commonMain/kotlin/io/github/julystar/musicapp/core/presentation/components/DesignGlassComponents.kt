@@ -20,8 +20,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
@@ -43,10 +45,18 @@ data class DesignStickyHeaderState(
     val subtitle: String?,
     val collapseFraction: Float,
     val onNavigateBack: (() -> Unit)? = null,
+    val showBackButtonBackground: Boolean = true,
+    val compactTitle: Boolean = false,
 )
 
+interface DesignStickyHeaderStateSink {
+    fun update(owner: Any, state: DesignStickyHeaderState)
+
+    fun clear(owner: Any)
+}
+
 val LocalDesignStickyHeaderStateSink =
-    staticCompositionLocalOf<((DesignStickyHeaderState?) -> Unit)?> { null }
+    staticCompositionLocalOf<DesignStickyHeaderStateSink?> { null }
 
 @Immutable
 object DesignLiquidGlassDefaults {
@@ -124,6 +134,9 @@ fun DesignStickyGlassActionBar(
     modifier: Modifier = Modifier,
     statusBarInset: Dp = 0.dp,
     onNavigateBack: (() -> Unit)? = null,
+    showBackButtonBackground: Boolean = true,
+    centerTitle: Boolean = false,
+    compactTitle: Boolean = false,
 ) {
     val fraction = collapseFraction.coerceIn(0f, 1f)
     val latestOnNavigateBack = rememberUpdatedState(onNavigateBack)
@@ -134,26 +147,35 @@ fun DesignStickyGlassActionBar(
             { latestOnNavigateBack.value?.invoke() }
         }
     }
+    val stateOwner = remember { Any() }
     val stateSink = LocalDesignStickyHeaderStateSink.current
     if (stateSink != null) {
         SideEffect {
-            stateSink(
-                DesignStickyHeaderState(
+            stateSink.update(
+                owner = stateOwner,
+                state = DesignStickyHeaderState(
                     title = title,
                     subtitle = subtitle,
                     collapseFraction = fraction,
                     onNavigateBack = stableOnNavigateBack,
+                    showBackButtonBackground = showBackButtonBackground,
+                    compactTitle = compactTitle,
                 ),
             )
         }
-        DisposableEffect(stateSink) {
-            onDispose { stateSink(null) }
+        DisposableEffect(stateSink, stateOwner) {
+            onDispose { stateSink.clear(stateOwner) }
         }
         return
     }
 
     val adaptive = DesignTokens.adaptive
     val titleFraction = ((fraction - 0.72f) / 0.28f).coerceIn(0f, 1f)
+    val actionBarTitleStyle = MiuixTheme.textStyles.title2.copy(
+        fontSize = if (compactTitle) 22.sp else 24.sp,
+        lineHeight = if (compactTitle) 28.sp else 30.sp,
+        fontWeight = if (compactTitle) FontWeight.SemiBold else FontWeight.Bold,
+    )
     val backdrop = currentDesignBackdrop()
     val glassModifier = if (backdrop != null && fraction > 0f) {
         Modifier.designLiquidGlass(
@@ -186,8 +208,13 @@ fun DesignStickyGlassActionBar(
                 DesignTopBar(
                     title = title,
                     height = adaptive.compactHeaderHeight,
+                    titleStyle = actionBarTitleStyle,
+                    centerTitle = centerTitle,
                     navigationIcon = {
-                        DesignTopBarBackButton(onClick = stableOnNavigateBack)
+                        DesignTopBarBackButton(
+                            onClick = stableOnNavigateBack,
+                            showBackground = showBackButtonBackground,
+                        )
                     },
                     modifier = Modifier.alpha(titleFraction),
                 )
@@ -196,6 +223,8 @@ fun DesignStickyGlassActionBar(
                     title = title,
                     subtitle = subtitle,
                     compact = true,
+                    centered = centerTitle,
+                    titleStyle = actionBarTitleStyle,
                     modifier = Modifier
                         .padding(horizontal = 20.dp)
                         .alpha(titleFraction),

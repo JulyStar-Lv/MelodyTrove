@@ -16,6 +16,7 @@ import io.github.julystar.musicapp.core.domain.model.LIBRARY_PLAYBACK_PLAYLIST_I
 import io.github.julystar.musicapp.core.domain.repository.SettingsRepository
 import io.github.julystar.musicapp.service.playback.data.PlayerController as LegacyPlayerController
 import io.github.julystar.musicapp.service.playback.data.PlayerRepository
+import io.github.julystar.musicapp.singleton.RoomLibraryStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -42,6 +43,7 @@ import uniffi.app_backend.PlaylistId
 class LegacyPlaybackController(
     private val playerRepository: PlayerRepository,
     private val legacyController: LegacyPlayerController,
+    private val roomLibraryStore: RoomLibraryStore,
     private val scope: CoroutineScope,
     private val positionPollMillis: Long = 100,
     private val settingsRepository: SettingsRepository? = null,
@@ -124,6 +126,17 @@ class LegacyPlaybackController(
         legacyPlaybackQueue(
             playlist = playlist,
             currentMusic = music,
+        )
+    }.map { queue ->
+        queue.copy(
+            items = queue.items.map { item ->
+                val trackId = item.libraryTrackId ?: return@map item
+                val metadata = roomLibraryStore.getPlaybackItemMetadata(trackId)
+                item.copy(
+                    artist = metadata.artist,
+                    album = metadata.album,
+                )
+            },
         )
     }.stateIn(scope, SharingStarted.Eagerly, PlaybackQueue.Empty)
 

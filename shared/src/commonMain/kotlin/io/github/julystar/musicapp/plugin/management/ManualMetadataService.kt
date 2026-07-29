@@ -237,11 +237,13 @@ internal suspend fun MetadataDao.resolveManualMetadataAlbum(
 
 internal fun MetaLyrics.toEntity(trackId: Long, updatedAt: Long): LyricsEntity? {
     val wordTimed = listOfNotNull(
-        rawTtml.toPayload("TTML"),
-        rawMultiPersonEnhancedLrc.toPayload("LRC"),
-        rawEnhancedLrc.toPayload("LRC"),
-        rawVerbatimLrc.toPayload("LRC"),
-        lines.toEnhancedLrcOrNull()?.let { content -> PersistedLyricPayload("LRC", content) },
+        rawTtml.toPayload("TTML", wordTimed = true),
+        rawMultiPersonEnhancedLrc.toPayload("LRC", wordTimed = true),
+        rawEnhancedLrc.toPayload("LRC", wordTimed = true),
+        rawVerbatimLrc.toPayload("LRC", wordTimed = true),
+        lines.toEnhancedLrcOrNull()?.let { content ->
+            PersistedLyricPayload("LRC", content, wordTimed = true)
+        },
     ).firstOrNull()
     val plain = rawPlainLrc.toPayload("LRC")
     val generated = lines.takeIf { it.isNotEmpty() }?.joinToString("\n") { line ->
@@ -254,6 +256,7 @@ internal fun MetaLyrics.toEntity(trackId: Long, updatedAt: Long): LyricsEntity? 
             PersistedLyricPayload(
                 format = if (lines.any { it.startMs != null }) "LRC" else "TEXT",
                 content = content,
+                wordTimed = false,
             )
         }
         ?: return null
@@ -266,18 +269,26 @@ internal fun MetaLyrics.toEntity(trackId: Long, updatedAt: Long): LyricsEntity? 
         content = payload.content,
         sourcePath = "external:plugin",
         updatedAt = updatedAt,
-        sourceKind = if (payload.format == "TTML") "ExternalTtml" else "ExternalPlain",
+        sourceKind = when {
+            payload.format == "TTML" -> "ExternalTtml"
+            payload.wordTimed -> "ExternalWordTimed"
+            else -> "ExternalPlain"
+        },
     )
 }
 
 private data class PersistedLyricPayload(
     val format: String,
     val content: String,
+    val wordTimed: Boolean,
 )
 
-private fun String?.toPayload(format: String): PersistedLyricPayload? = this
+private fun String?.toPayload(
+    format: String,
+    wordTimed: Boolean = false,
+): PersistedLyricPayload? = this
     ?.takeIf(String::isNotBlank)
-    ?.let { content -> PersistedLyricPayload(format, content) }
+    ?.let { content -> PersistedLyricPayload(format, content, wordTimed) }
 
 private fun List<MetaLyricLine>.toEnhancedLrcOrNull(): String? {
     if (none { line -> line.words.any { word -> word.startMs != null } }) return null

@@ -11,6 +11,8 @@ import io.github.julystar.musicapp.core.data.PlaylistRepositoryImpl
 import io.github.julystar.musicapp.core.data.StorageRepositoryImpl
 import io.github.julystar.musicapp.core.data.datastore.AppPreferencesRepository
 import io.github.julystar.musicapp.service.playback.data.PlayerRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.koin.core.Koin
 import io.github.julystar.musicapp.core.data.settings.AutoScanCoordinator
@@ -110,7 +112,10 @@ object AppInitializer {
             koin.get<PlaylistRepositoryImpl>().reload()
             RustDiagnosticsRepository.updateStartupStage(DiagnosticStartupStage.SourceTasksScheduling)
             if ("automatic_scan" !in disabledComponents) {
-                koin.get<AutoScanCoordinator>().runStartupScan()
+                val autoScanCoordinator = koin.get<AutoScanCoordinator>()
+                koin.get<CoroutineScope>().launch {
+                    autoScanCoordinator.runStartupScan()
+                }
             }
             if ("rebuild_library_index" in disabledComponents) {
                 koin.get<LibraryMaintenanceService>().rebuildLibrary()
@@ -135,7 +140,6 @@ object AppInitializer {
         if ("dsp_defaults" in options) settings.setAudioEffectSettings(AudioEffectSettings.Default)
         if ("automatic_scan" in options) {
             settings.setAutoScanMode(AutoScanMode.Off)
-            settings.setBackgroundScanEnabled(false)
         }
         if ("playback_restore" in options) {
             koin.get<AppPreferencesRepository>().clearPlaybackSession()

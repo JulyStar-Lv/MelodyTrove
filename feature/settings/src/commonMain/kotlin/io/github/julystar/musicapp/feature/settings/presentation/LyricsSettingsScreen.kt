@@ -399,8 +399,10 @@ private fun LyricSourceMode.summaryResource() = when (this) {
 
 private fun LyricSourceKind.titleResource() = when (this) {
     LyricSourceKind.EmbeddedTtml -> Res.string.settings_lyrics_priority_embedded_ttml
+    LyricSourceKind.EmbeddedWordTimed -> Res.string.settings_lyrics_priority_embedded_word_timed
     LyricSourceKind.EmbeddedPlain -> Res.string.settings_lyrics_priority_embedded_plain
     LyricSourceKind.ExternalTtml -> Res.string.settings_lyrics_priority_external_ttml
+    LyricSourceKind.ExternalWordTimed -> Res.string.settings_lyrics_priority_external_word_timed
     LyricSourceKind.ExternalPlain -> Res.string.settings_lyrics_priority_external_plain
 }
 

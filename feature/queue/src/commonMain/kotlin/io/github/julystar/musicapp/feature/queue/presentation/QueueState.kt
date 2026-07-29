@@ -17,4 +17,13 @@ data class QueueItemUi(
     val title: String,
     val artist: String?,
     val isCurrent: Boolean,
+    val album: String? = null,
+    val trackId: Long? = null,
+    val isFavorite: Boolean = false,
 )
+
+internal fun QueueItemUi.subtitle(): String? =
+    listOfNotNull(
+        artist?.takeIf(String::isNotBlank),
+        album?.takeIf(String::isNotBlank),
+    ).distinct().joinToString(" · ").takeIf(String::isNotEmpty)

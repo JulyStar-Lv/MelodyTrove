@@ -58,6 +58,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import okio.Path.Companion.toPath
 import uniffi.app_backend.MusicId
+import uniffi.app_backend.PlayMode
 import uniffi.app_backend.PlaylistId
 import uniffi.app_backend.Storage
 import uniffi.app_backend.StorageId
@@ -148,10 +149,71 @@ class DesktopPlayerControllerTest {
         harness.controller.play(MusicId(TRACK_ID), PlaylistId(PLAYLIST_ID))
         awaitUntil { harness.playerRepository.playing.value }
 
-        harness.engine.positionMs = harness.engine.durationMs
+        harness.engine.playbackCompleted = true
 
         awaitUntil { !harness.playerRepository.playing.value }
         assertEquals(TRACK_ID, harness.playerRepository.music.value?.meta?.id?.value)
+    }
+
+    @Test
+    fun endPositionDoesNotAdvanceWithoutNativeCompletionWhenCrossfadeIsDisabled() = withHarness(
+        sourceResult = SourcePlaybackResult.Success(TEST_RESOURCE),
+        engine = RecordingDesktopPlaybackEngine(PlaybackEngineLoadResult.Ready),
+    ) { harness ->
+        harness.playerRepository.setPlayMode(PlayMode.LIST_LOOP)
+        awaitUntil { harness.playerRepository.playMode.value == PlayMode.LIST_LOOP }
+        harness.controller.play(MusicId(TRACK_ID), PlaylistId(PLAYLIST_ID))
+        awaitUntil { harness.playerRepository.playing.value }
+
+        harness.engine.positionMs = harness.engine.durationMs
+        delay(250)
+
+        assertEquals(TRACK_ID, harness.playerRepository.music.value?.meta?.id?.value)
+        assertEquals(1, harness.engine.loadedRequests.size)
+    }
+
+    @Test
+    fun naturalCompletionInListLoopAdvancesAndWrapsTheQueue() = withHarness(
+        sourceResult = SourcePlaybackResult.Success(TEST_RESOURCE),
+        engine = RecordingDesktopPlaybackEngine(PlaybackEngineLoadResult.Ready),
+    ) { harness ->
+        harness.playerRepository.setPlayMode(PlayMode.LIST_LOOP)
+        awaitUntil { harness.playerRepository.playMode.value == PlayMode.LIST_LOOP }
+        harness.controller.play(MusicId(TRACK_ID), PlaylistId(PLAYLIST_ID))
+        awaitUntil { harness.playerRepository.playing.value }
+
+        harness.engine.playbackCompleted = true
+        awaitUntil {
+            harness.playerRepository.music.value?.meta?.id?.value == SECOND_TRACK_ID
+        }
+
+        harness.engine.playbackCompleted = true
+        awaitUntil {
+            harness.playerRepository.music.value?.meta?.id?.value == TRACK_ID &&
+                harness.engine.loadedRequests.size == 3
+        }
+
+        assertEquals(
+            listOf(TRACK_TITLE, SECOND_TRACK_TITLE, TRACK_TITLE),
+            harness.engine.loadedRequests.map { it.item.title },
+        )
+    }
+
+    @Test
+    fun naturalCompletionInSingleLoopReloadsTheCurrentTrack() = withHarness(
+        sourceResult = SourcePlaybackResult.Success(TEST_RESOURCE),
+        engine = RecordingDesktopPlaybackEngine(PlaybackEngineLoadResult.Ready),
+    ) { harness ->
+        harness.playerRepository.setPlayMode(PlayMode.SINGLE_LOOP)
+        awaitUntil { harness.playerRepository.playMode.value == PlayMode.SINGLE_LOOP }
+        harness.controller.play(MusicId(TRACK_ID), PlaylistId(PLAYLIST_ID))
+        awaitUntil { harness.playerRepository.playing.value }
+
+        harness.engine.playbackCompleted = true
+        awaitUntil { harness.engine.loadedRequests.size == 2 }
+
+        assertEquals(TRACK_ID, harness.playerRepository.music.value?.meta?.id?.value)
+        assertEquals(listOf(TRACK_TITLE, TRACK_TITLE), harness.engine.loadedRequests.map { it.item.title })
     }
 
     @Test
@@ -296,88 +358,108 @@ class DesktopPlayerControllerTest {
                 updatedAt = 1,
             )
         )
+        val firstTrack = TrackEntity(
+            id = TRACK_ID,
+            title = TRACK_TITLE,
+            sortTitle = null,
+            albumId = null,
+            albumArtist = null,
+            composer = null,
+            comment = null,
+            grouping = null,
+            durationMs = 123_000,
+            discNumber = null,
+            discTotal = null,
+            trackNumber = null,
+            trackTotal = null,
+            year = null,
+            date = null,
+            sampleRate = null,
+            bitRate = null,
+            bitsPerSample = null,
+            channels = null,
+            channelLayout = null,
+            codec = null,
+            container = null,
+            lossless = null,
+            createdAt = 1,
+            updatedAt = 1,
+            artist = "Luna",
+        )
         database.trackDao().upsertAll(
             listOf(
-                TrackEntity(
-                    id = TRACK_ID,
-                    title = TRACK_TITLE,
-                    sortTitle = null,
-                    albumId = null,
-                    albumArtist = null,
-                    composer = null,
-                    comment = null,
-                    grouping = null,
-                    durationMs = 123_000,
-                    discNumber = null,
-                    discTotal = null,
-                    trackNumber = null,
-                    trackTotal = null,
-                    year = null,
-                    date = null,
-                    sampleRate = null,
-                    bitRate = null,
-                    bitsPerSample = null,
-                    channels = null,
-                    channelLayout = null,
-                    codec = null,
-                    container = null,
-                    lossless = null,
-                    createdAt = 1,
-                    updatedAt = 1,
-                    artist = "Luna",
-                )
+                firstTrack,
+                firstTrack.copy(
+                    id = SECOND_TRACK_ID,
+                    title = SECOND_TRACK_TITLE,
+                    artist = "Prism",
+                ),
             )
+        )
+        val firstSourceItem = SourceItemEntity(
+            id = TRACK_ID,
+            sourceAccountId = STORAGE_ID,
+            libraryRootId = null,
+            itemType = SourceItemTypes.Track,
+            providerItemId = "item-$TRACK_ID",
+            parentProviderItemId = null,
+            canonicalPath = TRACK_PATH,
+            displayPath = TRACK_PATH,
+            displayName = TRACK_PATH.substringAfterLast('/'),
+            mimeType = "audio/flac",
+            sizeBytes = 1_000,
+            etag = "\"etag-$TRACK_ID\"",
+            revision = null,
+            createdAtRemote = 1,
+            modifiedAtRemote = 1,
+            contentHash = null,
+            audioFingerprint = null,
+            isDeleted = false,
+            firstSyncedAt = 1,
+            lastSyncedAt = 1,
+            lastSeenScanId = "scan-1",
         )
         database.sourceItemDao().upsertAll(
             listOf(
-                SourceItemEntity(
-                    id = TRACK_ID,
-                    sourceAccountId = STORAGE_ID,
-                    libraryRootId = null,
-                    itemType = SourceItemTypes.Track,
-                    providerItemId = "item-$TRACK_ID",
-                    parentProviderItemId = null,
-                    canonicalPath = TRACK_PATH,
-                    displayPath = TRACK_PATH,
-                    displayName = TRACK_PATH.substringAfterLast('/'),
-                    mimeType = "audio/flac",
-                    sizeBytes = 1_000,
-                    etag = "\"etag-$TRACK_ID\"",
-                    revision = null,
-                    createdAtRemote = 1,
-                    modifiedAtRemote = 1,
-                    contentHash = null,
-                    audioFingerprint = null,
-                    isDeleted = false,
-                    firstSyncedAt = 1,
-                    lastSyncedAt = 1,
-                    lastSeenScanId = "scan-1",
-                )
+                firstSourceItem,
+                firstSourceItem.copy(
+                    id = SECOND_TRACK_ID,
+                    providerItemId = "item-$SECOND_TRACK_ID",
+                    canonicalPath = SECOND_TRACK_PATH,
+                    displayPath = SECOND_TRACK_PATH,
+                    displayName = SECOND_TRACK_PATH.substringAfterLast('/'),
+                    etag = "\"etag-$SECOND_TRACK_ID\"",
+                ),
             )
+        )
+        val firstSourceRef = TrackSourceRefEntity(
+            trackId = TRACK_ID,
+            sourceItemId = TRACK_ID,
+            role = "primary",
+            matchMethod = "test",
+            matchConfidence = 100,
+            isPreferred = true,
+            isAvailable = true,
+            isDownloaded = false,
+            playable = true,
+            downloadable = true,
+            codec = null,
+            container = null,
+            bitRate = null,
+            sampleRate = null,
+            bitsPerSample = null,
+            channels = null,
+            lossless = null,
+            createdAt = 1,
+            updatedAt = 1,
         )
         database.trackSourceRefDao().upsertAll(
             listOf(
-                TrackSourceRefEntity(
-                    trackId = TRACK_ID,
-                    sourceItemId = TRACK_ID,
-                    role = "primary",
-                    matchMethod = "test",
-                    matchConfidence = 100,
-                    isPreferred = true,
-                    isAvailable = true,
-                    isDownloaded = false,
-                    playable = true,
-                    downloadable = true,
-                    codec = null,
-                    container = null,
-                    bitRate = null,
-                    sampleRate = null,
-                    bitsPerSample = null,
-                    channels = null,
-                    lossless = null,
-                    createdAt = 1,
-                    updatedAt = 1,
-                )
+                firstSourceRef,
+                firstSourceRef.copy(
+                    trackId = SECOND_TRACK_ID,
+                    sourceItemId = SECOND_TRACK_ID,
+                ),
             )
         )
         database.playlistDao().upsert(
@@ -397,7 +479,13 @@ class DesktopPlayerControllerTest {
                     trackId = TRACK_ID,
                     sortOrder = 0,
                     addedAt = 1,
-                )
+                ),
+                PlaylistTrackCrossRef(
+                    playlistId = PLAYLIST_ID,
+                    trackId = SECOND_TRACK_ID,
+                    sortOrder = 1,
+                    addedAt = 1,
+                ),
             )
         )
     }
@@ -445,6 +533,7 @@ private class RecordingDesktopPlaybackEngine(
         private set
     var stopCalls = 0
         private set
+    var playbackCompleted = false
     var positionMs = 1_000L
     val durationMs = 123_000L
 
@@ -475,6 +564,10 @@ private class RecordingDesktopPlaybackEngine(
             bufferedMs = 2_000L,
             durationMs = durationMs,
         )
+    }
+
+    override fun takePlaybackCompleted(): Boolean = playbackCompleted.also {
+        playbackCompleted = false
     }
 
     override fun release() = Unit
@@ -556,9 +649,10 @@ private object EmptyTrackSourceRefDao : TrackSourceRefDao {
 
     override suspend fun upsertAll(refs: List<TrackSourceRefEntity>) = Unit
 
-    override suspend fun updateEmbeddedArtworkPresence(
+    override suspend fun updateEmbeddedMetadataPresence(
         sourceItemId: Long,
         hasEmbeddedArtwork: Boolean,
+        embeddedLyricsKind: String,
         now: Long,
     ) = Unit
 
@@ -601,6 +695,9 @@ private const val STORAGE_ID = 2L
 private const val TRACK_ID = 7L
 private const val TRACK_TITLE = "Moon"
 private const val TRACK_PATH = "/Music/Moon.flac"
+private const val SECOND_TRACK_ID = 8L
+private const val SECOND_TRACK_TITLE = "Neon"
+private const val SECOND_TRACK_PATH = "/Music/Neon.flac"
 private const val PLAYLIST_ID = 3L
 
 private val TEST_RESOURCE = PlaybackResource(

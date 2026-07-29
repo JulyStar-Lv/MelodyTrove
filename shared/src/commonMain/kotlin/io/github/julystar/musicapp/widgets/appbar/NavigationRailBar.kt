@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.julystar.musicapp.core.presentation.layout.WindowSizeClass
 import io.github.julystar.musicapp.core.presentation.components.appIconPainter
+import io.github.julystar.musicapp.core.presentation.platform.LocalDesktopTitleBarInset
 import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import io.github.julystar.musicapp.navigation.HomeTab
@@ -51,6 +52,7 @@ fun NavigationRailBar(
 ) {
     val railWidth = getNavigationRailWidth(windowSizeClass)
     val shapes = DesignTokens.shapes
+    val titleBarInset = LocalDesktopTitleBarInset.current
 
     Column(
         modifier = modifier
@@ -62,7 +64,7 @@ fun NavigationRailBar(
             painter = appIconPainter(),
             contentDescription = "MelodyTrove",
             modifier = Modifier
-                .padding(top = 18.dp, bottom = 22.dp)
+                .padding(top = 18.dp + titleBarInset, bottom = 22.dp)
                 .size(38.dp)
                 .clip(RoundedCornerShape(shapes.sm)),
         )

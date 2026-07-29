@@ -6,6 +6,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
+import androidx.compose.ui.unit.dp
 
 class QueueStateTest {
 
@@ -41,6 +42,29 @@ class QueueStateTest {
     }
 
     @Test
+    fun `queue item subtitle combines artist and album`() {
+        val item = QueueItemUi(
+            index = 0,
+            title = "Midnight Cascade",
+            artist = "Luna Waves",
+            album = "Tidal Drift",
+            isCurrent = true,
+        )
+
+        assertEquals("Luna Waves · Tidal Drift", item.subtitle())
+        assertEquals(
+            "Luna Waves",
+            item.copy(album = null).subtitle(),
+        )
+    }
+
+    @Test
+    fun `row actions carry track and queue indices`() {
+        assertEquals(42L, QueueAction.ToggleFavorite(42L).trackId)
+        assertEquals(3, QueueAction.RemoveItem(3).index)
+    }
+
+    @Test
     fun `row keys stay unique when queue indices repeat`() {
         val item = QueueItemUi(index = 3, title = "T", artist = null, isCurrent = false)
 
@@ -50,5 +74,21 @@ class QueueStateTest {
     @Test
     fun `clear queue is a singleton action`() {
         assertEquals(QueueAction.ClearQueue, QueueAction.ClearQueue)
+    }
+
+    @Test
+    fun `queue surface follows the Design player breakpoints`() {
+        assertFalse(isQueueSideDialog(390.dp, 844.dp))
+        assertFalse(isQueueSideDialog(840.dp, 900.dp))
+        assertTrue(isQueueSideDialog(860.dp, 520.dp))
+        assertTrue(isQueueSideDialog(1440.dp, 900.dp))
+        assertTrue(isQueueSideDialog(844.dp, 390.dp))
+        assertFalse(isQueueSideDialog(639.dp, 390.dp))
+    }
+
+    @Test
+    fun `desktop queue covers the complete now playing lyrics column`() {
+        assertEquals(525.88.dp, nowPlayingLyricsPanelWidth(1018.dp))
+        assertEquals(753.76.dp, nowPlayingLyricsPanelWidth(1440.dp))
     }
 }

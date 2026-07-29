@@ -102,6 +102,7 @@ pub async fn ct_read_remote_metadata(
             language: lyrics.language,
             description: lyrics.description,
         }),
+        embedded_lyrics_kind: metadata.embedded_lyrics_kind,
         artwork,
         has_embedded_artwork: metadata.has_embedded_artwork,
         raw_metadata: metadata

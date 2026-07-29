@@ -7,6 +7,11 @@ import java.nio.ByteBuffer
  * must outlive every call made with its handle.
  */
 internal object RustDspNative {
+    init {
+        // UniFFI loads this through JNA, which does not register it for JVM JNI lookup.
+        System.loadLibrary("app_backend")
+    }
+
     external fun nativeConfigureFormat(
         handle: Long,
         sampleRate: Int,

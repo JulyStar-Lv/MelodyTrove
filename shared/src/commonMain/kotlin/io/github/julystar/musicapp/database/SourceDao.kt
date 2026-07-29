@@ -539,13 +539,15 @@ interface TrackSourceRefDao {
         """
         UPDATE track_source_ref
         SET hasEmbeddedArtwork = :hasEmbeddedArtwork,
+            embeddedLyricsKind = :embeddedLyricsKind,
             updatedAt = :now
         WHERE sourceItemId = :sourceItemId
         """
     )
-    suspend fun updateEmbeddedArtworkPresence(
+    suspend fun updateEmbeddedMetadataPresence(
         sourceItemId: Long,
         hasEmbeddedArtwork: Boolean,
+        embeddedLyricsKind: String,
         now: Long,
     )
 
@@ -606,6 +608,7 @@ interface TrackSourceRefDao {
             ref.createdAt AS ref_createdAt,
             ref.updatedAt AS ref_updatedAt,
             ref.hasEmbeddedArtwork AS ref_hasEmbeddedArtwork,
+            ref.embeddedLyricsKind AS ref_embeddedLyricsKind,
             item.id AS item_id,
             item.sourceAccountId AS item_sourceAccountId,
             item.libraryRootId AS item_libraryRootId,
@@ -684,6 +687,7 @@ interface TrackSourceRefDao {
             ref.createdAt AS ref_createdAt,
             ref.updatedAt AS ref_updatedAt,
             ref.hasEmbeddedArtwork AS ref_hasEmbeddedArtwork,
+            ref.embeddedLyricsKind AS ref_embeddedLyricsKind,
             item.id AS item_id,
             item.sourceAccountId AS item_sourceAccountId,
             item.libraryRootId AS item_libraryRootId,

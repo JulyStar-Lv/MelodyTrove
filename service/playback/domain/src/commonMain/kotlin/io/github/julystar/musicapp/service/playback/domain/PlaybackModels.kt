@@ -6,6 +6,7 @@ data class PlayableItem(
     val mediaId: MediaId? = null,
     val title: String,
     val artist: String? = null,
+    val album: String? = null,
     val durationMs: Long? = null,
     val artworkId: String? = null,
     val libraryTrackId: Long? = null,

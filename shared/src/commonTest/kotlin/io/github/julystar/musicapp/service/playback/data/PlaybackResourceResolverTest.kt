@@ -103,6 +103,115 @@ class PlaybackResourceResolverTest {
     }
 
     @Test
+    fun resolvesLocalCandidateBeforeCacheAndRemoteCandidate() = runBlocking {
+        var remoteCalls = 0
+        val remoteSource = fakeMusicSource(BuiltInSourceIds.WebDav) {
+            remoteCalls += 1
+            SourcePlaybackResult.Success(PlaybackResource(uri = "http://127.0.0.1/remote.flac"))
+        }
+        val localResource = PlaybackResource(
+            uri = "file:///Music/Track.flac",
+            mimeType = "audio/flac",
+            isLocal = true,
+        )
+        val localSource = fakeMusicSource(BuiltInSourceIds.Local) {
+            SourcePlaybackResult.Success(localResource)
+        }
+        var cacheCalls = 0
+        val cache = fakePlaybackAudioCache(
+            onResolveCompleted = { _, _ ->
+                cacheCalls += 1
+                PlaybackResource(uri = "file:///cache/track.flac", isLocal = true)
+            }
+        )
+        val resolver = PlaybackResourceResolver(
+            storageLookup = LegacyStorageLookup { null },
+            trackSourceRefDao = fakeTrackSourceRefDao(
+                candidate(path = "/Remote/Track.flac"),
+                candidate(
+                    path = "/Music/Track.flac",
+                    providerType = ProviderTypes.Local,
+                    sourceAccountId = 7,
+                ),
+            ),
+            sourceRegistry = MusicSourceRegistry(listOf(remoteSource, localSource)),
+            legacyStoragePlaybackResolver = unusedPlaybackResolver(),
+            playbackAudioCache = cache,
+        )
+
+        assertEquals(
+            SourcePlaybackResult.Success(localResource),
+            resolver.resolve(music(storageId = 42, path = "/Remote/Track.flac")),
+        )
+        assertEquals(0, cacheCalls)
+        assertEquals(0, remoteCalls)
+    }
+
+    @Test
+    fun resolvesCompletedCacheBeforeRemoteCandidate() = runBlocking {
+        var remoteCalls = 0
+        val source = fakeMusicSource(BuiltInSourceIds.WebDav) {
+            remoteCalls += 1
+            SourcePlaybackResult.Success(PlaybackResource(uri = "http://127.0.0.1/remote.flac"))
+        }
+        val cachedResource = PlaybackResource(
+            uri = "http://127.0.0.1/cached.flac",
+            mimeType = "audio/flac",
+            isLocal = true,
+        )
+        val resolver = PlaybackResourceResolver(
+            storageLookup = LegacyStorageLookup { null },
+            trackSourceRefDao = fakeTrackSourceRefDao(candidate(path = "/Music/Track.flac")),
+            sourceRegistry = MusicSourceRegistry(listOf(source)),
+            legacyStoragePlaybackResolver = unusedPlaybackResolver(),
+            playbackAudioCache = fakePlaybackAudioCache(
+                onResolveCompleted = { identity, _ ->
+                    assertEquals(PlaybackCacheIdentity(42, "/Music/Track.flac"), identity)
+                    cachedResource
+                }
+            ),
+        )
+
+        assertEquals(
+            SourcePlaybackResult.Success(cachedResource),
+            resolver.resolve(music(storageId = 42, path = "/Music/Track.flac")),
+        )
+        assertEquals(0, remoteCalls)
+    }
+
+    @Test
+    fun wrapsRemoteCandidateForListenAndCache() = runBlocking {
+        val remoteResource = PlaybackResource(uri = "http://127.0.0.1/remote.flac")
+        val cachedProxy = PlaybackResource(uri = "http://127.0.0.1/cache-proxy.flac")
+        val source = fakeMusicSource(BuiltInSourceIds.WebDav) {
+            SourcePlaybackResult.Success(remoteResource)
+        }
+        val resolver = PlaybackResourceResolver(
+            storageLookup = LegacyStorageLookup { null },
+            trackSourceRefDao = fakeTrackSourceRefDao(
+                candidate(path = "/Music/Track.flac", etag = "etag-v1"),
+            ),
+            sourceRegistry = MusicSourceRegistry(listOf(source)),
+            legacyStoragePlaybackResolver = unusedPlaybackResolver(),
+            playbackAudioCache = fakePlaybackAudioCache(
+                onWrapRemote = { identity, resource ->
+                    assertEquals(
+                        PlaybackCacheIdentity(42, "/Music/Track.flac", "etag-v1"),
+                        identity,
+                    )
+                    assertEquals(remoteResource, resource)
+                    cachedProxy
+                }
+            ),
+        )
+
+        assertEquals(
+            SourcePlaybackResult.Success(cachedProxy),
+            resolver.resolve(music(storageId = 42, path = "/Music/Track.flac")),
+        )
+    }
+
+    @Test
     fun missingStorageFailsBeforeCallingSource() = runBlocking {
         var sourceCalls = 0
         val source = fakeMusicSource(BuiltInSourceIds.Local) {
@@ -189,6 +298,28 @@ class PlaybackResourceResolverTest {
         override suspend fun releaseAll() = Unit
     }
 
+    private fun fakePlaybackAudioCache(
+        onResolveCompleted: suspend (PlaybackCacheIdentity, String?) -> PlaybackResource? = { _, _ ->
+            null
+        },
+        onWrapRemote: suspend (PlaybackCacheIdentity, PlaybackResource) -> PlaybackResource =
+            { _, resource -> resource },
+    ) = object : PlaybackAudioCache {
+        override suspend fun resolveCompleted(
+            identity: PlaybackCacheIdentity,
+            mimeType: String?,
+        ): PlaybackResource? = onResolveCompleted(identity, mimeType)
+
+        override suspend fun wrapRemote(
+            identity: PlaybackCacheIdentity,
+            resource: PlaybackResource,
+        ): PlaybackResource = onWrapRemote(identity, resource)
+
+        override suspend fun release(resource: PlaybackResource): PlaybackResource = resource
+
+        override suspend fun releaseAll() = Unit
+    }
+
     private fun music(
         storageId: Long,
         path: String,
@@ -248,9 +379,10 @@ class PlaybackResourceResolverTest {
 
         override suspend fun upsertAll(refs: List<TrackSourceRefEntity>) = Unit
 
-        override suspend fun updateEmbeddedArtworkPresence(
+        override suspend fun updateEmbeddedMetadataPresence(
             sourceItemId: Long,
             hasEmbeddedArtwork: Boolean,
+            embeddedLyricsKind: String,
             now: Long,
         ) = Unit
 
@@ -271,6 +403,9 @@ class PlaybackResourceResolverTest {
 
     private fun candidate(
         path: String,
+        providerType: String = ProviderTypes.WebDav,
+        sourceAccountId: Long = 42,
+        etag: String? = null,
     ) = TrackSourcePlaybackCandidate(
         ref = TrackSourceRefEntity(
             trackId = 7,
@@ -295,7 +430,7 @@ class PlaybackResourceResolverTest {
         ),
         item = SourceItemEntity(
             id = 100,
-            sourceAccountId = 42,
+            sourceAccountId = sourceAccountId,
             libraryRootId = 2,
             itemType = SourceItemTypes.Track,
             providerItemId = "item-100",
@@ -305,7 +440,7 @@ class PlaybackResourceResolverTest {
             displayName = path.substringAfterLast('/'),
             mimeType = "audio/flac",
             sizeBytes = 100,
-            etag = null,
+            etag = etag,
             revision = null,
             createdAtRemote = null,
             modifiedAtRemote = null,
@@ -317,8 +452,8 @@ class PlaybackResourceResolverTest {
             lastSeenScanId = "scan-1",
         ),
         account = SourceAccountEntity(
-            id = 42,
-            providerType = ProviderTypes.WebDav,
+            id = sourceAccountId,
+            providerType = providerType,
             displayName = "NAS",
             endpoint = null,
             externalAccountId = null,

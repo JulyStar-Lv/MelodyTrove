@@ -1,7 +1,6 @@
 package io.github.julystar.musicapp.widgets.appbar
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,12 +35,11 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.julystar.musicapp.core.presentation.components.appIconPainter
 import io.github.julystar.musicapp.core.presentation.layout.WindowSizeClass
+import io.github.julystar.musicapp.core.presentation.platform.LocalDesktopTitleBarInset
 import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import io.github.julystar.musicapp.navigation.HomeTab
 import org.jetbrains.compose.resources.painterResource
-import musicapp.shared.generated.resources.Res
-import musicapp.shared.generated.resources.icon_adjust
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -52,17 +50,20 @@ fun getSidebarWidth(windowSizeClass: WindowSizeClass = WindowSizeClass.Large): D
 fun SidebarBar(
     currentTab: HomeTab,
     onTabSelected: (HomeTab) -> Unit,
-    isDark: Boolean,
-    onToggleTheme: () -> Unit,
     modifier: Modifier = Modifier,
     windowSizeClass: WindowSizeClass = WindowSizeClass.Large,
 ) {
     val shapes = DesignTokens.shapes
-    val sidebarColor = if (MiuixTheme.colorScheme.background.luminance() < 0.5f) {
+    val titleBarInset = LocalDesktopTitleBarInset.current
+    val darkSurface = MiuixTheme.colorScheme.background.luminance() < 0.5f
+    val sidebarColor = if (darkSurface) {
         Color(0xFF110E1E)
     } else {
         Color(0xFFEDEAF7)
     }
+    val edgeTint = MiuixTheme.colorScheme.onSurface.copy(
+        alpha = if (darkSurface) 0.10f else 0.055f,
+    )
 
     Box(
         modifier = modifier
@@ -72,7 +73,12 @@ fun SidebarBar(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 12.dp, vertical = 18.dp),
+                .padding(
+                    start = 12.dp,
+                    top = 18.dp + titleBarInset,
+                    end = 12.dp,
+                    bottom = 18.dp,
+                ),
         ) {
             Row(
                 modifier = Modifier
@@ -121,37 +127,17 @@ fun SidebarBar(
                 }
             }
             Spacer(modifier = Modifier.weight(1f))
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(DesignTokens.adaptive.minimumTouchTarget)
-                    .clip(RoundedCornerShape(shapes.compactCard))
-                    .background(MiuixTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.72f))
-                    .clickable(onClick = onToggleTheme)
-                    .padding(horizontal = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    painter = painterResource(Res.drawable.icon_adjust),
-                    tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    contentDescription = if (isDark) "Switch to light mode" else "Switch to dark mode",
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = if (isDark) "Light Mode" else "Dark Mode",
-                    color = MiuixTheme.colorScheme.onSurface,
-                    style = MiuixTheme.textStyles.body2,
-                    fontWeight = FontWeight.Medium,
-                )
-            }
         }
         Box(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .fillMaxHeight()
-                .width(1.dp)
-                .background(MiuixTheme.colorScheme.outline.copy(alpha = 0.64f)),
+                .width(10.dp)
+                .background(
+                    Brush.horizontalGradient(
+                        colors = listOf(Color.Transparent, edgeTint),
+                    ),
+                ),
         )
     }
 }

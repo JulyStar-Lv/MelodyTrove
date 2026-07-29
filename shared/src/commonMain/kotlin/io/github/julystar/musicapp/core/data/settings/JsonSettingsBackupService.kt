@@ -182,8 +182,6 @@ private fun AppSettings.mergeBackup(
         merged = merged.copy(
             metadataParsing = backup.metadataParsing,
             autoScanMode = backup.autoScanMode,
-            backgroundScanEnabled = backup.backgroundScanEnabled,
-            scanOnlyOnUnmeteredNetwork = backup.scanOnlyOnUnmeteredNetwork,
             scanSubdirectories = backup.scanSubdirectories,
             webDavMetadataScanMode = backup.webDavMetadataScanMode,
             minimumAudioDurationMs = backup.minimumAudioDurationMs,
@@ -193,11 +191,11 @@ private fun AppSettings.mergeBackup(
     }
     if (selection.networkAndCache) {
         merged = merged.copy(
-            allowMeteredStreaming = backup.allowMeteredStreaming,
-            backgroundSyncOnlyOnUnmeteredNetwork = backup.backgroundSyncOnlyOnUnmeteredNetwork,
+            allowMeteredNetworkUsage = backup.allowMeteredNetworkUsage,
             networkRetryCount = backup.networkRetryCount,
             connectionTimeoutSeconds = backup.connectionTimeoutSeconds,
             audioPreloadBytes = backup.audioPreloadBytes,
+            listenAndCacheEnabled = backup.listenAndCacheEnabled,
             audioCacheLimitBytes = backup.audioCacheLimitBytes,
             imageCacheLimitBytes = backup.imageCacheLimitBytes,
         )

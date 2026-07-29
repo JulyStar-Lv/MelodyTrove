@@ -81,6 +81,22 @@ class RemoteLibraryImportCoordinatorTest {
     }
 
     @Test
+    fun legacyAndroidLocalRootPathMapsOnlyLogicalPrimaryPaths() {
+        assertEquals(
+            "/storage/emulated/0/Music/Albums",
+            "/Music/Albums".toLegacyAndroidPrimaryStoragePath(),
+        )
+        assertEquals(
+            "/storage/emulated/0",
+            "/".toLegacyAndroidPrimaryStoragePath(),
+        )
+        assertEquals(
+            null,
+            "/storage/emulated/0/Music".toLegacyAndroidPrimaryStoragePath(),
+        )
+    }
+
+    @Test
     fun oneDriveDeltaOnlyResyncsForLiveFileWithoutPath() {
         assertFalse(
             requiresOneDriveResync(
@@ -840,6 +856,7 @@ class RemoteLibraryImportCoordinatorTest {
             language = "eng",
             description = "main",
         ),
+        embeddedLyricsKind = "LineTimed",
         artwork = artwork,
         hasEmbeddedArtwork = artwork != null,
         rawMetadata = listOf(

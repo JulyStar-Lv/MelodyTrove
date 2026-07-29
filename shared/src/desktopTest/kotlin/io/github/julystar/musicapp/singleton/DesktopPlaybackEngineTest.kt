@@ -67,6 +67,16 @@ class DesktopPlaybackEngineTest {
     }
 
     @Test
+    fun rodioEngineConsumesNativePlaybackCompletion() {
+        val runtime = RecordingDesktopRodioRuntime(loadResult = true)
+        val engine = RodioDesktopPlaybackEngine(runtime)
+        runtime.playbackCompleted = true
+
+        assertTrue(engine.takePlaybackCompleted())
+        assertFalse(engine.takePlaybackCompleted())
+    }
+
+    @Test
     fun rodioEnginePassesPlaybackHeadersToRuntime() {
         val runtime = RecordingDesktopRodioRuntime(loadResult = true)
         val engine = RodioDesktopPlaybackEngine(runtime)
@@ -177,6 +187,7 @@ private class RecordingDesktopRodioRuntime(
         private set
     var stopCalls = 0
         private set
+    var playbackCompleted = false
     var configuredDsp: DspConfiguration? = null
         private set
     var configuredCrossfadeMs: ULong? = null
@@ -214,6 +225,10 @@ private class RecordingDesktopRodioRuntime(
     override fun bufferedPositionMs(): Long = 1_000L
 
     override fun durationMs(): Long = 123_000L
+
+    override fun takePlaybackCompleted(): Boolean = playbackCompleted.also {
+        playbackCompleted = false
+    }
 
     override fun configureAudioProcessing(
         config: DspConfiguration,

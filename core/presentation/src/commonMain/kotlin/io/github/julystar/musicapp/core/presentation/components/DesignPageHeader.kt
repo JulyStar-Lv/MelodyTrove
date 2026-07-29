@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -30,6 +32,8 @@ fun DesignPageHeader(
     trailing: (@Composable () -> Unit)? = null,
     compact: Boolean = false,
     eyebrow: String? = null,
+    centered: Boolean = false,
+    titleStyle: TextStyle? = null,
 ) {
     Row(
         modifier = modifier
@@ -41,6 +45,7 @@ fun DesignPageHeader(
         Column(
             modifier = if (trailing != null) Modifier.weight(1f) else Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(if (compact) 2.dp else 4.dp),
+            horizontalAlignment = if (centered) Alignment.CenterHorizontally else Alignment.Start,
         ) {
             eyebrow?.let {
                 Text(
@@ -48,6 +53,7 @@ fun DesignPageHeader(
                     color = MiuixTheme.colorScheme.primary,
                     style = MiuixTheme.textStyles.footnote2,
                     fontWeight = FontWeight.Bold,
+                    textAlign = if (centered) TextAlign.Center else TextAlign.Start,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -55,12 +61,13 @@ fun DesignPageHeader(
             Text(
                 text = title,
                 color = MiuixTheme.colorScheme.onBackground,
-                style = if (compact) {
+                style = titleStyle ?: if (compact) {
                     MiuixTheme.textStyles.title2.copy(fontSize = 24.sp, lineHeight = 30.sp)
                 } else {
                     MiuixTheme.textStyles.title1
                 },
-                fontWeight = FontWeight.Bold,
+                fontWeight = titleStyle?.fontWeight ?: FontWeight.Bold,
+                textAlign = if (centered) TextAlign.Center else TextAlign.Start,
                 maxLines = titleMaxLines,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -69,6 +76,7 @@ fun DesignPageHeader(
                     text = it,
                     color = MiuixTheme.colorScheme.onBackgroundVariant,
                     style = MiuixTheme.textStyles.body2,
+                    textAlign = if (centered) TextAlign.Center else TextAlign.Start,
                     maxLines = subtitleMaxLines,
                     overflow = TextOverflow.Ellipsis,
                 )

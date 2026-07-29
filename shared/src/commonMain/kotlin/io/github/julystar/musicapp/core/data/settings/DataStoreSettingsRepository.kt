@@ -232,9 +232,6 @@ class DataStoreSettingsRepository(
                     ?: SettingsBackupSettings.Default.remoteDirectory,
             ),
             autoScanMode = preferences[AUTO_SCAN_MODE_KEY].enumOrDefault(AutoScanMode.Off),
-            backgroundScanEnabled = preferences[BACKGROUND_SCAN_ENABLED_KEY] ?: false,
-            scanOnlyOnUnmeteredNetwork =
-                preferences[SCAN_ONLY_ON_UNMETERED_NETWORK_KEY] ?: true,
             scanSubdirectories = preferences[SCAN_SUBDIRECTORIES_KEY]
                 ?: preferences[LOCAL_SCAN_SUBDIRECTORIES_KEY]
                 ?: preferences[WEB_DAV_SCAN_SUBDIRECTORIES_KEY]
@@ -250,9 +247,7 @@ class DataStoreSettingsRepository(
                 .enumOrDefault(MissingFilePolicy.MarkUnavailable),
             duplicateTrackPolicy = preferences[DUPLICATE_TRACK_POLICY_KEY]
                 .enumOrDefault(DuplicateTrackPolicy.SeparateBySource),
-            allowMeteredStreaming = preferences[ALLOW_METERED_STREAMING_KEY] ?: true,
-            backgroundSyncOnlyOnUnmeteredNetwork =
-                preferences[BACKGROUND_SYNC_ONLY_ON_UNMETERED_NETWORK_KEY] ?: true,
+            allowMeteredNetworkUsage = preferences[ALLOW_METERED_NETWORK_USAGE_KEY] ?: false,
             networkRetryCount = normalizeNetworkRetryCount(
                 preferences[NETWORK_RETRY_COUNT_KEY] ?: AppSettings.Default.networkRetryCount,
             ),
@@ -263,6 +258,7 @@ class DataStoreSettingsRepository(
             audioPreloadBytes = normalizeAudioPreloadBytes(
                 preferences[AUDIO_PRELOAD_BYTES_KEY] ?: AppSettings.Default.audioPreloadBytes,
             ),
+            listenAndCacheEnabled = preferences[LISTEN_AND_CACHE_ENABLED_KEY] ?: true,
             audioCacheLimitBytes = normalizeAudioCacheLimitBytes(
                 preferences[AUDIO_CACHE_LIMIT_BYTES_KEY] ?: AppSettings.Default.audioCacheLimitBytes,
             ),
@@ -496,29 +492,21 @@ class DataStoreSettingsRepository(
         setLyricOutputSettings(settings.lyricOutput)
         setBackupSettings(settings.backup)
         setAutoScanMode(settings.autoScanMode)
-        setBackgroundScanEnabled(settings.backgroundScanEnabled)
-        setScanOnlyOnUnmeteredNetwork(settings.scanOnlyOnUnmeteredNetwork)
         setScanSubdirectories(settings.scanSubdirectories)
         setWebDavMetadataScanMode(settings.webDavMetadataScanMode)
         setMinimumAudioDurationMs(settings.minimumAudioDurationMs)
         setMissingFilePolicy(settings.missingFilePolicy)
         setDuplicateTrackPolicy(settings.duplicateTrackPolicy)
-        setAllowMeteredStreaming(settings.allowMeteredStreaming)
-        setBackgroundSyncOnlyOnUnmeteredNetwork(settings.backgroundSyncOnlyOnUnmeteredNetwork)
+        setAllowMeteredNetworkUsage(settings.allowMeteredNetworkUsage)
         setNetworkRetryCount(settings.networkRetryCount)
         setConnectionTimeoutSeconds(settings.connectionTimeoutSeconds)
         setAudioPreloadBytes(settings.audioPreloadBytes)
+        setListenAndCacheEnabled(settings.listenAndCacheEnabled)
         setAudioCacheLimitBytes(settings.audioCacheLimitBytes)
         setImageCacheLimitBytes(settings.imageCacheLimitBytes)
     }
 
     override suspend fun setAutoScanMode(mode: AutoScanMode) = set(AUTO_SCAN_MODE_KEY, mode.name)
-
-    override suspend fun setBackgroundScanEnabled(enabled: Boolean) =
-        set(BACKGROUND_SCAN_ENABLED_KEY, enabled)
-
-    override suspend fun setScanOnlyOnUnmeteredNetwork(enabled: Boolean) =
-        set(SCAN_ONLY_ON_UNMETERED_NETWORK_KEY, enabled)
 
     override suspend fun setScanSubdirectories(enabled: Boolean) {
         dataStore.edit { preferences ->
@@ -544,11 +532,8 @@ class DataStoreSettingsRepository(
     override suspend fun setDuplicateTrackPolicy(policy: DuplicateTrackPolicy) =
         set(DUPLICATE_TRACK_POLICY_KEY, policy.name)
 
-    override suspend fun setAllowMeteredStreaming(enabled: Boolean) =
-        set(ALLOW_METERED_STREAMING_KEY, enabled)
-
-    override suspend fun setBackgroundSyncOnlyOnUnmeteredNetwork(enabled: Boolean) =
-        set(BACKGROUND_SYNC_ONLY_ON_UNMETERED_NETWORK_KEY, enabled)
+    override suspend fun setAllowMeteredNetworkUsage(enabled: Boolean) =
+        set(ALLOW_METERED_NETWORK_USAGE_KEY, enabled)
 
     override suspend fun setNetworkRetryCount(value: Int) =
         set(NETWORK_RETRY_COUNT_KEY, normalizeNetworkRetryCount(value))
@@ -558,6 +543,9 @@ class DataStoreSettingsRepository(
 
     override suspend fun setAudioPreloadBytes(bytes: Long) =
         set(AUDIO_PRELOAD_BYTES_KEY, normalizeAudioPreloadBytes(bytes))
+
+    override suspend fun setListenAndCacheEnabled(enabled: Boolean) =
+        set(LISTEN_AND_CACHE_ENABLED_KEY, enabled)
 
     override suspend fun setAudioCacheLimitBytes(bytes: Long) =
         set(AUDIO_CACHE_LIMIT_BYTES_KEY, normalizeAudioCacheLimitBytes(bytes))
@@ -727,9 +715,6 @@ internal val BACKUP_SCHEDULE_KEY = stringPreferencesKey("settings.backup.schedul
 internal val BACKUP_WEBDAV_ACCOUNT_ID_KEY = longPreferencesKey("settings.backup.webDavAccountId")
 internal val BACKUP_REMOTE_DIRECTORY_KEY = stringPreferencesKey("settings.backup.remoteDirectory")
 internal val AUTO_SCAN_MODE_KEY = stringPreferencesKey("settings.autoScanMode")
-internal val BACKGROUND_SCAN_ENABLED_KEY = booleanPreferencesKey("settings.backgroundScanEnabled")
-internal val SCAN_ONLY_ON_UNMETERED_NETWORK_KEY =
-    booleanPreferencesKey("settings.scanOnlyOnUnmeteredNetwork")
 internal val SCAN_SUBDIRECTORIES_KEY = booleanPreferencesKey("settings.scanSubdirectories")
 internal val WEB_DAV_METADATA_SCAN_MODE_KEY =
     stringPreferencesKey("settings.webDavMetadataScanMode")
@@ -738,12 +723,13 @@ internal val WEB_DAV_METADATA_SCAN_MODE_MIGRATED_KEY =
 internal val MINIMUM_AUDIO_DURATION_MS_KEY = longPreferencesKey("settings.minimumAudioDurationMs")
 internal val MISSING_FILE_POLICY_KEY = stringPreferencesKey("settings.missingFilePolicy")
 internal val DUPLICATE_TRACK_POLICY_KEY = stringPreferencesKey("settings.duplicateTrackPolicy")
-internal val ALLOW_METERED_STREAMING_KEY = booleanPreferencesKey("settings.allowMeteredStreaming")
-internal val BACKGROUND_SYNC_ONLY_ON_UNMETERED_NETWORK_KEY =
-    booleanPreferencesKey("settings.backgroundSyncOnlyOnUnmeteredNetwork")
+internal val ALLOW_METERED_NETWORK_USAGE_KEY =
+    booleanPreferencesKey("settings.allowMeteredNetworkUsage")
 internal val NETWORK_RETRY_COUNT_KEY = intPreferencesKey("settings.networkRetryCount")
 internal val CONNECTION_TIMEOUT_SECONDS_KEY = intPreferencesKey("settings.connectionTimeoutSeconds")
 internal val AUDIO_PRELOAD_BYTES_KEY = longPreferencesKey("settings.audioPreloadBytes")
+internal val LISTEN_AND_CACHE_ENABLED_KEY =
+    booleanPreferencesKey("settings.listenAndCacheEnabled")
 internal val AUDIO_CACHE_LIMIT_BYTES_KEY = longPreferencesKey("settings.audioCacheLimitBytes")
 internal val IMAGE_CACHE_LIMIT_BYTES_KEY = longPreferencesKey("settings.imageCacheLimitBytes")
 
@@ -840,18 +826,16 @@ private val SETTINGS_KEYS = setOf(
     BACKUP_WEBDAV_ACCOUNT_ID_KEY,
     BACKUP_REMOTE_DIRECTORY_KEY,
     AUTO_SCAN_MODE_KEY,
-    BACKGROUND_SCAN_ENABLED_KEY,
-    SCAN_ONLY_ON_UNMETERED_NETWORK_KEY,
     SCAN_SUBDIRECTORIES_KEY,
     WEB_DAV_METADATA_SCAN_MODE_KEY,
     MINIMUM_AUDIO_DURATION_MS_KEY,
     MISSING_FILE_POLICY_KEY,
     DUPLICATE_TRACK_POLICY_KEY,
-    ALLOW_METERED_STREAMING_KEY,
-    BACKGROUND_SYNC_ONLY_ON_UNMETERED_NETWORK_KEY,
+    ALLOW_METERED_NETWORK_USAGE_KEY,
     NETWORK_RETRY_COUNT_KEY,
     CONNECTION_TIMEOUT_SECONDS_KEY,
     AUDIO_PRELOAD_BYTES_KEY,
+    LISTEN_AND_CACHE_ENABLED_KEY,
     AUDIO_CACHE_LIMIT_BYTES_KEY,
     IMAGE_CACHE_LIMIT_BYTES_KEY,
     ALLOW_MIXED_PLAYBACK_KEY,

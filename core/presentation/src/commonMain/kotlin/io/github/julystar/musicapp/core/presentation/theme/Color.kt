@@ -19,6 +19,10 @@ object DesignPalette {
     val SupportOrange = Color(0xFFFF8A3D)
     val SupportGreen = Color(0xFF3DCA8A)
     val SupportYellow = Color(0xFFFFD93D)
+    val SupportLime = Color(0xFFA4C936)
+    val SupportEmerald = Color(0xFF2EAD72)
+    val SupportCyan = Color(0xFF29C5C8)
+    val SupportTeal = Color(0xFF117B8A)
 }
 
 @Immutable
@@ -45,6 +49,12 @@ object DesignGradients {
     )
     val BluePurple = DesignGradient(
         colors = persistentListOf(DesignPalette.SupportBlue, DesignPalette.Secondary),
+    )
+    val LimeEmerald = DesignGradient(
+        colors = persistentListOf(DesignPalette.SupportLime, DesignPalette.SupportEmerald),
+    )
+    val CyanTeal = DesignGradient(
+        colors = persistentListOf(DesignPalette.SupportCyan, DesignPalette.SupportTeal),
     )
     val PinkYellow = DesignGradient(
         colors = persistentListOf(DesignPalette.Primary, DesignPalette.SupportYellow),

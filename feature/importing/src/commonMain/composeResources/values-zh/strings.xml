@@ -8,9 +8,10 @@
     <string name="import_musics_error_authentication_desc">用户名或密码错误。请检查配置中的用户名和密码。</string>
     <string name="import_musics_error_timeout_desc">连接超时，请重试。</string>
     <string name="import_musics_error_unknown_desc">未知错误，请重试。</string>
-    <string name="import_musics_error_permission_desc">需要权限。点按以请求权限。</string>
+    <string name="import_musics_error_permission_desc">允许访问后，即可浏览并选择本地音乐文件夹。</string>
+    <string name="import_musics_error_permission_action">允许访问</string>
     <string name="import_musics_error_authentication_title">认证失败</string>
     <string name="import_musics_error_timeout_title">连接超时</string>
     <string name="import_musics_error_unknown_title">未知错误</string>
-    <string name="import_musics_error_permission_title">权限错误</string>
+    <string name="import_musics_error_permission_title">需要访问音乐的权限</string>
 </resources>

@@ -32,7 +32,6 @@ fun NowPlayingRoot(
 ) {
     val state by playerViewModel.nowPlayingState.collectAsState()
     val settings by settingsRepository.settings.collectAsState(AppSettings.Default)
-    val sleepModeState by sleepModeViewModel.state.collectAsState()
     val favoriteTrackIds by favoritesRepository.favoriteTrackIds.collectAsState(emptySet())
     val coroutineScope = rememberCoroutineScope()
     KeepScreenOnEffect(enabled = settings.keepScreenOnInPlayer)
@@ -73,7 +72,6 @@ fun NowPlayingRoot(
             playerInteractionSettings = settings.playerInteraction,
             currentPositionMs = playbackPosition.positionMs,
             isSeeking = playbackPosition.isSeeking,
-            isSleepTimerEnabled = sleepModeState.enabled,
             isFavorite = state.currentTrack?.id?.let(favoriteTrackIds::contains) == true,
             onToggleFavorite = {
                 state.currentTrack?.id?.let { trackId ->

@@ -1,5 +1,7 @@
 package io.github.julystar.musicapp.feature.home.presentation
 
+import androidx.compose.ui.graphics.Color
+import kotlinx.collections.immutable.persistentListOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -22,6 +24,7 @@ class HomeStateTest {
         assertTrue(state.recentTracks.isEmpty())
         assertNull(state.statistics)
         assertFalse(state.shouldShowEmptyState)
+        assertFalse(state.shouldShowEmptyStateOnly)
     }
 
     @Test
@@ -29,6 +32,36 @@ class HomeStateTest {
         val state = HomeState(isLoading = false)
 
         assertTrue(state.shouldShowEmptyState)
+        assertTrue(state.shouldShowEmptyStateOnly)
+    }
+
+    @Test
+    fun `configured empty library only shows the empty library state`() {
+        val state = HomeState(
+            isLoading = false,
+        )
+
+        assertTrue(state.shouldShowEmptyState)
+        assertTrue(state.shouldShowEmptyStateOnly)
+    }
+
+    @Test
+    fun `empty indexed library hides persisted home sections`() {
+        val state = HomeState(
+            isLoading = false,
+            pinnedPlaylists = persistentListOf(
+                HomePlaylist(
+                    title = "Saved playlist",
+                    description = "From a previous library",
+                    meta = "0 tracks",
+                    artworkIndex = 1,
+                    colors = persistentListOf(Color.Black),
+                ),
+            ),
+        )
+
+        assertTrue(state.shouldShowEmptyState)
+        assertTrue(state.shouldShowEmptyStateOnly)
     }
 
     @Test
@@ -50,6 +83,7 @@ class HomeStateTest {
 
         assertNotNull(state.statistics)
         assertTrue(state.shouldShowEmptyState)
+        assertTrue(state.shouldShowEmptyStateOnly)
         assertEquals(10, state.statistics.totalTracksEverPlayed)
         assertEquals(3600_000L, state.statistics.totalListeningDurationMs)
         assertEquals(3, state.statistics.tracksPlayedToday)

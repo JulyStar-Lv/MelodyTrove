@@ -11,12 +11,16 @@
   `1440 × 900`.
 - Exports:
   `Design/exports/theme-color/design-compact-theme-colors.png`,
+  `design-compact-theme-colors-artwork-off.png`,
   `design-compact-theme-picker.png`, `design-medium-theme-colors.png`,
   `design-medium-theme-picker.png`, `design-expanded-theme-colors.png`, and
   `design-expanded-theme-picker.png`.
 - State coverage: artwork available/loading/missing/failed/off, picker
   initial/dragging/invalid/duplicate/limit/empty/delete/cancel/applied, and Swatch
   default/hover/pressed/focus/selected/removable/built-in/disabled.
+- Control interlock: while artwork color is on, Theme color remains visible with
+  disabled semantics and “Turn off Artwork color to edit”; turning artwork color
+  off enables the row and is the only path that can open the manual picker.
 - Contrast boards: Brand Pink, Yellow, and Blue in generated light/dark previews.
 - Interaction: artwork switch, picker open/close, preset selection, HSV pointer
   surface, Hue slider, custom-color deletion, and palette actions are exposed as
@@ -30,8 +34,9 @@
   invalid Hex, Yellow light/dark, artwork-off, Apply, and Cancel behavior matched
   the maintained design source.
 - Desktop runtime exports:
-  `actual-desktop-expanded-appearance-dark.png`,
-  `actual-desktop-expanded-picker-dark.png`,
+  `actual-desktop-expanded-appearance-artwork-on-locked.png`,
+  `actual-desktop-expanded-appearance-artwork-off-enabled.png`,
+  `actual-desktop-expanded-picker-artwork-off.png`,
   `actual-desktop-picker-invalid-hex.png`,
   `actual-desktop-yellow-dark.png`, `actual-desktop-yellow-light.png`, and
   `actual-desktop-expanded-appearance-artwork-off.png` in
@@ -39,8 +44,17 @@
 - Android build: `:androidApp:assembleDebug` passed. A connected Android 13
   device rejected USB installation with `INSTALL_FAILED_USER_RESTRICTED`, so no
   Android screenshot was fabricated.
-- iOS runtime: unverified because no simulator was booted and Xcode 26.4 fails
-  the current project cinterop before installation.
+- iOS runtime: the Xcode 26.4 Debug simulator build passed and the app was
+  installed on a fresh iPhone 16e / iOS 26.4 simulator. Artwork-on disabled
+  behavior, artwork-off enabled behavior, picker opening, and applying Yellow
+  were exercised.
+- iOS runtime exports:
+  `actual-ios-compact-appearance-artwork-on-locked.png`,
+  `actual-ios-compact-appearance-artwork-off.png`,
+  `actual-ios-compact-picker-artwork-off.png`, and
+  `actual-ios-compact-yellow-light.png`.
+- Stale pre-interlock Desktop/iOS exports were removed so they cannot suggest
+  that the manual picker opens while artwork color is enabled.
 - Legacy cleanup: no system-wallpaper, Android 12+, device-support, or
   user-visible Monet control remains on the redesigned Appearance surface.
 - External Figma: not modified. The target URL opened but did not expose an
@@ -49,8 +63,9 @@
 - Full design-to-Compose and platform audit:
   `docs/design/theme-color-implementation.md`.
 
-Final design-source result: passed; Desktop runtime passed; Android/iOS runtime
-evidence remains explicitly unverified.
+Final theme-color result: design source, Desktop runtime, and iOS runtime passed.
+Android runtime evidence remains explicitly unverified because device-side USB
+installation was rejected.
 
 - Source: Figma Make, `Design System for MelodyTrove`, Version 31.
 - Mobile: Home layout, Daily Picks, Recently Played, Continue Playing, mini player, and bottom navigation visually checked against the source design; mini player and bottom navigation verified in both light and dark themes.
@@ -102,10 +117,9 @@ Final result: passed
   testing, editing, and guarded deletion. SMB1 is explicitly excluded.
 - Scan state: Scan now exposes an in-progress state, progress feedback,
   cancellation, and a completed-without-failures state.
-- Settings fidelity: added background scanning, unmetered-network preference,
-  minimum duration, missing-file policy, duplicate policy, supported formats,
-  ignored directories, and metadata parsing. Advanced rules remain collapsed
-  until requested.
+- Settings fidelity: added automatic scanning, minimum duration, missing-file
+  policy, duplicate policy, supported formats, ignored directories, and metadata
+  parsing. Advanced rules remain collapsed until requested.
 - Data fidelity: the supported-format and ignored-directory summaries match
   `SUPPORTED_AUDIO_EXTENSIONS` and `DEFAULT_IGNORED_SOURCE_DIRECTORIES`;
   fabricated missing-artwork and missing-lyrics counts were removed.
@@ -167,6 +181,79 @@ Final result: passed
 - None classified until visual capture is available.
 
 Final result: blocked
+
+## Source configuration and status refinement — 2026-07-28
+
+- Source visual truth:
+  `/var/folders/jc/z_g_5hld77g5zmm6bxv83_5c0000gn/T/codex-clipboard-ca653082-5b49-4634-87a4-46d4adf59e88.png`.
+- Implementation screenshots: `qa/source-status-mobile-full.png`,
+  `qa/source-status-mobile.png`, and `qa/source-status-desktop.png`.
+- Combined comparison evidence: `qa/source-status-comparison.png`, with the
+  reference on the left and the implementation on the right.
+- Viewports: mobile `390 × 844`; desktop `1440 × 900`.
+- Normalization: the `776 × 820` reference is a `2×` capture and was reduced to
+  `388 × 410`; the focused implementation capture is `388 × 410` at
+  `devicePixelRatio: 1`. Both comparison regions therefore represent the same
+  CSS size and density.
+- State: light theme, three enabled sources, connected/available, indexed, and
+  last scan at 12/18 minutes for the focused comparison. Dark-theme desktop
+  responsiveness was checked separately.
+- Full-view comparison evidence: the mobile capture confirms the card remains
+  clear of the mini player and bottom navigation; the desktop capture confirms
+  the new actions and tags align without changing the surrounding settings
+  hierarchy.
+- Focused-region comparison evidence: the side-by-side card comparison verifies
+  icon scale, name and Enabled hierarchy, metadata truncation, row separators,
+  switch alignment, card radius, and the new configuration/status controls.
+
+**Findings**
+
+- No actionable P0/P1/P2 mismatch remains. The configuration button is an
+  intentional addition immediately left of the switch, and the Available /
+  Connected plus Indexed labels are an intentional extension of the reference.
+- Typography preserves the existing product font, weight hierarchy, and compact
+  small-label treatment. Mobile scan time is shortened to `12m` / `18m` so it
+  does not create another line; desktop keeps the full text.
+- Spacing and layout rhythm match the reference density after correction: all
+  three mobile source rows measure `96px` high and all status groups remain one
+  line.
+- Colors use the existing semantic green, blue, muted, primary, surface, and
+  border tokens in both light and dark themes.
+- Image and icon fidelity passes: all visible source and action symbols come
+  from the existing Lucide icon set; no raster placeholder, emoji, CSS drawing,
+  or handcrafted SVG was introduced.
+- Copy is concise and source-specific: Local reports Available, network sources
+  report Connected, and scan state reports Indexed / Scanning / Not indexed.
+
+**Comparison History**
+
+- First pass: the added tags caused scan time to wrap, producing approximately
+  `120px` rows on mobile. This was a P2 density mismatch against the compact
+  reference.
+- Fix: scan time moved into the Indexed pill on mobile, tag padding was reduced,
+  and full scan text was retained for desktop and accessible labels.
+- Post-fix evidence: `qa/source-status-comparison.png` shows three `96px` rows
+  with all status information on one line; no P0/P1/P2 finding remains.
+
+**Interaction and Runtime Verification**
+
+- Local configuration opens, edits the folder, and saves.
+- WebDAV and SMB configuration buttons open their existing source-specific
+  editors.
+- Enable/pause updates Enabled / Paused and Available / Connected /
+  Disconnected states.
+- Scan now exposes three Scanning tags before returning to Indexed.
+- Browser error log is empty; Vite 6.3.5 production build and
+  `git diff --check` pass.
+
+**Implementation Checklist**
+
+- Configuration action present before every source switch.
+- Local, WebDAV, and SMB reconfiguration paths verified.
+- Enabled, connection, indexing, scanning, and disconnected states verified.
+- Mobile and desktop responsive layouts verified.
+
+Final result: passed
 
 ## Now Playing mobile queue transition refinement — 2026-07-20
 

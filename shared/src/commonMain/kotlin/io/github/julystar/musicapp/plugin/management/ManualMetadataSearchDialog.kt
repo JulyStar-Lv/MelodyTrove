@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,6 +33,7 @@ import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import io.github.julystar.musicapp.service.playback.presentation.nowplaying.NowPlayingTrackItem
 import io.github.julystar.musicapp.source.api.MetaSongCandidate
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import top.yukonga.miuix.kmp.basic.Text
@@ -43,17 +45,22 @@ fun ManualMetadataSearchDialog(
     onDismiss: () -> Unit,
     service: ManualMetadataService = koinInject(),
 ) {
-    if (track == null) return
-    val scope = rememberCoroutineScope()
-    var keyword by remember(track.id) {
-        mutableStateOf(listOfNotNull(track.title, track.artist).joinToString(" "))
+    val dialogVisible = track != null
+    var retainedTrack by remember { mutableStateOf(track) }
+    SideEffect {
+        if (track != null) retainedTrack = track
     }
-    var candidates by remember(track.id) { mutableStateOf(emptyList<MetaSongCandidate>()) }
-    var selected by remember(track.id) { mutableStateOf<MetaSongCandidate?>(null) }
-    var message by remember(track.id) { mutableStateOf<String?>(null) }
-    var searching by remember(track.id) { mutableStateOf(false) }
-    var applying by remember(track.id) { mutableStateOf(false) }
-    var resetting by remember(track.id) { mutableStateOf(false) }
+    val activeTrack = track ?: retainedTrack ?: return
+    val scope = rememberCoroutineScope()
+    var keyword by remember(activeTrack.id) {
+        mutableStateOf(listOfNotNull(activeTrack.title, activeTrack.artist).joinToString(" "))
+    }
+    var candidates by remember(activeTrack.id) { mutableStateOf(emptyList<MetaSongCandidate>()) }
+    var selected by remember(activeTrack.id) { mutableStateOf<MetaSongCandidate?>(null) }
+    var message by remember(activeTrack.id) { mutableStateOf<String?>(null) }
+    var searching by remember(activeTrack.id) { mutableStateOf(false) }
+    var applying by remember(activeTrack.id) { mutableStateOf(false) }
+    var resetting by remember(activeTrack.id) { mutableStateOf(false) }
 
     fun search() {
         if (searching || applying || resetting || keyword.isBlank()) return
@@ -62,7 +69,7 @@ fun ManualMetadataSearchDialog(
             selected = null
             message = null
             try {
-                val result = service.search(track, keyword)
+                val result = service.search(activeTrack, keyword)
                 candidates = result.items
                 message = when {
                     result.items.isEmpty() && result.failures.isEmpty() ->
@@ -90,7 +97,7 @@ fun ManualMetadataSearchDialog(
             applying = true
             message = null
             try {
-                val lyricFailures = service.apply(track.id, candidate)
+                val lyricFailures = service.apply(activeTrack.id, candidate)
                 if (lyricFailures.isEmpty()) {
                     onDismiss()
                 } else {
@@ -112,7 +119,7 @@ fun ManualMetadataSearchDialog(
             resetting = true
             message = null
             try {
-                service.resetFromFile(track.id)
+                service.resetFromFile(activeTrack.id)
                 onDismiss()
             } catch (cancellation: CancellationException) {
                 throw cancellation
@@ -124,12 +131,27 @@ fun ManualMetadataSearchDialog(
         }
     }
 
-    LaunchedEffect(track.id) { search() }
+    LaunchedEffect(activeTrack.id, dialogVisible) {
+        if (dialogVisible) {
+            keyword = listOfNotNull(activeTrack.title, activeTrack.artist).joinToString(" ")
+            candidates = emptyList()
+            selected = null
+            message = null
+            searching = false
+            applying = false
+            resetting = false
+            search()
+        } else {
+            scope.coroutineContext.cancelChildren()
+            searching = false
+            applying = false
+            resetting = false
+        }
+    }
 
     DesignDialog(
-        show = true,
+        show = dialogVisible,
         onDismiss = onDismiss,
-        modifier = Modifier.fillMaxHeight(0.9f),
     ) {
         Column(
             modifier = Modifier

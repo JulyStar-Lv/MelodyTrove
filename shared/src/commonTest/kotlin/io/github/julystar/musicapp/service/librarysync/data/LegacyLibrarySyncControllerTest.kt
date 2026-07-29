@@ -71,6 +71,33 @@ class LegacyLibrarySyncControllerTest {
     }
 
     @Test
+    fun localStorageConvertsLegacyAndroidAbsolutePathsForScanning() = runBlocking {
+        val importer = FakeLegacyLibrarySyncImporter()
+        val controller = controller(
+            importer = importer,
+            storage = storage(id = 42, typ = StorageType.LOCAL),
+        )
+
+        controller.syncFolder(
+            request(
+                selectedFolderRemoteId = null,
+                selectedFolderCanonicalPath = "/storage/emulated/0/Music/Albums",
+            )
+        )
+        controller.syncFolder(
+            request(
+                selectedFolderRemoteId = null,
+                selectedFolderCanonicalPath = "/storage/emulated/0",
+            )
+        )
+
+        assertEquals(
+            listOf("/Music/Albums", "/"),
+            importer.scanCalls.map(ScanCall::selectedFolderCanonicalPath),
+        )
+    }
+
+    @Test
     fun smbStorageUsesBoundedFullFolderScan() = runBlocking {
         val importer = FakeLegacyLibrarySyncImporter()
         val controller = controller(

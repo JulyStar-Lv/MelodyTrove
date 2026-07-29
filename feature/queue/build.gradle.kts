@@ -22,6 +22,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
+            implementation(project(":core:domain"))
             implementation(project(":core:presentation"))
             implementation(project(":service:playback:domain"))
             implementation(compose.runtime)

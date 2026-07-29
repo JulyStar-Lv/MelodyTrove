@@ -1,7 +1,10 @@
 use std::{
-    io,
+    collections::{HashMap, HashSet},
+    fs::{self, File, OpenOptions},
+    io::{self, Read, Seek, SeekFrom, Write},
     net::{Ipv4Addr, SocketAddrV4, TcpListener},
     num::NonZeroUsize,
+    path::PathBuf,
     sync::{
         atomic::{AtomicBool, AtomicU64, Ordering},
         Arc, Mutex,
@@ -20,9 +23,14 @@ use axum::{
     Router,
 };
 use bytes::Bytes;
+use futures_util::future::BoxFuture;
 use lru::LruCache;
 use rand::{rngs::OsRng, RngCore};
-use storage_backend::{ByteRange, StorageBackend};
+use sha2::{Digest, Sha256};
+use storage_backend::{
+    ByteRange, Entry, LocalBackend, RangeResponse, StorageBackend, StorageBackendError,
+    StorageBackendResult, StreamFile,
+};
 use tokio::sync::oneshot;
 
 use crate::error::{BError, BResult};
@@ -34,6 +42,15 @@ const CACHE_BLOCKS: usize = 32;
 pub struct PlaybackRangeStats {
     pub remote_requests: u64,
     pub remote_bytes: u64,
+}
+
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct PlaybackCacheOptions {
+    pub directory: String,
+    pub key: String,
+    pub extension: String,
+    pub write_enabled: bool,
+    pub max_bytes: u64,
 }
 
 #[derive(uniffi::Object)]
@@ -74,6 +91,7 @@ impl PlaybackSession {
             let _ = shutdown.send(());
             let source = self.source.clone();
             std::mem::drop(async_runtime::tokio_runtime().spawn(async move {
+                source.prune_persistent_cache();
                 if source.backend.release(source.path.clone()).await.is_err() {
                     tracing::debug!("failed to release playback source reader");
                 }
@@ -90,6 +108,7 @@ struct PlaybackSource {
     token: String,
     active: AtomicBool,
     cache: Mutex<LruCache<u64, Bytes>>,
+    persistent_cache: Option<PersistentPlaybackCache>,
     remote_requests: AtomicU64,
     remote_bytes: AtomicU64,
 }
@@ -97,6 +116,14 @@ struct PlaybackSource {
 impl PlaybackSource {
     async fn block(&self, block_start: u64) -> Result<Bytes, String> {
         if let Some(bytes) = self.cache.lock().unwrap().get(&block_start).cloned() {
+            return Ok(bytes);
+        }
+        if let Some(bytes) = self
+            .persistent_cache
+            .as_ref()
+            .and_then(|cache| cache.read_block(block_start))
+        {
+            self.cache.lock().unwrap().put(block_start, bytes.clone());
             return Ok(bytes);
         }
 
@@ -130,13 +157,297 @@ impl PlaybackSource {
             .lock()
             .unwrap()
             .put(block_start, response.bytes.clone());
+        if let Some(cache) = &self.persistent_cache {
+            cache.store_block(block_start, &response.bytes);
+        }
         Ok(response.bytes)
+    }
+
+    fn prune_persistent_cache(&self) {
+        if let Some(cache) = &self.persistent_cache {
+            cache.prune();
+        }
+    }
+}
+
+struct PersistentPlaybackCache {
+    complete_path: PathBuf,
+    partial_path: PathBuf,
+    index_path: PathBuf,
+    total_size: u64,
+    block_count: u64,
+    max_bytes: u64,
+    write_enabled: bool,
+    cached_blocks: Mutex<HashSet<u64>>,
+}
+
+impl PersistentPlaybackCache {
+    fn open(options: PlaybackCacheOptions, total_size: u64) -> Option<Self> {
+        let (complete_path, partial_path, index_path) = cache_paths(&options)?;
+        let write_enabled =
+            options.write_enabled && options.max_bytes > 0 && total_size <= options.max_bytes;
+        if write_enabled {
+            if let Err(error) = fs::create_dir_all(&options.directory) {
+                tracing::warn!(%error, "failed to create playback cache directory");
+                return None;
+            }
+        } else if !complete_path.exists() && !partial_path.exists() {
+            return None;
+        }
+
+        if complete_path
+            .metadata()
+            .ok()
+            .is_some_and(|metadata| metadata.len() != total_size)
+            && write_enabled
+        {
+            let _ = fs::remove_file(&complete_path);
+        }
+
+        let cached_blocks = load_cached_blocks(&index_path, total_size).unwrap_or_default();
+        let cache = Self {
+            complete_path,
+            partial_path,
+            index_path,
+            total_size,
+            block_count: total_size.div_ceil(BLOCK_SIZE),
+            max_bytes: options.max_bytes,
+            write_enabled,
+            cached_blocks: Mutex::new(cached_blocks),
+        };
+        cache.prune();
+        Some(cache)
+    }
+
+    fn read_block(&self, block_start: u64) -> Option<Bytes> {
+        let expected_len = self.block_len(block_start)?;
+        if self
+            .complete_path
+            .metadata()
+            .ok()
+            .is_some_and(|metadata| metadata.len() == self.total_size)
+        {
+            return read_file_range(&self.complete_path, block_start, expected_len);
+        }
+        if !self.cached_blocks.lock().unwrap().contains(&block_start) {
+            return None;
+        }
+        read_file_range(&self.partial_path, block_start, expected_len)
+    }
+
+    fn store_block(&self, block_start: u64, bytes: &Bytes) {
+        if !self.write_enabled {
+            return;
+        }
+        let Some(expected_len) = self.block_len(block_start) else {
+            return;
+        };
+        if bytes.len() != expected_len {
+            tracing::debug!(
+                block_start,
+                expected = expected_len,
+                actual = bytes.len(),
+                "skipping incomplete playback cache block"
+            );
+            return;
+        }
+
+        let mut blocks = self.cached_blocks.lock().unwrap();
+        if blocks.contains(&block_start) {
+            if read_file_range(&self.partial_path, block_start, expected_len).is_some() {
+                return;
+            }
+            blocks.remove(&block_start);
+        }
+        if let Err(error) = write_file_range(&self.partial_path, block_start, bytes) {
+            tracing::warn!(%error, block_start, "failed to write playback cache block");
+            return;
+        }
+        blocks.insert(block_start);
+        if let Err(error) =
+            persist_cached_blocks(&self.index_path, self.total_size, blocks.iter().copied())
+        {
+            tracing::warn!(%error, "failed to update playback cache index");
+            return;
+        }
+        if blocks.len() as u64 != self.block_count {
+            return;
+        }
+
+        if let Ok(file) = OpenOptions::new().write(true).open(&self.partial_path) {
+            let _ = file.set_len(self.total_size);
+        }
+        if self.complete_path.exists() {
+            let _ = fs::remove_file(&self.complete_path);
+        }
+        match fs::rename(&self.partial_path, &self.complete_path) {
+            Ok(()) => {
+                let _ = fs::remove_file(&self.index_path);
+                tracing::info!(
+                    path = %self.complete_path.display(),
+                    bytes = self.total_size,
+                    "playback cache completed"
+                );
+            }
+            Err(error) => {
+                tracing::warn!(%error, "failed to finalize playback cache");
+            }
+        }
+    }
+
+    fn block_len(&self, block_start: u64) -> Option<usize> {
+        if block_start >= self.total_size || block_start % BLOCK_SIZE != 0 {
+            return None;
+        }
+        Some((self.total_size - block_start).min(BLOCK_SIZE) as usize)
+    }
+
+    fn prune(&self) {
+        prune_cache_directory(
+            self.complete_path.parent().map(PathBuf::from),
+            self.max_bytes,
+            [&self.complete_path, &self.partial_path, &self.index_path],
+        );
+    }
+}
+
+fn cache_paths(options: &PlaybackCacheOptions) -> Option<(PathBuf, PathBuf, PathBuf)> {
+    if options.directory.trim().is_empty() || options.key.trim().is_empty() {
+        return None;
+    }
+    let digest = Sha256::digest(options.key.as_bytes());
+    let hash = digest
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
+    let extension = sanitized_extension(&options.extension);
+    let complete_path = PathBuf::from(&options.directory).join(format!("{hash}.{extension}"));
+    let partial_path = PathBuf::from(&options.directory).join(format!("{hash}.{extension}.part"));
+    let index_path = PathBuf::from(&options.directory).join(format!("{hash}.{extension}.blocks"));
+    Some((complete_path, partial_path, index_path))
+}
+
+fn sanitized_extension(extension: &str) -> String {
+    let extension = extension
+        .trim()
+        .trim_start_matches('.')
+        .to_ascii_lowercase();
+    if !extension.is_empty()
+        && extension.len() <= 10
+        && extension.bytes().all(|byte| byte.is_ascii_alphanumeric())
+    {
+        extension
+    } else {
+        "bin".to_string()
+    }
+}
+
+fn load_cached_blocks(path: &PathBuf, total_size: u64) -> Option<HashSet<u64>> {
+    let contents = fs::read_to_string(path).ok()?;
+    let mut lines = contents.lines();
+    if lines.next()?.parse::<u64>().ok()? != total_size {
+        return None;
+    }
+    Some(
+        lines
+            .filter_map(|line| line.parse::<u64>().ok())
+            .filter(|start| *start < total_size && *start % BLOCK_SIZE == 0)
+            .collect(),
+    )
+}
+
+fn persist_cached_blocks(
+    path: &PathBuf,
+    total_size: u64,
+    blocks: impl Iterator<Item = u64>,
+) -> io::Result<()> {
+    let mut blocks = blocks.collect::<Vec<_>>();
+    blocks.sort_unstable();
+    let mut contents = format!("{total_size}\n");
+    for block in blocks {
+        contents.push_str(&format!("{block}\n"));
+    }
+    fs::write(path, contents)
+}
+
+fn read_file_range(path: &PathBuf, start: u64, len: usize) -> Option<Bytes> {
+    let mut file = File::open(path).ok()?;
+    file.seek(SeekFrom::Start(start)).ok()?;
+    let mut bytes = vec![0_u8; len];
+    file.read_exact(&mut bytes).ok()?;
+    Some(Bytes::from(bytes))
+}
+
+fn write_file_range(path: &PathBuf, start: u64, bytes: &Bytes) -> io::Result<()> {
+    let mut file = OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(path)?;
+    file.seek(SeekFrom::Start(start))?;
+    file.write_all(bytes)?;
+    file.flush()
+}
+
+fn prune_cache_directory<'a>(
+    directory: Option<PathBuf>,
+    max_bytes: u64,
+    keep: impl IntoIterator<Item = &'a PathBuf>,
+) {
+    let Some(directory) = directory else {
+        return;
+    };
+    let keep = keep.into_iter().cloned().collect::<HashSet<_>>();
+    let Ok(entries) = fs::read_dir(&directory) else {
+        return;
+    };
+    let mut files = entries
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let path = entry.path();
+            let metadata = entry.metadata().ok()?;
+            metadata
+                .is_file()
+                .then_some((path, metadata.len(), metadata.modified().ok()))
+        })
+        .collect::<Vec<_>>();
+    let mut total = files.iter().map(|(_, size, _)| *size).sum::<u64>();
+    if total <= max_bytes {
+        return;
+    }
+    files.sort_by_key(|(_, _, modified)| *modified);
+    for (path, size, _) in files {
+        if total <= max_bytes {
+            break;
+        }
+        if keep.contains(&path) {
+            continue;
+        }
+        if fs::remove_file(&path).is_ok() {
+            total = total.saturating_sub(size);
+        }
     }
 }
 
 pub async fn start_playback_gateway(
     backend: Arc<dyn StorageBackend + Send + Sync>,
     path: String,
+) -> BResult<Arc<PlaybackSession>> {
+    start_playback_gateway_internal(backend, path, None).await
+}
+
+pub async fn start_cached_playback_gateway(
+    backend: Arc<dyn StorageBackend + Send + Sync>,
+    path: String,
+    cache_options: PlaybackCacheOptions,
+) -> BResult<Arc<PlaybackSession>> {
+    start_playback_gateway_internal(backend, path, Some(cache_options)).await
+}
+
+async fn start_playback_gateway_internal(
+    backend: Arc<dyn StorageBackend + Send + Sync>,
+    path: String,
+    cache_options: Option<PlaybackCacheOptions>,
 ) -> BResult<Arc<PlaybackSession>> {
     let probe = backend
         .get_range_response(path.clone(), ByteRange::new(0, 0)?)
@@ -161,6 +472,8 @@ pub async fn start_playback_gateway(
         token: token.clone(),
         active: AtomicBool::new(true),
         cache: Mutex::new(LruCache::new(NonZeroUsize::new(CACHE_BLOCKS).unwrap())),
+        persistent_cache: cache_options
+            .and_then(|options| PersistentPlaybackCache::open(options, probe.total_size)),
         remote_requests: AtomicU64::new(1),
         remote_bytes: AtomicU64::new(probe.bytes.len() as u64),
     });
@@ -231,6 +544,167 @@ pub async fn start_playback_gateway(
         source,
         shutdown: Mutex::new(Some(shutdown_tx)),
     }))
+}
+
+pub async fn start_http_playback_cache_gateway(
+    uri: String,
+    headers: HashMap<String, String>,
+    cache_options: PlaybackCacheOptions,
+) -> BResult<Arc<PlaybackSession>> {
+    let backend = Arc::new(DirectHttpPlaybackBackend::new(headers)?);
+    start_cached_playback_gateway(backend, uri, cache_options).await
+}
+
+pub async fn start_completed_playback_cache(
+    cache_options: PlaybackCacheOptions,
+) -> BResult<Option<Arc<PlaybackSession>>> {
+    let Some((complete_path, _, _)) = cache_paths(&cache_options) else {
+        return Ok(None);
+    };
+    let Some(metadata) = complete_path.metadata().ok() else {
+        return Ok(None);
+    };
+    if !metadata.is_file() || metadata.len() == 0 {
+        return Ok(None);
+    }
+    start_playback_gateway(
+        Arc::new(LocalBackend::new()),
+        complete_path.to_string_lossy().into_owned(),
+    )
+    .await
+    .map(Some)
+}
+
+struct DirectHttpPlaybackBackend {
+    client: reqwest::Client,
+    headers: reqwest::header::HeaderMap,
+}
+
+impl DirectHttpPlaybackBackend {
+    fn new(headers: HashMap<String, String>) -> BResult<Self> {
+        let mut header_map = reqwest::header::HeaderMap::new();
+        for (name, value) in headers {
+            let name =
+                reqwest::header::HeaderName::from_bytes(name.as_bytes()).map_err(|error| {
+                    BError::CustomError {
+                        message: format!("invalid playback header name: {error}"),
+                    }
+                })?;
+            let value = reqwest::header::HeaderValue::from_str(&value).map_err(|error| {
+                BError::CustomError {
+                    message: format!("invalid playback header value: {error}"),
+                }
+            })?;
+            header_map.insert(name, value);
+        }
+        let client = reqwest::Client::builder()
+            .build()
+            .map_err(StorageBackendError::from)?;
+        Ok(Self {
+            client,
+            headers: header_map,
+        })
+    }
+}
+
+impl StorageBackend for DirectHttpPlaybackBackend {
+    fn list(&self, _dir: String) -> BoxFuture<'_, StorageBackendResult<Vec<Entry>>> {
+        Box::pin(async {
+            Err(StorageBackendError::UnsupportedFeature(
+                "HTTP playback cache does not support directory listing".to_string(),
+            ))
+        })
+    }
+
+    fn get(
+        &self,
+        _path: String,
+        _byte_offset: u64,
+    ) -> BoxFuture<'_, StorageBackendResult<StreamFile>> {
+        Box::pin(async {
+            Err(StorageBackendError::UnsupportedFeature(
+                "HTTP playback cache requires range requests".to_string(),
+            ))
+        })
+    }
+
+    fn get_range_response(
+        &self,
+        uri: String,
+        range: ByteRange,
+    ) -> BoxFuture<'_, StorageBackendResult<RangeResponse>> {
+        let client = self.client.clone();
+        let headers = self.headers.clone();
+        Box::pin(async move {
+            let response = client
+                .get(uri)
+                .headers(headers)
+                .header(
+                    reqwest::header::RANGE,
+                    format!("bytes={}-{}", range.start, range.end_inclusive),
+                )
+                .send()
+                .await?;
+            if response.status() != reqwest::StatusCode::PARTIAL_CONTENT {
+                if response.status().is_success() {
+                    return Err(StorageBackendError::RangeNotSupported {
+                        status: response.status().as_u16(),
+                    });
+                }
+                return Err(response.error_for_status().unwrap_err().into());
+            }
+            let content_range = response
+                .headers()
+                .get(reqwest::header::CONTENT_RANGE)
+                .and_then(|value| value.to_str().ok())
+                .map(str::to_owned)
+                .ok_or_else(|| StorageBackendError::InvalidContentRange("missing".to_string()))?;
+            let (start, end_inclusive, total_size) = parse_origin_content_range(&content_range)?;
+            if start != range.start || end_inclusive != range.end_inclusive {
+                return Err(StorageBackendError::InvalidContentRange(content_range));
+            }
+            let content_type = response
+                .headers()
+                .get(reqwest::header::CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok())
+                .map(str::to_owned);
+            let bytes = response.bytes().await?;
+            if bytes.len() as u64 != range.len() {
+                return Err(StorageBackendError::InvalidContentRange(format!(
+                    "{content_range}; body length {}",
+                    bytes.len()
+                )));
+            }
+            Ok(RangeResponse {
+                bytes,
+                total_size,
+                content_type,
+            })
+        })
+    }
+}
+
+fn parse_origin_content_range(value: &str) -> StorageBackendResult<(u64, u64, u64)> {
+    let (range, total_size) = value
+        .strip_prefix("bytes ")
+        .and_then(|value| value.split_once('/'))
+        .ok_or_else(|| StorageBackendError::InvalidContentRange(value.to_string()))?;
+    let (start, end_inclusive) = range
+        .split_once('-')
+        .ok_or_else(|| StorageBackendError::InvalidContentRange(value.to_string()))?;
+    let start = start
+        .parse::<u64>()
+        .map_err(|_| StorageBackendError::InvalidContentRange(value.to_string()))?;
+    let end_inclusive = end_inclusive
+        .parse::<u64>()
+        .map_err(|_| StorageBackendError::InvalidContentRange(value.to_string()))?;
+    let total_size = total_size
+        .parse::<u64>()
+        .map_err(|_| StorageBackendError::InvalidContentRange(value.to_string()))?;
+    if end_inclusive < start || total_size == 0 || end_inclusive >= total_size {
+        return Err(StorageBackendError::InvalidContentRange(value.to_string()));
+    }
+    Ok((start, end_inclusive, total_size))
 }
 
 async fn head_media(
@@ -619,6 +1093,47 @@ mod tests {
         };
         assert!(stopped, "playback URL remained available after shutdown");
         std::fs::remove_file(path).unwrap();
+    }
+
+    #[tokio::test]
+    async fn persists_remote_playback_and_reopens_completed_cache() {
+        let root = std::env::temp_dir().join(format!("musicapp-playback-cache-{}", random_token()));
+        let source_path = root.join("source.flac");
+        let cache_path = root.join("cache");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(&source_path, b"0123456789").unwrap();
+        let origin = start_playback_gateway(
+            Arc::new(LocalBackend::new()),
+            source_path.to_string_lossy().into_owned(),
+        )
+        .await
+        .unwrap();
+        let options = PlaybackCacheOptions {
+            directory: cache_path.to_string_lossy().into_owned(),
+            key: "storage:42\n/Music/Track.flac".to_string(),
+            extension: "flac".to_string(),
+            write_enabled: true,
+            max_bytes: 1_024,
+        };
+        let cached =
+            start_http_playback_cache_gateway(origin.url(), HashMap::new(), options.clone())
+                .await
+                .unwrap();
+        let client = reqwest::Client::builder().no_proxy().build().unwrap();
+
+        let response = client.get(cached.url()).send().await.unwrap();
+        assert_eq!(response.bytes().await.unwrap().as_ref(), b"0123456789");
+        cached.shutdown();
+        origin.shutdown();
+
+        let completed = start_completed_playback_cache(options)
+            .await
+            .unwrap()
+            .expect("completed playback cache");
+        let response = client.get(completed.url()).send().await.unwrap();
+        assert_eq!(response.bytes().await.unwrap().as_ref(), b"0123456789");
+        completed.shutdown();
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[tokio::test]

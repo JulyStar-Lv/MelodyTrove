@@ -70,6 +70,7 @@ pub struct RemoteMetadata {
     pub replay_gain_album_gain: Option<f64>,
     pub replay_gain_album_peak: Option<f64>,
     pub lyrics: Option<RemoteEmbeddedLyrics>,
+    pub embedded_lyrics_kind: String,
     pub artwork: Option<RemoteArtwork>,
     pub has_embedded_artwork: bool,
     pub raw_metadata: Vec<RemoteRawMetadataEntry>,

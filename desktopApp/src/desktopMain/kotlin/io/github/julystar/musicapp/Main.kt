@@ -1,16 +1,20 @@
 package io.github.julystar.musicapp
 
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.awt.ComposeWindow
+import androidx.compose.ui.awt.SwingWindow
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
+import io.github.julystar.musicapp.core.presentation.platform.LocalDesktopTitleBarInset
 import io.github.julystar.musicapp.di.AppInitializer
 import io.github.julystar.musicapp.di.initKoin
 import io.github.julystar.musicapp.diagnostics.DiagnosticsBootstrap
@@ -41,13 +45,16 @@ import kotlin.system.exitProcess
 import org.koin.core.Koin
 import org.koin.core.KoinApplication
 
-private const val MinWindowWidth = 840
+private const val MinWindowWidth = 960
 private const val MinWindowHeight = 520
 private const val MaxWindowWidth = 1200
 private const val MaxWindowHeight = 800
 private const val WindowWidthRatio = 0.70
 private const val WindowHeightRatio = 0.72
+private val IntegratedTitleBarInset = 28.dp
+private val IsMacOs = System.getProperty("os.name").startsWith("Mac", ignoreCase = true)
 
+@OptIn(ExperimentalComposeUiApi::class)
 fun main() {
     FileKit.init(appId = "io.github.julystar.musicapp")
     DiagnosticsBootstrap.initialize()
@@ -71,7 +78,7 @@ fun main() {
         val initialWindowSize = remember { calculateInitialWindowSize() }
         val windowState = rememberWindowState(size = initialWindowSize)
 
-        Window(
+        SwingWindow(
             onCloseRequest = {
                 runtime.close()
                 runCatching { RustDiagnosticsRepository.shutdown() }
@@ -80,6 +87,7 @@ fun main() {
             title = "MelodyTrove",
             state = windowState,
             icon = painterResource("icon.png"),
+            init = ::configureWindowChrome,
         ) {
             DisposableEffect(window) {
                 val availableSize = calculateAvailableScreenSize(window.graphicsConfiguration)
@@ -89,52 +97,64 @@ fun main() {
                 )
                 onDispose {}
             }
-            if (diagnosticsState.safeMode) {
-                Root(
-                    diagnosticsState = diagnosticsState,
-                    onTryNormalStartup = { disabledComponents ->
-                        val incidentIds = diagnosticsState.recoveryIncidentIds()
-                        runCatching {
-                            RustDiagnosticsRepository.beginRecovery(disabledComponents)
-                            incidentIds.forEach { incidentId ->
-                                RustDiagnosticsRepository.markRecoveryAttempted(
-                                    incidentId,
-                                    disabledComponents,
+            CompositionLocalProvider(
+                LocalDesktopTitleBarInset provides
+                    if (IsMacOs) IntegratedTitleBarInset else 0.dp,
+            ) {
+                if (diagnosticsState.safeMode) {
+                    Root(
+                        diagnosticsState = diagnosticsState,
+                        onTryNormalStartup = { disabledComponents ->
+                            val incidentIds = diagnosticsState.recoveryIncidentIds()
+                            runCatching {
+                                RustDiagnosticsRepository.beginRecovery(disabledComponents)
+                                incidentIds.forEach { incidentId ->
+                                    RustDiagnosticsRepository.markRecoveryAttempted(
+                                        incidentId,
+                                        disabledComponents,
+                                    )
+                                }
+                                recoveryIncidentIds = incidentIds
+                                runtime.initialize(disabledComponents)
+                                diagnosticsState = diagnosticsState.copy(
+                                    snapshot = RustDiagnosticsRepository.snapshot(),
+                                    startupPlan = StartupPlan(StartupMode.NormalStartup),
                                 )
                             }
-                            recoveryIncidentIds = incidentIds
-                            runtime.initialize(disabledComponents)
-                            diagnosticsState = diagnosticsState.copy(
-                                snapshot = RustDiagnosticsRepository.snapshot(),
-                                startupPlan = StartupPlan(StartupMode.NormalStartup),
-                            )
+                        },
+                    )
+                } else {
+                    val koin = runtime.koin
+                    val playbackController = remember(koin) { koin.get<PlaybackController>() }
+                    val settingsRepository = remember(koin) { koin.get<SettingsRepository>() }
+                    val appSettings by settingsRepository.settings.collectAsState(AppSettings.Default)
+                    DisposableEffect(window, appSettings.playerInteraction.desktopShortcutsEnabled) {
+                        if (appSettings.playerInteraction.desktopShortcutsEnabled) {
+                            installPlaybackShortcuts(window.rootPane, playbackController)
                         }
-                    },
-                )
-            } else {
-                val koin = runtime.koin
-                val playbackController = remember(koin) { koin.get<PlaybackController>() }
-                val settingsRepository = remember(koin) { koin.get<SettingsRepository>() }
-                val appSettings by settingsRepository.settings.collectAsState(AppSettings.Default)
-                DisposableEffect(window, appSettings.playerInteraction.desktopShortcutsEnabled) {
-                    if (appSettings.playerInteraction.desktopShortcutsEnabled) {
-                        installPlaybackShortcuts(window.rootPane, playbackController)
+                        onDispose { removePlaybackShortcuts(window.rootPane) }
                     }
-                    onDispose { removePlaybackShortcuts(window.rootPane) }
+                    Root(
+                        diagnosticsState = diagnosticsState,
+                        onStartupStable = {
+                            if (recoveryIncidentIds.isNotEmpty()) {
+                                RustDiagnosticsRepository.completeRecovery(recoveryIncidentIds)
+                                io.github.julystar.musicapp.diagnostics.SafeModeRecoveryStore.clear()
+                                recoveryIncidentIds = emptyList()
+                            }
+                        },
+                    )
                 }
-                Root(
-                    diagnosticsState = diagnosticsState,
-                    onStartupStable = {
-                        if (recoveryIncidentIds.isNotEmpty()) {
-                            RustDiagnosticsRepository.completeRecovery(recoveryIncidentIds)
-                            io.github.julystar.musicapp.diagnostics.SafeModeRecoveryStore.clear()
-                            recoveryIncidentIds = emptyList()
-                        }
-                    },
-                )
             }
         }
     }
+}
+
+private fun configureWindowChrome(window: ComposeWindow) {
+    if (!IsMacOs) return
+    window.rootPane.putClientProperty("apple.awt.fullWindowContent", true)
+    window.rootPane.putClientProperty("apple.awt.transparentTitleBar", true)
+    window.rootPane.putClientProperty("apple.awt.windowTitleVisible", false)
 }
 
 private class DesktopApplicationRuntime {

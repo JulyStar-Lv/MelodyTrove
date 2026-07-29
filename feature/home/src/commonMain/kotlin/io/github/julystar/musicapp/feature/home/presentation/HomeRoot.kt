@@ -21,6 +21,7 @@ fun HomeRoot(
     scaffoldPadding: PaddingValues,
     onNavigateToDownloads: () -> Unit,
     onNavigateToLibrary: () -> Unit,
+    onNavigateToSourceSettings: () -> Unit,
     onNavigateToSearch: () -> Unit,
     onNavigateToListening: () -> Unit,
     onOpenSleepTimer: () -> Unit,
@@ -37,6 +38,7 @@ fun HomeRoot(
             when (event) {
                 HomeEvent.NavigateToDownloads -> onNavigateToDownloads()
                 HomeEvent.NavigateToLibrary -> onNavigateToLibrary()
+                HomeEvent.NavigateToSourceSettings -> onNavigateToSourceSettings()
                 HomeEvent.NavigateToSearch -> onNavigateToSearch()
                 HomeEvent.NavigateToListening -> onNavigateToListening()
                 HomeEvent.OpenSleepTimer -> onOpenSleepTimer()

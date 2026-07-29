@@ -43,7 +43,7 @@ internal suspend fun preparePlayback(
                     val resource = resolved.resource
                     val network = networkStatusProvider?.status?.value ?: NetworkStatus.Unknown
                     if (!resource.isLocal && (!network.isOnline ||
-                            (network.isMetered && !settings.allowMeteredStreaming))) {
+                            (network.isMetered && !settings.allowMeteredNetworkUsage))) {
                         playbackResourceResolver.release(resource)
                         PlaybackPreparationResult.NetworkBlocked
                     } else {

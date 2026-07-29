@@ -4,13 +4,18 @@ import ReactMarkdown from "react-markdown";
 import { motion, AnimatePresence, Reorder, useDragControls, useReducedMotion } from "motion/react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import appIconUrl from "../../../artwork/app-icon.svg";
+import embyIconUrl from "../assets/source-icons/emby.png";
+import navidromeIconUrl from "../assets/source-icons/navidrome.png";
+import oneDriveIconUrl from "../assets/source-icons/onedrive.svg";
+import openSubsonicIconUrl from "../assets/source-icons/opensubsonic.png";
 import {
   AppearanceColorSettings,
   ThemeColorDesignSpec,
   ThemeColorPickerDialog,
 } from "./ThemeColorDesign";
 import {
-  Play, Pause, SkipForward, SkipBack, Heart,
+  Play, Pause, SkipForward, SkipBack, Heart, CirclePlay,
   Search, Home, Library, Settings, Music2,
   ChevronUp, ChevronRight, ChevronLeft, ChevronDown,
   Volume2, VolumeX, Shuffle, Repeat,
@@ -18,8 +23,8 @@ import {
   List, Grid3x3, Plus, X, Bell,
   Disc3, Headphones, Speaker, Wifi, Bluetooth, Signal, BatteryFull,
   Database, Cloud, HardDrive, ArrowLeft, ArrowRight,
-  Zap, SlidersHorizontal, Folder, Globe, Server,
-  RefreshCw, AlertCircle, Star, Bookmark, Mic,
+  Zap, SlidersHorizontal, Folder, Server,
+  RefreshCw, AlertCircle, Star, Bookmark,
   Activity, Palette, Smartphone, Tablet, Monitor,
   Radio, Package, BarChart2, Sparkles, ListMusic,
   Hash, Layers, Check, CheckCircle2, Gauge, Filter,
@@ -239,11 +244,17 @@ function CoverArt({ src, gradient, className, style, overlay, children }: {
 }
 
 // iPhone 17 Pro baseline: 59pt portrait status area and a compact 28pt landscape status area.
-function MobileStatusBar({ inverse=false }: { inverse?:boolean }) {
+function MobileStatusBar({ inverse=false, glassProgress=0 }: { inverse?:boolean; glassProgress?:number }) {
   const ink = inverse ? "text-white" : "text-foreground";
-  const surface = inverse ? "bg-transparent" : "bg-background";
+  const normalizedGlassProgress = Math.max(0,Math.min(glassProgress,1));
   return (
-    <div aria-hidden="true" className={cn("pointer-events-none absolute inset-x-0 top-0 z-[80] h-[59px] lg:hidden landscape:h-0",ink,surface)}>
+    <div aria-hidden="true" className={cn("pointer-events-none absolute inset-x-0 top-0 z-[80] h-[59px] overflow-hidden lg:hidden landscape:h-0",ink)}>
+      {!inverse&&(
+        <>
+          <span className="absolute inset-0 bg-background" style={{opacity:1-normalizedGlassProgress}}/>
+          <span className="actionbar-liquid-glass absolute inset-0" style={{opacity:normalizedGlassProgress}}/>
+        </>
+      )}
       <span className="absolute left-7 top-[15px] text-[15px] font-semibold tracking-[-0.03em] landscape:hidden">9:41</span>
       <span className="absolute left-1/2 top-[10px] h-[37px] w-[126px] -translate-x-1/2 rounded-full bg-black shadow-[0_1px_0_rgba(255,255,255,0.06)] landscape:fixed landscape:left-auto landscape:right-[10px] landscape:top-1/2 landscape:h-[126px] landscape:w-[37px] landscape:translate-x-0 landscape:-translate-y-1/2"/>
       <span className="absolute right-7 top-[16px] flex items-center gap-[5px] landscape:hidden">
@@ -933,28 +944,97 @@ function SettingsCard({ title, children }: { title:string; children:React.ReactN
   );
 }
 
-function SourcePickerOption({ title, description, badge, icon, onSelect }: {
-  title:string;
-  description:string;
-  badge:string;
+function SettingsIconBadge({ icon, gradient }: {
   icon:React.ReactNode;
+  gradient:[string,string];
+}) {
+  return (
+    <span
+      aria-hidden="true"
+      className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[14px] text-white shadow-sm"
+      style={{background:`linear-gradient(135deg,${gradient[0]},${gradient[1]})`}}
+    >
+      {icon}
+    </span>
+  );
+}
+
+function SourcePickerIconBadge({ icon, gradient, branded=false }: {
+  icon:React.ReactNode;
+  gradient?:[string,string];
+  branded?:boolean;
+}) {
+  if (!branded) {
+    return <SettingsIconBadge icon={icon} gradient={gradient??G[0]}/>;
+  }
+
+  return (
+    <span
+      aria-hidden="true"
+      className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[14px] bg-white shadow-sm ring-1 ring-black/[0.08]"
+    >
+      {icon}
+    </span>
+  );
+}
+
+function SourcePickerOption({ title, icon, gradient, branded=false, onSelect }: {
+  title:string;
+  icon:React.ReactNode;
+  gradient?:[string,string];
+  branded?:boolean;
   onSelect:()=>void;
 }) {
   return (
     <button type="button" onClick={onSelect}
-      className="group flex min-h-[88px] w-full items-start gap-3 rounded-[22px] border border-border bg-card p-3.5 text-left outline-none transition-all hover:border-primary/25 hover:bg-muted/35 focus-visible:ring-2 focus-visible:ring-primary/40">
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] bg-muted text-primary transition-colors group-hover:bg-primary/12">{icon}</span>
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-2">
-          <span className="truncate text-[14px] font-semibold text-foreground">{title}</span>
-          {badge&&<span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">{badge}</span>}
-        </span>
-        <span className="mt-1.5 block text-[11px] leading-[16px] text-muted-foreground">{description}</span>
-      </span>
-      <ChevronRight className="mt-3 h-4 w-4 shrink-0 text-muted-foreground/45 transition-transform group-hover:translate-x-0.5" aria-hidden="true"/>
+      className="group flex min-h-[58px] w-full items-center gap-3 rounded-[18px] px-3 text-left outline-none transition-colors hover:bg-muted/55 focus-visible:ring-2 focus-visible:ring-primary/40">
+      <SourcePickerIconBadge icon={icon} gradient={gradient} branded={branded}/>
+      <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-foreground">{title}</span>
+      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/40 transition-transform group-hover:translate-x-0.5" aria-hidden="true"/>
     </button>
   );
 }
+
+function SourcePickerQuickOption({ title, icon, gradient, branded=false, onSelect }: {
+  title:string;
+  icon:React.ReactNode;
+  gradient?:[string,string];
+  branded?:boolean;
+  onSelect:()=>void;
+}) {
+  return (
+    <button type="button" onClick={onSelect}
+      className="group flex min-h-[88px] min-w-0 flex-col items-start justify-between rounded-[18px] border border-border/80 bg-muted/60 p-3 text-left shadow-sm outline-none transition-colors hover:border-primary/25 hover:bg-muted/80 focus-visible:ring-2 focus-visible:ring-primary/40">
+      <SourcePickerIconBadge icon={icon} gradient={gradient} branded={branded}/>
+      <span className="line-clamp-2 text-[12px] font-semibold leading-4 text-foreground">{title}</span>
+    </button>
+  );
+}
+
+function SourcePickerCategoryOption({ title, description, count, icon, gradient, expanded, onSelect }: {
+  title:string;
+  description:string;
+  count:number;
+  icon:React.ReactNode;
+  gradient:[string,string];
+  expanded:boolean;
+  onSelect:()=>void;
+}) {
+  return (
+    <button type="button" onClick={onSelect} aria-expanded={expanded}
+      className="group flex min-h-[66px] w-full items-center gap-3 rounded-[18px] px-3 text-left outline-none transition-colors hover:bg-muted/55 focus-visible:ring-2 focus-visible:ring-primary/40">
+      <SourcePickerIconBadge icon={icon} gradient={gradient}/>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[14px] font-semibold text-foreground">{title}</span>
+        <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{description}</span>
+      </span>
+      <span className="text-[11px] font-medium text-muted-foreground">{count}</span>
+      <ChevronDown className={cn("h-4 w-4 shrink-0 text-muted-foreground/40 transition-transform",expanded&&"rotate-180")} aria-hidden="true"/>
+    </button>
+  );
+}
+
+type SourcePickerCategoryId = "device-network"|"cloud-drives"|"media-servers";
 
 function AddSourcePickerDialog({ open, onClose, onWebDav, onSmb }: {
   open:boolean;
@@ -962,15 +1042,17 @@ function AddSourcePickerDialog({ open, onClose, onWebDav, onSmb }: {
   onWebDav:()=>void;
   onSmb:()=>void;
 }) {
-  const closeRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [flowNotice,setFlowNotice] = useState<string|null>(null);
+  const [expandedCategory,setExpandedCategory] = useState<SourcePickerCategoryId|null>(null);
 
   useEffect(()=>{
     if (!open) return;
     const previousOverflow = document.body.style.overflow;
-    const focusFrame = window.requestAnimationFrame(()=>closeRef.current?.focus());
+    const focusFrame = window.requestAnimationFrame(()=>dialogRef.current?.focus());
     const handleKeyDown = (event:KeyboardEvent) => event.key==="Escape"&&onClose();
     setFlowNotice(null);
+    setExpandedCategory(null);
     document.body.style.overflow = "hidden";
     window.addEventListener("keydown",handleKeyDown);
     return ()=>{
@@ -983,76 +1065,174 @@ function AddSourcePickerDialog({ open, onClose, onWebDav, onSmb }: {
   if (!open) return null;
 
   const explainFlow = (message:string) => setFlowNotice(message);
+  const sourceTypes: Array<{
+    id:string;
+    title:string;
+    category:SourcePickerCategoryId;
+    icon:React.ReactNode;
+    quickIcon?:React.ReactNode;
+    gradient?:[string,string];
+    branded?:boolean;
+    onSelect:()=>void;
+  }> = [
+    {
+      id:"local-directory",
+      title:"Local directory",
+      category:"device-network",
+      icon:<HardDrive className="h-[18px] w-[18px]"/>,
+      gradient:G[2],
+      onSelect:()=>explainFlow("The production app continues with the native system folder picker, then adds the selected directory to the library."),
+    },
+    {
+      id:"webdav",
+      title:"WebDAV",
+      category:"device-network",
+      icon:<Server className="h-[18px] w-[18px]"/>,
+      gradient:G[1],
+      onSelect:onWebDav,
+    },
+    {
+      id:"smb",
+      title:"SMB",
+      category:"device-network",
+      icon:<Database className="h-[18px] w-[18px]"/>,
+      gradient:G[4],
+      onSelect:onSmb,
+    },
+    {
+      id:"onedrive",
+      title:"OneDrive",
+      category:"cloud-drives",
+      icon:<img src={oneDriveIconUrl} alt="" className="h-6 w-7 object-contain"/>,
+      branded:true,
+      onSelect:()=>explainFlow("The production app continues to Microsoft OAuth, returns to MelodyTrove, then lets you choose a OneDrive drive."),
+    },
+    {
+      id:"navidrome",
+      title:"Navidrome",
+      category:"media-servers",
+      icon:<img src={navidromeIconUrl} alt="" className="h-6 w-6 object-contain"/>,
+      branded:true,
+      onSelect:()=>explainFlow("The production app continues to the shared media-server editor for the Navidrome address and account credentials."),
+    },
+    {
+      id:"opensubsonic",
+      title:"OpenSubsonic",
+      category:"media-servers",
+      icon:<img src={openSubsonicIconUrl} alt="" className="h-6 w-6 object-contain"/>,
+      branded:true,
+      onSelect:()=>explainFlow("The production app continues to the shared media-server editor for the OpenSubsonic address and account credentials."),
+    },
+    {
+      id:"emby",
+      title:"Emby",
+      category:"media-servers",
+      icon:<img src={embyIconUrl} alt="" className="h-6 w-6 object-contain"/>,
+      branded:true,
+      onSelect:()=>explainFlow("The production app continues to the shared media-server editor for the Emby address and account credentials."),
+    },
+  ];
+  const categories: Array<{
+    id:SourcePickerCategoryId;
+    title:string;
+    description:string;
+    icon:React.ReactNode;
+    gradient:[string,string];
+  }> = [
+    {
+      id:"device-network",
+      title:"Device & network",
+      description:"Folders, NAS, and shared storage",
+      icon:<HardDrive className="h-5 w-5"/>,
+      gradient:G[7],
+    },
+    {
+      id:"cloud-drives",
+      title:"Cloud drives",
+      description:"Connected cloud accounts",
+      icon:<Cloud className="h-5 w-5"/>,
+      gradient:G[3],
+    },
+    {
+      id:"media-servers",
+      title:"Media servers",
+      description:"Self-hosted music libraries",
+      icon:<Radio className="h-5 w-5"/>,
+      gradient:G[0],
+    },
+  ];
+  const quickAccessIds = ["local-directory","webdav","onedrive"];
+  const quickAccess = sourceTypes.filter(source=>quickAccessIds.includes(source.id));
+  const toggleCategory = (category:SourcePickerCategoryId) => {
+    setFlowNotice(null);
+    setExpandedCategory(current=>current===category?null:category);
+  };
 
   return (
-    <motion.div className="fixed inset-0 z-[175] flex items-stretch justify-center bg-background sm:items-center sm:bg-black/55 sm:p-4 sm:backdrop-blur-sm"
+    <motion.div className="fixed inset-0 z-[175] flex items-end justify-center bg-black/55 backdrop-blur-sm sm:items-center sm:p-4"
       initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:0.16}}
       onMouseDown={event=>event.target===event.currentTarget&&onClose()}>
-      <motion.div role="dialog" aria-modal="true" aria-labelledby="source-picker-title"
-        initial={{opacity:0,y:18,scale:0.985}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:12,scale:0.985}}
+      <motion.div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="source-picker-title" tabIndex={-1}
+        initial={{opacity:0,y:36}} animate={{opacity:1,y:0}} exit={{opacity:0,y:28}}
         transition={{type:"spring",stiffness:420,damping:34}}
-        className="h-full w-full overflow-y-auto bg-background px-4 pb-8 pt-5 sm:h-auto sm:max-h-[90vh] sm:max-w-[760px] sm:rounded-[30px] sm:border sm:border-border sm:bg-popover sm:p-5 sm:shadow-2xl">
-        <div className="mb-5 flex items-start gap-3">
-          <button ref={closeRef} type="button" onClick={onClose} aria-label="Back to sources"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-muted text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/40"><ChevronLeft className="h-5 w-5"/></button>
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-primary/12 text-primary"><Plus className="h-5 w-5"/></span>
+        className="max-h-[82vh] w-full overflow-y-auto rounded-t-[30px] border border-border bg-popover px-4 pb-[max(24px,env(safe-area-inset-bottom))] pt-3 shadow-2xl outline-none sm:max-w-[560px] sm:rounded-[30px] sm:px-5 sm:pb-5">
+        <div aria-hidden="true" className="mx-auto mb-3 h-1 w-10 rounded-full bg-muted-foreground/25 sm:hidden"/>
+
+        <div className="mb-4 flex items-start gap-3 px-1">
           <div className="min-w-0 flex-1">
             <h2 id="source-picker-title" className="text-lg font-semibold text-foreground">Add source</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">Choose where your music lives</p>
           </div>
-          <span className="rounded-full bg-muted px-2.5 py-1 text-[10px] font-semibold text-muted-foreground">7 types</span>
-        </div>
-
-        <div className="mb-5 flex items-start gap-3 rounded-[22px] border border-primary/15 bg-primary/[0.06] p-3.5">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[13px] bg-primary/12 text-primary"><Layers className="h-4 w-4"/></span>
-          <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-foreground">One unified library</p><p className="mt-1 text-[11px] leading-4 text-muted-foreground">Every source keeps its own connection and scan state while all indexed music stays searchable together.</p></div>
+          <button type="button" onClick={onClose} aria-label="Close Add source"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/40"><X className="h-4 w-4"/></button>
         </div>
 
         {flowNotice&&(
-          <div role="status" className="mb-5 flex items-start gap-2 rounded-[18px] border border-border bg-muted/55 px-3.5 py-3 text-[11px] leading-4 text-muted-foreground">
+          <div role="status" className="mb-3 flex items-start gap-2 rounded-[16px] bg-muted/55 px-3 py-2.5 text-[11px] leading-4 text-muted-foreground">
             <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary"/>
             <span className="min-w-0 flex-1">{flowNotice}</span>
             <button type="button" onClick={()=>setFlowNotice(null)} aria-label="Dismiss source setup note" className="rounded-lg p-1 outline-none hover:bg-background focus-visible:ring-2 focus-visible:ring-primary/40"><X className="h-3.5 w-3.5"/></button>
           </div>
         )}
 
-        <div className="grid gap-5 sm:grid-cols-2">
-          <section aria-labelledby="local-source-heading">
-            <div className="mb-2 px-1"><p id="local-source-heading" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Local storage</p><p className="mt-1 text-[11px] text-muted-foreground">Music stored on this device</p></div>
-            <SourcePickerOption title="Local directory" badge="Device" icon={<FolderOpen className="h-5 w-5"/>}
-              description="Choose a folder and index supported audio files without uploading them."
-              onSelect={()=>explainFlow("The production app continues with the native system folder picker, then adds the selected directory to the library.")}/>
+        <div className="space-y-4">
+          <section aria-labelledby="source-quick-access-heading">
+            <p id="source-quick-access-heading" className="mb-2 px-1 text-[11px] font-semibold text-muted-foreground">Quick access</p>
+          <div className="grid grid-cols-3 gap-2">
+            {quickAccess.map(source=>(
+              <SourcePickerQuickOption key={source.id} title={source.title} icon={source.quickIcon??source.icon}
+                gradient={source.gradient} branded={source.branded} onSelect={source.onSelect}/>
+            ))}
+          </div>
           </section>
 
-          <section aria-labelledby="network-source-heading" className="sm:col-span-2 sm:row-start-2">
-            <div className="mb-2 px-1"><p id="network-source-heading" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Network storage</p><p className="mt-1 text-[11px] text-muted-foreground">NAS and remote file storage</p></div>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <SourcePickerOption title="WebDAV" badge="HTTPS" icon={<Server className="h-5 w-5"/>}
-                description="Connect a WebDAV address with credentials and select import directories." onSelect={onWebDav}/>
-              <SourcePickerOption title="SMB" badge="SMB2/3" icon={<Database className="h-5 w-5"/>}
-                description="Connect a NAS, Windows, or Samba share with signing and encryption options." onSelect={onSmb}/>
-            </div>
-          </section>
-
-          <section aria-labelledby="cloud-source-heading" className="sm:col-start-2 sm:row-start-1">
-            <div className="mb-2 px-1"><p id="cloud-source-heading" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Cloud storage</p><p className="mt-1 text-[11px] text-muted-foreground">Personal and work cloud drives</p></div>
-            <SourcePickerOption title="OneDrive" badge="OAuth" icon={<Cloud className="h-5 w-5"/>}
-              description="Sign in with Microsoft and choose the drive used for your music library."
-              onSelect={()=>explainFlow("The production app continues to Microsoft OAuth, returns to MelodyTrove, then lets you choose a OneDrive drive.")}/>
-          </section>
-
-          <section aria-labelledby="server-source-heading" className="sm:col-span-2">
-            <div className="mb-2 px-1"><p id="server-source-heading" className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Media servers</p><p className="mt-1 text-[11px] text-muted-foreground">Stream from a compatible self-hosted library</p></div>
-            <div className="grid gap-2 sm:grid-cols-3">
-              <SourcePickerOption title="Navidrome" badge="" icon={<Music2 className="h-5 w-5"/>}
-                description="Connect a Navidrome music server."
-                onSelect={()=>explainFlow("The production app continues to the shared media-server editor for the Navidrome address and account credentials.")}/>
-              <SourcePickerOption title="OpenSubsonic" badge="" icon={<Radio className="h-5 w-5"/>}
-                description="Connect an OpenSubsonic-compatible server."
-                onSelect={()=>explainFlow("The production app continues to the shared media-server editor for the OpenSubsonic address and account credentials.")}/>
-              <SourcePickerOption title="Emby" badge="" icon={<Play className="h-5 w-5"/>}
-                description="Connect an Emby media server."
-                onSelect={()=>explainFlow("The production app continues to the shared media-server editor for the Emby address and account credentials.")}/>
+          <section aria-labelledby="source-browse-heading">
+            <p id="source-browse-heading" className="mb-1 px-1 text-[11px] font-semibold text-muted-foreground">Browse by type</p>
+            <div className="rounded-[20px] bg-muted/35">
+              {categories.map((category,index)=>{
+                const categorySources = sourceTypes.filter(source=>source.category===category.id);
+                const expanded = expandedCategory===category.id;
+                return (
+                  <div key={category.id} className={cn(index>0&&"border-t border-border/60")}>
+                    <SourcePickerCategoryOption title={category.title} description={category.description}
+                      count={categorySources.length} icon={category.icon} gradient={category.gradient} expanded={expanded}
+                      onSelect={()=>toggleCategory(category.id)}/>
+                    <AnimatePresence initial={false}>
+                      {expanded&&(
+                        <motion.div initial={{height:0,opacity:0}} animate={{height:"auto",opacity:1}} exit={{height:0,opacity:0}}
+                          transition={{duration:0.18,ease:"easeOut"}} className="overflow-hidden">
+                          <div className="mx-3 mb-2 divide-y divide-border/60 rounded-[16px] bg-background/45">
+                            {categorySources.map(source=>(
+                              <SourcePickerOption key={source.id} title={source.title} icon={source.icon}
+                                gradient={source.gradient} branded={source.branded} onSelect={source.onSelect}/>
+                            ))}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                );
+              })}
             </div>
           </section>
         </div>
@@ -1064,6 +1244,7 @@ function AddSourcePickerDialog({ open, onClose, onWebDav, onSmb }: {
 type WebDavConnectionState = "idle"|"testing"|"success";
 type WebDavFormErrors = Partial<Record<"name"|"address"|"username"|"password",string>>;
 type SmbFormErrors = Partial<Record<"name"|"host"|"port"|"share"|"username"|"password",string>>;
+type MetadataScanMode = "fast"|"standard"|"full";
 type SettingsSourceModel = {
   id:string;
   name:string;
@@ -1074,6 +1255,9 @@ type SettingsSourceModel = {
   tracks:number;
   lastScan:string;
   gradient:[string,string];
+  localPath?:string;
+  includeSubdirectories?:boolean;
+  metadataScanMode?:MetadataScanMode;
   address?:string;
   username?:string;
   anonymous?:boolean;
@@ -1088,11 +1272,209 @@ type SettingsSourceModel = {
   smbRequireEncryption?:boolean;
 };
 
+function LocalSourceDialog({ source, onClose, onSave }: {
+  source:SettingsSourceModel|null;
+  onClose:()=>void;
+  onSave:(id:string,updates:{name:string;localPath:string;includeSubdirectories:boolean;metadataScanMode:MetadataScanMode})=>void;
+}) {
+  const nameRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+  const [name,setName] = useState("");
+  const [localPath,setLocalPath] = useState("");
+  const [includeSubdirectories,setIncludeSubdirectories] = useState(true);
+  const [metadataScanMode,setMetadataScanMode] = useState<MetadataScanMode>("full");
+
+  useEffect(()=>{
+    if (!source) return;
+    const previousOverflow = document.body.style.overflow;
+    const focusFrame = window.requestAnimationFrame(()=>nameRef.current?.focus());
+    const handleKeyDown = (event:KeyboardEvent) => event.key==="Escape"&&onClose();
+    setName(source.name);
+    setLocalPath(source.localPath??"~/Music");
+    setIncludeSubdirectories(source.includeSubdirectories??true);
+    setMetadataScanMode(source.metadataScanMode??"full");
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown",handleKeyDown);
+    return ()=>{
+      document.body.style.overflow = previousOverflow;
+      window.cancelAnimationFrame(focusFrame);
+      window.removeEventListener("keydown",handleKeyDown);
+    };
+  },[source,onClose]);
+
+  if (!source) return null;
+
+  const canSave = Boolean(name.trim()&&localPath.trim());
+  const saveSource = (event:React.FormEvent) => {
+    event.preventDefault();
+    if (!canSave) return;
+    onSave(source.id,{name:name.trim(),localPath:localPath.trim(),includeSubdirectories,metadataScanMode});
+    onClose();
+  };
+  const selectFolder = (event:React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0];
+    const selectedFolder = selectedFile?.webkitRelativePath.split("/")[0]||selectedFile?.name;
+    if (selectedFolder) setLocalPath(selectedFolder);
+    event.target.value = "";
+  };
+  const inputClass = "h-11 w-full rounded-2xl border border-border bg-background px-3.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary/50 focus:ring-2 focus:ring-primary/20";
+
+  return (
+    <motion.div className="fixed inset-0 z-[175] flex items-end justify-center bg-black/55 backdrop-blur-sm sm:items-center sm:p-4"
+      initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:0.16}}
+      onMouseDown={event=>event.target===event.currentTarget&&onClose()}>
+      <motion.div role="dialog" aria-modal="true" aria-labelledby="configure-local-title"
+        initial={{opacity:0,y:28,scale:0.985}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:18,scale:0.985}}
+        transition={{type:"spring",stiffness:420,damping:34}}
+        className="w-full rounded-t-[30px] border border-border bg-popover p-5 pb-[max(24px,env(safe-area-inset-bottom))] shadow-2xl sm:max-w-[480px] sm:rounded-[30px] sm:pb-5">
+        <form onSubmit={saveSource}>
+          <div className="mb-5 flex items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] bg-primary/12 text-primary"><FolderOpen className="h-5 w-5"/></span>
+            <div className="min-w-0 flex-1">
+              <h2 id="configure-local-title" className="text-lg font-semibold text-foreground">Configure Local source</h2>
+              <p className="mt-1 text-xs leading-[17px] text-muted-foreground">Update the folder used by this library source.</p>
+            </div>
+            <button type="button" onClick={onClose} aria-label="Close Local source settings"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/40"><X className="h-4 w-4"/></button>
+          </div>
+
+          <div className="space-y-4">
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-semibold text-foreground">Source name</span>
+              <input ref={nameRef} value={name} maxLength={48} placeholder="Local music" onChange={event=>setName(event.target.value)} className={inputClass}/>
+            </label>
+            <div>
+              <span className="mb-1.5 block text-xs font-semibold text-foreground">Music folder</span>
+              <input ref={folderInputRef} type="file" multiple className="sr-only" onChange={selectFolder}
+                {...({webkitdirectory:"",directory:""} as React.InputHTMLAttributes<HTMLInputElement>)}/>
+              <button type="button" onClick={()=>folderInputRef.current?.click()} aria-label="Choose music folder"
+                className="flex min-h-[56px] w-full items-center gap-3 rounded-[18px] border border-border bg-background px-3.5 text-left outline-none transition-colors hover:bg-muted/45 focus-visible:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/20">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[12px] bg-primary/10 text-primary"><FolderOpen className="h-4 w-4"/></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium text-foreground">{localPath||"No folder selected"}</span>
+                  <span className="mt-0.5 block text-[11px] text-muted-foreground">Selected with the system file manager</span>
+                </span>
+                <span className="shrink-0 text-xs font-semibold text-primary">Choose</span>
+              </button>
+            </div>
+            <div className="overflow-hidden rounded-[20px] bg-muted/55 divide-y divide-border/60">
+              <div className="flex min-h-[60px] items-center gap-4 px-4 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-foreground">Scan subdirectories</p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">Include music inside nested folders</p>
+                </div>
+                <DesignSwitch ariaLabel="Scan subdirectories" checked={includeSubdirectories} onChange={setIncludeSubdirectories}/>
+              </div>
+              <FloatingSelectRow label="Metadata scan" subtitle="Choose how thoroughly metadata and artwork are read"
+                value={metadataScanMode} onChange={value=>setMetadataScanMode(value as MetadataScanMode)}
+                options={[{value:"fast",label:"Fast"},{value:"standard",label:"Standard"},{value:"full",label:"Full"}]}/>
+            </div>
+          </div>
+
+          <div className="mt-6 flex justify-end gap-2">
+            <button type="button" onClick={onClose} className="h-10 rounded-full px-4 text-sm font-semibold text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/40">Cancel</button>
+            <button type="submit" disabled={!canSave}
+              className="h-10 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground outline-none transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:ring-2 focus-visible:ring-primary/40">Save changes</button>
+          </div>
+        </form>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+type SourceMenuAnchor = {top:number;bottom:number;left:number;right:number};
+
+function SourceActionsMenu({ source, anchor, isDark, onClose, onManage, onEdit, onScan, onDelete }: {
+  source:SettingsSourceModel|null;
+  anchor:SourceMenuAnchor|null;
+  isDark:boolean;
+  onClose:()=>void;
+  onManage:()=>void;
+  onEdit:()=>void;
+  onScan:()=>void;
+  onDelete:()=>void;
+}) {
+  useEffect(()=>{
+    if (!source) return;
+    const handleKeyDown = (event:KeyboardEvent) => event.key==="Escape"&&onClose();
+    window.addEventListener("keydown",handleKeyDown);
+    return ()=>window.removeEventListener("keydown",handleKeyDown);
+  },[source,onClose]);
+
+  if (!source||!anchor) return null;
+  const menuWidth = 224;
+  const menuHeight = 204;
+  const left = Math.min(window.innerWidth-menuWidth-12,Math.max(12,anchor.right-menuWidth));
+  const top = anchor.bottom+8+menuHeight<=window.innerHeight
+    ?anchor.bottom+8
+    :Math.max(12,anchor.top-menuHeight-8);
+  const runAction = (action:()=>void) => {
+    onClose();
+    action();
+  };
+  const itemClass = "flex min-h-11 w-full items-center gap-3 rounded-[14px] px-3 text-left text-[13px] font-medium text-foreground outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/40";
+
+  return createPortal(
+    <div className={cn("fixed inset-0 z-[185]",isDark&&"dark")} onMouseDown={event=>event.target===event.currentTarget&&onClose()}>
+      <motion.div role="menu" aria-label={`${source.name} actions`}
+        initial={{opacity:0,scale:0.96,y:-4}} animate={{opacity:1,scale:1,y:0}}
+        transition={{duration:0.14,ease:"easeOut"}}
+        className="fixed w-56 rounded-[20px] border border-border bg-popover p-1.5 shadow-2xl"
+        style={{left,top}}>
+        <button type="button" role="menuitem" onClick={()=>runAction(onManage)} className={itemClass}>
+          <SlidersHorizontal className="h-4 w-4 text-muted-foreground"/>Manage music source
+        </button>
+        <button type="button" role="menuitem" onClick={()=>runAction(onEdit)} className={itemClass}>
+          <Pencil className="h-4 w-4 text-muted-foreground"/>Edit music source
+        </button>
+        <button type="button" role="menuitem" onClick={()=>runAction(onScan)} className={itemClass}>
+          <RefreshCw className="h-4 w-4 text-muted-foreground"/>Scan music source
+        </button>
+        <div className="my-1 h-px bg-border/70"/>
+        <button type="button" role="menuitem" onClick={()=>runAction(onDelete)}
+          className={cn(itemClass,"text-destructive hover:bg-destructive/10 focus-visible:ring-destructive/35")}>
+          <Trash2 className="h-4 w-4"/>Delete music source
+        </button>
+      </motion.div>
+    </div>,
+    document.body,
+  );
+}
+
+function SourceRemovalDialog({ source, isDark, onClose, onConfirm }: {
+  source:SettingsSourceModel|null;
+  isDark:boolean;
+  onClose:()=>void;
+  onConfirm:()=>void;
+}) {
+  if (!source) return null;
+  return createPortal(
+    <motion.div className={cn("fixed inset-0 z-[195] flex items-center justify-center bg-black/55 p-5 backdrop-blur-sm",isDark&&"dark")}
+      initial={{opacity:0}} animate={{opacity:1}} onMouseDown={event=>event.target===event.currentTarget&&onClose()}>
+      <motion.div role="alertdialog" aria-modal="true" aria-labelledby="remove-source-title" aria-describedby="remove-source-description"
+        initial={{opacity:0,scale:0.95,y:8}} animate={{opacity:1,scale:1,y:0}}
+        transition={{type:"spring",stiffness:430,damping:34}}
+        className="w-full max-w-[400px] rounded-[28px] border border-border bg-popover p-5 shadow-2xl">
+        <span className="flex h-11 w-11 items-center justify-center rounded-[15px] bg-destructive/10 text-destructive"><Trash2 className="h-5 w-5"/></span>
+        <h2 id="remove-source-title" className="mt-4 text-[18px] font-semibold text-foreground">Delete {source.name}?</h2>
+        <p id="remove-source-description" className="mt-2 text-[12px] leading-[18px] text-muted-foreground">
+          {source.tracks.toLocaleString()} indexed tracks and this source configuration will be removed. Original music files stay untouched.
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button type="button" onClick={onClose} className="h-10 rounded-full px-4 text-[12px] font-semibold text-foreground hover:bg-muted">Cancel</button>
+          <button type="button" onClick={onConfirm} className="h-10 rounded-full bg-destructive px-5 text-[12px] font-semibold text-white hover:opacity-90">Delete source</button>
+        </div>
+      </motion.div>
+    </motion.div>,
+    document.body,
+  );
+}
+
 function AddWebDavSourceDialog({ open, existingNames, onClose, onAdd }: {
   open:boolean;
   existingNames:string[];
   onClose:()=>void;
-  onAdd:(source:{name:string;address:string;username:string;anonymous:boolean})=>void;
+  onAdd:(source:{name:string;address:string;username:string;anonymous:boolean;includeSubdirectories:boolean})=>void;
 }) {
   const nameRef = useRef<HTMLInputElement>(null);
   const [name,setName] = useState("");
@@ -1100,6 +1482,7 @@ function AddWebDavSourceDialog({ open, existingNames, onClose, onAdd }: {
   const [username,setUsername] = useState("");
   const [password,setPassword] = useState("");
   const [anonymous,setAnonymous] = useState(false);
+  const [includeSubdirectories,setIncludeSubdirectories] = useState(true);
   const [passwordVisible,setPasswordVisible] = useState(false);
   const [errors,setErrors] = useState<WebDavFormErrors>({});
   const [connectionState,setConnectionState] = useState<WebDavConnectionState>("idle");
@@ -1114,6 +1497,7 @@ function AddWebDavSourceDialog({ open, existingNames, onClose, onAdd }: {
     setUsername("");
     setPassword("");
     setAnonymous(false);
+    setIncludeSubdirectories(true);
     setPasswordVisible(false);
     setErrors({});
     setConnectionState("idle");
@@ -1159,7 +1543,7 @@ function AddWebDavSourceDialog({ open, existingNames, onClose, onAdd }: {
   const addSource = (event:React.FormEvent) => {
     event.preventDefault();
     if (connectionState!=="success"||!validate()) return;
-    onAdd({name:name.trim(),address:address.trim(),username:anonymous?"":username.trim(),anonymous});
+    onAdd({name:name.trim(),address:address.trim(),username:anonymous?"":username.trim(),anonymous,includeSubdirectories});
     onClose();
   };
 
@@ -1227,6 +1611,10 @@ function AddWebDavSourceDialog({ open, existingNames, onClose, onAdd }: {
                 {errors.password&&<span className="mt-1.5 block text-[11px] text-destructive">{errors.password}</span>}
               </label>
             </div>}
+            <div className="flex min-h-[58px] items-center gap-4 rounded-[20px] bg-muted/55 px-4 py-2.5">
+              <div className="min-w-0 flex-1"><p className="text-sm font-medium text-foreground">Scan subdirectories</p><p className="mt-0.5 text-[11px] text-muted-foreground">Include music inside nested folders</p></div>
+              <DesignSwitch ariaLabel="Scan WebDAV subdirectories" checked={includeSubdirectories} onChange={setIncludeSubdirectories}/>
+            </div>
           </div>
 
           <div className="mt-5 rounded-[20px] border border-border bg-card p-3">
@@ -1267,7 +1655,7 @@ function ManageWebDavSourceDialog({ source, existingNames, onClose, onSave, onDe
   source:SettingsSourceModel|null;
   existingNames:string[];
   onClose:()=>void;
-  onSave:(id:string,updates:{name:string;address:string;username:string;anonymous:boolean;importedDirectories:string[]})=>void;
+  onSave:(id:string,updates:{name:string;address:string;username:string;anonymous:boolean;importedDirectories:string[];includeSubdirectories:boolean;metadataScanMode:MetadataScanMode})=>void;
   onDelete:(id:string)=>void;
 }) {
   const nameRef = useRef<HTMLInputElement>(null);
@@ -1278,6 +1666,8 @@ function ManageWebDavSourceDialog({ source, existingNames, onClose, onSave, onDe
   const [anonymous,setAnonymous] = useState(false);
   const [passwordVisible,setPasswordVisible] = useState(false);
   const [importedDirectories,setImportedDirectories] = useState<string[]>([]);
+  const [includeSubdirectories,setIncludeSubdirectories] = useState(true);
+  const [metadataScanMode,setMetadataScanMode] = useState<MetadataScanMode>("standard");
   const [errors,setErrors] = useState<WebDavFormErrors>({});
   const [directoryError,setDirectoryError] = useState("");
   const [connectionState,setConnectionState] = useState<WebDavConnectionState>("idle");
@@ -1295,6 +1685,8 @@ function ManageWebDavSourceDialog({ source, existingNames, onClose, onSave, onDe
     setAnonymous(source.anonymous??false);
     setPasswordVisible(false);
     setImportedDirectories(source.importedDirectories??[]);
+    setIncludeSubdirectories(source.includeSubdirectories??true);
+    setMetadataScanMode(source.metadataScanMode??"standard");
     setErrors({});
     setDirectoryError("");
     setConnectionState("idle");
@@ -1342,7 +1734,7 @@ function ManageWebDavSourceDialog({ source, existingNames, onClose, onSave, onDe
     const validFields = validateConnectionFields();
     if (importedDirectories.length===0) setDirectoryError("Select at least one directory to import");
     if (!validFields||importedDirectories.length===0) return;
-    onSave(source.id,{name:name.trim(),address:address.trim(),username:anonymous?"":username.trim(),anonymous,importedDirectories});
+    onSave(source.id,{name:name.trim(),address:address.trim(),username:anonymous?"":username.trim(),anonymous,importedDirectories,includeSubdirectories,metadataScanMode});
     onClose();
   };
 
@@ -1451,6 +1843,19 @@ function ManageWebDavSourceDialog({ source, existingNames, onClose, onSave, onDe
             {directoryError&&<p className="mt-2 px-1 text-[11px] text-destructive">{directoryError}</p>}
           </section>
 
+          <section aria-labelledby="webdav-scanning-heading" className="mb-5">
+            <p id="webdav-scanning-heading" className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Scanning</p>
+            <div className="overflow-hidden rounded-[24px] border border-border bg-card divide-y divide-border/60">
+              <div className="flex min-h-[64px] items-center gap-4 px-4 py-2.5">
+                <div className="min-w-0 flex-1"><p className="text-[15px] font-medium text-foreground">Scan subdirectories</p><p className="mt-1 text-[12px] text-muted-foreground">Include music inside nested folders</p></div>
+                <DesignSwitch ariaLabel="Scan WebDAV subdirectories" checked={includeSubdirectories} onChange={setIncludeSubdirectories}/>
+              </div>
+              <FloatingSelectRow label="Metadata scan" subtitle="Choose how thoroughly metadata and artwork are read"
+                value={metadataScanMode} onChange={value=>setMetadataScanMode(value as MetadataScanMode)}
+                options={[{value:"fast",label:"Fast"},{value:"standard",label:"Standard"},{value:"full",label:"Full"}]}/>
+            </div>
+          </section>
+
           <div className="sticky bottom-0 -mx-4 flex justify-end gap-2 border-t border-border bg-background/95 px-4 pb-1 pt-3 backdrop-blur-xl sm:-mx-5 sm:bg-popover/95 sm:px-5 sm:pb-0">
             <button type="button" onClick={onClose} className="h-10 rounded-full px-4 text-sm font-semibold text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/40">Cancel</button>
             <button type="submit" className="h-10 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-primary/40">Save changes</button>
@@ -1472,6 +1877,8 @@ type SmbSourceDraft = {
   guest:boolean;
   requireSigning:boolean;
   requireEncryption:boolean;
+  includeSubdirectories:boolean;
+  metadataScanMode:MetadataScanMode;
 };
 
 function SmbSourceDialog({ open, source, existingNames, onClose, onSave, onDelete }: {
@@ -1495,6 +1902,8 @@ function SmbSourceDialog({ open, source, existingNames, onClose, onSave, onDelet
   const [guest,setGuest] = useState(false);
   const [requireSigning,setRequireSigning] = useState(false);
   const [requireEncryption,setRequireEncryption] = useState(false);
+  const [includeSubdirectories,setIncludeSubdirectories] = useState(true);
+  const [metadataScanMode,setMetadataScanMode] = useState<MetadataScanMode>("standard");
   const [passwordVisible,setPasswordVisible] = useState(false);
   const [errors,setErrors] = useState<SmbFormErrors>({});
   const [connectionState,setConnectionState] = useState<WebDavConnectionState>("idle");
@@ -1516,6 +1925,8 @@ function SmbSourceDialog({ open, source, existingNames, onClose, onSave, onDelet
     setGuest(source?.smbGuest??false);
     setRequireSigning(source?.smbRequireSigning??false);
     setRequireEncryption(source?.smbRequireEncryption??false);
+    setIncludeSubdirectories(source?.includeSubdirectories??true);
+    setMetadataScanMode(source?.metadataScanMode??"standard");
     setPasswordVisible(false);
     setErrors({});
     setConnectionState("idle");
@@ -1571,6 +1982,8 @@ function SmbSourceDialog({ open, source, existingNames, onClose, onSave, onDelet
       guest,
       requireSigning,
       requireEncryption,
+      includeSubdirectories,
+      metadataScanMode,
     });
     onClose();
   };
@@ -1697,6 +2110,19 @@ function SmbSourceDialog({ open, source, existingNames, onClose, onSave, onDelet
             </div>
           </section>
 
+          <section aria-labelledby="smb-scanning-heading" className="mb-5">
+            <p id="smb-scanning-heading" className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Scanning</p>
+            <div className="overflow-hidden rounded-[24px] border border-border bg-card divide-y divide-border/60">
+              <div className="flex min-h-[64px] items-center gap-4 px-4 py-2.5">
+                <div className="min-w-0 flex-1"><p className="text-[15px] font-medium text-foreground">Scan subdirectories</p><p className="mt-1 text-[12px] text-muted-foreground">Include music inside nested folders</p></div>
+                <DesignSwitch ariaLabel="Scan SMB subdirectories" checked={includeSubdirectories} onChange={setIncludeSubdirectories}/>
+              </div>
+              {isEditing&&<FloatingSelectRow label="Metadata scan" subtitle="Choose how thoroughly metadata and artwork are read"
+                value={metadataScanMode} onChange={value=>setMetadataScanMode(value as MetadataScanMode)}
+                options={[{value:"fast",label:"Fast"},{value:"standard",label:"Standard"},{value:"full",label:"Full"}]}/>}
+            </div>
+          </section>
+
           <div className="mb-5 flex items-center gap-3 rounded-[22px] border border-border bg-card p-3">
             <div className="min-w-0 flex-1"><p className="text-sm font-medium text-foreground">Connection test</p><p className={cn("mt-0.5 text-[11px]",connectionState==="success"?"text-[#3DCA8A]":"text-muted-foreground")}>{connectionState==="testing"?"Connecting with SMB2/3…":connectionState==="success"?"Connection successful":"SMB1 is never negotiated"}</p></div>
             <button type="button" onClick={testConnection} disabled={connectionState==="testing"}
@@ -1716,47 +2142,95 @@ function SmbSourceDialog({ open, source, existingNames, onClose, onSave, onDelet
   );
 }
 
-function StickyPageHeader({ title, subtitle, className, onBack, backLabel="Back", showTitleOnCollapse=false }: {
+function StickyPageHeader({
+  title,
+  subtitle,
+  className,
+  onBack,
+  backLabel="Back",
+  showTitleOnCollapse=false,
+  liquidGlass=false,
+  collapseDisabled=false,
+  onCollapseProgressChange,
+}: {
   title:string;
   subtitle?:string;
   className?:string;
   onBack?:()=>void;
   backLabel?:string;
   showTitleOnCollapse?:boolean;
+  liquidGlass?:boolean;
+  collapseDisabled?:boolean;
+  onCollapseProgressChange?:(progress:number)=>void;
 }) {
   const headerRef = useRef<HTMLElement>(null);
   const [collapseProgress,setCollapseProgress] = useState(0);
   const reduceMotion = useReducedMotion();
 
   useEffect(() => {
+    if (collapseDisabled) {
+      setCollapseProgress(0);
+      return;
+    }
     const scroller = headerRef.current?.closest("main");
     if (!scroller) return;
-    const update = () => setCollapseProgress(Math.min(scroller.scrollTop/48,1));
+    const update = () => {
+      const nextProgress = Math.min(scroller.scrollTop/48,1);
+      setCollapseProgress(nextProgress);
+      onCollapseProgressChange?.(nextProgress);
+    };
     update();
     scroller.addEventListener("scroll",update,{ passive:true });
     return () => scroller.removeEventListener("scroll",update);
-  },[title]);
+  },[collapseDisabled,onCollapseProgressChange,title]);
 
   const progress = reduceMotion ? (collapseProgress>=1?1:0) : collapseProgress;
   const detailHeader = Boolean(onBack&&showTitleOnCollapse);
   const expandedHeight = detailHeader?56:subtitle?112:96;
   const collapsedHeight = detailHeader?56:subtitle?72:58;
   const height = expandedHeight-(expandedHeight-collapsedHeight)*progress;
-  const titleSize = detailHeader?20:32-8*progress;
+  const actionBarTitleSize = liquidGlass?22:detailHeader?20:24;
+  const expandedTitleOpacity = Math.max(0,1-progress/0.72);
+  const actionBarTitleOpacity = detailHeader
+    ? (collapseDisabled?1:progress)
+    : Math.max(0,(progress-0.72)/0.28);
+  const glassProgress = liquidGlass?(collapseDisabled?1:progress):0;
 
   return (
     <header ref={headerRef} className={cn(
-      "sticky top-0 z-30 border-b border-border/60 bg-background",
+      "sticky top-0 z-30 border-b bg-transparent",
       className,
-    )} style={{ height, paddingTop:0, paddingBottom:0, borderColor:`color-mix(in srgb,var(--border) ${Math.round(progress*60)}%,transparent)` }}>
+    )} style={{
+      height,
+      paddingTop:0,
+      paddingBottom:0,
+      borderColor:liquidGlass
+        ?`color-mix(in srgb,var(--actionbar-glass-border) ${Math.round(glassProgress*100)}%,transparent)`
+        :`color-mix(in srgb,var(--border) ${Math.round(progress*60)}%,transparent)`,
+    }}>
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-background" style={{opacity:1-glassProgress}}/>
+      {liquidGlass&&<div aria-hidden="true" className="actionbar-liquid-glass pointer-events-none absolute inset-0" style={{opacity:glassProgress}}/>}
       <div className="relative h-full">
         {onBack&&<button type="button" aria-label={backLabel} onPointerDown={preventMouseFocus} onClick={onBack}
-          className="absolute left-4 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-primary/40">
-          <ArrowLeft className="h-5 w-5"/>
+          className={cn(
+            "absolute left-4 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-[14px] text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/40",
+            liquidGlass&&detailHeader?"bg-transparent hover:bg-muted/45":"bg-muted",
+          )}>
+          <ChevronLeft className="h-5 w-5"/>
         </button>}
-        <div className={cn("absolute min-w-0",detailHeader?"inset-y-0 left-14 right-14 flex items-center":"inset-x-0 bottom-3")}>
-          <h1 className="font-bold text-foreground truncate" style={{ fontSize:titleSize, lineHeight:`${titleSize+6}px`,opacity:detailHeader?progress:1 }}>{title}</h1>
-          {subtitle&&<p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+        {!detailHeader&&(
+          <div className="absolute inset-x-0 bottom-3 min-w-0" style={{opacity:expandedTitleOpacity}}>
+            <h1 className="truncate font-bold text-foreground" style={{fontSize:32,lineHeight:"38px"}}>{title}</h1>
+            {subtitle&&<p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>}
+          </div>
+        )}
+        <div className="pointer-events-none absolute inset-y-0 left-14 right-14 flex min-w-0 items-center justify-center"
+          style={{opacity:actionBarTitleOpacity}}>
+          <h1 className={cn(
+              "w-full truncate text-center text-foreground",
+              liquidGlass?"font-semibold":"font-bold",
+            )}
+            style={{fontSize:actionBarTitleSize,lineHeight:`${actionBarTitleSize+6}px`}}>{title}</h1>
         </div>
       </div>
     </header>
@@ -3926,8 +4400,8 @@ type ThemeMode = "system"|"light"|"dark";
 
 const SETTINGS_SUB_LABELS: Record<SettingsSub,string> = {
   appearance:"Appearance & language",
-  playback:"Playback",
-  lyrics:"Lyrics",
+  playback:"Playback settings",
+  lyrics:"Lyrics settings",
   sources:"Library & sources",
   plugins:"Metadata plugins",
   "network-cache":"Network & cache",
@@ -4268,6 +4742,7 @@ function MetadataPluginDialog({ plugin, isDark, onClose, onChange }: {
 }) {
   const [configValues,setConfigValues] = useState<Record<string,string>>({});
   const [clearingCache,setClearingCache] = useState(false);
+  const sheetDragControls = useDragControls();
 
   useEffect(()=>{
     if (!plugin) return;
@@ -4304,35 +4779,45 @@ function MetadataPluginDialog({ plugin, isDark, onClose, onChange }: {
       <motion.div className={cn("fixed inset-0 z-[180] flex items-end justify-center bg-black/55 backdrop-blur-sm sm:items-center sm:p-4",isDark&&"dark")}
         initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:0.16}}
         onMouseDown={event=>event.target===event.currentTarget&&onClose()}>
-        <motion.div role="dialog" aria-modal="true" aria-labelledby="metadata-plugin-title"
+        <motion.div role="dialog" aria-modal="true" aria-label={`${plugin.name} configuration`}
           initial={{opacity:0,y:26,scale:0.98}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:18,scale:0.98}}
           transition={{type:"spring",stiffness:420,damping:34}}
-          className="max-h-[92vh] w-full overflow-y-auto rounded-t-[30px] border border-border bg-background px-5 pb-6 pt-4 shadow-2xl sm:max-w-[520px] sm:rounded-[30px] sm:p-6">
-          <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-muted sm:hidden" aria-hidden="true"/>
-          <div className="flex min-h-12 items-center gap-3">
-            <span className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-primary/12 text-primary sm:flex">
-              <Puzzle className="h-5 w-5"/>
-            </span>
-            <div className="min-w-0 flex-1 text-center sm:text-left">
-              <h2 id="metadata-plugin-title" className="text-[19px] font-semibold text-foreground">{plugin.name}</h2>
+          drag="y" dragListener={false} dragControls={sheetDragControls}
+          dragConstraints={{top:0,bottom:0}} dragElastic={{top:0,bottom:0.5}}
+          onDragEnd={(_,info)=>(info.offset.y>=72||info.velocity.y>=900)&&onClose()}
+          className="flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-[30px] border border-border bg-background shadow-2xl sm:max-w-[520px] sm:rounded-[30px]">
+          <div className="touch-none select-none px-5 pt-2.5 sm:hidden"
+            onPointerDown={event=>sheetDragControls.start(event)}>
+            <div className="mx-auto h-1.5 w-10 rounded-full bg-muted" aria-hidden="true"/>
+            <div className="flex min-h-9 items-center justify-center">
+              <h2 className="truncate text-[19px] font-semibold text-foreground">{plugin.name}</h2>
             </div>
           </div>
+          <div className="min-h-0 overflow-y-auto px-5 pb-6 sm:p-6">
+            <div className="hidden min-h-12 items-center gap-3 sm:flex">
+              <span className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-[16px] bg-primary/12 text-primary sm:flex">
+                <Puzzle className="h-5 w-5"/>
+              </span>
+              <div className="min-w-0 flex-1 text-left">
+                <h2 className="truncate text-[19px] font-semibold text-foreground">{plugin.name}</h2>
+              </div>
+            </div>
 
-          {markdownFields.map(field=>(
-            <section key={field.key} className="mt-5 rounded-[22px] border border-border bg-card p-4 sm:p-5" aria-label={field.title}>
-              <ReactMarkdown components={{
-                h3:({children})=><h3 className="text-[15px] font-semibold text-foreground">{children}</h3>,
-                p:({children})=><p className="mt-3 text-[12px] leading-[19px] text-muted-foreground">{children}</p>,
-                ul:({children})=><ul className="mt-2.5 list-disc space-y-1.5 pl-5 text-[12px] leading-[19px] text-muted-foreground">{children}</ul>,
-                li:({children})=><li className="pl-0.5">{children}</li>,
-                strong:({children})=><strong className="font-semibold text-foreground">{children}</strong>,
-                code:({children})=><code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px] text-foreground">{children}</code>,
-                a:({children,href})=><a className="font-medium text-primary underline underline-offset-2 hover:opacity-80" href={href} target="_blank" rel="noreferrer">{children}</a>,
-              }}>
-                {field.content}
-              </ReactMarkdown>
-            </section>
-          ))}
+            {markdownFields.map(field=>(
+              <section key={field.key} className="mt-5 rounded-[22px] border border-border bg-card p-4 sm:p-5" aria-label={field.title}>
+                <ReactMarkdown components={{
+                  h3:({children})=><h3 className="text-[15px] font-semibold text-foreground">{children}</h3>,
+                  p:({children})=><p className="mt-3 text-[12px] leading-[19px] text-muted-foreground">{children}</p>,
+                  ul:({children})=><ul className="mt-2.5 list-disc space-y-1.5 pl-5 text-[12px] leading-[19px] text-muted-foreground">{children}</ul>,
+                  li:({children})=><li className="pl-0.5">{children}</li>,
+                  strong:({children})=><strong className="font-semibold text-foreground">{children}</strong>,
+                  code:({children})=><code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px] text-foreground">{children}</code>,
+                  a:({children,href})=><a className="font-medium text-primary underline underline-offset-2 hover:opacity-80" href={href} target="_blank" rel="noreferrer">{children}</a>,
+                }}>
+                  {field.content}
+                </ReactMarkdown>
+              </section>
+            ))}
 
           {editableFields.length>0&&(
             <section className="mt-5" aria-labelledby="plugin-configuration-title">
@@ -4384,16 +4869,17 @@ function MetadataPluginDialog({ plugin, isDark, onClose, onChange }: {
             </div>
           </section>
 
-          <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-border/70 pt-5">
-            <button type="button" onClick={clearCache} disabled={clearingCache}
-              className="inline-flex h-10 items-center gap-2 rounded-full bg-muted px-4 text-[12px] font-semibold text-foreground outline-none hover:bg-muted/80 disabled:opacity-55 focus-visible:ring-2 focus-visible:ring-primary/40">
-              <RefreshCw className={cn("h-3.5 w-3.5",clearingCache&&"animate-spin")}/>
-              {clearingCache?"Clearing…":"Clear cache"}
-            </button>
-            <button type="button" onClick={()=>{patchPlugin({configValues});onClose();}}
-              className="ml-auto inline-flex h-10 items-center rounded-full bg-primary px-5 text-[12px] font-semibold text-primary-foreground outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-primary/40">
-              {editableFields.length?"Save":"Done"}
-            </button>
+            <div className="mt-6 flex flex-wrap items-center gap-2 border-t border-border/70 pt-5">
+              <button type="button" onClick={clearCache} disabled={clearingCache}
+                className="inline-flex h-10 items-center gap-2 rounded-full bg-muted px-4 text-[12px] font-semibold text-foreground outline-none hover:bg-muted/80 disabled:opacity-55 focus-visible:ring-2 focus-visible:ring-primary/40">
+                <RefreshCw className={cn("h-3.5 w-3.5",clearingCache&&"animate-spin")}/>
+                {clearingCache?"Clearing…":"Clear cache"}
+              </button>
+              <button type="button" onClick={()=>{patchPlugin({configValues});onClose();}}
+                className="ml-auto inline-flex h-10 items-center rounded-full bg-primary px-5 text-[12px] font-semibold text-primary-foreground outline-none hover:opacity-90 focus-visible:ring-2 focus-visible:ring-primary/40">
+                {editableFields.length?"Save":"Done"}
+              </button>
+            </div>
           </div>
         </motion.div>
       </motion.div>
@@ -4474,22 +4960,16 @@ function SettingsPage({ sub, onSubChange, themeMode, isDark, onThemeModeChange }
   const [tapLyricsToSeek, setTapLyricsToSeek] = useState(true);
   const [floatingLyrics, setFloatingLyrics] = useState(false);
   const [autoScan, setAutoScan] = useState("startup");
-  const [backgroundScan, setBackgroundScan] = useState(true);
-  const [scanUnmetered, setScanUnmetered] = useState(true);
-  const [scanSubdirectories, setScanSubdirectories] = useState(true);
-  const [metadataScan, setMetadataScan] = useState("standard");
   const [minimumDuration, setMinimumDuration] = useState("30");
   const [missingFilePolicy, setMissingFilePolicy] = useState("mark");
-  const [duplicatePolicy, setDuplicatePolicy] = useState("separate");
-  const [ignoreTagCase, setIgnoreTagCase] = useState(false);
-  const [advancedLibraryRulesOpen, setAdvancedLibraryRulesOpen] = useState(false);
+  const [duplicatePolicy, setDuplicatePolicy] = useState("versions");
   const [libraryScanState, setLibraryScanState] = useState<LibraryScanState>("idle");
   const [pluginImportState, setPluginImportState] = useState<"idle"|"selected"|"installing"|"success">("idle");
   const [metadataPlugins,setMetadataPlugins] = useState<MetadataPluginModel[]>(INITIAL_METADATA_PLUGINS);
   const [editingPluginId,setEditingPluginId] = useState<string|null>(null);
   const [pendingPluginRemovalId,setPendingPluginRemovalId] = useState<string|null>(null);
-  const [allowMeteredStreaming, setAllowMeteredStreaming] = useState(false);
-  const [backgroundUnmetered, setBackgroundUnmetered] = useState(true);
+  const [allowMobileNetwork, setAllowMobileNetwork] = useState(false);
+  const [listenAndCache, setListenAndCache] = useState(true);
   const [audioCache, setAudioCache] = useState("512");
   const [imageCache, setImageCache] = useState("256");
   const [timeout, setTimeoutValue] = useState("30");
@@ -4504,23 +4984,29 @@ function SettingsPage({ sub, onSubChange, themeMode, isDark, onThemeModeChange }
   const [clearImageState, setClearImageState] = useState<SettingsActionState>("idle");
   const [sourcePickerOpen,setSourcePickerOpen] = useState(false);
   const [addSourceOpen,setAddSourceOpen] = useState(false);
+  const [editingLocalSourceId,setEditingLocalSourceId] = useState<string|null>(null);
   const [editingSourceId,setEditingSourceId] = useState<string|null>(null);
   const [smbSourceOpen,setSmbSourceOpen] = useState(false);
   const [editingSmbSourceId,setEditingSmbSourceId] = useState<string|null>(null);
+  const [sourceMenu,setSourceMenu] = useState<{id:string;anchor:SourceMenuAnchor}|null>(null);
+  const [pendingSourceRemovalId,setPendingSourceRemovalId] = useState<string|null>(null);
   const [sources,setSources] = useState<SettingsSourceModel[]>([
-    {id:"local-storage",name:"Local music",type:"Local",icon:<HardDrive className="w-5 h-5"/>,enabled:true,location:"1 directory",tracks:1284,lastScan:"Completed · 12 min ago",gradient:G[2]},
-    {id:"personal-nas",name:"Personal NAS",type:"WebDAV",icon:<Server className="w-5 h-5"/>,enabled:true,location:"/Music",tracks:5820,lastScan:"Completed · 12 min ago",gradient:G[1],address:"https://nas.local/dav",username:"music",anonymous:false,importedDirectories:["/Music"]},
-    {id:"studio-smb",name:"Studio share",type:"SMB",icon:<Database className="w-5 h-5"/>,enabled:true,location:"//192.168.1.28/Music/Library",tracks:2460,lastScan:"Completed · 18 min ago",gradient:G[4],smbHost:"192.168.1.28",smbPort:445,smbShare:"Music",smbRootPath:"Library",username:"media",smbDomain:"WORKGROUP",smbGuest:false,smbRequireSigning:true,smbRequireEncryption:false},
+    {id:"local-storage",name:"Local music",type:"Local",icon:<HardDrive className="w-5 h-5"/>,enabled:true,location:"1 directory",tracks:1284,lastScan:"Completed · 12 min ago",gradient:G[2],localPath:"~/Music",includeSubdirectories:true,metadataScanMode:"full"},
+    {id:"personal-nas",name:"Personal NAS",type:"WebDAV",icon:<Server className="w-5 h-5"/>,enabled:true,location:"/Music",tracks:5820,lastScan:"Completed · 12 min ago",gradient:G[1],address:"https://nas.local/dav",username:"music",anonymous:false,importedDirectories:["/Music"],includeSubdirectories:true,metadataScanMode:"standard"},
+    {id:"studio-smb",name:"Studio share",type:"SMB",icon:<Database className="w-5 h-5"/>,enabled:true,location:"//192.168.1.28/Music/Library",tracks:2460,lastScan:"Completed · 18 min ago",gradient:G[4],smbHost:"192.168.1.28",smbPort:445,smbShare:"Music",smbRootPath:"Library",username:"media",smbDomain:"WORKGROUP",smbGuest:false,smbRequireSigning:true,smbRequireEncryption:false,includeSubdirectories:true,metadataScanMode:"standard"},
   ]);
   const sourceTrackCount = sources.reduce((total,source)=>total+source.tracks,0);
   const enabledSourceCount = sources.filter(source=>source.enabled).length;
+  const editingLocalSource = sources.find(source=>source.id===editingLocalSourceId&&source.type==="Local")??null;
   const editingSource = sources.find(source=>source.id===editingSourceId&&source.type==="WebDAV")??null;
   const editingSmbSource = sources.find(source=>source.id===editingSmbSourceId&&source.type==="SMB")??null;
+  const menuSource = sources.find(source=>source.id===sourceMenu?.id)??null;
+  const pendingSourceRemoval = sources.find(source=>source.id===pendingSourceRemovalId)??null;
   const editingPlugin = metadataPlugins.find(plugin=>plugin.id===editingPluginId)??null;
   const pendingPluginRemoval = metadataPlugins.find(plugin=>plugin.id===pendingPluginRemovalId)??null;
   const enabledPluginCount = metadataPlugins.filter(plugin=>plugin.enabled).length;
 
-  function addWebDavSource(source:{name:string;address:string;username:string;anonymous:boolean}) {
+  function addWebDavSource(source:{name:string;address:string;username:string;anonymous:boolean;includeSubdirectories:boolean}) {
     let location = source.address;
     try {
       const url = new URL(source.address);
@@ -4529,11 +5015,15 @@ function SettingsPage({ sub, onSubChange, themeMode, isDark, onThemeModeChange }
     } catch {}
     setSources(current=>[
       ...current,
-      {id:`webdav-${Date.now()}`,name:source.name,type:"WebDAV",icon:<Server className="w-5 h-5"/>,enabled:true,location,tracks:0,lastScan:"Never scanned",gradient:G[current.length%G.length],address:source.address,username:source.username,anonymous:source.anonymous,importedDirectories:["/Music"]},
+      {id:`webdav-${Date.now()}`,name:source.name,type:"WebDAV",icon:<Server className="w-5 h-5"/>,enabled:true,location,tracks:0,lastScan:"Never scanned",gradient:G[current.length%G.length],address:source.address,username:source.username,anonymous:source.anonymous,importedDirectories:["/Music"],includeSubdirectories:source.includeSubdirectories,metadataScanMode:"standard"},
     ]);
   }
 
-  function saveWebDavSource(id:string,updates:{name:string;address:string;username:string;anonymous:boolean;importedDirectories:string[]}) {
+  function saveLocalSource(id:string,updates:{name:string;localPath:string;includeSubdirectories:boolean;metadataScanMode:MetadataScanMode}) {
+    setSources(current=>current.map(source=>source.id===id?{...source,...updates}:source));
+  }
+
+  function saveWebDavSource(id:string,updates:{name:string;address:string;username:string;anonymous:boolean;importedDirectories:string[];includeSubdirectories:boolean;metadataScanMode:MetadataScanMode}) {
     const location = updates.importedDirectories.length>1
       ?`${updates.importedDirectories[0]} +${updates.importedDirectories.length-1}`
       :updates.importedDirectories[0]??"/Music";
@@ -4562,18 +5052,40 @@ function SettingsPage({ sub, onSubChange, themeMode, isDark, onThemeModeChange }
         smbGuest:draft.guest,
         smbRequireSigning:draft.requireSigning,
         smbRequireEncryption:draft.requireEncryption,
+        includeSubdirectories:draft.includeSubdirectories,
+        metadataScanMode:draft.metadataScanMode,
       }:source));
       return;
     }
     setSources(current=>[
       ...current,
-      {id:`smb-${Date.now()}`,name:draft.name,type:"SMB",icon:<Database className="w-5 h-5"/>,enabled:true,location,tracks:0,lastScan:"Never scanned",gradient:G[current.length%G.length],smbHost:draft.host,smbPort:draft.port,smbShare:draft.share,smbRootPath:normalizedRoot,username:draft.username,smbDomain:draft.domain,smbGuest:draft.guest,smbRequireSigning:draft.requireSigning,smbRequireEncryption:draft.requireEncryption},
+      {id:`smb-${Date.now()}`,name:draft.name,type:"SMB",icon:<Database className="w-5 h-5"/>,enabled:true,location,tracks:0,lastScan:"Never scanned",gradient:G[current.length%G.length],smbHost:draft.host,smbPort:draft.port,smbShare:draft.share,smbRootPath:normalizedRoot,username:draft.username,smbDomain:draft.domain,smbGuest:draft.guest,smbRequireSigning:draft.requireSigning,smbRequireEncryption:draft.requireEncryption,includeSubdirectories:draft.includeSubdirectories,metadataScanMode:draft.metadataScanMode},
     ]);
   }
 
   function deleteSmbSource(id:string) {
     setSources(current=>current.filter(source=>source.id!==id));
     setEditingSmbSourceId(null);
+  }
+
+  function openSourceEditor(source:SettingsSourceModel) {
+    if (source.type==="Local") setEditingLocalSourceId(source.id);
+    else if (source.type==="WebDAV") setEditingSourceId(source.id);
+    else setEditingSmbSourceId(source.id);
+  }
+
+  function requestSourceRemoval(id:string) {
+    setSourceMenu(null);
+    setPendingSourceRemovalId(id);
+  }
+
+  function confirmSourceRemoval() {
+    if (!pendingSourceRemovalId) return;
+    setSources(current=>current.filter(source=>source.id!==pendingSourceRemovalId));
+    setEditingLocalSourceId(current=>current===pendingSourceRemovalId?null:current);
+    setEditingSourceId(current=>current===pendingSourceRemovalId?null:current);
+    setEditingSmbSourceId(current=>current===pendingSourceRemovalId?null:current);
+    setPendingSourceRemovalId(null);
   }
 
   function openWebDavFromPicker() {
@@ -4593,6 +5105,13 @@ function SettingsPage({ sub, onSubChange, themeMode, isDark, onThemeModeChange }
 
   function setSourceEnabled(id:string, enabled:boolean) {
     setSources(current=>current.map(source=>source.id===id?{...source,enabled}:source));
+  }
+
+  function scanSource(id:string) {
+    setSources(current=>current.map(source=>source.id===id?{...source,lastScan:"Scanning…"}:source));
+    window.setTimeout(()=>{
+      setSources(current=>current.map(source=>source.id===id?{...source,lastScan:"Completed · just now"}:source));
+    },1200);
   }
 
   function runLibraryScan() {
@@ -4658,22 +5177,22 @@ function SettingsPage({ sub, onSubChange, themeMode, isDark, onThemeModeChange }
     about:`MelodyTrove ${APP_VERSION} · build, links, privacy, and licenses`,
   };
 
-  const GROUPS: { id:SettingsGroup; label:string; description:string; items:{ id:SettingsSub; icon:React.ReactNode }[] }[] = [
+  const GROUPS: { id:SettingsGroup; label:string; description:string; items:{ id:SettingsSub; icon:React.ReactNode; gradient:[string,string] }[] }[] = [
     { id:"personalization", label:"Personalization", description:"Look, language, and lyrics", items:[
-      {id:"appearance",icon:<Palette className="w-4 h-4"/>},
-      {id:"lyrics",icon:<Mic className="w-4 h-4"/>},
+      {id:"appearance",icon:<Palette className="w-[18px] h-[18px]"/>,gradient:G[2]},
+      {id:"lyrics",icon:<ListMusic className="w-[18px] h-[18px]"/>,gradient:G[1]},
     ]},
     { id:"playback", label:"Playback", description:"Listening behavior and sound", items:[
-      {id:"playback",icon:<SlidersHorizontal className="w-4 h-4"/>},
+      {id:"playback",icon:<CirclePlay className="w-[18px] h-[18px]"/>,gradient:G[0]},
     ]},
     { id:"library-data", label:"Library & data", description:"Sources, plugins, cache, and storage", items:[
-      {id:"sources",icon:<Cloud className="w-4 h-4"/>},
-      {id:"plugins",icon:<Puzzle className="w-4 h-4"/>},
-      {id:"network-cache",icon:<Wifi className="w-4 h-4"/>},
-      {id:"storage",icon:<HardDrive className="w-4 h-4"/>},
+      {id:"sources",icon:<Cloud className="w-[18px] h-[18px]"/>,gradient:G[3]},
+      {id:"plugins",icon:<Puzzle className="w-[18px] h-[18px]"/>,gradient:["#A4C936","#2EAD72"]},
+      {id:"network-cache",icon:<Wifi className="w-[18px] h-[18px]"/>,gradient:["#29C5C8","#117B8A"]},
+      {id:"storage",icon:<HardDrive className="w-[18px] h-[18px]"/>,gradient:G[4]},
     ]},
     { id:"app-info", label:"App & info", description:"Version, privacy, and open source", items:[
-      {id:"about",icon:<Music2 className="w-4 h-4"/>},
+      {id:"about",icon:<img src={appIconUrl} alt="" className="h-10 w-10 object-cover"/>,gradient:G[0]},
     ]},
   ];
 
@@ -4704,17 +5223,26 @@ function SettingsPage({ sub, onSubChange, themeMode, isDark, onThemeModeChange }
     );
   }
 
-  function SettingsSourceRow({ source, onManage }: { source:SettingsSourceModel; onManage?:()=>void }) {
+  function SettingsSourceRow({ source, menuOpen, onMore }: {
+    source:SettingsSourceModel;
+    menuOpen:boolean;
+    onMore:(anchor:SourceMenuAnchor)=>void;
+  }) {
     const lastScan = libraryScanState==="complete"?"Completed · just now":source.lastScan;
+    const scanMinutes = lastScan.match(/(\d+)\s+min/);
+    const compactLastScan = lastScan.includes("just now")?"now":scanMinutes?`${scanMinutes[1]}m`:lastScan==="Never scanned"?"Never":"Done";
+    const connectionLabel = source.enabled?(source.type==="Local"?"Available":"Connected"):"Disconnected";
+    const indexLabel = (libraryScanState==="scanning"&&source.enabled)||source.lastScan==="Scanning…"
+      ?"Scanning"
+      :source.tracks>0?"Indexed":"Not indexed";
     return (
-      <div className={cn("flex min-h-[88px] w-full items-center gap-3 px-4 py-3 transition-colors",onManage&&"hover:bg-muted/30")}>
-        <span className="w-10 h-10 rounded-[14px] flex items-center justify-center text-white shrink-0 shadow-sm"
+      <div className="flex min-h-[88px] w-full items-start gap-3 px-4 py-2.5">
+        <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] text-white shadow-sm"
           style={{background:`linear-gradient(135deg,${source.gradient[0]},${source.gradient[1]})`}}>
           {source.icon}
         </span>
-        <button type="button" aria-label={onManage?`Manage ${source.name}`:`View ${source.name}`} onClick={onManage} disabled={!onManage}
-          className={cn("min-w-0 flex-1 rounded-xl text-left outline-none focus-visible:ring-2 focus-visible:ring-primary/40",!onManage&&"cursor-default")}>
-          <span className="flex min-w-0 items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <span className="flex min-w-0 flex-wrap items-center gap-1.5">
             <span className="truncate text-[15px] font-semibold text-foreground">{source.name}</span>
             <span className={cn("inline-flex h-5 shrink-0 items-center rounded-full px-2 text-[10px] font-semibold",
               source.enabled?"bg-[#3DCA8A]/12 text-[#3DCA8A]":"bg-muted text-muted-foreground")}>
@@ -4722,15 +5250,29 @@ function SettingsPage({ sub, onSubChange, themeMode, isDark, onThemeModeChange }
             </span>
           </span>
           <span className="block text-[12px] text-muted-foreground mt-1 truncate">
-            {source.type} · {source.location} · {source.tracks.toLocaleString()} tracks
+            {source.type} · {source.tracks.toLocaleString()} tracks
           </span>
-          <span className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground/80">
-            <Clock className="h-3 w-3" aria-hidden="true"/>{lastScan}
+          <span className="mt-1.5 flex min-w-0 items-center gap-1 text-[10px] text-muted-foreground/80" title={lastScan} aria-label={`${connectionLabel}, ${indexLabel}, ${lastScan}`}>
+            <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full",source.enabled?"bg-[#3DCA8A]":"bg-muted-foreground/55")}/>
+            <span className={cn("shrink-0 font-medium",source.enabled?"text-[#32B97C]":"text-muted-foreground")}>{connectionLabel}</span>
+            <span aria-hidden="true">·</span>
+            {indexLabel==="Scanning"&&<RefreshCw className="h-2.5 w-2.5 shrink-0 animate-spin text-primary"/>}
+            <span className={cn("shrink-0",indexLabel==="Scanning"&&"text-primary")}>{indexLabel}</span>
+            {indexLabel!=="Scanning"&&<><span aria-hidden="true">·</span><span className="truncate">{compactLastScan}</span></>}
           </span>
-        </button>
-        <DesignSwitch ariaLabel={`${source.enabled?"Disable":"Enable"} ${source.name}`} checked={source.enabled}
-          onChange={enabled=>setSourceEnabled(source.id,enabled)}/>
-        {onManage&&<ChevronRight className="hidden h-4 w-4 shrink-0 text-muted-foreground/45 sm:block" aria-hidden="true"/>}
+        </div>
+        <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
+          <DesignSwitch ariaLabel={`${source.enabled?"Disable":"Enable"} ${source.name}`} checked={source.enabled}
+            onChange={enabled=>setSourceEnabled(source.id,enabled)}/>
+          <button type="button" aria-label={`More actions for ${source.name}`} aria-haspopup="menu" aria-expanded={menuOpen}
+            onClick={event=>{
+              const rect = event.currentTarget.getBoundingClientRect();
+              onMore({top:rect.top,bottom:rect.bottom,left:rect.left,right:rect.right});
+            }}
+            className="flex h-10 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/40 sm:w-10">
+            <MoreVertical className="h-[18px] w-[18px]"/>
+          </button>
+        </div>
       </div>
     );
   }
@@ -4799,13 +5341,12 @@ function SettingsPage({ sub, onSubChange, themeMode, isDark, onThemeModeChange }
     );
   }
 
-  function NavRow({ id, icon, selected=false }: { id:SettingsSub; icon:React.ReactNode; selected?:boolean }) {
+  function NavRow({ id, icon, gradient, selected=false }: { id:SettingsSub; icon:React.ReactNode; gradient:[string,string]; selected?:boolean }) {
     return (
       <button type="button" onClick={()=>!selected&&openSub(id)} aria-current={selected?"page":undefined}
         className={cn("w-full flex items-center gap-3 px-4 min-h-[66px] text-left transition-colors group focus-visible:ring-2 focus-visible:ring-primary/40 outline-none",
           selected?"bg-primary/[0.08]":"hover:bg-muted/40")}>
-        <div className={cn("w-10 h-10 rounded-[14px] bg-muted flex items-center justify-center shrink-0 transition-colors",
-          selected?"text-primary":"text-muted-foreground group-hover:text-foreground")}>{icon}</div>
+        <SettingsIconBadge icon={icon} gradient={gradient}/>
         <div className="flex-1 min-w-0 py-3.5">
           <p className={cn("text-[15px] font-semibold leading-tight",selected?"text-primary":"text-foreground")}>{SETTINGS_SUB_LABELS[id]}</p>
           <p className="text-[12px] text-muted-foreground mt-1 truncate">{SUMMARIES[id]}</p>
@@ -4838,7 +5379,7 @@ function SettingsPage({ sub, onSubChange, themeMode, isDark, onThemeModeChange }
           <div className="bg-card rounded-[24px] border border-border overflow-hidden divide-y divide-border/50 mb-6">
             {searchResults.length===0
               ?<div className="px-4 py-7 text-center"><p className="text-[14px] font-medium text-foreground">No settings found</p><p className="text-[12px] text-muted-foreground mt-1">Try a feature name such as cache, lyrics, or WebDAV.</p></div>
-              :searchResults.map(item=><NavRow key={item.id} id={item.id} icon={item.icon} selected={selectedId===item.id}/>) }
+              :searchResults.map(item=><NavRow key={item.id} id={item.id} icon={item.icon} gradient={item.gradient} selected={selectedId===item.id}/>) }
           </div>
         )}
         {!search&&GROUPS.map(groupItem=>(
@@ -4847,7 +5388,7 @@ function SettingsPage({ sub, onSubChange, themeMode, isDark, onThemeModeChange }
               <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">{groupItem.label}</p>
             </div>
             <div className="bg-card rounded-[24px] border border-border overflow-hidden divide-y divide-border/50">
-              {groupItem.items.map(item=><NavRow key={item.id} id={item.id} icon={item.icon} selected={selectedId===item.id}/>) }
+              {groupItem.items.map(item=><NavRow key={item.id} id={item.id} icon={item.icon} gradient={item.gradient} selected={selectedId===item.id}/>) }
             </div>
           </section>
         ))}
@@ -4939,9 +5480,7 @@ function SettingsPage({ sub, onSubChange, themeMode, isDark, onThemeModeChange }
         <div className="relative mb-6 overflow-hidden rounded-[28px] border border-primary/15 bg-card p-5">
           <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full bg-primary/10 blur-3xl"/>
           <div className="relative flex items-start gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] bg-primary/12 text-primary">
-              <Layers className="w-5 h-5"/>
-            </div>
+            <SettingsIconBadge icon={<Layers className="h-[18px] w-[18px]"/>} gradient={G[0]}/>
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-[16px] font-semibold text-foreground">Unified library</p>
@@ -4961,10 +5500,12 @@ function SettingsPage({ sub, onSubChange, themeMode, isDark, onThemeModeChange }
         </div>
 
         <SettingsCard title="Sources">
-          {sources.map(source=><SettingsSourceRow key={source.id} source={source} onManage={source.type==="WebDAV"?()=>setEditingSourceId(source.id):source.type==="SMB"?()=>setEditingSmbSourceId(source.id):undefined}/>) }
+          {sources.map(source=><SettingsSourceRow key={source.id} source={source}
+            menuOpen={sourceMenu?.id===source.id}
+            onMore={anchor=>setSourceMenu(current=>current?.id===source.id?null:{id:source.id,anchor})}/>) }
           <button type="button" onClick={()=>setSourcePickerOpen(true)}
             className="group flex min-h-[76px] w-full items-center gap-3 px-4 py-3 text-left outline-none transition-colors hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-primary/40">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[15px] bg-primary/12 text-primary"><Plus className="h-5 w-5"/></span>
+            <SettingsIconBadge icon={<Plus className="h-[18px] w-[18px]"/>} gradient={G[2]}/>
             <span className="min-w-0 flex-1"><span className="block text-[14px] font-semibold text-foreground">Add source</span><span className="mt-1 block text-[11px] text-muted-foreground">Local, network, cloud, or media server</span></span>
             <span className="hidden rounded-full bg-muted px-2.5 py-1 text-[10px] font-semibold text-muted-foreground sm:inline-flex">7 types</span>
             <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground/45 transition-transform group-hover:translate-x-0.5" aria-hidden="true"/>
@@ -4974,10 +5515,12 @@ function SettingsPage({ sub, onSubChange, themeMode, isDark, onThemeModeChange }
         <div className={cn("mb-6 rounded-[24px] border p-4",
           libraryScanState==="scanning"?"border-primary/25 bg-primary/[0.06]":"border-border bg-card")}>
           <div className="flex items-center gap-3">
-            <span className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px]",
-              libraryScanState==="scanning"?"bg-primary/12 text-primary":"bg-[#3DCA8A]/12 text-[#3DCA8A]")}>
-              {libraryScanState==="scanning"?<RefreshCw className="h-5 w-5 animate-spin"/>:<CheckCircle2 className="h-5 w-5"/>}
-            </span>
+            <SettingsIconBadge
+              icon={libraryScanState==="scanning"
+                ?<RefreshCw className="h-[18px] w-[18px] animate-spin"/>
+                :<CheckCircle2 className="h-[18px] w-[18px]"/>}
+              gradient={libraryScanState==="scanning"?G[0]:G[3]}
+            />
             <span className="min-w-0 flex-1">
               <span className="block text-[15px] font-semibold text-foreground">
                 {libraryScanState==="scanning"?"Scanning enabled sources":"Library is up to date"}
@@ -5007,48 +5550,16 @@ function SettingsPage({ sub, onSubChange, themeMode, isDark, onThemeModeChange }
         <SettingsCard title="Automatic scanning">
           <SelectRow label="Automatic scan" value={autoScan} onChange={setAutoScan}
             options={[{v:"off",l:"Off"},{v:"startup",l:"On startup"},{v:"periodic",l:"Periodic"}]}/>
-          {autoScan!=="off"&&<SwitchRow label="Background scan" subtitle="Continue supported scans when MelodyTrove is not active" checked={backgroundScan} onChange={setBackgroundScan}/>}
-          {autoScan!=="off"&&backgroundScan&&<SwitchRow label="Use unmetered networks only" subtitle="Manual scans are never blocked" checked={scanUnmetered} onChange={setScanUnmetered}/>}
-          <SwitchRow label="Scan subdirectories" subtitle="Recursively scan folders below every source root" checked={scanSubdirectories} onChange={setScanSubdirectories}/>
         </SettingsCard>
 
         <SettingsCard title="Import rules">
-          <SelectRow label="Metadata scan" subtitle="Standard reads tags and lyrics; artwork loads on demand" value={metadataScan} onChange={setMetadataScan}
-            options={[{v:"fast",l:"Fast"},{v:"standard",l:"Standard"},{v:"full",l:"Full"}]}/>
           <SelectRow label="Minimum audio duration" value={minimumDuration} onChange={setMinimumDuration}
             options={[{v:"0",l:"Off"},{v:"10",l:"10 seconds"},{v:"30",l:"30 seconds"},{v:"custom",l:"Custom"}]}/>
           <SelectRow label="Missing files" subtitle="Keep metadata but prevent playback" value={missingFilePolicy} onChange={setMissingFilePolicy}
             options={[{v:"mark",l:"Mark unavailable"},{v:"remove",l:"Remove scan result"}]}/>
-          <SelectRow label="Duplicates" subtitle="Choose how newly discovered copies enter the library" value={duplicatePolicy} onChange={setDuplicatePolicy}
-            options={[{v:"separate",l:"Separate by source"},{v:"all",l:"Keep all"}]}/>
+          <SelectRow label="Duplicate tracks" subtitle="Group matches as versions without deleting source files" value={duplicatePolicy} onChange={setDuplicatePolicy}
+            options={[{v:"versions",l:"Merge as versions"},{v:"separate",l:"Show separately"}]}/>
         </SettingsCard>
-
-        <div className="mb-5">
-          <button type="button" aria-expanded={advancedLibraryRulesOpen} onClick={()=>setAdvancedLibraryRulesOpen(open=>!open)}
-            className="flex min-h-[64px] w-full items-center gap-3 rounded-[24px] border border-border bg-card px-4 py-3 text-left outline-none transition-colors hover:bg-muted/30 focus-visible:ring-2 focus-visible:ring-primary/40">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px] bg-muted text-muted-foreground"><SlidersHorizontal className="h-5 w-5"/></span>
-            <span className="min-w-0 flex-1"><span className="block text-[15px] font-semibold text-foreground">Advanced library rules</span><span className="mt-1 block text-[11px] text-muted-foreground">File discovery, exclusions, and metadata parsing</span></span>
-            <ChevronDown className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform",advancedLibraryRulesOpen&&"rotate-180")} aria-hidden="true"/>
-          </button>
-          <AnimatePresence initial={false}>
-            {advancedLibraryRulesOpen&&(
-              <motion.div initial={{height:0,opacity:0}} animate={{height:"auto",opacity:1}} exit={{height:0,opacity:0}} className="overflow-hidden">
-                <div className="mt-3">
-                  <SettingsCard title="File discovery">
-                    <ValueRow label="Supported formats" value="MP3, FLAC, M4A + 4"/>
-                    <ValueRow label="Hidden files" value="Ignored"/>
-                    <ValueRow label="Ignored directories" value="4 defaults" onClick={()=>{}}/>
-                  </SettingsCard>
-                  <SettingsCard title="Metadata parsing">
-                    <ValueRow label="Artist separators" value="5 defaults" onClick={()=>{}}/>
-                    <ValueRow label="Genre separators" value="4 defaults" onClick={()=>{}}/>
-                    <SwitchRow label="Ignore tag letter case" subtitle="Match metadata values without case differences" checked={ignoreTagCase} onChange={setIgnoreTagCase}/>
-                  </SettingsCard>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
 
         <SettingsCard title="Maintenance">
           <ValueRow label="Complete missing artwork" subtitle="Re-read artwork for WebDAV tracks that do not have it" onClick={()=>{}}/>
@@ -5149,11 +5660,11 @@ function SettingsPage({ sub, onSubChange, themeMode, isDark, onThemeModeChange }
     if (id==="network-cache") return (
       <div className="pb-8">
         <SettingsCard title="Network">
-          <SwitchRow label="Allow metered streaming" subtitle="Stream remote tracks over metered networks" checked={allowMeteredStreaming} onChange={setAllowMeteredStreaming}/>
+          <SwitchRow label="Allow mobile network usage" subtitle="Remote playback and background sync" checked={allowMobileNetwork} onChange={setAllowMobileNetwork}/>
           <SwitchRow label="Resume after network recovery" checked={resumeNetwork} onChange={setResumeNetwork}/>
-          <SwitchRow label="Background sync only on unmetered networks" checked={backgroundUnmetered} onChange={setBackgroundUnmetered}/>
         </SettingsCard>
         <SettingsCard title="Cache limits">
+          <SwitchRow label="Cache while playing" subtitle="Save remote audio for replay and offline listening" checked={listenAndCache} onChange={setListenAndCache}/>
           <SelectRow label="Audio cache" value={audioCache} onChange={setAudioCache}
             options={[{v:"0",l:"Disabled"},{v:"256",l:"256 MB"},{v:"512",l:"512 MB"},{v:"1024",l:"1 GB"}]}/>
           <SelectRow label="Image cache" value={imageCache} onChange={setImageCache}
@@ -5202,7 +5713,7 @@ function SettingsPage({ sub, onSubChange, themeMode, isDark, onThemeModeChange }
     return (
       <div className="pb-8">
         <div className="rounded-[24px] border border-border bg-card p-6 mb-6 flex items-center gap-4">
-          <div className="w-14 h-14 rounded-[18px] flex items-center justify-center text-white shadow-lg" style={{background:"linear-gradient(135deg,var(--brand-pink),var(--brand-purple))"}}><Music2 className="w-7 h-7"/></div>
+          <img src={appIconUrl} alt="" className="h-14 w-14 rounded-[18px] object-cover shadow-lg"/>
           <div><p className="text-[20px] font-bold text-foreground">MelodyTrove</p><p className="text-[13px] text-muted-foreground mt-0.5">One Library. Every Source.</p></div>
         </div>
         <SettingsCard title="App">
@@ -5216,15 +5727,6 @@ function SettingsPage({ sub, onSubChange, themeMode, isDark, onThemeModeChange }
           <ValueRow label="Report an issue" value="GitHub Issues" onClick={()=>{}}/>
           <ValueRow label="Privacy" subtitle="MelodyTrove is local-first. Diagnostic exports exclude credentials and tokens."/>
         </SettingsCard>
-      </div>
-    );
-  }
-
-  function MobileSubHeading({ id }: { id:SettingsSub }) {
-    return (
-      <div className="mb-6 min-w-0">
-        <h1 className="text-[28px] font-bold tracking-[-0.02em] text-foreground truncate">{SETTINGS_SUB_LABELS[id]}</h1>
-        <p className="text-[12px] text-muted-foreground mt-1 truncate">{SUMMARIES[id]}</p>
       </div>
     );
   }
@@ -5248,6 +5750,13 @@ function SettingsPage({ sub, onSubChange, themeMode, isDark, onThemeModeChange }
         </div>
         <AddSourcePickerDialog open={sourcePickerOpen} onClose={()=>setSourcePickerOpen(false)} onWebDav={openWebDavFromPicker} onSmb={openSmbFromPicker}/>
         <AddWebDavSourceDialog open={addSourceOpen} existingNames={sources.map(source=>source.name)} onClose={()=>setAddSourceOpen(false)} onAdd={addWebDavSource}/>
+        <SourceActionsMenu source={menuSource} anchor={sourceMenu?.anchor??null} isDark={isDark} onClose={()=>setSourceMenu(null)}
+          onManage={()=>menuSource&&openSourceEditor(menuSource)}
+          onEdit={()=>menuSource&&openSourceEditor(menuSource)}
+          onScan={()=>menuSource&&scanSource(menuSource.id)}
+          onDelete={()=>menuSource&&requestSourceRemoval(menuSource.id)}/>
+        <SourceRemovalDialog source={pendingSourceRemoval} isDark={isDark} onClose={()=>setPendingSourceRemovalId(null)} onConfirm={confirmSourceRemoval}/>
+        <LocalSourceDialog source={editingLocalSource} onClose={()=>setEditingLocalSourceId(null)} onSave={saveLocalSource}/>
         <ManageWebDavSourceDialog source={editingSource} existingNames={sources.map(source=>source.name)} onClose={()=>setEditingSourceId(null)} onSave={saveWebDavSource} onDelete={deleteWebDavSource}/>
         <SmbSourceDialog open={smbSourceOpen||editingSmbSource!==null} source={editingSmbSource} existingNames={sources.map(source=>source.name)} onClose={closeSmbSource} onSave={saveSmbSource} onDelete={deleteSmbSource}/>
         <MetadataPluginDialog plugin={editingPlugin} isDark={isDark} onClose={()=>setEditingPluginId(null)} onChange={updateMetadataPlugin}/>
@@ -5260,10 +5769,17 @@ function SettingsPage({ sub, onSubChange, themeMode, isDark, onThemeModeChange }
   return (
     <>
       <div ref={settingsRootRef} className="mx-auto w-full max-w-[800px] px-4 pt-5 pb-8">
-        {sub?<><MobileSubHeading id={sub}/><DetailContent id={sub}/></>:<HomeContent/>}
+        {sub?<DetailContent id={sub}/>:<HomeContent/>}
       </div>
       <AddSourcePickerDialog open={sourcePickerOpen} onClose={()=>setSourcePickerOpen(false)} onWebDav={openWebDavFromPicker} onSmb={openSmbFromPicker}/>
       <AddWebDavSourceDialog open={addSourceOpen} existingNames={sources.map(source=>source.name)} onClose={()=>setAddSourceOpen(false)} onAdd={addWebDavSource}/>
+      <SourceActionsMenu source={menuSource} anchor={sourceMenu?.anchor??null} isDark={isDark} onClose={()=>setSourceMenu(null)}
+        onManage={()=>menuSource&&openSourceEditor(menuSource)}
+        onEdit={()=>menuSource&&openSourceEditor(menuSource)}
+        onScan={()=>menuSource&&scanSource(menuSource.id)}
+        onDelete={()=>menuSource&&requestSourceRemoval(menuSource.id)}/>
+      <SourceRemovalDialog source={pendingSourceRemoval} isDark={isDark} onClose={()=>setPendingSourceRemovalId(null)} onConfirm={confirmSourceRemoval}/>
+      <LocalSourceDialog source={editingLocalSource} onClose={()=>setEditingLocalSourceId(null)} onSave={saveLocalSource}/>
       <ManageWebDavSourceDialog source={editingSource} existingNames={sources.map(source=>source.name)} onClose={()=>setEditingSourceId(null)} onSave={saveWebDavSource} onDelete={deleteWebDavSource}/>
       <SmbSourceDialog open={smbSourceOpen||editingSmbSource!==null} source={editingSmbSource} existingNames={sources.map(source=>source.name)} onClose={closeSmbSource} onSave={saveSmbSource} onDelete={deleteSmbSource}/>
       <MetadataPluginDialog plugin={editingPlugin} isDark={isDark} onClose={()=>setEditingPluginId(null)} onChange={updateMetadataPlugin}/>
@@ -6346,12 +6862,17 @@ export default function App() {
   const [playlistReturnPage,setPlaylistReturnPage] = useState<Page>("library");
   const [albumReturnPage,setAlbumReturnPage] = useState<Page>("library");
   const [artistReturnPage,setArtistReturnPage] = useState<Page>("library");
+  const [settingsHeaderGlassProgress,setSettingsHeaderGlassProgress] = useState(0);
   const mainScrollRef = useRef<HTMLElement>(null);
 
   useEffect(()=>{
     mainScrollRef.current?.scrollTo({top:0});
     if (page!=="settings") setSettingsSub(null);
   },[page]);
+
+  useEffect(()=>{
+    setSettingsHeaderGlassProgress(0);
+  },[page,settingsSub]);
 
   useEffect(()=>{
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -6397,7 +6918,7 @@ export default function App() {
   return (
     <div className={cn("flex h-screen w-screen overflow-hidden",isDark?"dark":"")}>
       <div className="relative flex h-full w-full bg-background text-foreground overflow-hidden">
-        <MobileStatusBar/>
+        <MobileStatusBar glassProgress={page==="settings"?(settingsDetailTitle?1:settingsHeaderGlassProgress):0}/>
         <MobileLandscapeHomeIndicator/>
         <Sidebar page={page} onPage={setPage} dsSection={dsSection} onDsSection={setDsSection} isDark={isDark} onToggleDark={()=>setThemeMode(isDark?"light":"dark")}/>
 
@@ -6414,6 +6935,9 @@ export default function App() {
                   onBack={settingsDetailTitle?()=>setSettingsSub(null):undefined}
                   backLabel="Back to Settings"
                   showTitleOnCollapse={Boolean(settingsDetailTitle)}
+                  liquidGlass={page==="settings"}
+                  collapseDisabled={Boolean(settingsDetailTitle)}
+                  onCollapseProgressChange={page==="settings"&&!settingsDetailTitle?setSettingsHeaderGlassProgress:undefined}
                   className={cn(
                     "lg:hidden",
                     !settingsDetailTitle&&"pt-5 pb-3",

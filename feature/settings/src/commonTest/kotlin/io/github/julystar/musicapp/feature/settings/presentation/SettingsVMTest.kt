@@ -20,6 +20,7 @@ import io.github.julystar.musicapp.core.domain.model.SourceAccountId
 import io.github.julystar.musicapp.core.domain.model.SourceConnectionTestStatus
 import io.github.julystar.musicapp.core.domain.model.SourceEditorDraft
 import io.github.julystar.musicapp.core.domain.model.SourceEditorStorageState
+import io.github.julystar.musicapp.core.domain.model.SourceEditorType
 import io.github.julystar.musicapp.core.domain.model.StorageAccountInfo
 import io.github.julystar.musicapp.core.domain.model.StorageUsage
 import io.github.julystar.musicapp.core.domain.model.StoredCredential
@@ -27,6 +28,7 @@ import io.github.julystar.musicapp.core.domain.model.storageSourceAccountId
 import io.github.julystar.musicapp.core.domain.repository.DiagnosticsService
 import io.github.julystar.musicapp.core.domain.repository.AppDataClearService
 import io.github.julystar.musicapp.core.domain.repository.LibraryMaintenanceService
+import io.github.julystar.musicapp.core.domain.repository.PermissionChecker
 import io.github.julystar.musicapp.core.domain.repository.SettingsRepository
 import io.github.julystar.musicapp.core.domain.repository.AudioDspAnalysisRepository
 import io.github.julystar.musicapp.core.domain.repository.AudioDspFrequencyResponse
@@ -38,15 +40,18 @@ import io.github.julystar.musicapp.service.librarysync.domain.LibrarySyncControl
 import io.github.julystar.musicapp.service.librarysync.domain.LibrarySyncFailure
 import io.github.julystar.musicapp.service.librarysync.domain.LibrarySyncRequest
 import io.github.julystar.musicapp.service.librarysync.domain.LibrarySyncResult
+import io.github.julystar.musicapp.service.librarysync.domain.LibrarySyncStatus
 import io.github.julystar.musicapp.service.librarysync.domain.LibrarySyncTask
 import io.github.julystar.musicapp.service.librarysync.domain.MetadataRefreshController
 import io.github.julystar.musicapp.service.librarysync.domain.MetadataRefreshRequest
 import io.github.julystar.musicapp.service.librarysync.domain.MetadataRefreshResult
+import io.github.julystar.musicapp.service.playback.domain.PlayableItem
+import io.github.julystar.musicapp.service.playback.domain.PlaybackController
+import io.github.julystar.musicapp.service.playback.domain.PlaybackPosition
+import io.github.julystar.musicapp.service.playback.domain.PlaybackQueue
+import io.github.julystar.musicapp.service.playback.domain.PlayerState
+import io.github.julystar.musicapp.service.playback.domain.RepeatMode
 import io.github.julystar.musicapp.source.api.BuiltInSourceIds
-import io.github.julystar.musicapp.source.api.ImportRepository
-import io.github.julystar.musicapp.source.api.SourceDirectorySelection
-import io.github.julystar.musicapp.source.api.SourceNodeSelection
-import io.github.julystar.musicapp.source.api.SourceNodeType
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -54,6 +59,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -170,13 +176,34 @@ class SettingsVMTest {
     }
 
     @Test
+    fun `removing a local directory stops active playback`() = runTest {
+        val environment = TestEnvironment()
+        withStartedViewModel(environment) { viewModel ->
+            viewModel.onAction(SettingsAction.RequestRemoveLocalDirectory("42", "Music"))
+            advanceUntilIdle()
+
+            assertEquals(0, environment.playback.clearQueueCalls)
+
+            viewModel.onAction(SettingsAction.ConfirmPendingAction)
+            advanceUntilIdle()
+
+            assertEquals(listOf("42"), environment.sourceSettings.removedDirectoryIds)
+            assertEquals(1, environment.playback.clearQueueCalls)
+        }
+    }
+
+    @Test
     fun `cache changes use the repository limit and enforce the same value`() = runTest {
         val environment = TestEnvironment()
         withStartedViewModel(environment) { viewModel ->
             val requestedLimit = 2_147_483_648L
+            assertTrue(environment.settingsRepository.values.value.listenAndCacheEnabled)
+
+            viewModel.onAction(SettingsAction.SetListenAndCacheEnabled(false))
             viewModel.onAction(SettingsAction.SetAudioCacheLimitBytes(requestedLimit))
             advanceUntilIdle()
 
+            assertFalse(environment.settingsRepository.values.value.listenAndCacheEnabled)
             assertEquals(requestedLimit, environment.settingsRepository.values.value.audioCacheLimitBytes)
             assertEquals(requestedLimit, environment.storageUsage.lastEnforcedAudioLimit)
             assertEquals(
@@ -199,6 +226,55 @@ class SettingsVMTest {
 
             assertEquals("scan-1", viewModel.state.value.failureDialogTaskId)
             assertEquals(listOf(failure), viewModel.state.value.failureDetails)
+        }
+    }
+
+    @Test
+    fun `cancel active scans cancels the full library scan batch`() = runTest {
+        val accountId = storageSourceAccountId(42L)
+        val sync = FakeLibrarySyncController().apply {
+            recentTasks.value = listOf(
+                LibrarySyncTask(
+                    id = "scan-1",
+                    accountId = accountId,
+                    selectedFolderId = 1L,
+                    selectedFolderRemoteId = null,
+                    folderPath = "/Music",
+                    folderDisplayPath = "/Music",
+                    status = LibrarySyncStatus.Running,
+                    scannedCount = 12L,
+                    importedCount = 4L,
+                    skippedCount = 2L,
+                    failedCount = 0L,
+                    checkpoint = null,
+                    errorMessage = null,
+                    createdAtEpochMs = 1L,
+                    updatedAtEpochMs = 2L,
+                ),
+            )
+        }
+        val storage = FakeStorageRepository().apply {
+            accounts.value = listOf(
+                sourceAccount(
+                    id = 42L,
+                    sourceId = BuiltInSourceIds.WebDav,
+                    title = "Home DAV",
+                    count = 12L,
+                ),
+            )
+        }
+        val environment = TestEnvironment(
+            storageRepository = storage,
+            librarySyncController = sync,
+        )
+
+        withStartedViewModel(environment) { viewModel ->
+            assertTrue(viewModel.state.value.scanTasks.single().isActive)
+
+            viewModel.onAction(SettingsAction.CancelActiveScans)
+            advanceUntilIdle()
+
+            assertEquals(1, sync.cancelAllCalls)
         }
     }
 
@@ -260,7 +336,111 @@ class SettingsVMTest {
     }
 
     @Test
+    fun `saving SMB source persists its connection configuration without exposing password in state`() = runTest {
+        val storage = FakeStorageRepository()
+        val environment = TestEnvironment(storageRepository = storage)
+
+        withStartedViewModel(environment) { viewModel ->
+            viewModel.onAction(SettingsAction.OpenAddSmbDialog)
+            viewModel.onAction(SettingsAction.SetSmbDialogName("Home NAS"))
+            viewModel.onAction(SettingsAction.SetSmbDialogHost("nas.example.test"))
+            viewModel.onAction(SettingsAction.SetSmbDialogPort("1445"))
+            viewModel.onAction(SettingsAction.SetSmbDialogShare("Music"))
+            viewModel.onAction(SettingsAction.SetSmbDialogRootPath("Lossless"))
+            viewModel.onAction(SettingsAction.SetSmbDialogUsername("music"))
+            viewModel.onAction(SettingsAction.SetSmbDialogRequireSigning(true))
+            viewModel.onAction(SettingsAction.SaveSmbAccount("top-secret"))
+            advanceUntilIdle()
+
+            val draft = storage.upsertedDraft ?: error("SMB draft was not saved")
+            assertEquals(SourceEditorType.Smb, draft.storageType)
+            assertEquals("nas.example.test", draft.smbHost)
+            assertEquals(1445, draft.smbPort)
+            assertEquals("Music", draft.smbShare)
+            assertEquals("Lossless", draft.smbRootPath)
+            assertTrue(draft.smbRequireSigning)
+            assertEquals("top-secret", draft.secret)
+            assertNull(viewModel.state.value.smbDialog)
+            assertFalse(viewModel.state.value.toString().contains("top-secret"))
+        }
+    }
+
+    @Test
+    fun `local source is hidden until a music directory is selected`() = runTest {
+        val localAccountId = storageSourceAccountId(1L)
+        val storage = FakeStorageRepository().apply {
+            accounts.value = listOf(
+                sourceAccount(1L, BuiltInSourceIds.Local, "Local", 4),
+            )
+        }
+        val environment = TestEnvironment(storageRepository = storage)
+
+        withStartedViewModel(environment) { viewModel ->
+            assertTrue(viewModel.state.value.sourceAccounts.isEmpty())
+
+            environment.sourceSettings.localDirectories.value = listOf(
+                LocalMusicDirectory(
+                    id = "local-root",
+                    accountId = localAccountId,
+                    displayName = "Music",
+                    path = "/Music",
+                    lastScannedAtEpochMs = null,
+                ),
+            )
+            advanceUntilIdle()
+
+            assertEquals(
+                listOf("Local"),
+                viewModel.state.value.sourceAccounts.map(SourceAccountSettingsItem::title),
+            )
+        }
+    }
+
+    @Test
+    fun `local directory picker selection starts a local scan`() = runTest {
+        val sync = FakeLibrarySyncController()
+        val environment = TestEnvironment(librarySyncController = sync)
+
+        withStartedViewModel(environment) { viewModel ->
+            viewModel.onAction(SettingsAction.RequestAddLocalDirectory)
+            assertIs<SettingsEvent.OpenLibraryFolderPicker>(viewModel.eventFlow.first())
+
+            viewModel.onAction(SettingsAction.AddLocalDirectory("/Music/Albums"))
+            advanceUntilIdle()
+
+            val request = sync.requests.single()
+            assertEquals(storageSourceAccountId(1L), request.accountId)
+            assertEquals("/Music/Albums", request.selectedFolderCanonicalPath)
+            assertEquals("/Music/Albums", request.selectedFolderDisplayPath)
+        }
+    }
+
+    @Test
+    fun `local directory scan waits for storage permission`() = runTest {
+        val sync = FakeLibrarySyncController()
+        val permissionChecker = FakePermissionChecker(granted = false)
+        val environment = TestEnvironment(
+            librarySyncController = sync,
+            permissionChecker = permissionChecker,
+        )
+
+        withStartedViewModel(environment) { viewModel ->
+            viewModel.onAction(SettingsAction.AddLocalDirectory("/Music/Albums"))
+            advanceUntilIdle()
+
+            assertEquals(1, permissionChecker.requestCount)
+            assertTrue(sync.requests.isEmpty())
+
+            permissionChecker.grant()
+            advanceUntilIdle()
+
+            assertEquals("/Music/Albums", sync.requests.single().selectedFolderCanonicalPath)
+        }
+    }
+
+    @Test
     fun `home state uses real supported source counts and excludes unfinished providers`() = runTest {
+        val localAccountId = storageSourceAccountId(1L)
         val storage = FakeStorageRepository().apply {
             accounts.value = listOf(
                 sourceAccount(1L, BuiltInSourceIds.Local, "Local", 4),
@@ -275,7 +455,17 @@ class SettingsVMTest {
                 sourceAccount(3L, BuiltInSourceIds.OneDrive, "OneDrive", 99),
             )
         }
-        val environment = TestEnvironment(storageRepository = storage)
+        val environment = TestEnvironment(storageRepository = storage).apply {
+            sourceSettings.localDirectories.value = listOf(
+                LocalMusicDirectory(
+                    id = "local-root",
+                    accountId = localAccountId,
+                    displayName = "Music",
+                    path = "/Music",
+                    lastScannedAtEpochMs = null,
+                ),
+            )
+        }
         withStartedViewModel(environment) { viewModel ->
             assertEquals(listOf("Local", "DAV"), viewModel.state.value.sourceAccounts.map { it.title })
             assertEquals(2, viewModel.state.value.enabledSourceCount)
@@ -354,12 +544,14 @@ private class TestEnvironment(
     val settingsRepository: FakeSettingsRepository = FakeSettingsRepository(),
     val storageRepository: FakeStorageRepository = FakeStorageRepository(),
     val librarySyncController: FakeLibrarySyncController = FakeLibrarySyncController(),
+    val permissionChecker: FakePermissionChecker = FakePermissionChecker(),
 ) {
     val sourceSettings = FakeSourceSettingsRepository()
     val storageUsage = FakeStorageUsageRepository()
     val maintenance = FakeLibraryMaintenanceService()
     val appDataClear = FakeAppDataClearService()
     val toast = FakeToastRepository()
+    val playback = FakePlaybackController()
 
     fun createViewModel() = SettingsVM(
         settingsRepository = settingsRepository,
@@ -370,8 +562,9 @@ private class TestEnvironment(
         libraryMaintenanceService = maintenance,
         appDataClearService = appDataClear,
         toastRepository = toast,
-        importRepository = FakeImportRepository(),
+        permissionChecker = permissionChecker,
         librarySyncController = librarySyncController,
+        playbackController = playback,
         metadataRefreshController = FakeMetadataRefreshController(),
         audioDspAnalysisRepository = FakeAudioDspAnalysisRepository,
         capabilities = SettingsCapabilities(),
@@ -443,18 +636,18 @@ private class FakeSettingsRepository(initial: AppSettings = AppSettings.Default)
     override suspend fun setLyricTapToSeekEnabled(enabled: Boolean) =
         update { it.copy(lyrics = it.lyrics.copy(tapToSeekEnabled = enabled)) }
     override suspend fun setAutoScanMode(mode: AutoScanMode) = update { it.copy(autoScanMode = mode) }
-    override suspend fun setBackgroundScanEnabled(enabled: Boolean) = update { it.copy(backgroundScanEnabled = enabled) }
-    override suspend fun setScanOnlyOnUnmeteredNetwork(enabled: Boolean) = update { it.copy(scanOnlyOnUnmeteredNetwork = enabled) }
     override suspend fun setScanSubdirectories(enabled: Boolean) = update { it.copy(scanSubdirectories = enabled) }
     override suspend fun setWebDavMetadataScanMode(mode: MetadataScanMode) = update { it.copy(webDavMetadataScanMode = mode) }
     override suspend fun setMinimumAudioDurationMs(value: Long) = update { it.copy(minimumAudioDurationMs = value) }
     override suspend fun setMissingFilePolicy(policy: MissingFilePolicy) = update { it.copy(missingFilePolicy = policy) }
     override suspend fun setDuplicateTrackPolicy(policy: DuplicateTrackPolicy) = update { it.copy(duplicateTrackPolicy = policy) }
-    override suspend fun setAllowMeteredStreaming(enabled: Boolean) = update { it.copy(allowMeteredStreaming = enabled) }
-    override suspend fun setBackgroundSyncOnlyOnUnmeteredNetwork(enabled: Boolean) = update { it.copy(backgroundSyncOnlyOnUnmeteredNetwork = enabled) }
+    override suspend fun setAllowMeteredNetworkUsage(enabled: Boolean) =
+        update { it.copy(allowMeteredNetworkUsage = enabled) }
     override suspend fun setNetworkRetryCount(value: Int) = update { it.copy(networkRetryCount = value) }
     override suspend fun setConnectionTimeoutSeconds(value: Int) = update { it.copy(connectionTimeoutSeconds = value) }
     override suspend fun setAudioPreloadBytes(bytes: Long) = update { it.copy(audioPreloadBytes = bytes) }
+    override suspend fun setListenAndCacheEnabled(enabled: Boolean) =
+        update { it.copy(listenAndCacheEnabled = enabled) }
     override suspend fun setAudioCacheLimitBytes(bytes: Long) = update { it.copy(audioCacheLimitBytes = bytes) }
     override suspend fun setImageCacheLimitBytes(bytes: Long) = update { it.copy(imageCacheLimitBytes = bytes) }
     override suspend fun resetToDefaults() { values.value = AppSettings.Default }
@@ -462,8 +655,37 @@ private class FakeSettingsRepository(initial: AppSettings = AppSettings.Default)
 
 private class FakeSourceSettingsRepository : SourceSettingsRepository {
     override val localDirectories = MutableStateFlow<List<LocalMusicDirectory>>(emptyList())
+    val removedDirectoryIds = mutableListOf<String>()
     override suspend fun setAccountEnabled(accountId: SourceAccountId, enabled: Boolean) = Unit
-    override suspend fun removeLocalDirectory(id: String) = Unit
+    override suspend fun removeLocalDirectory(id: String) {
+        removedDirectoryIds += id
+    }
+}
+
+private class FakePlaybackController : PlaybackController {
+    override val state = MutableStateFlow(PlayerState())
+    override val position = MutableStateFlow(PlaybackPosition.Zero)
+    override val queue = MutableStateFlow(PlaybackQueue.Empty)
+    var clearQueueCalls = 0
+
+    override suspend fun play(items: List<PlayableItem>, startIndex: Int) = Unit
+    override fun play() = Unit
+    override fun pause() = Unit
+    override fun togglePlayPause() = Unit
+    override fun seekTo(positionMs: Long) = Unit
+    override fun skipNext() = Unit
+    override fun skipPrevious() = Unit
+    override fun enqueueNext(item: PlayableItem) = Unit
+    override fun setShuffle(enabled: Boolean) = Unit
+    override fun setRepeatMode(mode: RepeatMode) = Unit
+    override fun moveQueueItem(from: Int, to: Int) = Unit
+    override fun removeQueueItem(index: Int) = Unit
+
+    override fun clearQueue() {
+        clearQueueCalls += 1
+        state.value = PlayerState()
+        queue.value = PlaybackQueue.Empty
+    }
 }
 
 private class FakeStorageRepository : StorageRepository {
@@ -526,26 +748,32 @@ private class FakeToastRepository : ToastRepository {
     override fun emitToastRes(resId: Int) = Unit
 }
 
+private class FakePermissionChecker(
+    granted: Boolean = true,
+) : PermissionChecker {
+    private val permission = MutableStateFlow(granted)
+    override val havePermission: StateFlow<Boolean> = permission
+    var requestCount = 0
+
+    override fun requestStoragePermission() {
+        requestCount += 1
+    }
+
+    fun grant() {
+        permission.value = true
+    }
+}
+
 private class FakeDiagnosticsService : DiagnosticsService {
     override suspend fun collectDiagnostics(): DiagnosticsReport = error("not used")
     override suspend fun exportDiagnostics(): DiagnosticsExportResult = DiagnosticsExportResult.Success("diagnostics.txt")
-}
-
-private class FakeImportRepository : ImportRepository {
-    override val allowTypes = MutableStateFlow<List<SourceNodeType>>(emptyList())
-    override val selectionMode = MutableStateFlow(
-        io.github.julystar.musicapp.core.domain.model.ImportSelectionMode.Entries
-    )
-    override fun prepare(types: List<SourceNodeType>, block: (List<SourceNodeSelection>) -> Unit) = Unit
-    override fun prepareCurrentDirectory(block: (SourceDirectorySelection) -> Unit) = Unit
-    override fun onFinish(entries: List<SourceNodeSelection>) = Unit
-    override fun onFinishCurrentDirectory(selection: SourceDirectorySelection) = Unit
 }
 
 private class FakeLibrarySyncController : LibrarySyncController {
     override val recentTasks = MutableStateFlow<List<LibrarySyncTask>>(emptyList())
     val failuresByTask = mutableMapOf<String, MutableStateFlow<List<LibrarySyncFailure>>>()
     val requests = mutableListOf<LibrarySyncRequest>()
+    var cancelAllCalls = 0
     override fun observeFailures(taskId: String): Flow<List<LibrarySyncFailure>> =
         failuresByTask.getOrPut(taskId) { MutableStateFlow(emptyList()) }
     override suspend fun syncFolder(request: LibrarySyncRequest): LibrarySyncResult {
@@ -562,7 +790,9 @@ private class FakeLibrarySyncController : LibrarySyncController {
     }
     override suspend fun pause(scanId: String) = false
     override suspend fun cancel(scanId: String) = false
-    override suspend fun cancelAll() = Unit
+    override suspend fun cancelAll() {
+        cancelAllCalls += 1
+    }
     override suspend fun recoverInterruptedTasks() = 0
     override suspend fun resume(scanId: String): LibrarySyncResult? = null
     override suspend fun retry(scanId: String): LibrarySyncResult? = null

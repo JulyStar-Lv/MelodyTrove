@@ -28,7 +28,7 @@
     <string name="home_artists">艺术家</string>
     <string name="home_empty_title">音乐库为空</string>
     <string name="home_empty_message">添加音源或导入文件夹后，内容会显示在这里。</string>
-    <string name="home_open_library">打开音乐库</string>
+    <string name="home_add_source">添加音乐源</string>
     <string name="home_listening_tracks_played">听过的歌曲</string>
     <string name="home_listening_today">今天</string>
     <string name="home_listening_total_time">总时长</string>

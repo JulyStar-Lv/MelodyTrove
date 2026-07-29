@@ -27,13 +27,17 @@ import io.github.julystar.musicapp.core.domain.model.AppSettings
 import io.github.julystar.musicapp.core.domain.model.AudioFocusMode
 import io.github.julystar.musicapp.core.domain.model.ReplayGainMode
 import io.github.julystar.musicapp.core.domain.repository.ArtworkRepository
+import io.github.julystar.musicapp.core.domain.repository.FavoritesRepository
 import io.github.julystar.musicapp.core.domain.repository.SettingsRepository
 import io.github.julystar.musicapp.core.audio.RustDspAudioProcessor
 import io.github.julystar.musicapp.core.audio.TideTunesRenderersFactory
+import com.google.common.util.concurrent.Futures
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.ListenableFuture
 import io.github.julystar.musicapp.service.playback.data.PlayerRepository
 import io.github.julystar.musicapp.service.playback.data.toPlaybackArtwork
+import io.github.julystar.musicapp.service.playback.domain.PlaybackController
+import io.github.julystar.musicapp.service.playback.domain.RepeatMode
 import io.github.julystar.musicapp.singleton.RoomLibraryStore
 import io.github.julystar.musicapp.service.playback.data.PlaybackResourceResolver
 import io.github.julystar.musicapp.source.api.PlaybackResource
@@ -58,12 +62,16 @@ import kotlin.math.min
 
 const val PLAYER_TO_PREV_COMMAND = "PLAYER_TO_PREV_COMMAND";
 const val PLAYER_TO_NEXT_COMMAND = "PLAYER_TO_NEXT_COMMAND";
+const val PLAYER_TOGGLE_FAVORITE_COMMAND = "PLAYER_TOGGLE_FAVORITE_COMMAND";
+const val PLAYER_CYCLE_PLAYBACK_MODE_COMMAND = "PLAYER_CYCLE_PLAYBACK_MODE_COMMAND";
 
 
 
 class PlaybackService : MediaSessionService() {
     private val playerRepository: PlayerRepository by inject()
+    private val playbackController: PlaybackController by inject()
     private val artworkRepository: ArtworkRepository by inject()
+    private val favoritesRepository: FavoritesRepository by inject()
     private val settingsRepository: SettingsRepository by inject()
     private val bridge: Bridge by inject()
     private val roomLibraryStore: RoomLibraryStore by inject()
@@ -75,6 +83,12 @@ class PlaybackService : MediaSessionService() {
     private var lyricOutputController: AndroidLyricOutputController? = null
     private var dspAudioProcessor: RustDspAudioProcessor? = null
     private var currentSettings = AppSettings.Default
+    private var favoriteTrackIds: Set<Long> = emptySet()
+    private val previousCommand = SessionCommand(PLAYER_TO_PREV_COMMAND, Bundle.EMPTY)
+    private val nextCommand = SessionCommand(PLAYER_TO_NEXT_COMMAND, Bundle.EMPTY)
+    private val toggleFavoriteCommand = SessionCommand(PLAYER_TOGGLE_FAVORITE_COMMAND, Bundle.EMPTY)
+    private val cyclePlaybackModeCommand =
+        SessionCommand(PLAYER_CYCLE_PLAYBACK_MODE_COMMAND, Bundle.EMPTY)
 
     @OptIn(UnstableApi::class)
     override fun onCreate() {
@@ -125,13 +139,12 @@ class PlaybackService : MediaSessionService() {
                     controller: MediaSession.ControllerInfo
                 ): MediaSession.ConnectionResult {
                     if (session.isMediaNotificationController(controller)) {
-                        val customPrevCommand = SessionCommand(PLAYER_TO_PREV_COMMAND, Bundle.EMPTY)
-                        val customNextCommand = SessionCommand(PLAYER_TO_NEXT_COMMAND, Bundle.EMPTY)
-
                         val sessionCommands =
                             MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
-                                .add(customPrevCommand)
-                                .add(customNextCommand)
+                                .add(previousCommand)
+                                .add(nextCommand)
+                                .add(toggleFavoriteCommand)
+                                .add(cyclePlaybackModeCommand)
                                 .build()
                         val playerCommands =
                             MediaSession.ConnectionResult.DEFAULT_PLAYER_COMMANDS.buildUpon()
@@ -143,20 +156,9 @@ class PlaybackService : MediaSessionService() {
                                 .remove(Player.COMMAND_SEEK_FORWARD)
                                 .remove(Player.COMMAND_SEEK_TO_DEFAULT_POSITION)
                                 .build()
-                        // Custom layout and available commands to configure the legacy/framework session.
+                        // Media button preferences and commands configure the notification session.
                         return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
-                            .setCustomLayout(
-                                ImmutableList.of(
-                                    CommandButton.Builder(CommandButton.ICON_PREVIOUS)
-                                        .setSessionCommand(customPrevCommand)
-                                        .setDisplayName("Previous")
-                                        .build(),
-                                    CommandButton.Builder(CommandButton.ICON_NEXT)
-                                        .setSessionCommand(customNextCommand)
-                                        .setDisplayName("Next")
-                                        .build(),
-                                )
-                            )
+                            .setMediaButtonPreferences(buildMediaButtonPreferences(session.player))
                             .setAvailablePlayerCommands(playerCommands)
                             .setAvailableSessionCommands(sessionCommands)
                             .build()
@@ -170,12 +172,25 @@ class PlaybackService : MediaSessionService() {
                     customCommand: SessionCommand,
                     args: Bundle
                 ): ListenableFuture<SessionResult> {
-                    if (customCommand.customAction == PLAYER_TO_PREV_COMMAND) {
-                        playPrevious()
-                    } else if (customCommand.customAction == PLAYER_TO_NEXT_COMMAND) {
-                        playNext()
+                    return when (customCommand.customAction) {
+                        PLAYER_TO_PREV_COMMAND -> {
+                            playPrevious()
+                            Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                        }
+                        PLAYER_TO_NEXT_COMMAND -> {
+                            playNext()
+                            Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                        }
+                        PLAYER_TOGGLE_FAVORITE_COMMAND -> {
+                            toggleCurrentFavorite()
+                            Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                        }
+                        PLAYER_CYCLE_PLAYBACK_MODE_COMMAND -> {
+                            cyclePlaybackMode()
+                            Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                        }
+                        else -> super.onCustomCommand(session, controller, customCommand, args)
                     }
-                    return super.onCustomCommand(session, controller, customCommand, args)
                 }
             })
             .build()
@@ -230,6 +245,19 @@ class PlaybackService : MediaSessionService() {
                 audioFocusController?.updateMode(settings.audioFocusMode)
                 player.setHandleAudioBecomingNoisy(settings.pauseOnDisconnect)
                 updateAudioDsp(settings)
+            }
+        }
+
+        serviceScope.launch(Dispatchers.Main) {
+            favoritesRepository.favoriteTrackIds.collect { trackIds ->
+                favoriteTrackIds = trackIds
+                updateMediaButtonPreferences()
+            }
+        }
+
+        serviceScope.launch(Dispatchers.Main) {
+            playbackController.state.collect {
+                updateMediaButtonPreferences()
             }
         }
 
@@ -388,6 +416,91 @@ class PlaybackService : MediaSessionService() {
         if (m != null && p != null) {
             play(m, p)
         }
+    }
+
+    @OptIn(UnstableApi::class)
+    private fun buildMediaButtonPreferences(player: Player): ImmutableList<CommandButton> {
+        val playbackState = playbackController.state.value
+        val isFavorite = playbackState.currentItem?.libraryTrackId
+            ?.let(favoriteTrackIds::contains) == true
+        val playbackModeButton = when {
+            playbackState.shuffleEnabled -> CommandButton.ICON_SHUFFLE_ON to
+                R.string.notification_playback_mode_shuffle
+            playbackState.repeatMode == RepeatMode.One -> CommandButton.ICON_REPEAT_ONE to
+                R.string.notification_playback_mode_repeat_one
+            playbackState.repeatMode == RepeatMode.All -> CommandButton.ICON_REPEAT_ALL to
+                R.string.notification_playback_mode_repeat_all
+            else -> CommandButton.ICON_REPEAT_OFF to
+                R.string.notification_playback_mode_repeat_off
+        }
+
+        return ImmutableList.of(
+            CommandButton.Builder(
+                if (isFavorite) CommandButton.ICON_HEART_FILLED else CommandButton.ICON_HEART_UNFILLED
+            )
+                .setSessionCommand(toggleFavoriteCommand)
+                .setDisplayName(
+                    getString(
+                        if (isFavorite) {
+                            R.string.notification_remove_favorite
+                        } else {
+                            R.string.notification_add_favorite
+                        }
+                    )
+                )
+                .build(),
+            CommandButton.Builder(CommandButton.ICON_PREVIOUS)
+                .setSessionCommand(previousCommand)
+                .setDisplayName(getString(R.string.notification_previous))
+                .build(),
+            CommandButton.Builder(
+                if (player.isPlaying) CommandButton.ICON_PAUSE else CommandButton.ICON_PLAY
+            )
+                .setPlayerCommand(COMMAND_PLAY_PAUSE)
+                .setDisplayName(
+                    getString(
+                        if (player.isPlaying) {
+                            R.string.notification_pause
+                        } else {
+                            R.string.notification_play
+                        }
+                    )
+                )
+                .build(),
+            CommandButton.Builder(CommandButton.ICON_NEXT)
+                .setSessionCommand(nextCommand)
+                .setDisplayName(getString(R.string.notification_next))
+                .build(),
+            CommandButton.Builder(playbackModeButton.first)
+                .setSessionCommand(cyclePlaybackModeCommand)
+                .setDisplayName(getString(playbackModeButton.second))
+                .build(),
+        )
+    }
+
+    @OptIn(UnstableApi::class)
+    private fun updateMediaButtonPreferences() {
+        val session = _mediaSession ?: return
+        session.setMediaButtonPreferences(buildMediaButtonPreferences(session.player))
+    }
+
+    private fun toggleCurrentFavorite() {
+        val trackId = playbackController.state.value.currentItem?.libraryTrackId ?: return
+        serviceScope.launch {
+            favoritesRepository.toggleFavorite(trackId)
+        }
+    }
+
+    private fun cyclePlaybackMode() {
+        val playbackState = playbackController.state.value
+        val (repeatMode, shuffleEnabled) = when {
+            playbackState.shuffleEnabled -> RepeatMode.One to false
+            playbackState.repeatMode == RepeatMode.One -> RepeatMode.All to false
+            playbackState.repeatMode == RepeatMode.All -> RepeatMode.All to true
+            else -> RepeatMode.All to false
+        }
+        playbackController.setShuffle(shuffleEnabled)
+        playbackController.setRepeatMode(repeatMode)
     }
 }
 

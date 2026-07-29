@@ -65,6 +65,7 @@ class ManualMetadataServiceTest {
         )
         assertEquals("LRC", entity.format)
         assertEquals(true, entity.synchronized)
+        assertEquals("ExternalWordTimed", entity.sourceKind)
     }
 
     @Test
@@ -122,6 +123,7 @@ class ManualMetadataServiceTest {
         val line = entity.toPlaybackLyrics().lines.single()
 
         assertEquals("TTML", entity.format)
+        assertEquals("ExternalTtml", entity.sourceKind)
         assertEquals("Hello world", line.text)
         assertEquals(2, line.words.size)
     }

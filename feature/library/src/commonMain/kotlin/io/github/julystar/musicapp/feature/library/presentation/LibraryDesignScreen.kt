@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -19,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -49,7 +49,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -90,15 +89,6 @@ import musicapp.core.presentation.generated.resources.icon_pin
 import musicapp.core.presentation.generated.resources.icon_pin_filled
 import musicapp.core.presentation.generated.resources.icon_search
 import musicapp.core.presentation.generated.resources.icon_vertialcal_more
-import musicapp.feature.home.generated.resources.Res as HomeRes
-import musicapp.feature.home.generated.resources.home_cover_1
-import musicapp.feature.home.generated.resources.home_cover_2
-import musicapp.feature.home.generated.resources.home_cover_3
-import musicapp.feature.home.generated.resources.home_cover_4
-import musicapp.feature.home.generated.resources.home_cover_5
-import musicapp.feature.home.generated.resources.home_cover_6
-import musicapp.feature.home.generated.resources.home_cover_7
-import musicapp.feature.home.generated.resources.home_cover_8
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -497,6 +487,7 @@ private fun LazyListScope.LibraryCategoryItems(
     onArtistLetterChange: (String?) -> Unit,
     showPlaylistMetadata: Boolean,
 ) = with(state) {
+    val libraryHasTracks = hasIndexedTracks
     val favoriteTracks = favorites.dataOrNull.orEmpty()
     val tracksForCategory = getTracksForCategory(selectedCategory, tracks, favoriteTracks)
     val filteredTracks = tracksForCategory
@@ -508,22 +499,18 @@ private fun LazyListScope.LibraryCategoryItems(
     val favoriteTrackIds = favoriteTracks.mapTo(mutableSetOf()) { it.id }
     val albumCards = albums
         .take(24)
-        .mapIndexed { index, album ->
+        .map { album ->
             LibraryAlbumCardItem(
                 id = album.id,
                 title = album.name,
                 year = album.year,
-                cover = designAlbumCards[index % designAlbumCards.size].cover,
             )
         }
-        .ifEmpty { designAlbumCards }
     val artistRows = artists
         .map { artist -> LibraryArtistRowItem(id = artist.id, name = artist.name) }
-        .ifEmpty { designArtistRows }
     val genreCards = genreNames.dataOrNull
         .orEmpty()
         .map { genre -> LibraryGenreCardItem(name = genre) }
-        .ifEmpty { designGenreCards }
 
     val isSongTab = selectedCategory in songLibraryCategories
 
@@ -534,9 +521,9 @@ private fun LazyListScope.LibraryCategoryItems(
             metadata = libraryMetadata(
                 category = selectedCategory,
                 state = state,
-                albumCount = albumCards.size,
-                artistCount = artistRows.size,
-                genreCount = genreCards.size,
+                albumCount = if (libraryHasTracks) albumCards.size else 0,
+                artistCount = if (libraryHasTracks) artistRows.size else 0,
+                genreCount = if (libraryHasTracks) genreCards.size else 0,
             ),
             showShuffle = isSongTab && filteredTracks.isNotEmpty() && showPlaylistMetadata,
             showPlayAll = isSongTab && filteredTracks.isNotEmpty(),
@@ -622,29 +609,41 @@ private fun LazyListScope.LibraryCategoryItems(
 
         LibraryDesignCategory.Albums -> {
             item {
-                LibraryAlbumGrid(
-                    albums = albumCards,
-                    onOpenAlbum = { onNavigateToAlbum(it.id) },
-                )
+                if (!libraryHasTracks || albumCards.isEmpty()) {
+                    LibraryCategoryEmptyCard(LibraryDesignCategory.Albums)
+                } else {
+                    LibraryAlbumGrid(
+                        albums = albumCards,
+                        onOpenAlbum = { onNavigateToAlbum(it.id) },
+                    )
+                }
             }
         }
 
         LibraryDesignCategory.Artists -> {
             item {
-                LibraryArtistGrouped(
-                    artists = artistRows,
-                    activeLetter = activeArtistLetter,
-                    onLetterChange = onArtistLetterChange,
-                    onOpenArtist = { onNavigateToArtist(it.id) },
-                )
+                if (!libraryHasTracks || artistRows.isEmpty()) {
+                    LibraryCategoryEmptyCard(LibraryDesignCategory.Artists)
+                } else {
+                    LibraryArtistGrouped(
+                        artists = artistRows,
+                        activeLetter = activeArtistLetter,
+                        onLetterChange = onArtistLetterChange,
+                        onOpenArtist = { onNavigateToArtist(it.id) },
+                    )
+                }
             }
         }
 
         LibraryDesignCategory.Genres -> item {
-            LibraryGenreGrid(
-                genres = genreCards,
-                onOpenGenre = { genre -> onAction(LibraryAction.SelectGenre(genre.name)) },
-            )
+            if (!libraryHasTracks || genreCards.isEmpty()) {
+                LibraryCategoryEmptyCard(LibraryDesignCategory.Genres)
+            } else {
+                LibraryGenreGrid(
+                    genres = genreCards,
+                    onOpenGenre = { genre -> onAction(LibraryAction.SelectGenre(genre.name)) },
+                )
+            }
         }
 
         LibraryDesignCategory.Folders -> item {
@@ -1142,21 +1141,12 @@ private fun AlbumCard(
                 .background(libraryArtworkBrush(index)),
             contentAlignment = Alignment.Center,
         ) {
-            if (album.cover != null) {
-                Image(
-                    painter = painterResource(album.cover),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            } else {
-                Text(
-                    text = album.title.take(2).uppercase(),
-                    color = Color.White.copy(alpha = 0.5f),
-                    style = MiuixTheme.textStyles.title1,
-                    fontWeight = FontWeight.Bold,
-                )
-            }
+            Text(
+                text = album.title.take(2).uppercase(),
+                color = Color.White.copy(alpha = 0.5f),
+                style = MiuixTheme.textStyles.title1,
+                fontWeight = FontWeight.Bold,
+            )
         }
         Spacer(modifier = Modifier.height(12.dp))
         Text(
@@ -1396,16 +1386,8 @@ private fun PlaylistListView(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    if (playlist.designCover != null) {
-                        Image(
-                            painter = painterResource(playlist.designCover),
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(56.dp)
-                                .shadow(3.dp, RoundedCornerShape(12.dp))
-                                .clip(RoundedCornerShape(12.dp)),
-                        )
+                    if (playlist.isFavorites) {
+                        FavoritesPlaylistArtwork()
                     } else {
                         ArtworkImage(
                             modifier = Modifier
@@ -1499,6 +1481,52 @@ private fun PlaylistListView(
     }
 }
 
+@Composable
+private fun FavoritesPlaylistArtwork() {
+    val shape = RoundedCornerShape(12.dp)
+    val primary = MiuixTheme.colorScheme.primary
+    Box(
+        modifier = Modifier
+            .size(56.dp)
+            .clip(shape)
+            .background(
+                Brush.linearGradient(
+                    colors = listOf(
+                        MiuixTheme.colorScheme.tertiaryContainer,
+                        MiuixTheme.colorScheme.surfaceVariant,
+                    ),
+                ),
+            )
+            .border(1.dp, primary.copy(alpha = 0.16f), shape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painter = painterResource(CoreRes.drawable.icon_heart_filled),
+            contentDescription = null,
+            tint = primary.copy(alpha = 0.14f),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .offset(x = 10.dp, y = 10.dp)
+                .size(54.dp),
+        )
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .clip(CircleShape)
+                .background(primary.copy(alpha = 0.14f))
+                .border(1.dp, primary.copy(alpha = 0.26f), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(CoreRes.drawable.icon_heart_filled),
+                contentDescription = null,
+                tint = primary,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+    }
+}
+
 // ── Empty Content ──
 
 @Composable
@@ -1563,6 +1591,16 @@ private fun LibraryEmptyContent(
     }
 }
 
+@Composable
+private fun LibraryCategoryEmptyCard(category: LibraryDesignCategory) {
+    DesignCardSurface(contentPadding = PaddingValues(24.dp)) {
+        LibraryEmptyContent(
+            title = "No ${category.label.lowercase()}",
+            message = category.emptyMessage,
+        )
+    }
+}
+
 // ── Metadata ──
 
 private fun libraryMetadata(
@@ -1582,7 +1620,7 @@ private fun libraryMetadata(
         LibraryDesignCategory.Genres -> "$genreCount genres"
         LibraryDesignCategory.Folders -> "Import a music folder"
         LibraryDesignCategory.Playlists -> {
-            val playlistCount = if (state.playlists.isEmpty()) designPlaylistRows.size else state.playlists.size + 1
+            val playlistCount = state.playlists.size + 1
             "$playlistCount playlists · Long press to edit"
         }
         LibraryDesignCategory.Downloads -> "Available offline"
@@ -1639,22 +1677,18 @@ private fun List<PlaylistSummary>.toLibraryPlaylistRows(
         description = "Your liked songs",
         musicCount = favoriteTracks.size.toLong(),
         durationLabel = formatPlaylistDuration(favoriteTracks.sumOf { it.durationMs ?: 0L }),
-        designCover = HomeRes.drawable.home_cover_1,
+        isFavorites = true,
         isInitiallyPinned = true,
     )
-    val playlistRows = if (isEmpty()) {
-        designPlaylistRows.drop(1)
-    } else {
-        map { playlist ->
-            LibraryPlaylistRowItem(
-                key = "playlist-${playlist.id}",
-                title = playlist.title,
-                description = playlist.compactMetadata(),
-                musicCount = playlist.musicCount,
-                durationLabel = formatPlaylistDuration(playlist.durationMs),
-                summary = playlist,
-            )
-        }
+    val playlistRows = map { playlist ->
+        LibraryPlaylistRowItem(
+            key = "playlist-${playlist.id}",
+            title = playlist.title,
+            description = playlist.compactMetadata(),
+            musicCount = playlist.musicCount,
+            durationLabel = formatPlaylistDuration(playlist.durationMs),
+            summary = playlist,
+        )
     }
 
     return listOf(favoritesRow) + playlistRows
@@ -1698,7 +1732,6 @@ private data class LibraryAlbumCardItem(
     val title: String,
     val artist: String? = null,
     val year: Int? = null,
-    val cover: DrawableResource? = null,
 )
 
 private data class LibraryArtistRowItem(
@@ -1719,104 +1752,11 @@ private data class LibraryPlaylistRowItem(
     val musicCount: Long,
     val durationLabel: String,
     val summary: PlaylistSummary? = null,
-    val designCover: DrawableResource? = null,
+    val isFavorites: Boolean = false,
     val isInitiallyPinned: Boolean = false,
 )
 
 private const val FavoritesPlaylistKey = "favorites"
-
-private val designAlbumCards = listOf(
-    LibraryAlbumCardItem(1L, "Tidal Drift", "Luna Waves", 2024, HomeRes.drawable.home_cover_1),
-    LibraryAlbumCardItem(2L, "Voltage Dreams", "Prism Circuit", 2024, HomeRes.drawable.home_cover_2),
-    LibraryAlbumCardItem(3L, "Open Water", "Coastal Drift", 2023, HomeRes.drawable.home_cover_3),
-    LibraryAlbumCardItem(4L, "Northern Lights", "Polar Echo", 2024, HomeRes.drawable.home_cover_4),
-    LibraryAlbumCardItem(5L, "Subsonic", "Ocean Syntax", 2023, HomeRes.drawable.home_cover_5),
-    LibraryAlbumCardItem(6L, "Glass Architecture", "Fractal Mind", 2024, HomeRes.drawable.home_cover_6),
-    LibraryAlbumCardItem(7L, "Quantum", "Wave Function", 2024, HomeRes.drawable.home_cover_7),
-    LibraryAlbumCardItem(8L, "Between", "Threshold", 2023, HomeRes.drawable.home_cover_8),
-)
-
-private val designArtistRows = listOf(
-    LibraryArtistRowItem(1L, "Luna Waves", "Electronic"),
-    LibraryArtistRowItem(2L, "Prism Circuit", "Synthwave"),
-    LibraryArtistRowItem(3L, "Coastal Drift", "Ambient"),
-    LibraryArtistRowItem(4L, "Polar Echo", "IDM"),
-    LibraryArtistRowItem(5L, "Ocean Syntax", "Techno"),
-    LibraryArtistRowItem(6L, "Fractal Mind", "Post-Rock"),
-)
-
-private val designGenreCards = listOf(
-    LibraryGenreCardItem("Electronic", 6),
-    LibraryGenreCardItem("Ambient", 13),
-    LibraryGenreCardItem("Synthwave", 20),
-    LibraryGenreCardItem("Techno", 8),
-    LibraryGenreCardItem("IDM", 15),
-    LibraryGenreCardItem("Post-Rock", 22),
-    LibraryGenreCardItem("Shoegaze", 10),
-    LibraryGenreCardItem("Experimental", 17),
-    LibraryGenreCardItem("Jazz", 24),
-    LibraryGenreCardItem("Classical", 12),
-)
-
-private val designPlaylistRows = listOf(
-    LibraryPlaylistRowItem(
-        key = "design-favorites",
-        title = "My Favorites",
-        description = "Your liked songs",
-        musicCount = 4,
-        durationLabel = "14m 22s",
-        designCover = HomeRes.drawable.home_cover_1,
-        isInitiallyPinned = true,
-    ),
-    LibraryPlaylistRowItem(
-        key = "design-evening-frequencies",
-        title = "Evening Frequencies",
-        description = "Deep electronic for golden hour",
-        musicCount = 24,
-        durationLabel = "1h 32m",
-        designCover = HomeRes.drawable.home_cover_1,
-    ),
-    LibraryPlaylistRowItem(
-        key = "design-spatial-audio-mix",
-        title = "Spatial Audio Mix",
-        description = "Hi-Res Dolby Atmos collection",
-        musicCount = 18,
-        durationLabel = "1h 08m",
-        designCover = HomeRes.drawable.home_cover_2,
-    ),
-    LibraryPlaylistRowItem(
-        key = "design-deep-focus",
-        title = "Deep Focus",
-        description = "Minimal ambient for concentration",
-        musicCount = 32,
-        durationLabel = "2h 15m",
-        designCover = HomeRes.drawable.home_cover_3,
-    ),
-    LibraryPlaylistRowItem(
-        key = "design-night-drive",
-        title = "Night Drive",
-        description = "Synthwave for late-night cruising",
-        musicCount = 20,
-        durationLabel = "1h 22m",
-        designCover = HomeRes.drawable.home_cover_4,
-    ),
-    LibraryPlaylistRowItem(
-        key = "design-sunrise-protocol",
-        title = "Sunrise Protocol",
-        description = "Gentle morning electronic",
-        musicCount = 16,
-        durationLabel = "58m",
-        designCover = HomeRes.drawable.home_cover_5,
-    ),
-    LibraryPlaylistRowItem(
-        key = "design-system-override",
-        title = "System Override",
-        description = "High-energy techno and industrial",
-        musicCount = 28,
-        durationLabel = "1h 45m",
-        designCover = HomeRes.drawable.home_cover_6,
-    ),
-)
 
 private enum class LibraryDesignCategory(
     val label: String,

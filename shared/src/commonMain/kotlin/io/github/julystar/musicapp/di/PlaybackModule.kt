@@ -1,10 +1,14 @@
 package io.github.julystar.musicapp.di
 
+import io.github.julystar.musicapp.platform.getAppCacheDir
 import io.github.julystar.musicapp.plugin.management.ManualMetadataService
+import io.github.julystar.musicapp.plugin.management.PlaybackLyricsEnricher
 import io.github.julystar.musicapp.service.playback.data.LegacyPlaybackController
 import io.github.julystar.musicapp.service.playback.data.LegacyNowPlayingRepository
 import io.github.julystar.musicapp.service.playback.data.LegacyPlaylistPlaybackSync
+import io.github.julystar.musicapp.service.playback.data.PlaybackAudioCache
 import io.github.julystar.musicapp.service.playback.data.PlaybackResourceResolver
+import io.github.julystar.musicapp.service.playback.data.PersistentPlaybackAudioCache
 import io.github.julystar.musicapp.service.playback.data.PlayerController
 import io.github.julystar.musicapp.service.playback.data.PlayerRepository
 import io.github.julystar.musicapp.service.playback.domain.NowPlayingRepository
@@ -17,13 +21,21 @@ import org.koin.dsl.module
 val playbackModule = module {
     includes(playbackPresentationModule)
 
-    single { PlaybackResourceResolver(get(), get(), get(), get()) }
-    single { PlayerRepository(get(), get(), get(), get(), get(), get()) }
+    single<PlaybackAudioCache> {
+        PersistentPlaybackAudioCache(
+            settingsRepository = get(),
+            cacheDirectory = getAppCacheDir(),
+        )
+    }
+    single { PlaybackResourceResolver(get(), get(), get(), get(), get()) }
+    single { PlaybackLyricsEnricher(get(), get(), get(), get(), get()) }
+    single { PlayerRepository(get(), get(), get(), get(), get(), get(), get()) }
     single { ManualMetadataService(get(), get(), get(), get(), get(), get()) }
     single<PlaybackController> {
         LegacyPlaybackController(
             playerRepository = get(),
             legacyController = get(),
+            roomLibraryStore = get(),
             scope = get(),
             settingsRepository = get(),
         )

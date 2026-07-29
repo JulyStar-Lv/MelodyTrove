@@ -8,9 +8,10 @@
     <string name="import_musics_error_authentication_desc">The username or password is wrong. Please check the username and password in the configuration.</string>
     <string name="import_musics_error_timeout_desc">Connect timeout. Please try again.</string>
     <string name="import_musics_error_unknown_desc">Unknown error. Please try again.</string>
-    <string name="import_musics_error_permission_desc">Need permission. Tap to request permission.</string>
+    <string name="import_musics_error_permission_desc">Allow access to browse and choose a local music folder.</string>
+    <string name="import_musics_error_permission_action">Allow access</string>
     <string name="import_musics_error_authentication_title">AUTHENTICATION FAIL</string>
     <string name="import_musics_error_timeout_title">CONNECTION TIMEOUT</string>
     <string name="import_musics_error_unknown_title">UNKNOWN ERROR</string>
-    <string name="import_musics_error_permission_title">PERMISSION ERROR</string>
+    <string name="import_musics_error_permission_title">Music access is required</string>
 </resources>

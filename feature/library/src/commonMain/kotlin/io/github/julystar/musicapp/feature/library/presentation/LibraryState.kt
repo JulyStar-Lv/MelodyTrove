@@ -58,6 +58,9 @@ data class LibraryState(
     val downloadsFilter: FilterCriteria.DownloadsFilter = FilterCriteria.DownloadsFilter(),
 )
 
+internal val LibraryState.hasIndexedTracks: Boolean
+    get() = tracks.isNotEmpty()
+
 // ── Actions ──
 
 sealed interface LibraryAction {

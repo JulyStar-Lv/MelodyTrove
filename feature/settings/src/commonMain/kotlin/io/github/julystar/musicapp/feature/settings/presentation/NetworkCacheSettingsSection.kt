@@ -21,13 +21,15 @@ fun NetworkCacheSettingsSection(
     ) {
         if (capabilities.networkStatusSupported || capabilities.backgroundScanSupported) {
             SettingsSection(title = stringResource(Res.string.settings_network_section)) {
+                SettingsSwitchRow(
+                    title = stringResource(Res.string.settings_allow_mobile_network),
+                    summary = stringResource(Res.string.settings_allow_mobile_network_summary),
+                    checked = settings.allowMeteredNetworkUsage,
+                    onCheckedChange = {
+                        onAction(SettingsAction.SetAllowMeteredNetworkUsage(it))
+                    },
+                )
                 if (capabilities.networkStatusSupported) {
-                    SettingsSwitchRow(
-                        title = stringResource(Res.string.settings_metered_streaming),
-                        summary = stringResource(Res.string.settings_metered_streaming_summary),
-                        checked = settings.allowMeteredStreaming,
-                        onCheckedChange = { onAction(SettingsAction.SetAllowMeteredStreaming(it)) },
-                    )
                     SettingsSwitchRow(
                         title = stringResource(Res.string.settings_resume_network),
                         summary = stringResource(Res.string.settings_resume_network_summary),
@@ -37,20 +39,18 @@ fun NetworkCacheSettingsSection(
                         },
                     )
                 }
-                if (capabilities.backgroundScanSupported) {
-                    SettingsSwitchRow(
-                        title = stringResource(Res.string.settings_background_sync_unmetered),
-                        summary = stringResource(Res.string.settings_background_sync_unmetered_summary),
-                        checked = settings.backgroundSyncOnlyOnUnmeteredNetwork,
-                        onCheckedChange = {
-                            onAction(SettingsAction.SetBackgroundSyncOnlyOnUnmeteredNetwork(it))
-                        },
-                    )
-                }
             }
         }
 
         SettingsSection(title = stringResource(Res.string.settings_audio_cache_section)) {
+            SettingsSwitchRow(
+                title = stringResource(Res.string.settings_listen_and_cache),
+                summary = stringResource(Res.string.settings_listen_and_cache_summary),
+                checked = settings.listenAndCacheEnabled,
+                onCheckedChange = {
+                    onAction(SettingsAction.SetListenAndCacheEnabled(it))
+                },
+            )
             CacheLimitChoices(
                 currentBytes = settings.audioCacheLimitBytes,
                 presets = AUDIO_CACHE_LIMIT_PRESETS_BYTES,

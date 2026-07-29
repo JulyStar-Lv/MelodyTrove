@@ -66,7 +66,6 @@ import io.github.julystar.musicapp.core.lyrics.ui.LyricsView
 import io.github.julystar.musicapp.core.presentation.components.DesignContextMenu
 import io.github.julystar.musicapp.core.presentation.components.DesignContextMenuItem
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButton
-import io.github.julystar.musicapp.core.presentation.components.DesignIconButtonColors
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButtonSize
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButtonVariant
 import io.github.julystar.musicapp.core.presentation.components.DesignPlayerControlButton
@@ -78,6 +77,7 @@ import io.github.julystar.musicapp.core.presentation.components.DesignTextButton
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonVariant
 import io.github.julystar.musicapp.core.presentation.components.dropShadow
 import io.github.julystar.musicapp.core.presentation.media.ArtworkImage
+import io.github.julystar.musicapp.core.presentation.platform.LocalDesktopTitleBarInset
 import io.github.julystar.musicapp.core.presentation.theme.DesignFontFamilies
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import io.github.julystar.musicapp.core.utils.toMusicDurationMs
@@ -94,11 +94,6 @@ import musicapp.service.playback.presentation.generated.resources.icon_back
 import musicapp.service.playback.presentation.generated.resources.icon_heart_compact
 import musicapp.service.playback.presentation.generated.resources.icon_heart_compact_filled
 import musicapp.service.playback.presentation.generated.resources.icon_lyrics
-import musicapp.service.playback.presentation.generated.resources.icon_pause
-import musicapp.service.playback.presentation.generated.resources.icon_play
-import musicapp.service.playback.presentation.generated.resources.icon_play_next
-import musicapp.service.playback.presentation.generated.resources.icon_play_previous
-import musicapp.service.playback.presentation.generated.resources.icon_timelapse
 import musicapp.service.playback.presentation.generated.resources.icon_more_compact
 import musicapp.service.playback.presentation.generated.resources.icon_transport_next
 import musicapp.service.playback.presentation.generated.resources.icon_transport_pause
@@ -143,8 +138,6 @@ private val DesktopPlayerBreakpoint = 860.dp
 
 @Composable
 private fun MusicPlayerHeader(
-    hasLyric: Boolean,
-    nowPlayingState: NowPlayingState,
     onAction: (NowPlayingAction) -> Unit,
 ) {
     Row(
@@ -166,11 +159,7 @@ private fun MusicPlayerHeader(
             style = MiuixTheme.textStyles.footnote1,
             fontWeight = FontWeight.Bold,
         )
-        NowPlayingMoreButton(
-            hasLyric = hasLyric,
-            nowPlayingState = nowPlayingState,
-            onAction = onAction,
-        )
+        Spacer(modifier = Modifier.size(36.dp))
     }
 }
 
@@ -568,113 +557,6 @@ private fun TrackInformation(
     }
 }
 
-// ── Five-Button Transport ──
-
-@Composable
-private fun TransportPanel(
-    nowPlayingState: NowPlayingState,
-    isSleepTimerEnabled: Boolean,
-    onAction: (NowPlayingAction) -> Unit,
-    lightTheme: Boolean = false,
-    compact: Boolean = false,
-    dense: Boolean = false,
-) {
-    val controls = nowPlayingState.controls
-    val queue = nowPlayingState.queue
-    if (compact) {
-        CompactTransportPanel(
-            nowPlayingState = nowPlayingState,
-            onAction = onAction,
-            dense = dense,
-        )
-        return
-    }
-
-    val iconTint = if (lightTheme) Color.White.copy(alpha = 0.90f) else MiuixTheme.colorScheme.onSurface
-    val dimTint = if (lightTheme) Color.White.copy(alpha = 0.45f) else MiuixTheme.colorScheme.onSurfaceVariantActions
-    val accentTint = if (lightTheme) Color.White else MiuixTheme.colorScheme.primary
-    val primaryButtonColor = if (lightTheme) Color.White else MiuixTheme.colorScheme.onSurface
-    val primaryIconTint = if (lightTheme) Color(0xFF06040E) else MiuixTheme.colorScheme.background
-    val primaryButtonSize = 62.dp
-    val primaryIconSize = 24.dp
-    val repeatDrawable: DrawableResource = when (controls.repeatMode) {
-        RepeatMode.Off -> Res.drawable.icon_transport_repeat
-        RepeatMode.One -> Res.drawable.icon_transport_repeat_one
-        RepeatMode.All -> Res.drawable.icon_transport_repeat
-    }
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        DesignIconButton(
-            size = DesignIconButtonSize.Touch,
-            variant = DesignIconButtonVariant.Default,
-            painter = painterResource(Res.drawable.icon_timelapse),
-            colors = DesignIconButtonColors(
-                iconTint = if (isSleepTimerEnabled) {
-                    accentTint
-                } else {
-                    dimTint
-                },
-                buttonBg = Color.Transparent,
-            ),
-            onClick = { onAction(NowPlayingAction.OpenSleepTimer) },
-        )
-        // Previous
-        DesignIconButton(
-            size = DesignIconButtonSize.Touch,
-            variant = DesignIconButtonVariant.Default,
-            painter = painterResource(Res.drawable.icon_play_previous),
-            enabled = queue.canPlayPrevious,
-            colors = DesignIconButtonColors(iconTint = iconTint, buttonBg = Color.Transparent),
-            onClick = { onAction(NowPlayingAction.PlayPrevious) },
-        )
-        // Play/Pause (larger)
-        Box(
-            modifier = Modifier
-                .size(primaryButtonSize)
-                .clip(CircleShape)
-                .background(primaryButtonColor)
-                .clickable(enabled = controls.isPlaying || !controls.isLoading) {
-                    onAction(if (controls.isPlaying) NowPlayingAction.Pause else NowPlayingAction.Resume)
-                },
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(
-                    if (controls.isPlaying) Res.drawable.icon_pause else Res.drawable.icon_play,
-                ),
-                contentDescription = stringResource(
-                    if (controls.isPlaying) Res.string.player_pause else Res.string.player_play
-                ),
-                tint = primaryIconTint,
-                modifier = Modifier.size(primaryIconSize),
-            )
-        }
-        // Next
-        DesignIconButton(
-            size = DesignIconButtonSize.Touch,
-            variant = DesignIconButtonVariant.Default,
-            painter = painterResource(Res.drawable.icon_play_next),
-            enabled = queue.canPlayNext,
-            colors = DesignIconButtonColors(iconTint = iconTint, buttonBg = Color.Transparent),
-            onClick = { onAction(NowPlayingAction.PlayNext) },
-        )
-        DesignIconButton(
-            size = DesignIconButtonSize.Touch,
-            variant = DesignIconButtonVariant.Default,
-            painter = painterResource(repeatDrawable),
-            colors = DesignIconButtonColors(
-                iconTint = if (controls.repeatMode != RepeatMode.Off) accentTint else dimTint,
-                buttonBg = Color.Transparent,
-            ),
-            onClick = { onAction(NowPlayingAction.CycleRepeatMode) },
-        )
-    }
-}
-
 @Composable
 private fun CompactTransportPanel(
     nowPlayingState: NowPlayingState,
@@ -834,8 +716,9 @@ private fun DesktopNowPlayingLayout(
     playerInteractionSettings: PlayerInteractionSettings,
     currentPositionMs: Long,
     isSeeking: Boolean,
-    isSleepTimerEnabled: Boolean,
     progressContent: @Composable (Long?) -> Unit,
+    liked: Boolean,
+    onLikedChange: (Boolean) -> Unit,
     onAction: (NowPlayingAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -869,21 +752,23 @@ private fun DesktopNowPlayingLayout(
                     .fillMaxWidth()
                     .padding(vertical = 10.dp),
             )
-            TrackInformation(
-                track = track,
+            TrackRow(
+                state = state,
                 lyricDisplaySettings = lyricDisplaySettings,
                 playerInteractionSettings = playerInteractionSettings,
+                liked = liked,
+                onLikedChange = onLikedChange,
+                onAction = onAction,
                 modifier = Modifier.padding(top = 10.dp),
-                lightTheme = true,
+                compact = false,
             )
             Spacer(modifier = Modifier.height(14.dp))
             progressContent(track?.durationMs)
             Spacer(modifier = Modifier.height(20.dp))
-            TransportPanel(
+            CompactTransportPanel(
                 nowPlayingState = state,
-                isSleepTimerEnabled = isSleepTimerEnabled,
                 onAction = onAction,
-                lightTheme = true,
+                dense = false,
             )
             Spacer(modifier = Modifier.height(12.dp))
         }
@@ -1094,7 +979,7 @@ private fun CompactArtworkArea(
 }
 
 @Composable
-private fun CompactTrackRow(
+private fun TrackRow(
     state: NowPlayingState,
     lyricDisplaySettings: LyricDisplaySettings,
     playerInteractionSettings: PlayerInteractionSettings,
@@ -1102,6 +987,7 @@ private fun CompactTrackRow(
     onLikedChange: (Boolean) -> Unit,
     onAction: (NowPlayingAction) -> Unit,
     modifier: Modifier = Modifier,
+    compact: Boolean = true,
     dense: Boolean = false,
 ) {
     val track = state.currentTrack
@@ -1115,7 +1001,7 @@ private fun CompactTrackRow(
             playerInteractionSettings = playerInteractionSettings,
             modifier = Modifier.weight(1f),
             lightTheme = true,
-            compact = true,
+            compact = compact,
         )
         Box(
             modifier = Modifier
@@ -1306,7 +1192,7 @@ private fun CompactClassicNowPlayingLayout(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            CompactTrackRow(
+            TrackRow(
                 state = state,
                 lyricDisplaySettings = lyricDisplaySettings,
                 playerInteractionSettings = playerInteractionSettings,
@@ -1338,12 +1224,10 @@ private fun CompactClassicNowPlayingLayout(
                     progressContent(track?.durationMs)
                 }
                 Spacer(modifier = Modifier.height(4.dp))
-                TransportPanel(
+                CompactTransportPanel(
                     nowPlayingState = state,
-                    isSleepTimerEnabled = false,
                     onAction = onAction,
-                    lightTheme = true,
-                    compact = true,
+                    dense = false,
                 )
             }
         }
@@ -1380,7 +1264,7 @@ private fun CompactLandscapeNowPlayingLayout(
                     .align(Alignment.CenterVertically)
                     .padding(start = 40.dp, end = 8.dp),
             ) {
-                CompactTrackRow(
+                TrackRow(
                     state = state,
                     lyricDisplaySettings = lyricDisplaySettings,
                     playerInteractionSettings = playerInteractionSettings,
@@ -1404,12 +1288,9 @@ private fun CompactLandscapeNowPlayingLayout(
                 Box(modifier = Modifier.offset(y = (-8).dp)) {
                     progressContent(track?.durationMs)
                 }
-                TransportPanel(
+                CompactTransportPanel(
                     nowPlayingState = state,
-                    isSleepTimerEnabled = false,
                     onAction = onAction,
-                    lightTheme = true,
-                    compact = true,
                     dense = true,
                 )
             }
@@ -1495,7 +1376,6 @@ fun NowPlayingScreen(
     playerInteractionSettings: PlayerInteractionSettings = PlayerInteractionSettings.Default,
     currentPositionMs: Long,
     isSeeking: Boolean = false,
-    isSleepTimerEnabled: Boolean,
     progressContent: @Composable (Long?) -> Unit,
     compactProgressContent: @Composable (Long?) -> Unit,
     isFavorite: Boolean,
@@ -1504,6 +1384,7 @@ fun NowPlayingScreen(
     modifier: Modifier = Modifier,
 ) {
     val currentTrack = state.currentTrack
+    val titleBarInset = LocalDesktopTitleBarInset.current
 
     Box(
         modifier = modifier
@@ -1511,26 +1392,27 @@ fun NowPlayingScreen(
             .fillMaxSize(),
     ) {
         NowPlayingBackground(artwork = currentTrack?.artwork)
-        BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = titleBarInset),
+        ) {
             if (maxWidth >= DesktopPlayerBreakpoint && maxHeight >= 520.dp) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .statusBarsPadding(),
                 ) {
-                    MusicPlayerHeader(
-                        hasLyric = currentTrack?.hasLyric == true,
-                        nowPlayingState = state,
-                        onAction = onAction,
-                    )
+                    MusicPlayerHeader(onAction = onAction)
                     DesktopNowPlayingLayout(
                         state = state,
                         lyricDisplaySettings = lyricDisplaySettings,
                         playerInteractionSettings = playerInteractionSettings,
                         currentPositionMs = currentPositionMs,
                         isSeeking = isSeeking,
-                        isSleepTimerEnabled = isSleepTimerEnabled,
                         progressContent = progressContent,
+                        liked = isFavorite,
+                        onLikedChange = { onToggleFavorite() },
                         onAction = onAction,
                         modifier = Modifier.weight(1f),
                     )

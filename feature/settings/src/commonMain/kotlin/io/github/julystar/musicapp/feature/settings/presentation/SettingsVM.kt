@@ -27,6 +27,7 @@ import io.github.julystar.musicapp.core.domain.repository.AppDataClearService
 import io.github.julystar.musicapp.core.domain.repository.AudioDspAnalysisRepository
 import io.github.julystar.musicapp.core.domain.repository.AudioDspFrequencyResponse
 import io.github.julystar.musicapp.core.domain.repository.LibraryMaintenanceService
+import io.github.julystar.musicapp.core.domain.repository.PermissionChecker
 import io.github.julystar.musicapp.core.domain.repository.SettingsRepository
 import io.github.julystar.musicapp.core.domain.repository.SettingsBackupService
 import io.github.julystar.musicapp.core.domain.repository.SourceSettingsRepository
@@ -42,9 +43,8 @@ import io.github.julystar.musicapp.service.librarysync.domain.LibrarySyncTask
 import io.github.julystar.musicapp.service.librarysync.domain.MetadataRefreshController
 import io.github.julystar.musicapp.service.librarysync.domain.MetadataRefreshRequest
 import io.github.julystar.musicapp.service.librarysync.domain.MetadataRefreshScope
+import io.github.julystar.musicapp.service.playback.domain.PlaybackController
 import io.github.julystar.musicapp.source.api.BuiltInSourceIds
-import io.github.julystar.musicapp.source.api.ImportRepository
-import io.github.julystar.musicapp.source.api.SourceDirectorySelection
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
@@ -52,6 +52,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -72,8 +73,9 @@ class SettingsVM(
     private val libraryMaintenanceService: LibraryMaintenanceService,
     private val appDataClearService: AppDataClearService,
     private val toastRepository: ToastRepository,
-    private val importRepository: ImportRepository,
+    private val permissionChecker: PermissionChecker,
     private val librarySyncController: LibrarySyncController,
+    private val playbackController: PlaybackController,
     private val metadataRefreshController: MetadataRefreshController,
     private val audioDspAnalysisRepository: AudioDspAnalysisRepository,
     private val capabilities: SettingsCapabilities,
@@ -90,7 +92,11 @@ class SettingsVM(
     private val webDavDialog = MutableStateFlow<WebDavAccountDialogState?>(null)
     private val webDavConnectionTestStatus = MutableStateFlow(SourceConnectionTestStatus.None)
     private val webDavConnectionTestMessage = MutableStateFlow<String?>(null)
+    private val smbDialog = MutableStateFlow<SmbAccountDialogState?>(null)
+    private val smbConnectionTestStatus = MutableStateFlow(SourceConnectionTestStatus.None)
+    private val smbConnectionTestMessage = MutableStateFlow<String?>(null)
     private val failureDialogTaskId = MutableStateFlow<String?>(null)
+    private val pendingLocalDirectoryPath = MutableStateFlow<String?>(null)
     private val events = Channel<SettingsEvent>(Channel.BUFFERED)
 
     private val audioDspFrequencyResponse = settingsRepository.settings
@@ -140,6 +146,9 @@ class SettingsVM(
         webDavDialog,
         webDavConnectionTestStatus,
         webDavConnectionTestMessage,
+        smbDialog,
+        smbConnectionTestStatus,
+        smbConnectionTestMessage,
         failureDialogTaskId,
         failureDetails,
         audioDspFrequencyResponse,
@@ -149,7 +158,7 @@ class SettingsVM(
         val storageAccounts = values[7] as List<StorageAccountInfo>
         val sourceAccounts = storageAccounts
             .filter { account ->
-                account.sourceId == BuiltInSourceIds.Local ||
+                (account.sourceId == BuiltInSourceIds.Local && localDirectories.isNotEmpty()) ||
                     account.sourceId == BuiltInSourceIds.WebDav ||
                     account.sourceId == BuiltInSourceIds.Smb
             }
@@ -173,9 +182,12 @@ class SettingsVM(
             webDavDialog = values[12] as WebDavAccountDialogState?,
             webDavConnectionTestStatus = values[13] as SourceConnectionTestStatus,
             webDavConnectionTestMessage = values[14] as String?,
-            failureDialogTaskId = values[15] as String?,
-            failureDetails = values[16] as List<LibrarySyncFailure>,
-            audioDspFrequencyResponse = values[17] as AudioDspFrequencyResponse,
+            smbDialog = values[15] as SmbAccountDialogState?,
+            smbConnectionTestStatus = values[16] as SourceConnectionTestStatus,
+            smbConnectionTestMessage = values[17] as String?,
+            failureDialogTaskId = values[18] as String?,
+            failureDetails = values[19] as List<LibrarySyncFailure>,
+            audioDspFrequencyResponse = values[20] as AudioDspFrequencyResponse,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -186,6 +198,15 @@ class SettingsVM(
     init {
         refreshStorageUsage()
         viewModelScope.launch { storageRepository.reload() }
+        viewModelScope.launch {
+            permissionChecker.havePermission.collect { granted ->
+                val path = pendingLocalDirectoryPath.value ?: return@collect
+                if (granted) {
+                    pendingLocalDirectoryPath.value = null
+                    syncSelectedDirectory(path)
+                }
+            }
+        }
     }
 
     fun onAction(action: SettingsAction) {
@@ -301,14 +322,6 @@ class SettingsVM(
             is SettingsAction.SetAutoScanMode -> updateSetting {
                 settingsRepository.setAutoScanMode(action.mode)
             }
-            is SettingsAction.SetBackgroundScanEnabled -> updateSetting {
-                if (capabilities.backgroundScanSupported) {
-                    settingsRepository.setBackgroundScanEnabled(action.enabled)
-                }
-            }
-            is SettingsAction.SetScanOnlyOnUnmeteredNetwork -> updateSetting {
-                settingsRepository.setScanOnlyOnUnmeteredNetwork(action.enabled)
-            }
             is SettingsAction.SetScanSubdirectories -> updateSetting {
                 settingsRepository.setScanSubdirectories(action.enabled)
             }
@@ -324,14 +337,13 @@ class SettingsVM(
             is SettingsAction.SetDuplicateTrackPolicy -> updateSetting {
                 settingsRepository.setDuplicateTrackPolicy(action.policy)
             }
-            is SettingsAction.SetAllowMeteredStreaming -> updateSetting {
-                if (capabilities.networkStatusSupported || !action.enabled) {
-                    settingsRepository.setAllowMeteredStreaming(action.enabled)
-                }
-            }
-            is SettingsAction.SetBackgroundSyncOnlyOnUnmeteredNetwork -> updateSetting {
-                if (capabilities.backgroundScanSupported || !action.enabled) {
-                    settingsRepository.setBackgroundSyncOnlyOnUnmeteredNetwork(action.enabled)
+            is SettingsAction.SetAllowMeteredNetworkUsage -> updateSetting {
+                if (
+                    capabilities.networkStatusSupported ||
+                    capabilities.backgroundScanSupported ||
+                    !action.enabled
+                ) {
+                    settingsRepository.setAllowMeteredNetworkUsage(action.enabled)
                 }
             }
             is SettingsAction.SetNetworkRetryCount -> updateSetting {
@@ -345,8 +357,13 @@ class SettingsVM(
                     settingsRepository.setAudioPreloadBytes(action.bytes)
                 }
             }
+            is SettingsAction.SetListenAndCacheEnabled -> updateSetting {
+                settingsRepository.setListenAndCacheEnabled(action.enabled)
+            }
             is SettingsAction.SetAccountEnabled -> setAccountEnabled(action.accountId, action.enabled)
             SettingsAction.RequestAddLocalDirectory -> requestAddLocalDirectory()
+            is SettingsAction.AddLocalDirectory -> addLocalDirectory(action.path)
+            SettingsAction.ReportUnsupportedLocalDirectory -> reportUnsupportedLocalDirectory()
             is SettingsAction.RequestRemoveLocalDirectory -> {
                 pendingConfirmation.value = SettingsConfirmation.RemoveLocalDirectory(
                     id = action.id,
@@ -354,6 +371,7 @@ class SettingsVM(
                 )
             }
             SettingsAction.ScanAllSources -> scanAllSources()
+            SettingsAction.CancelActiveScans -> cancelActiveScans()
             SettingsAction.RefreshMissingArtwork -> refreshMissingMetadata(MetadataRefreshTarget.Artwork)
             SettingsAction.RefreshMissingLyrics -> refreshMissingMetadata(MetadataRefreshTarget.Lyrics)
             SettingsAction.ScanLocalMusic -> scanLocalMusic()
@@ -375,6 +393,36 @@ class SettingsVM(
             is SettingsAction.SaveWebDavAccount -> saveWebDavAccount(action.password)
             is SettingsAction.RequestDeleteWebDavAccount -> {
                 pendingConfirmation.value = SettingsConfirmation.DeleteWebDavAccount(
+                    accountId = action.accountId,
+                    title = action.title,
+                )
+            }
+            SettingsAction.OpenAddSmbDialog -> openAddSmbDialog()
+            is SettingsAction.OpenEditSmbDialog -> openEditSmbDialog(action.accountId)
+            SettingsAction.DismissSmbDialog -> dismissSmbDialog()
+            is SettingsAction.SetSmbDialogName -> updateSmbDialog { it.copy(name = action.value) }
+            is SettingsAction.SetSmbDialogHost -> updateSmbDialog { it.copy(host = action.value) }
+            is SettingsAction.SetSmbDialogPort -> updateSmbDialog {
+                it.copy(port = action.value.filter(Char::isDigit))
+            }
+            is SettingsAction.SetSmbDialogShare -> updateSmbDialog { it.copy(share = action.value) }
+            is SettingsAction.SetSmbDialogRootPath -> updateSmbDialog { it.copy(rootPath = action.value) }
+            is SettingsAction.SetSmbDialogDomain -> updateSmbDialog { it.copy(domain = action.value) }
+            is SettingsAction.SetSmbDialogUsername -> updateSmbDialog { it.copy(username = action.value) }
+            is SettingsAction.SetSmbDialogGuestAccess -> updateSmbDialog {
+                it.copy(guestAccess = action.value)
+            }
+            is SettingsAction.SetSmbDialogRequireSigning -> updateSmbDialog {
+                it.copy(requireSigning = action.value)
+            }
+            is SettingsAction.SetSmbDialogRequireEncryption -> updateSmbDialog {
+                it.copy(requireEncryption = action.value)
+            }
+            SettingsAction.ResetSmbConnectionTest -> resetSmbTest()
+            is SettingsAction.TestSmbConnection -> testSmbConnection(action.password)
+            is SettingsAction.SaveSmbAccount -> saveSmbAccount(action.password)
+            is SettingsAction.RequestDeleteSmbAccount -> {
+                pendingConfirmation.value = SettingsConfirmation.DeleteSmbAccount(
                     accountId = action.accountId,
                     title = action.title,
                 )
@@ -456,26 +504,41 @@ class SettingsVM(
     }
 
     private fun requestAddLocalDirectory() {
-        importRepository.prepareCurrentDirectory(::syncSelectedDirectory)
-        viewModelScope.launch { events.send(SettingsEvent.OpenLibraryFolderImport) }
+        viewModelScope.launch { events.send(SettingsEvent.OpenLibraryFolderPicker) }
     }
 
-    private fun syncSelectedDirectory(selection: SourceDirectorySelection) {
+    private fun addLocalDirectory(path: String) {
+        if (permissionChecker.havePermission.value) {
+            syncSelectedDirectory(path)
+        } else {
+            pendingLocalDirectoryPath.value = path
+            permissionChecker.requestStoragePermission()
+        }
+    }
+
+    private fun syncSelectedDirectory(path: String) {
+        val accountId = storageSourceAccountId(LOCAL_STORAGE_ID)
         viewModelScope.launch {
             syncFolder(
                 request = LibrarySyncRequest(
-                    accountId = selection.accountId,
-                    selectedFolderRemoteId = selection.remoteId,
-                    selectedFolderCanonicalPath = selection.path,
-                    selectedFolderDisplayPath = selection.path,
+                    accountId = accountId,
+                    selectedFolderRemoteId = null,
+                    selectedFolderCanonicalPath = path,
+                    selectedFolderDisplayPath = path,
                     scanRules = state.value.settings.scanRules(),
-                    metadataScanMode = metadataScanModeFor(selection.accountId),
+                    metadataScanMode = metadataScanModeFor(accountId),
                 ),
                 startMessage = textProvider.get(
                     Res.string.settings_feedback_scan_start,
-                    selection.path,
+                    path,
                 ),
             )
+        }
+    }
+
+    private fun reportUnsupportedLocalDirectory() {
+        viewModelScope.launch {
+            emitFeedback(Res.string.settings_feedback_directory_unsupported)
         }
     }
 
@@ -484,6 +547,19 @@ class SettingsVM(
         state.value.sourceAccounts
             .filter { item -> item.isWebDav && item.enabled }
             .forEach { item -> scanWebDavAccount(item.accountId) }
+        state.value.sourceAccounts
+            .filter { item -> item.isSmb && item.enabled }
+            .forEach { item -> scanSmbAccount(item.accountId) }
+    }
+
+    private fun cancelActiveScans() {
+        if (state.value.scanTasks.none(LibrarySyncTask::isActive)) return
+
+        viewModelScope.launch {
+            runCatching { librarySyncController.cancelAll() }
+                .onSuccess { emitFeedback(Res.string.settings_feedback_scan_cancelled) }
+                .onFailure { emitFeedback(Res.string.settings_feedback_scan_not_cancelled) }
+        }
     }
 
     private fun refreshMissingMetadata(target: MetadataRefreshTarget) {
@@ -543,7 +619,11 @@ class SettingsVM(
 
     private fun scanSourceAccount(accountId: SourceAccountId) {
         val account = state.value.sourceAccounts.firstOrNull { it.accountId == accountId } ?: return
-        if (account.isLocal) scanLocalMusic() else if (account.isWebDav) scanWebDavAccount(accountId)
+        when {
+            account.isLocal -> scanLocalMusic()
+            account.isWebDav -> scanWebDavAccount(accountId)
+            account.isSmb -> scanSmbAccount(accountId)
+        }
     }
 
     private fun metadataScanModeFor(accountId: SourceAccountId): MetadataScanMode {
@@ -672,6 +752,167 @@ class SettingsVM(
                 ),
             )
         }
+    }
+
+    private fun openAddSmbDialog() {
+        smbDialog.value = SmbAccountDialogState()
+        resetSmbTest()
+    }
+
+    private fun openEditSmbDialog(accountId: SourceAccountId) {
+        viewModelScope.launch {
+            val routeId = accountId.toStorageRouteIdOrNull() ?: return@launch
+            val editorState = storageRepository.loadEditorState(routeId) ?: return@launch
+            val draft = editorState.draft
+            if (draft.storageType != SourceEditorType.Smb) return@launch
+            val credential = storageRepository.loadCredentialByAccountId(accountId)
+            smbDialog.value = SmbAccountDialogState(
+                accountId = accountId,
+                name = draft.alias,
+                host = draft.smbHost,
+                port = draft.smbPort.toString(),
+                share = draft.smbShare,
+                rootPath = draft.smbRootPath,
+                domain = draft.smbDomain,
+                username = credential?.username.orEmpty(),
+                guestAccess = draft.isAnonymous,
+                requireSigning = draft.smbRequireSigning,
+                requireEncryption = draft.smbRequireEncryption,
+            )
+            resetSmbTest()
+        }
+    }
+
+    private fun dismissSmbDialog() {
+        smbDialog.value = null
+        resetSmbTest()
+    }
+
+    private fun updateSmbDialog(block: (SmbAccountDialogState) -> SmbAccountDialogState) {
+        smbDialog.value = smbDialog.value?.let(block)
+        resetSmbTest()
+    }
+
+    private fun testSmbConnection(password: String) {
+        val dialog = smbDialog.value ?: return
+        viewModelScope.launch {
+            val draft = dialog.toSmbDraftOrNull(password) ?: return@launch
+            smbConnectionTestStatus.value = SourceConnectionTestStatus.Testing
+            smbConnectionTestMessage.value = textProvider.get(
+                Res.string.settings_feedback_connection_testing,
+            )
+            runCatching { storageRepository.testSource(draft) }
+                .onSuccess { status ->
+                    smbConnectionTestStatus.value = status
+                    smbConnectionTestMessage.value = connectionTestMessage(status)
+                }
+                .onFailure { error ->
+                    smbConnectionTestStatus.value = SourceConnectionTestStatus.Error
+                    smbConnectionTestMessage.value = textProvider.get(
+                        Res.string.settings_feedback_connection_failed,
+                        error.userMessage(),
+                    )
+                }
+        }
+    }
+
+    private fun saveSmbAccount(password: String) {
+        val dialog = smbDialog.value ?: return
+        viewModelScope.launch {
+            val draft = dialog.toSmbDraftOrNull(password) ?: return@launch
+            sourceOperationInProgress.value = true
+            runCatching {
+                storageRepository.upsertSource(draft)
+                storageRepository.reload()
+            }.onSuccess {
+                smbDialog.value = null
+                resetSmbTest()
+                emitFeedback(Res.string.settings_feedback_smb_saved)
+            }.onFailure { error ->
+                emitFeedback(Res.string.settings_feedback_smb_save_failed, error.userMessage())
+            }
+            sourceOperationInProgress.value = false
+        }
+    }
+
+    private fun scanSmbAccount(accountId: SourceAccountId) {
+        val account = state.value.sourceAccounts.firstOrNull { it.accountId == accountId }
+        if (account?.enabled != true) {
+            viewModelScope.launch {
+                emitFeedback(Res.string.settings_feedback_smb_enable_required)
+            }
+            return
+        }
+        viewModelScope.launch {
+            val routeId = accountId.toStorageRouteIdOrNull() ?: return@launch
+            val rootPath = storageRepository.loadEditorState(routeId)
+                ?.draft
+                ?.smbRootPath
+                .normalizedRootPath()
+            syncFolder(
+                request = LibrarySyncRequest(
+                    accountId = accountId,
+                    selectedFolderRemoteId = null,
+                    selectedFolderCanonicalPath = rootPath,
+                    selectedFolderDisplayPath = rootPath,
+                    scanRules = state.value.settings.scanRules(),
+                ),
+                startMessage = textProvider.get(
+                    Res.string.settings_feedback_scan_start,
+                    account.title,
+                ),
+            )
+        }
+    }
+
+    private suspend fun SmbAccountDialogState.toSmbDraftOrNull(
+        password: String,
+    ): SourceEditorDraft? {
+        val hostValue = host.trim()
+        if (hostValue.isBlank()) {
+            emitFeedback(Res.string.settings_feedback_smb_host_required)
+            return null
+        }
+        val portValue = port.toIntOrNull()
+        if (portValue == null || portValue !in 1..65_535) {
+            emitFeedback(Res.string.settings_feedback_smb_port_invalid)
+            return null
+        }
+        val shareValue = share.trim().trim('/')
+        if (shareValue.isBlank()) {
+            emitFeedback(Res.string.settings_feedback_smb_share_required)
+            return null
+        }
+        val usernameValue = username.trim()
+        if (!guestAccess && usernameValue.isBlank()) {
+            emitFeedback(Res.string.settings_feedback_smb_username_required)
+            return null
+        }
+        val previousCredential = accountId?.let { storageRepository.loadCredentialByAccountId(it) }
+        val secretValue = if (guestAccess) {
+            ""
+        } else {
+            password.ifBlank { previousCredential?.secret.orEmpty() }
+        }
+        if (!guestAccess && secretValue.isBlank()) {
+            emitFeedback(Res.string.settings_feedback_smb_password_required)
+            return null
+        }
+        return SourceEditorDraft(
+            id = accountId?.toStorageRouteIdOrNull(),
+            alias = name.trim(),
+            username = if (guestAccess) "" else usernameValue,
+            secret = secretValue,
+            isAnonymous = guestAccess,
+            storageType = SourceEditorType.Smb,
+            smbHost = hostValue,
+            smbPort = portValue,
+            smbShare = shareValue,
+            smbRootPath = rootPath.trim().trim('/'),
+            smbDomain = domain.trim(),
+            smbRequireSigning = requireSigning,
+            smbRequireEncryption = requireEncryption,
+        )
     }
 
     private fun cancelScan(scanId: String) {
@@ -816,12 +1057,19 @@ class SettingsVM(
                     SettingsConfirmation.RebuildLibrary -> libraryMaintenanceService.rebuildLibrary()
                     is SettingsConfirmation.RemoveLocalDirectory -> {
                         sourceSettingsRepository.removeLocalDirectory(action.id)
+                        playbackController.clearQueue()
                     }
                     is SettingsConfirmation.DeleteWebDavAccount -> {
                         storageRepository.removeByAccountId(action.accountId)
                         storageRepository.reload()
                         webDavDialog.value = null
                         resetWebDavTest()
+                    }
+                    is SettingsConfirmation.DeleteSmbAccount -> {
+                        storageRepository.removeByAccountId(action.accountId)
+                        storageRepository.reload()
+                        smbDialog.value = null
+                        resetSmbTest()
                     }
                 }
             }.onSuccess {
@@ -846,6 +1094,31 @@ class SettingsVM(
     private fun resetWebDavTest() {
         webDavConnectionTestStatus.value = SourceConnectionTestStatus.None
         webDavConnectionTestMessage.value = null
+    }
+
+    private fun resetSmbTest() {
+        smbConnectionTestStatus.value = SourceConnectionTestStatus.None
+        smbConnectionTestMessage.value = null
+    }
+
+    private suspend fun connectionTestMessage(status: SourceConnectionTestStatus): String? = when (status) {
+        SourceConnectionTestStatus.Success -> textProvider.get(
+            Res.string.settings_feedback_connection_success,
+        )
+        SourceConnectionTestStatus.Error,
+        SourceConnectionTestStatus.Unauthorized,
+        SourceConnectionTestStatus.Timeout,
+        SourceConnectionTestStatus.PermissionDenied,
+        SourceConnectionTestStatus.NotFound,
+        SourceConnectionTestStatus.InvalidAddress,
+        SourceConnectionTestStatus.Unavailable,
+        SourceConnectionTestStatus.UnsupportedSecurityPolicy -> textProvider.get(
+            Res.string.settings_feedback_connection_check,
+        )
+        SourceConnectionTestStatus.Testing -> textProvider.get(
+            Res.string.settings_feedback_connection_testing,
+        )
+        SourceConnectionTestStatus.None -> null
     }
 
     private fun currentCacheLimitMbInput(type: CacheLimitType): String {
@@ -887,6 +1160,7 @@ private fun StorageAccountInfo.toSettingsItem(): SourceAccountSettingsItem {
         lastScanStatus = lastScanStatus,
         isLocal = sourceId == BuiltInSourceIds.Local,
         isWebDav = sourceId == BuiltInSourceIds.WebDav,
+        isSmb = sourceId == BuiltInSourceIds.Smb,
         isRemoteServer = sourceId == BuiltInSourceIds.Navidrome ||
             sourceId == BuiltInSourceIds.OpenSubsonic ||
             sourceId == BuiltInSourceIds.Emby,
@@ -907,8 +1181,12 @@ private fun List<LibrarySyncTask>.filterRelevantToSettings(
     localDirectories: List<LocalMusicDirectory>,
     sourceAccounts: List<SourceAccountSettingsItem>,
 ): List<LibrarySyncTask> {
-    val localAccountIds = localDirectories.map(LocalMusicDirectory::accountId).toSet() +
-        storageSourceAccountId(LOCAL_STORAGE_ID)
+    val localAccountIds = if (localDirectories.isEmpty()) {
+        emptySet()
+    } else {
+        localDirectories.map(LocalMusicDirectory::accountId).toSet() +
+            storageSourceAccountId(LOCAL_STORAGE_ID)
+    }
     val accountIds = sourceAccounts.map(SourceAccountSettingsItem::accountId).toSet()
     return filter { task -> task.accountId in localAccountIds || task.accountId in accountIds }
 }
@@ -936,6 +1214,7 @@ private fun SettingsConfirmation.successMessageResource(): StringResource = when
     SettingsConfirmation.RebuildLibrary -> Res.string.settings_feedback_library_rebuilt
     is SettingsConfirmation.RemoveLocalDirectory -> Res.string.settings_feedback_directory_removed
     is SettingsConfirmation.DeleteWebDavAccount -> Res.string.settings_feedback_webdav_deleted
+    is SettingsConfirmation.DeleteSmbAccount -> Res.string.settings_feedback_smb_deleted
 }
 
 private const val BYTES_PER_MB = 1_048_576L

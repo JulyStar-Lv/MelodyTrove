@@ -1597,8 +1597,12 @@ class RemoteLibraryImportCoordinator(
 
     private suspend fun startImport(request: RemoteLibraryImportRequest): ImportExecution {
         val startedAt = currentTimeMillis()
-        ensureSourceAccount(request.storageId, startedAt)
-        val libraryRoot = ensureLibraryRoot(request, startedAt)
+        val sourceAccount = ensureSourceAccount(request.storageId, startedAt)
+        val libraryRoot = ensureLibraryRoot(
+            request = request,
+            now = startedAt,
+            sourceProviderType = sourceAccount.providerType,
+        )
         val scanId = request.scanId ?: "scan-${libraryRoot.id}-$startedAt"
         val job = ImportJobEntity(
             id = scanId,
@@ -1778,12 +1782,20 @@ class RemoteLibraryImportCoordinator(
     private suspend fun ensureLibraryRoot(
         request: RemoteLibraryImportRequest,
         now: Long,
+        sourceProviderType: String,
     ): LibraryRootEntity {
         val canonicalPath = normalizeRemotePath(request.selectedFolderCanonicalPath)
-        val existing = database.libraryRootDao()
-            .findByPath(request.storageId, canonicalPath)
+        val libraryRootDao = database.libraryRootDao()
+        val existing = libraryRootDao.findByPath(request.storageId, canonicalPath)
+            ?: if (sourceProviderType == ProviderTypes.Local) {
+                canonicalPath.toLegacyAndroidPrimaryStoragePath()?.let { legacyPath ->
+                    libraryRootDao.findByPath(request.storageId, legacyPath)
+                }
+            } else {
+                null
+            }
             ?: request.selectedFolderRemoteId?.let { remoteId ->
-                database.libraryRootDao().findByProviderRootId(request.storageId, remoteId)
+                libraryRootDao.findByProviderRootId(request.storageId, remoteId)
             }
         val root = LibraryRootEntity(
             id = existing?.id ?: 0,
@@ -1797,9 +1809,9 @@ class RemoteLibraryImportCoordinator(
             createdAt = existing?.createdAt ?: now,
             updatedAt = now,
         )
-        database.libraryRootDao().upsert(root)
-        return database.libraryRootDao().findByPath(request.storageId, canonicalPath)
-            ?: root.providerRootId?.let { database.libraryRootDao().findByProviderRootId(request.storageId, it) }
+        libraryRootDao.upsert(root)
+        return libraryRootDao.findByPath(request.storageId, canonicalPath)
+            ?: root.providerRootId?.let { libraryRootDao.findByProviderRootId(request.storageId, it) }
             ?: error("library root was not persisted")
     }
 }
@@ -2418,6 +2430,7 @@ internal fun buildTrackSourceRefEntity(
         createdAt = existingRef?.createdAt ?: now,
         updatedAt = now,
         hasEmbeddedArtwork = metadata.hasEmbeddedArtwork,
+        embeddedLyricsKind = metadata.embeddedLyricsKind,
     )
 }
 
@@ -2445,21 +2458,27 @@ internal fun buildLyricsEntity(
     now: Long,
 ): LyricsEntity? {
     val embedded = metadata.lyrics ?: return null
-    val isTtml = embedded.content.trimStart().startsWith("<?xml", ignoreCase = true) ||
-        embedded.content.contains("<tt", ignoreCase = true)
+    val isTtml = metadata.embeddedLyricsKind == "Ttml" ||
+        embedded.content.contains("http://www.w3.org/ns/ttml")
+    val isWordTimed = metadata.embeddedLyricsKind == "WordTimed"
+    val synchronized = embedded.synchronized || isTtml || isWordTimed
     return LyricsEntity(
         trackId = trackId,
         format = when {
             isTtml -> "TTML"
-            embedded.synchronized -> "LRC"
+            synchronized -> "LRC"
             else -> "TEXT"
         },
         language = embedded.language,
-        synchronized = embedded.synchronized,
+        synchronized = synchronized,
         content = embedded.content,
         sourcePath = "embedded",
         updatedAt = now,
-        sourceKind = if (isTtml) "EmbeddedTtml" else "EmbeddedPlain",
+        sourceKind = when {
+            isTtml -> "EmbeddedTtml"
+            isWordTimed -> "EmbeddedWordTimed"
+            else -> "EmbeddedPlain"
+        },
     )
 }
 
@@ -2575,6 +2594,16 @@ internal fun normalizeRemotePath(path: String): String {
     val normalized = path.replace('\\', '/')
     return if (normalized.startsWith('/')) normalized else "/$normalized"
 }
+
+internal fun String.toLegacyAndroidPrimaryStoragePath(): String? {
+    return when {
+        this == "/" -> ANDROID_PRIMARY_STORAGE_PATH
+        startsWith("$ANDROID_PRIMARY_STORAGE_PATH/") -> null
+        else -> "$ANDROID_PRIMARY_STORAGE_PATH$this"
+    }
+}
+
+private const val ANDROID_PRIMARY_STORAGE_PATH = "/storage/emulated/0"
 
 internal fun stableTrackId(storageId: Long, canonicalPath: String): Long {
     var hash = -3_750_763_034_362_895_579L

@@ -50,10 +50,8 @@ import musicapp.service.playback.presentation.generated.resources.icon_transport
 import musicapp.service.playback.presentation.generated.resources.icon_transport_repeat_one
 import musicapp.service.playback.presentation.generated.resources.icon_transport_shuffle
 import musicapp.service.playback.presentation.generated.resources.player_add_favorite
-import musicapp.service.playback.presentation.generated.resources.player_choose_from_library
 import musicapp.service.playback.presentation.generated.resources.player_list_repeat
 import musicapp.service.playback.presentation.generated.resources.player_next_track
-import musicapp.service.playback.presentation.generated.resources.player_nothing_playing
 import musicapp.service.playback.presentation.generated.resources.player_pause
 import musicapp.service.playback.presentation.generated.resources.player_play
 import musicapp.service.playback.presentation.generated.resources.player_previous_track
@@ -481,34 +479,5 @@ fun MiniPlayer(
         },
         onCyclePlaybackMode = { playerVM.changePlayModeToNext() },
         onOpenQueue = onOpenQueue,
-    )
-}
-
-@Composable
-fun IdleMiniPlayer(
-    onBrowseLibrary: () -> Unit,
-) {
-    MiniPlayerCore(
-        isPlaying = false,
-        title = stringResource(Res.string.player_nothing_playing),
-        subtitle = stringResource(Res.string.player_choose_from_library),
-        cover = null,
-        currentDurationMS = 0uL,
-        totalDurationMS = 0uL,
-        loading = true,
-        canPrevious = false,
-        canNext = false,
-        repeatMode = RepeatMode.Off,
-        shuffleEnabled = false,
-        isFavorite = false,
-        playbackAvailable = false,
-        onClick = onBrowseLibrary,
-        onPlay = {},
-        onPause = {},
-        onPrevious = {},
-        onNext = {},
-        onToggleFavorite = {},
-        onCyclePlaybackMode = {},
-        onOpenQueue = {},
     )
 }

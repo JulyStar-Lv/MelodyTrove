@@ -5,7 +5,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import io.github.julystar.musicapp.service.playback.domain.SleepModeLeftTime
 import io.github.julystar.musicapp.service.playback.presentation.PlayerVM
-import io.github.julystar.musicapp.service.playback.presentation.miniplayer.IdleMiniPlayer
 import io.github.julystar.musicapp.service.playback.presentation.miniplayer.MiniPlayer
 import io.github.julystar.musicapp.service.playback.presentation.sleep.SleepModeVM
 import io.github.julystar.musicapp.service.playback.presentation.sleep.TimeToPauseModal
@@ -30,7 +29,6 @@ fun rememberHasPlaybackItem(
 @Composable
 fun PlaybackMiniPlayerHost(
     onOpenNowPlaying: () -> Unit,
-    onBrowseLibrary: () -> Unit,
     onOpenQueue: () -> Unit,
     playerVM: PlayerVM = koinViewModel(),
 ) {
@@ -41,8 +39,6 @@ fun PlaybackMiniPlayerHost(
             onOpenQueue = onOpenQueue,
             playerVM = playerVM,
         )
-    } else {
-        IdleMiniPlayer(onBrowseLibrary = onBrowseLibrary)
     }
 }
 

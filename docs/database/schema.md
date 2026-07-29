@@ -31,14 +31,14 @@ exported under
 | `library_root` | User-selected import roots and root-level sync state | Unique source-account/provider-root and source-account/path identities |
 | `source_item` | Provider inventory item identity and file facts | Unique source-account/provider-item and source-account/path identities; deletion and scan markers |
 | `source_item_property` | Extensible provider-specific item attributes | Key/value rows scoped to one source item |
-| `track_source_ref` | Relationship between canonical tracks and playable source items | One source item maps to one canonical track; availability/download/preference flags and embedded-artwork presence |
+| `track_source_ref` | Relationship between canonical tracks and playable source items | One source item maps to one canonical track; availability/download/preference flags, embedded-artwork presence, and embedded-lyrics kind |
 | `source_sync_cursor` | Delta or scan checkpoint state | One cursor per source account, library root, and cursor type |
 | `source_error` | Persisted source/import errors | Scoped to account, root, and optionally source item |
 | `track` | Canonical normalized audio metadata | No provider ownership fields; indexed title, ISRC, MusicBrainz IDs |
 | `album`, `artist`, `genre` | Canonical library dimensions | Unique normalized names |
 | `track_artist`, `album_artist`, `track_genre` | Ordered many-to-many metadata | Foreign-key cascades |
 | `artwork` | Extracted artwork cache metadata | Artwork bytes stay outside Room |
-| `lyrics` | Embedded or sidecar lyrics | One current lyric row per track |
+| `lyrics` | Embedded, sidecar, or plugin lyrics | One candidate per track and stable source kind |
 | `raw_metadata` | Unmapped source tags | Indexed by track and tag key |
 | `import_job` | Resumable import progress and errors | References `library_root` |
 | `download_task` | Offline download task state and progress | Unique source/media/remote ID; indexed status and update time |
@@ -153,6 +153,7 @@ exported under
 | `createdAt` | 引用创建时间。 |
 | `updatedAt` | 引用最近更新时间。 |
 | `hasEmbeddedArtwork` | 来源音乐文件是否包含内嵌图片：`NULL` 表示尚未探测，`1` 表示存在，`0` 表示不存在。Fast/Standard 扫描只记录该状态，不把图片二进制写入 Room。 |
+| `embeddedLyricsKind` | 来源文件内嵌歌词分类：`None`、`Plain`、`LineTimed`、`WordTimed` 或 `Ttml`；`NULL` 表示旧记录尚未探测。Fast 只保存分类，不保存歌词正文。 |
 
 ### `source_sync_cursor`
 
@@ -324,18 +325,19 @@ exported under
 
 ### `lyrics`
 
-用途：保存嵌入歌词或同目录歌词文件解析后的当前歌词内容。
+用途：保存内嵌、同目录或插件歌词候选。`(trackId, sourceKind)` 唯一索引允许同一曲目同时保留不同来源/质量的歌词。
 
 | 字段 | 含义 |
 | --- | --- |
 | `id` | 歌词主键。 |
-| `trackId` | 所属 `track.id`；每首曲目最多一条当前歌词。 |
+| `trackId` | 所属 `track.id`。 |
 | `format` | 歌词格式，如 LRC、TTML、plain text。 |
 | `language` | 歌词语言。 |
 | `synchronized` | 是否带时间轴同步。 |
 | `content` | 歌词文本内容。 |
 | `sourcePath` | 歌词来源路径或来源描述。 |
 | `updatedAt` | 歌词最近更新时间。 |
+| `sourceKind` | 稳定候选类别：`EmbeddedTtml`、`EmbeddedWordTimed`、`EmbeddedPlain`、`ExternalTtml`、`ExternalWordTimed` 或 `ExternalPlain`。 |
 
 ### `raw_metadata`
 
@@ -614,5 +616,6 @@ user playlist data as part of source disappearance.
   `credentialRef`.
 - `MIGRATION_17_18` creates `listening_history` and its track/time indexes.
 - `MIGRATION_18_19` adds nullable `track_source_ref.hasEmbeddedArtwork`.
+- `MIGRATION_19_20` adds nullable `track_source_ref.embeddedLyricsKind`.
   Existing source references remain unknown (`NULL`) until a successful
-  metadata scan records presence.
+  metadata scan records the artwork-presence and lyrics-kind values.

@@ -312,6 +312,7 @@ private class FakeRemoteMetadataReader : RemoteMetadataReader {
         replayGainAlbumGain = null,
         replayGainAlbumPeak = null,
         lyrics = RemoteEmbeddedLyrics("Backfilled lyrics", false, null, null),
+        embeddedLyricsKind = "Plain",
         artwork = RemoteArtwork("art-hash", "/cache/art.jpg", null, null, null, "image/jpeg", "CoverFront"),
         hasEmbeddedArtwork = true,
         rawMetadata = listOf(RemoteRawMetadataEntry("Composer", "Composer", null, null)),

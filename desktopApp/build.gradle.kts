@@ -18,6 +18,7 @@ kotlin {
             dependencies {
                 implementation(project(":shared"))
                 implementation(project(":core:domain"))
+                implementation(project(":core:presentation"))
                 implementation(project(":service:playback:domain"))
                 implementation(compose.desktop.currentOs)
                 implementation(libs.koin.core)

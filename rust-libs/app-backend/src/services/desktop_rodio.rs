@@ -38,6 +38,7 @@ pub enum DesktopRodioLoadResult {
 #[derive(uniffi::Object)]
 pub struct DesktopRodioPlayer {
     state: Mutex<DesktopRodioState>,
+    completion: Arc<PlaybackCompletionState>,
 }
 
 #[derive(Default)]
@@ -48,6 +49,12 @@ struct DesktopRodioState {
     dsp_config: AudioDspConfig,
     crossfade_duration_ms: u64,
     dsp_input: Option<DesktopDspConfigInput>,
+}
+
+#[derive(Default)]
+struct PlaybackCompletionState {
+    generation: AtomicU64,
+    completed_generation: AtomicU64,
 }
 
 struct RodioOutput {
@@ -101,9 +108,15 @@ impl DesktopRodioPlayer {
             output.player.set_volume(target_gain);
             output.player.pause();
         }
+        let player = output.player.clone();
         state.loaded = true;
         state.duration_ms = duration_ms;
         state.dsp_input = Some(dsp_input);
+        let generation = self.completion.generation.fetch_add(1, Ordering::AcqRel) + 1;
+        self.completion
+            .completed_generation
+            .store(0, Ordering::Release);
+        observe_playback_completion(player, self.completion.clone(), generation);
         DesktopRodioLoadResult::Ready
     }
 
@@ -116,6 +129,10 @@ impl DesktopRodioPlayer {
     }
 
     pub fn stop(&self) {
+        self.completion.generation.fetch_add(1, Ordering::AcqRel);
+        self.completion
+            .completed_generation
+            .store(0, Ordering::Release);
         let mut state = self.state.lock().unwrap();
         if let Some(output) = state.output.as_ref() {
             output.player.stop();
@@ -156,6 +173,16 @@ impl DesktopRodioPlayer {
         }
     }
 
+    pub fn take_playback_completed(&self) -> bool {
+        let generation = self.completion.generation.load(Ordering::Acquire);
+        generation != 0
+            && self
+                .completion
+                .completed_generation
+                .swap(0, Ordering::AcqRel)
+                == generation
+    }
+
     pub fn configure_dsp(&self, config: DspConfiguration, crossfade_duration_ms: u64) {
         let mut state = self.state.lock().unwrap();
         let dsp_config = config.into_core();
@@ -171,6 +198,7 @@ impl DesktopRodioPlayer {
     fn new() -> Self {
         Self {
             state: Mutex::new(DesktopRodioState::default()),
+            completion: Arc::new(PlaybackCompletionState::default()),
         }
     }
 
@@ -183,6 +211,21 @@ impl DesktopRodioPlayer {
             block(&output.player);
         }
     }
+}
+
+fn observe_playback_completion(
+    player: Arc<Player>,
+    completion: Arc<PlaybackCompletionState>,
+    generation: u64,
+) {
+    thread::spawn(move || {
+        player.sleep_until_end();
+        if completion.generation.load(Ordering::Acquire) == generation {
+            completion
+                .completed_generation
+                .store(generation, Ordering::Release);
+        }
+    });
 }
 
 impl DesktopRodioState {
@@ -676,6 +719,19 @@ mod tests {
         assert_eq!(0, player.current_position_ms());
         assert_eq!(0, player.buffered_position_ms());
         assert_eq!(0, player.duration_ms());
+    }
+
+    #[test]
+    fn playback_completion_event_is_consumed_once() {
+        let player = DesktopRodioPlayer::new();
+        player.completion.generation.store(1, Ordering::Release);
+        player
+            .completion
+            .completed_generation
+            .store(1, Ordering::Release);
+
+        assert!(player.take_playback_completed());
+        assert!(!player.take_playback_completed());
     }
 
     #[test]

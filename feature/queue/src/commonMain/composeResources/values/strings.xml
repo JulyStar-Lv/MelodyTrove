@@ -3,4 +3,8 @@
     <string name="queue_locate_current">Locate current song</string>
     <string name="queue_clear">Clear queue</string>
     <string name="queue_empty">Queue is empty</string>
+    <string name="queue_add_favorite">Add %1$s to favorites</string>
+    <string name="queue_remove_favorite">Remove %1$s from favorites</string>
+    <string name="queue_more_actions">More actions for %1$s</string>
+    <string name="queue_remove_item">Remove from queue</string>
 </resources>

@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
@@ -26,7 +25,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
@@ -34,27 +32,27 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import io.github.julystar.musicapp.core.presentation.components.DesignChevron
-import io.github.julystar.musicapp.core.presentation.components.DesignChevronDirection
 import io.github.julystar.musicapp.core.presentation.components.DesignSearchBar
 import io.github.julystar.musicapp.core.presentation.components.DesignGlassScene
 import io.github.julystar.musicapp.core.presentation.components.LocalDesignBottomContentInset
 import io.github.julystar.musicapp.core.presentation.components.DesignSettingsGroup
 import io.github.julystar.musicapp.core.presentation.components.DesignStickyGlassActionBar
+import io.github.julystar.musicapp.core.presentation.theme.DesignGradients
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import musicapp.core.presentation.generated.resources.Res as CoreRes
-import musicapp.core.presentation.generated.resources.icon_album
+import musicapp.core.presentation.generated.resources.app_icon
 import musicapp.core.presentation.generated.resources.icon_chevron_right
-import musicapp.core.presentation.generated.resources.icon_cloud
-import musicapp.core.presentation.generated.resources.icon_image
-import musicapp.core.presentation.generated.resources.icon_lyrics
-import musicapp.core.presentation.generated.resources.icon_music_note
-import musicapp.core.presentation.generated.resources.icon_play
-import musicapp.core.presentation.generated.resources.icon_setting
-import musicapp.core.presentation.generated.resources.icon_wifitethering
+import musicapp.core.presentation.generated.resources.icon_settings_activity
+import musicapp.core.presentation.generated.resources.icon_settings_circle_play
+import musicapp.core.presentation.generated.resources.icon_settings_cloud
+import musicapp.core.presentation.generated.resources.icon_settings_hard_drive
+import musicapp.core.presentation.generated.resources.icon_settings_list_music
+import musicapp.core.presentation.generated.resources.icon_settings_palette
+import musicapp.core.presentation.generated.resources.icon_settings_puzzle
+import musicapp.core.presentation.generated.resources.icon_settings_wifi
 import musicapp.feature.settings.generated.resources.*
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
@@ -146,7 +144,8 @@ fun SettingsScreen(
                     SettingsNavRow(
                         title = stringResource(Res.string.settings_appearance_title),
                         summary = stringResource(Res.string.settings_appearance_card_summary),
-                        icon = CoreRes.drawable.icon_image,
+                        icon = CoreRes.drawable.icon_settings_palette,
+                        iconColors = DesignGradients.PinkOrange.colors,
                         onClick = onNavigateToAppearance,
                         selected = selectedPage == SettingsPage.Appearance,
                         showDivider = showLyrics,
@@ -156,7 +155,8 @@ fun SettingsScreen(
                     SettingsNavRow(
                         title = stringResource(Res.string.settings_lyrics_title),
                         summary = stringResource(Res.string.settings_lyrics_card_summary),
-                        icon = CoreRes.drawable.icon_lyrics,
+                        icon = CoreRes.drawable.icon_settings_list_music,
+                        iconColors = DesignGradients.BluePurple.colors,
                         onClick = onNavigateToLyrics,
                         selected = selectedPage == SettingsPage.Lyrics,
                         showDivider = false,
@@ -171,7 +171,8 @@ fun SettingsScreen(
                 SettingsNavRow(
                     title = stringResource(Res.string.settings_playback_title),
                     summary = stringResource(Res.string.settings_playback_card_summary),
-                    icon = CoreRes.drawable.icon_play,
+                    icon = CoreRes.drawable.icon_settings_circle_play,
+                    iconColors = DesignGradients.PinkPurple.colors,
                     onClick = onNavigateToPlayback,
                     selected = selectedPage == SettingsPage.Playback,
                     showDivider = false,
@@ -196,7 +197,8 @@ fun SettingsScreen(
                             sourceCount,
                             readyCount,
                         ),
-                        icon = CoreRes.drawable.icon_cloud,
+                        icon = CoreRes.drawable.icon_settings_cloud,
+                        iconColors = DesignGradients.GreenBlue.colors,
                         onClick = onNavigateToSource,
                         selected = selectedPage == SettingsPage.Source,
                         showDivider = showPlugins || showNetworkCache || showStorage,
@@ -206,7 +208,8 @@ fun SettingsScreen(
                     SettingsNavRow(
                         title = stringResource(Res.string.settings_metadata_plugins),
                         summary = stringResource(Res.string.settings_metadata_plugins_summary),
-                        icon = CoreRes.drawable.icon_setting,
+                        icon = CoreRes.drawable.icon_settings_puzzle,
+                        iconColors = DesignGradients.LimeEmerald.colors,
                         onClick = onNavigateToPlugins,
                         showDivider = showNetworkCache || showStorage,
                     )
@@ -215,7 +218,8 @@ fun SettingsScreen(
                     SettingsNavRow(
                         title = stringResource(Res.string.settings_network_cache_title),
                         summary = stringResource(Res.string.settings_network_cache_card_summary),
-                        icon = CoreRes.drawable.icon_wifitethering,
+                        icon = CoreRes.drawable.icon_settings_wifi,
+                        iconColors = DesignGradients.CyanTeal.colors,
                         onClick = onNavigateToNetworkCache,
                         selected = selectedPage == SettingsPage.NetworkCache,
                         showDivider = showStorage,
@@ -228,7 +232,8 @@ fun SettingsScreen(
                             Res.string.settings_storage_card_summary,
                             formatBytes(state.storageUsage.totalBytes),
                         ),
-                        icon = CoreRes.drawable.icon_album,
+                        icon = CoreRes.drawable.icon_settings_hard_drive,
+                        iconColors = DesignGradients.OrangeYellow.colors,
                         onClick = onNavigateToStorage,
                         selected = selectedPage == SettingsPage.Storage,
                         showDivider = false,
@@ -257,7 +262,8 @@ fun SettingsScreen(
                     SettingsNavRow(
                         title = stringResource(Res.string.diagnostics_title),
                         summary = stringResource(Res.string.diagnostics_card_summary),
-                        icon = CoreRes.drawable.icon_setting,
+                        icon = CoreRes.drawable.icon_settings_activity,
+                        iconColors = DesignGradients.PinkOrange.colors,
                         onClick = onNavigateToDiagnostics,
                         selected = selectedPage == SettingsPage.Diagnostics,
                     )
@@ -268,7 +274,9 @@ fun SettingsScreen(
                         Res.string.settings_about_card_summary,
                         appVersion.ifBlank { "—" },
                     ),
-                    icon = CoreRes.drawable.icon_music_note,
+                    icon = CoreRes.drawable.app_icon,
+                    iconColors = DesignGradients.PurplePink.colors,
+                    preserveIconColors = true,
                     onClick = onNavigateToAbout,
                     selected = selectedPage == SettingsPage.About ||
                         selectedPage == SettingsPage.Licenses,
@@ -307,6 +315,7 @@ fun SettingsScreen(
             DesignStickyGlassActionBar(
                 title = stringResource(Res.string.settings_title),
                 collapseFraction = actionBarProgress,
+                compactTitle = true,
                 modifier = Modifier.align(Alignment.TopCenter),
             )
         }
@@ -361,6 +370,8 @@ private fun SettingsNavRow(
     title: String,
     summary: String,
     icon: DrawableResource,
+    iconColors: List<Color>,
+    preserveIconColors: Boolean = false,
     onClick: () -> Unit,
     selected: Boolean = false,
     showDivider: Boolean = true,
@@ -383,25 +394,11 @@ private fun SettingsNavRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        // Icon container
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(14.dp))
-                .background(MiuixTheme.colorScheme.surfaceContainerHigh),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(icon),
-                contentDescription = null,
-                tint = if (selected) {
-                    MiuixTheme.colorScheme.primary
-                } else {
-                    MiuixTheme.colorScheme.onSurfaceVariantSummary
-                },
-                modifier = Modifier.size(18.dp),
-            )
-        }
+        SettingsIconBadge(
+            drawable = icon,
+            colors = iconColors,
+            preserveDrawableColors = preserveIconColors,
+        )
         // Content
         Column(
             modifier = Modifier.weight(1f),

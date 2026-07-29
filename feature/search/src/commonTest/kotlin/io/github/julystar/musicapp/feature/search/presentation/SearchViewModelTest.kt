@@ -30,6 +30,13 @@ class SearchViewModelTest {
     }
 
     @Test
+    fun `search content is hidden after indexing an empty library`() {
+        assertTrue(shouldShowSearchContent(initialLoadComplete = false, indexedTrackCount = 0))
+        assertFalse(shouldShowSearchContent(initialLoadComplete = true, indexedTrackCount = 0))
+        assertTrue(shouldShowSearchContent(initialLoadComplete = true, indexedTrackCount = 1))
+    }
+
+    @Test
     fun `searching state reports isSearching true`() {
         val state = SearchState(loadState = SearchLoadState.Searching)
 

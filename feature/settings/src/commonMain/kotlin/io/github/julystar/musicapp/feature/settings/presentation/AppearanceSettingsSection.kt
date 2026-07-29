@@ -47,6 +47,7 @@ fun AppearanceSettingsSection(
                 selected = settings.themeMode,
                 options = AppThemeMode.entries.toList(),
                 optionLabel = { mode -> stringResource(mode.titleResource()) },
+                menuMinWidth = 0.dp,
                 onSelect = { onAction(SettingsAction.SetThemeMode(it)) },
             )
         }
@@ -108,6 +109,7 @@ fun AppearanceSettingsSection(
                 selected = settings.languageMode,
                 options = AppLanguageMode.entries.toList(),
                 optionLabel = { mode -> stringResource(mode.titleResource()) },
+                menuMinWidth = 0.dp,
                 onSelect = { onAction(SettingsAction.SetLanguageMode(it)) },
             )
         }

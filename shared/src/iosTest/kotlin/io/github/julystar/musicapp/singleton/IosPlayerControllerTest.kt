@@ -580,9 +580,10 @@ private object EmptyTrackSourceRefDao : TrackSourceRefDao {
 
     override suspend fun upsertAll(refs: List<TrackSourceRefEntity>) = Unit
 
-    override suspend fun updateEmbeddedArtworkPresence(
+    override suspend fun updateEmbeddedMetadataPresence(
         sourceItemId: Long,
         hasEmbeddedArtwork: Boolean,
+        embeddedLyricsKind: String,
         now: Long,
     ) = Unit
 

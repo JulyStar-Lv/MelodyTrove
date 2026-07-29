@@ -189,6 +189,7 @@ data class TrackSourceRefEntity(
     val createdAt: Long,
     val updatedAt: Long,
     val hasEmbeddedArtwork: Boolean? = null,
+    val embeddedLyricsKind: String? = null,
 )
 
 @Entity(

@@ -92,6 +92,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 @Composable
 fun SearchDesignScreen(
     state: SearchState,
+    showSearchContent: Boolean = true,
     onAction: (SearchAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -160,7 +161,7 @@ fun SearchDesignScreen(
                 )
             }
 
-            when (state.loadState) {
+            if (showSearchContent) when (state.loadState) {
                 SearchLoadState.Searching -> {
                     item {
                         SearchStatus(

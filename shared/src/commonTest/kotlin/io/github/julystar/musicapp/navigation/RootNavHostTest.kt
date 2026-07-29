@@ -1,8 +1,10 @@
 package io.github.julystar.musicapp.navigation
 
+import io.github.julystar.musicapp.core.presentation.components.DesignStickyHeaderState
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class RootNavHostTest {
@@ -36,5 +38,33 @@ class RootNavHostTest {
         ).forEach { route ->
             assertTrue(shouldShowPersistentMiniPlayer(route), route)
         }
+    }
+
+    @Test
+    fun `disposing outgoing page does not clear incoming sticky header`() {
+        var currentState: DesignStickyHeaderState? = null
+        val sink = OwnedDesignStickyHeaderStateSink { state -> currentState = state }
+        val outgoingOwner = Any()
+        val incomingOwner = Any()
+        val outgoingState = DesignStickyHeaderState(
+            title = "Settings",
+            subtitle = null,
+            collapseFraction = 1f,
+        )
+        val incomingState = DesignStickyHeaderState(
+            title = "Appearance",
+            subtitle = null,
+            collapseFraction = 1f,
+        )
+
+        sink.update(outgoingOwner, outgoingState)
+        sink.update(incomingOwner, incomingState)
+        sink.update(outgoingOwner, outgoingState)
+        sink.clear(outgoingOwner)
+
+        assertEquals(incomingState, currentState)
+
+        sink.clear(incomingOwner)
+        assertNull(currentState)
     }
 }

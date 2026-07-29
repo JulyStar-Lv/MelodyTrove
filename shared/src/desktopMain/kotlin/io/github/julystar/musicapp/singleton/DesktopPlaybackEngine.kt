@@ -15,6 +15,8 @@ import uniffi.app_backend.DspConfiguration
 import uniffi.app_backend.ctCreateDesktopRodioPlayer
 
 interface DesktopPlaybackEngine : PlaybackEngine {
+    fun takePlaybackCompleted(): Boolean = false
+
     fun configureAudioProcessing(
         effects: AudioEffectSettings,
         playback: PlaybackAdvancedSettings,
@@ -96,6 +98,8 @@ class RodioDesktopPlaybackEngine internal constructor(
         )
     }
 
+    override fun takePlaybackCompleted(): Boolean = runtime.takePlaybackCompleted()
+
     override fun release() = stop()
 }
 
@@ -108,6 +112,7 @@ internal interface DesktopRodioRuntime {
     fun currentPositionMs(): Long
     fun bufferedPositionMs(): Long
     fun durationMs(): Long
+    fun takePlaybackCompleted(): Boolean
     fun configureAudioProcessing(
         config: DspConfiguration,
         crossfadeDurationMs: ULong,
@@ -145,6 +150,8 @@ private class UniffiDesktopRodioRuntime(
     override fun bufferedPositionMs(): Long = player.bufferedPositionMs()
 
     override fun durationMs(): Long = player.durationMs()
+
+    override fun takePlaybackCompleted(): Boolean = player.takePlaybackCompleted()
 
     override fun configureAudioProcessing(
         config: DspConfiguration,

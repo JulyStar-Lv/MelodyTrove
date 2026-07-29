@@ -87,7 +87,18 @@ internal class LegacyLibrarySyncController(
                     metadataConcurrency = request.metadataConcurrency,
                     importBatchSize = request.importBatchSize,
                 )
-                StorageType.LOCAL,
+                StorageType.LOCAL -> importer.scanAndImportFolder(
+                    storageId = storageId.value,
+                    selectedFolderRemoteId = request.selectedFolderRemoteId,
+                    selectedFolderCanonicalPath = request.selectedFolderCanonicalPath
+                        .toLocalStorageScannerPath(),
+                    selectedFolderDisplayPath = request.selectedFolderDisplayPath,
+                    scanId = request.scanId,
+                    scanRules = request.scanRules,
+                    metadataScanMode = request.metadataScanMode,
+                    metadataConcurrency = request.metadataConcurrency,
+                    importBatchSize = request.importBatchSize,
+                )
                 StorageType.SMB -> importer.scanAndImportFolder(
                     storageId = storageId.value,
                     selectedFolderRemoteId = request.selectedFolderRemoteId,
@@ -164,6 +175,16 @@ internal class LegacyLibrarySyncController(
         )
     }
 }
+
+private fun String.toLocalStorageScannerPath(): String {
+    return when {
+        this == ANDROID_PRIMARY_STORAGE_PATH -> "/"
+        startsWith("$ANDROID_PRIMARY_STORAGE_PATH/") -> removePrefix(ANDROID_PRIMARY_STORAGE_PATH)
+        else -> this
+    }
+}
+
+private const val ANDROID_PRIMARY_STORAGE_PATH = "/storage/emulated/0"
 
 internal interface LegacyLibrarySyncImporter {
     suspend fun cancelImport(scanId: String): Boolean

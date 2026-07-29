@@ -9,6 +9,7 @@ import io.github.julystar.musicapp.feature.home.domain.HomeStatisticsRepository
 import io.github.julystar.musicapp.feature.home.domain.ListeningPlaybackTrack
 import io.github.julystar.musicapp.core.toArtwork
 import io.github.julystar.musicapp.domain.importing.TrackMetadataPrefetcher
+import io.github.julystar.musicapp.plugin.management.PlaybackLyricsEnricher
 import io.github.julystar.musicapp.source.storage.LegacyStorageLookup
 import io.github.julystar.musicapp.source.storage.legacyStorageTrackMediaIdOrNull
 import io.github.julystar.musicapp.singleton.RoomLibraryStore
@@ -46,6 +47,7 @@ class PlayerRepository(
     private val storageLookup: LegacyStorageLookup,
     private val metadataPrefetcher: TrackMetadataPrefetcher? = null,
     private val statisticsRepository: HomeStatisticsRepository? = null,
+    private val lyricsEnricher: PlaybackLyricsEnricher? = null,
 ) {
     private val _music = MutableStateFlow(null as Music?)
     private val _playlist = MutableStateFlow(null as Playlist?)
@@ -171,12 +173,24 @@ class PlayerRepository(
             } catch (_: Exception) {
                 false
             }
-            if (!refreshed || _music.value?.meta?.id != music.meta.id) return@launch
+            if (refreshed && _music.value?.meta?.id == music.meta.id) {
+                roomLibraryStore.getMusic(music.meta.id)?.let { refreshedMusic ->
+                    if (_music.value?.meta?.id == music.meta.id) {
+                        _music.value = refreshedMusic
+                        publishCurrentTrackInfo(refreshedMusic)
+                    }
+                }
+            }
 
-            val refreshedMusic = roomLibraryStore.getMusic(music.meta.id) ?: return@launch
-            if (_music.value?.meta?.id != music.meta.id) return@launch
-            _music.value = refreshedMusic
-            publishCurrentTrackInfo(refreshedMusic)
+            val enriched = try {
+                lyricsEnricher?.enrich(music.meta.id.value) ?: false
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                false
+            }
+            if (!enriched || _music.value?.meta?.id != music.meta.id) return@launch
+            publishCurrentTrackInfo(_music.value ?: return@launch)
         }
     }
 

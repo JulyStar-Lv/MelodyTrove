@@ -139,6 +139,204 @@ final result: passed
 
 ---
 
+## Queue content and theme alignment — 2026-07-29
+
+### Evidence
+
+- Design reference: `/var/folders/jc/z_g_5hld77g5zmm6bxv83_5c0000gn/T/codex-clipboard-a81d8692-0141-4b8f-a92f-be2256c122a4.png`.
+- Same-size desktop dark-theme comparison: `/Users/shine/.codex/visualizations/2026/07/29/019fae45-4acf-79d0-bcb6-0508d2dc6256/queue-design-qa/desktop-dark-reference-vs-implementation.png`.
+- Desktop light/dark comparison: `/Users/shine/.codex/visualizations/2026/07/29/019fae45-4acf-79d0-bcb6-0508d2dc6256/queue-design-qa/desktop-light-vs-dark.png`.
+- Android light/dark comparison: `/Users/shine/.codex/visualizations/2026/07/29/019fae45-4acf-79d0-bcb6-0508d2dc6256/queue-design-qa/android-light-vs-dark.png`.
+- Desktop Now Playing width check: `/Users/shine/.codex/visualizations/2026/07/29/019fae45-4acf-79d0-bcb6-0508d2dc6256/queue-design-qa/tidetunes-nowplaying-queue-light.png`.
+- Android row-menu interaction check: `/Users/shine/.codex/visualizations/2026/07/29/019fae45-4acf-79d0-bcb6-0508d2dc6256/queue-design-qa/tidetunes-android-queue-menu-dark.png`.
+
+### Iteration history
+
+#### Iteration 1 — blocked
+
+- Queue rows only showed an index and title, while the design uses a two-line title plus `artist · album` hierarchy.
+- The favorite and overflow actions were missing, header icons did not match, and strong container/row borders made the panel visually rigid.
+- Desktop width did not reliably cover the lyrics column, and mobile/desktop shared one presentation shape.
+
+#### Iteration 2 — blocked
+
+- Added real library metadata, favorite state/actions, row removal, responsive desktop side panel/mobile bottom sheet behavior, theme-derived colors, and low-alpha dividers.
+- The remaining mismatch was the generic list icon and a compound clear-list icon instead of the design's list-with-music and simple trash affordances.
+
+#### Iteration 3 — passed
+
+- Reused the product's existing list-with-music and simple trash assets.
+- The final comparisons confirm the requested two-line content hierarchy, current-track indicator, favorite/overflow actions, soft dividers, responsive width, and native light/dark theme surfaces.
+- Runtime queue data and theme accent colors intentionally remain dynamic, so track count, titles, and accent hue can differ from the static design fixture without changing the component structure.
+
+### Verification
+
+- Desktop design comparison: 960 × 1309 reference/implementation crops inspected side by side.
+- Android compact bottom sheet: 1080 × 2340 light and dark captures inspected side by side.
+- Interaction: favorite state and the per-row remove action were exercised in the running app.
+- `./gradlew :feature:queue:desktopTest --tests 'io.github.julystar.musicapp.feature.queue.presentation.QueueStateTest' :androidApp:installDebug`: passed.
+- Desktop/shared and Android queue compilation checks: passed.
+
+## Findings
+
+No actionable P0, P1, or P2 queue-design findings remain in the requested scope.
+
+final result: passed
+
+---
+
+## Add source icon system and service branding — 2026-07-29
+
+### Source, implementation, and comparison evidence
+
+- Source visual truth: `/var/folders/jc/z_g_5hld77g5zmm6bxv83_5c0000gn/T/codex-clipboard-80ef069c-6ef3-4e8c-ac87-18ecb40245f2.png`.
+- Collapsed implementation capture: `/Users/shine/CommonWork/MobileWork/TideTunes/Design/exports/source-picker/add-source-brand-icons-mobile-collapsed.png`.
+- Media-server expanded capture: `/Users/shine/CommonWork/MobileWork/TideTunes/Design/exports/source-picker/add-source-brand-icons-media-expanded.png`.
+- Cloud-drive expanded capture: `/Users/shine/CommonWork/MobileWork/TideTunes/Design/exports/source-picker/add-source-brand-icons-cloud-expanded.png`.
+- Focused source/implementation comparison: `/Users/shine/CommonWork/MobileWork/TideTunes/Design/exports/source-picker/add-source-design-qa-comparison.png`.
+- Source pixels: `710 × 870`; normalized to `390 × 478` for comparison.
+- Implementation viewport and density: `390 × 844` CSS px at device scale factor `1`; the collapsed dialog region is `390 × 464` and is top-aligned in the comparison with 14 px of bottom padding.
+- State: dark-theme mobile Library & sources screen with the Add source bottom sheet open; collapsed, Cloud drives expanded, and Media servers expanded states were checked.
+
+### Required fidelity surfaces
+
+- Fonts and typography: the existing title, summary, section-label, quick-option, category-title, category-summary, and count hierarchy is unchanged. Labels remain single-line and readable at the 390 px mobile viewport.
+- Spacing and layout rhythm: the screenshot's three-column quick-access grid, 36 px leading icon containers, section gaps, row separators, bottom-sheet radius, and category-row rhythm are preserved. Expanded service rows use the same 36 px icon frame and 24 px visible brand mark.
+- Colors and visual tokens: generic destinations retain the existing pink outline treatment on the dark purple container. Branded destinations use a neutral white icon tile so original service colors remain legible in both dark and light themes.
+- Image quality and asset fidelity: OneDrive uses Microsoft's original multitone blue cloud asset; Navidrome uses the project's official 192 px record logo; OpenSubsonic uses its official submarine favicon; Emby uses the official green play-mark asset. All assets loaded successfully with non-zero intrinsic sizes. No text glyph, emoji, CSS drawing, placeholder, or handcrafted logo is used.
+- Copy and content: Add source, Quick access, Browse by type, all category copy, counts, and service names remain unchanged.
+- Icons and controls: Local directory, WebDAV, and their expanded entries now reuse the same Lucide glyph per source type. Category icons retain the reference's hard-drive, cloud, and broadcast semantics. Category expansion, collapse, close, and source-selection buttons preserve their existing focus and hover behavior.
+
+### Comparison history
+
+#### Iteration 1 — blocked
+
+- [P2] The first consistency pass changed Local directory from the reference hard-drive glyph to a folder, WebDAV from globe to server, and Media servers from broadcast to server.
+- Impact: stroke style was consistent, but the changed symbols introduced avoidable semantic and visual drift from the selected screenshot.
+- Fix: restored the screenshot's hard-drive, globe, and broadcast symbols while keeping the new shared icon-frame component and using the same symbol for each source in quick-access and expanded-row contexts.
+
+#### Iteration 2 — passed
+
+- The normalized combined comparison shows the same sheet structure, icon geometry, pink line weight, content hierarchy, and spacing as the source, with the requested OneDrive brand mark as the intentional visual change.
+- The focused Media servers capture confirms that Navidrome, OpenSubsonic, and Emby use their original brand marks inside identical `36 × 36` neutral frames with `24 × 24` visible marks.
+- The Cloud drives state confirms OneDrive uses the same official asset and frame in both quick access and the expanded service row.
+
+### Verification
+
+- `npm run build` in `Design/`: passed; the existing bundle-size warning remains non-blocking.
+- `git diff --check`: passed.
+- Primary interactions tested: Settings navigation, Library & sources navigation, Add source open, Cloud drives expand/collapse, Media servers expand/collapse.
+- Browser console errors: none.
+- All four branded images reported `complete: true`; their frames measured `36 × 36` CSS px.
+
+## Findings
+
+No actionable P0, P1, P2, or P3 findings remain.
+
+final result: passed
+
+---
+
+## Source-detail icon style alignment — 2026-07-28
+
+### Source, implementation, and comparison evidence
+
+- Original Unified library card: `/var/folders/jc/z_g_5hld77g5zmm6bxv83_5c0000gn/T/codex-clipboard-c1a43bb2-2e67-47a1-abf0-fd11460d1328.png` (`724 × 412`).
+- Original Add source and completed-scan cards: `/var/folders/jc/z_g_5hld77g5zmm6bxv83_5c0000gn/T/codex-clipboard-6147ec59-f372-41c2-9940-4b8370724922.png` (`708 × 426`).
+- Shared settings-icon style reference: `/var/folders/jc/z_g_5hld77g5zmm6bxv83_5c0000gn/T/codex-clipboard-7e37681a-0e91-42ef-8bf9-fea43c623f13.png`.
+- Unified library implementation capture: `/Users/shine/CommonWork/MobileWork/TideTunes/Design/exports/settings-icons/implementation-source-unified-icon-dark.png`.
+- Add source and completed-scan implementation capture: `/Users/shine/CommonWork/MobileWork/TideTunes/Design/exports/settings-icons/implementation-source-status-icons-dark.png`.
+- Scanning-state implementation capture: `/Users/shine/CommonWork/MobileWork/TideTunes/Design/exports/settings-icons/implementation-source-scanning-icon-dark.png`.
+- Focused before/after comparison, originals on the left and implementation on the right: `/Users/shine/CommonWork/MobileWork/TideTunes/Design/exports/settings-icons/source-detail-icons-before-after.png`.
+- Browser viewport: `1280 × 720` CSS px at device scale factor `1`.
+- State: dark-theme Library & sources detail view, completed scan and active scan states.
+
+### Required fidelity surfaces
+
+- Fonts and typography: unchanged. Card titles, summaries, status labels, statistics, and action-button copy retain their existing hierarchy.
+- Spacing and layout rhythm: the three leading badges now share the same `40 × 40` size, `14` px radius, centered `18 × 18` icon, and light elevation shadow. Existing card and row geometry is unchanged.
+- Colors and visual tokens: Unified library uses the brand pink-purple gradient, Add source uses orange-pink, and the completed state uses green-blue. Active scanning keeps the same container and switches to pink-purple.
+- Image quality and asset fidelity: all three glyphs use the existing Lucide white outline family with consistent stroke weight; there are no raster or text-glyph substitutes.
+- Copy and controls: source counts, scan status, summaries, chevrons, switches, and Scan now/Cancel behavior remain unchanged.
+
+### Comparison history
+
+#### Iteration 1 — blocked
+
+- [P2] The three cards used translucent single-color backgrounds with colored glyphs, while the settings navigation used gradient badges with white outline glyphs.
+- [P2] Each card implemented its badge independently, allowing size, state color, and icon treatment to drift.
+- Fix: introduced one shared `SettingsIconBadge` and routed settings navigation plus all three source-detail cards through it.
+
+#### Iteration 2 — passed
+
+- The focused comparison confirms consistent rounded-square geometry, diagonal gradients, white outline icons, centering, and shadow weight.
+- The active scan capture confirms the same badge geometry is preserved while the icon rotates and the state gradient changes.
+
+### Verification
+
+- `npm run build` in `Design/`: passed; the existing bundle-size warning remains non-blocking.
+- `git diff --check`: passed.
+- Measured all three completed-state badges at `40 × 40` CSS px with `14` px radius and `18 × 18` white icons.
+- Primary interactions tested: Settings navigation, Library & sources navigation, Scan now, active scanning state, automatic completion, and completed status restoration.
+- Browser console errors: none.
+
+## Findings
+
+No actionable P0, P1, P2, or P3 findings remain.
+
+final result: passed
+
+---
+
+## Settings icon style alignment — 2026-07-28
+
+### Source, implementation, and comparison evidence
+
+- Source visual truth: `/var/folders/jc/z_g_5hld77g5zmm6bxv83_5c0000gn/T/codex-clipboard-7e37681a-0e91-42ef-8bf9-fea43c623f13.png`.
+- Full implementation capture: `/Users/shine/CommonWork/MobileWork/TideTunes/Design/exports/settings-icons/implementation-settings-light.png`.
+- Lower settings-entry capture: `/Users/shine/CommonWork/MobileWork/TideTunes/Design/exports/settings-icons/implementation-settings-lower-light.jpg`.
+- Source-detail navigation capture: `/Users/shine/CommonWork/MobileWork/TideTunes/Design/exports/settings-icons/implementation-source-detail-light.jpg`.
+- Same-scale focused comparison, reference on the left and implementation on the right: `/Users/shine/CommonWork/MobileWork/TideTunes/Design/exports/settings-icons/settings-icons-normalized-comparison.png`.
+- Browser viewport: `1280 × 720` CSS px at device scale factor `1`.
+- Source pixels: `112 × 518`; normalized to `56 × 259` so its `80 × 80` physical-pixel badges compare at the implementation's `40 × 40` CSS size.
+- Implementation pixels: `1280 × 720`; focused badges measured `40 × 40` CSS px.
+- State: Settings desktop split view, light and dark themes, selected and unselected entries, followed by the Library & sources detail page.
+
+### Required fidelity surfaces
+
+- Fonts and typography: unchanged. Existing settings title, section, row-title, summary, and truncation styles are preserved.
+- Spacing and layout rhythm: every settings-entry badge now uses the reference's `40 × 40` size, `14` radius, centered `18` icon, and a light elevation shadow. Existing row height, gaps, dividers, and card geometry remain unchanged.
+- Colors and visual tokens: the badges reuse the app's existing pink, purple, blue, green, yellow, and orange palette in diagonal two-color gradients. The normalized comparison confirms the reference's coral, purple-blue, and yellow-orange sequence.
+- Image quality and asset fidelity: settings-entry glyphs now use one consistent 24-unit, 2-unit-stroke Lucide outline family sourced from the project's installed icon package and rendered as native vector resources. No raster placeholders, emoji, text glyphs, or CSS-drawn substitute icons are used.
+- Copy and content: unchanged.
+- Icons and controls: the settings root, search results, selected entries, and shared settings leading-icon component use the same white outline treatment. Search, chevrons, toggles, and status/action icons retain their distinct functional styling.
+
+### Comparison history
+
+#### Iteration 1 — passed
+
+- No actionable P0, P1, or P2 mismatch was found in the first normalized comparison.
+- The source and implementation badges match in size, radius, icon scale, white stroke treatment, gradient direction, and visual weight.
+- Light and dark captures show no clipping, low-contrast glyphs, or selected-state regressions.
+
+### Verification
+
+- `./gradlew :feature:settings:compileKotlinDesktop --stacktrace`: passed.
+- `./gradlew :feature:settings:compileDebugKotlinAndroid --stacktrace`: passed.
+- `npm run build` in `Design/`: passed.
+- XML validation for all new settings vector resources: passed.
+- `git diff --check`: passed.
+- Primary interactions tested: Settings navigation, light/dark mode toggle, selected-row state, internal settings-list scrolling, and Library & sources navigation.
+- Browser console errors: none.
+
+## Findings
+
+No actionable P0, P1, or P2 findings remain.
+
+final result: passed
+
+---
+
 ## Now Playing Design alignment — 2026-07-22
 
 ### Evidence

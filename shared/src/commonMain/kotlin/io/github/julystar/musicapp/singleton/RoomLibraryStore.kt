@@ -85,6 +85,19 @@ class RoomLibraryStore(
         return metadataDao.artistNamesForTrack(trackId).firstOrNull()
     }
 
+    suspend fun getPlaybackItemMetadata(trackId: Long): PlaybackItemMetadata {
+        val track = trackDao.get(trackId)
+        return PlaybackItemMetadata(
+            artist = metadataDao.artistNamesForTrack(trackId)
+                .firstOrNull()
+                ?.takeIf(String::isNotBlank)
+                ?: track?.artist?.takeIf(String::isNotBlank),
+            album = track?.albumId
+                ?.let { albumId -> metadataDao.getAlbum(albumId)?.name }
+                ?.takeIf(String::isNotBlank),
+        )
+    }
+
     suspend fun getTrackAnnotation(trackId: Long): String? {
         return trackDao.get(trackId)?.comment?.takeIf(String::isNotBlank)
     }
@@ -586,6 +599,11 @@ data class TrackReplayGain(
     val trackPeak: Double?,
     val albumGainDb: Double?,
     val albumPeak: Double?,
+)
+
+data class PlaybackItemMetadata(
+    val artist: String?,
+    val album: String?,
 )
 
 private fun List<MusicAbstract>.totalDuration(): Duration? {

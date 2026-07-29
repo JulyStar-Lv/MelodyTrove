@@ -2,6 +2,7 @@ package io.github.julystar.musicapp.feature.queue.presentation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.julystar.musicapp.core.domain.repository.FavoritesRepository
 import io.github.julystar.musicapp.service.playback.domain.PlayableItem
 import io.github.julystar.musicapp.service.playback.domain.PlaybackController
 import io.github.julystar.musicapp.service.playback.domain.PlaybackStatus
@@ -16,6 +17,7 @@ import kotlinx.coroutines.launch
 
 class QueueViewModel(
     private val playbackController: PlaybackController,
+    private val favoritesRepository: FavoritesRepository,
 ) : ViewModel() {
 
     private val _events = Channel<QueueEvent>(Channel.BUFFERED)
@@ -26,7 +28,8 @@ class QueueViewModel(
     val state: StateFlow<QueueState> = combine(
         playbackController.queue,
         playbackController.state,
-    ) { queue, playerState ->
+        favoritesRepository.favoriteTrackIds,
+    ) { queue, playerState, favoriteTrackIds ->
         cachedItems = queue.items
         val isPlaying = playerState.status == PlaybackStatus.Playing
         QueueState(
@@ -36,6 +39,9 @@ class QueueViewModel(
                     title = item.title,
                     artist = item.artist,
                     isCurrent = index == queue.currentIndex,
+                    album = item.album,
+                    trackId = item.libraryTrackId,
+                    isFavorite = item.libraryTrackId?.let { it in favoriteTrackIds } == true,
                 )
             }.toPersistentList(),
             currentIndex = queue.currentIndex,
@@ -56,6 +62,12 @@ class QueueViewModel(
                     }
                 }
             }
+            is QueueAction.ToggleFavorite -> {
+                viewModelScope.launch {
+                    favoritesRepository.toggleFavorite(action.trackId)
+                }
+            }
+            is QueueAction.RemoveItem -> playbackController.removeQueueItem(action.index)
             QueueAction.ClearQueue -> playbackController.clearQueue()
         }
     }

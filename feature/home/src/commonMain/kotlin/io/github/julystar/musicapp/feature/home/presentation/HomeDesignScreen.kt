@@ -101,7 +101,7 @@ import musicapp.feature.home.generated.resources.home_listening_total_time
 import musicapp.feature.home.generated.resources.home_listening_tracks_played
 import musicapp.feature.home.generated.resources.home_no_track
 import musicapp.feature.home.generated.resources.home_now_playing_label
-import musicapp.feature.home.generated.resources.home_open_library
+import musicapp.feature.home.generated.resources.home_add_source
 import musicapp.feature.home.generated.resources.home_recommended_artists
 import musicapp.feature.home.generated.resources.home_recently_played
 import musicapp.feature.home.generated.resources.home_subtitle
@@ -127,6 +127,7 @@ fun HomeDesignScreen(
     val fallbackTrack = remember(state.dailyPickTracks, state.recentTracks) {
         state.dailyPickTracks.ifEmpty { state.recentTracks }.randomOrNull()
     }
+    val showEmptyStateOnly = state.shouldShowEmptyStateOnly
     val dailyPicksTrackTitle = currentMiniPlayerTitle
         ?: fallbackTrack?.title
         ?: stringResource(Res.string.home_no_track)
@@ -190,119 +191,121 @@ fun HomeDesignScreen(
                 if (state.shouldShowEmptyState) {
                     item {
                         HomeEmptyState(
-                            onOpenLibrary = { onAction(HomeAction.NavigateToLibrary) },
+                            onAddSource = { onAction(HomeAction.NavigateToSourceSettings) },
                         )
                     }
                 }
-                item {
-                    DailyPicksHero(
-                        compact = compact,
-                        track = state.dailyPickTracks.firstOrNull(),
-                        nowPlayingTitle = dailyPicksTrackTitle,
-                        onPlay = state.dailyPickTracks.takeIf { it.isNotEmpty() }?.let {
-                            { onAction(HomeAction.PlayDailyPicks) }
-                        },
-                    )
-                }
-                if (state.pinnedPlaylists.isNotEmpty()) {
+                if (!showEmptyStateOnly) {
                     item {
-                        HomeSection(
-                            title = stringResource(Res.string.home_pinned_playlists),
-                            icon = Res.drawable.icon_bookmark,
-                            onClick = { onAction(HomeAction.NavigateToLibrary) },
-                        ) {
-                            PlaylistRow(
-                                playlists = state.pinnedPlaylists,
-                                cardWidth = playlistCardWidth,
-                                showMeta = true,
+                        DailyPicksHero(
+                            compact = compact,
+                            track = state.dailyPickTracks.firstOrNull(),
+                            nowPlayingTitle = dailyPicksTrackTitle,
+                            onPlay = state.dailyPickTracks.takeIf { it.isNotEmpty() }?.let {
+                                { onAction(HomeAction.PlayDailyPicks) }
+                            },
+                        )
+                    }
+                    if (state.pinnedPlaylists.isNotEmpty()) {
+                        item {
+                            HomeSection(
+                                title = stringResource(Res.string.home_pinned_playlists),
+                                icon = Res.drawable.icon_bookmark,
                                 onClick = { onAction(HomeAction.NavigateToLibrary) },
-                            )
+                            ) {
+                                PlaylistRow(
+                                    playlists = state.pinnedPlaylists,
+                                    cardWidth = playlistCardWidth,
+                                    showMeta = true,
+                                    onClick = { onAction(HomeAction.NavigateToLibrary) },
+                                )
+                            }
                         }
                     }
-                }
-                state.statistics?.let { statistics ->
-                    item {
-                        HomeSection(
-                            title = stringResource(Res.string.home_your_listening),
-                            icon = Res.drawable.icon_activity,
-                            onClick = { onAction(HomeAction.NavigateToListening) },
-                        ) {
-                            HomeStatisticsCard(statistics = statistics)
+                    state.statistics?.let { statistics ->
+                        item {
+                            HomeSection(
+                                title = stringResource(Res.string.home_your_listening),
+                                icon = Res.drawable.icon_activity,
+                                onClick = { onAction(HomeAction.NavigateToListening) },
+                            ) {
+                                HomeStatisticsCard(statistics = statistics)
+                            }
                         }
                     }
-                }
-                if (state.pinnedPlaylists.isNotEmpty()) {
-                    item {
-                        HomeSection(
-                            title = stringResource(Res.string.home_continue_playing),
-                            icon = Res.drawable.icon_headphones,
-                            onClick = { onAction(HomeAction.NavigateToLibrary) },
-                        ) {
-                            PlaylistRow(
-                                playlists = state.pinnedPlaylists,
-                                cardWidth = playlistCardWidth,
-                                showMeta = false,
+                    if (state.pinnedPlaylists.isNotEmpty()) {
+                        item {
+                            HomeSection(
+                                title = stringResource(Res.string.home_continue_playing),
+                                icon = Res.drawable.icon_headphones,
                                 onClick = { onAction(HomeAction.NavigateToLibrary) },
-                            )
+                            ) {
+                                PlaylistRow(
+                                    playlists = state.pinnedPlaylists,
+                                    cardWidth = playlistCardWidth,
+                                    showMeta = false,
+                                    onClick = { onAction(HomeAction.NavigateToLibrary) },
+                                )
+                            }
                         }
                     }
-                }
-                if (state.recentTracks.isNotEmpty()) {
-                    item {
-                        HomeSection(
-                            title = stringResource(Res.string.home_recently_played),
-                            icon = Res.drawable.icon_clock,
-                            onClick = { onAction(HomeAction.NavigateToLibrary) },
-                        ) {
-                            RecentlyPlayedPager(
-                                tracks = state.recentTracks,
-                                onPlay = { track -> onAction(HomeAction.PlayTrack(track.id)) },
-                            )
-                        }
-                    }
-                }
-                if (state.dailyPickTracks.isNotEmpty()) {
-                    item {
-                        HomeSection(
-                            title = stringResource(Res.string.home_new_songs),
-                            icon = Res.drawable.icon_sparkles,
-                            onClick = { onAction(HomeAction.NavigateToLibrary) },
-                        ) {
-                            NewSongRow(
-                                tracks = state.dailyPickTracks,
-                                cardWidth = newSongCardWidth,
-                                onPlay = { track -> onAction(HomeAction.PlayLibraryTrack(track.id)) },
-                            )
-                        }
-                    }
-                }
-                if (state.featuredAlbums.isNotEmpty()) {
-                    item {
-                        HomeSection(
-                            title = stringResource(Res.string.home_suggested_albums),
-                            icon = Res.drawable.icon_disc,
-                            onClick = { onAction(HomeAction.NavigateToLibrary) },
-                        ) {
-                            AlbumRow(
-                                albums = state.featuredAlbums,
-                                cardWidth = suggestedAlbumCardWidth,
+                    if (state.recentTracks.isNotEmpty()) {
+                        item {
+                            HomeSection(
+                                title = stringResource(Res.string.home_recently_played),
+                                icon = Res.drawable.icon_clock,
                                 onClick = { onAction(HomeAction.NavigateToLibrary) },
-                            )
+                            ) {
+                                RecentlyPlayedPager(
+                                    tracks = state.recentTracks,
+                                    onPlay = { track -> onAction(HomeAction.PlayTrack(track.id)) },
+                                )
+                            }
                         }
                     }
-                }
-                if (state.artists.isNotEmpty()) {
-                    item {
-                        HomeSection(
-                            title = stringResource(Res.string.home_recommended_artists),
-                            icon = Res.drawable.icon_mic_vocal,
-                            onClick = { onAction(HomeAction.NavigateToLibrary) },
-                        ) {
-                            ArtistRow(
-                                artists = state.artists,
-                                size = artistSize,
-                                onOpen = { onAction(HomeAction.NavigateToLibrary) },
-                            )
+                    if (state.dailyPickTracks.isNotEmpty()) {
+                        item {
+                            HomeSection(
+                                title = stringResource(Res.string.home_new_songs),
+                                icon = Res.drawable.icon_sparkles,
+                                onClick = { onAction(HomeAction.NavigateToLibrary) },
+                            ) {
+                                NewSongRow(
+                                    tracks = state.dailyPickTracks,
+                                    cardWidth = newSongCardWidth,
+                                    onPlay = { track -> onAction(HomeAction.PlayLibraryTrack(track.id)) },
+                                )
+                            }
+                        }
+                    }
+                    if (state.featuredAlbums.isNotEmpty()) {
+                        item {
+                            HomeSection(
+                                title = stringResource(Res.string.home_suggested_albums),
+                                icon = Res.drawable.icon_disc,
+                                onClick = { onAction(HomeAction.NavigateToLibrary) },
+                            ) {
+                                AlbumRow(
+                                    albums = state.featuredAlbums,
+                                    cardWidth = suggestedAlbumCardWidth,
+                                    onClick = { onAction(HomeAction.NavigateToLibrary) },
+                                )
+                            }
+                        }
+                    }
+                    if (state.artists.isNotEmpty()) {
+                        item {
+                            HomeSection(
+                                title = stringResource(Res.string.home_recommended_artists),
+                                icon = Res.drawable.icon_mic_vocal,
+                                onClick = { onAction(HomeAction.NavigateToLibrary) },
+                            ) {
+                                ArtistRow(
+                                    artists = state.artists,
+                                    size = artistSize,
+                                    onOpen = { onAction(HomeAction.NavigateToLibrary) },
+                                )
+                            }
                         }
                     }
                 }
@@ -611,7 +614,7 @@ private fun DailyPicksPlayButton(onClick: (() -> Unit)?) {
         Icon(
             painter = painterResource(CoreRes.drawable.icon_play_outline),
             contentDescription = stringResource(Res.string.home_play),
-            tint = DesignPalette.Primary.copy(alpha = if (onClick == null) 0.42f else 1f),
+            tint = MiuixTheme.colorScheme.primary.copy(alpha = if (onClick == null) 0.42f else 1f),
             modifier = Modifier
                 .align(Alignment.Center)
                 .size(32.dp),
@@ -620,7 +623,7 @@ private fun DailyPicksPlayButton(onClick: (() -> Unit)?) {
 }
 
 @Composable
-private fun HomeEmptyState(onOpenLibrary: () -> Unit) {
+private fun HomeEmptyState(onAddSource: () -> Unit) {
     val shape = RoundedCornerShape(DesignTokens.shapes.card)
     Column(
         modifier = Modifier
@@ -646,12 +649,12 @@ private fun HomeEmptyState(onOpenLibrary: () -> Unit) {
                 .height(DesignTokens.adaptive.minimumTouchTarget)
                 .clip(RoundedCornerShape(DesignTokens.shapes.full))
                 .background(MiuixTheme.colorScheme.primary)
-                .clickable(onClick = onOpenLibrary)
+                .clickable(onClick = onAddSource)
                 .padding(horizontal = 18.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = stringResource(Res.string.home_open_library),
+                text = stringResource(Res.string.home_add_source),
                 color = MiuixTheme.colorScheme.onPrimary,
                 style = MiuixTheme.textStyles.body2,
                 fontWeight = FontWeight.SemiBold,

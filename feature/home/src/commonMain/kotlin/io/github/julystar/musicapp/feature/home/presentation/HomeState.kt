@@ -21,17 +21,10 @@ data class HomeState(
 )
 
 internal val HomeState.shouldShowEmptyState: Boolean
-    get() {
-        if (isLoading) return false
+    get() = !isLoading && dailyPickTracks.isEmpty()
 
-        val hasContent = featuredAlbums.isNotEmpty() ||
-            recentlyAddedAlbums.isNotEmpty() ||
-            artists.isNotEmpty() ||
-            pinnedPlaylists.isNotEmpty() ||
-            dailyPickTracks.isNotEmpty() ||
-            recentTracks.isNotEmpty()
-        return !hasContent
-    }
+internal val HomeState.shouldShowEmptyStateOnly: Boolean
+    get() = shouldShowEmptyState
 
 @Immutable
 data class HomeFeaturedAlbum(
@@ -78,6 +71,7 @@ sealed interface HomeAction {
     data object PlayDailyPicks : HomeAction
     data object NavigateToDownloads : HomeAction
     data object NavigateToLibrary : HomeAction
+    data object NavigateToSourceSettings : HomeAction
     data object NavigateToSearch : HomeAction
     data object NavigateToListening : HomeAction
     data object OpenSleepTimer : HomeAction
@@ -86,6 +80,7 @@ sealed interface HomeAction {
 sealed interface HomeEvent {
     data object NavigateToDownloads : HomeEvent
     data object NavigateToLibrary : HomeEvent
+    data object NavigateToSourceSettings : HomeEvent
     data object NavigateToSearch : HomeEvent
     data object NavigateToListening : HomeEvent
     data object OpenSleepTimer : HomeEvent

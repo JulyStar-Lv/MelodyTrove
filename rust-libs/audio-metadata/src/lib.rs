@@ -282,6 +282,7 @@ pub struct NormalizedMetadata {
     pub replay_gain_album_gain: Option<f64>,
     pub replay_gain_album_peak: Option<f64>,
     pub lyrics: Option<EmbeddedLyrics>,
+    pub embedded_lyrics_kind: String,
     pub artwork: Option<EmbeddedArtwork>,
     pub has_embedded_artwork: bool,
     pub raw_metadata: Vec<RawMetadataEntry>,
@@ -460,6 +461,11 @@ fn normalize_metadata(
         .read_lyrics
         .then(|| tag.and_then(extract_lyrics))
         .flatten();
+    let embedded_lyrics_kind = tag
+        .and_then(classify_tag_lyrics)
+        .unwrap_or(EmbeddedLyricsKind::None)
+        .as_str()
+        .to_string();
     let artwork = options
         .read_artwork
         .then(|| tag.and_then(extract_artwork))
@@ -511,6 +517,7 @@ fn normalize_metadata(
         replay_gain_album_gain: tag.and_then(|tag| replay_gain(tag, ItemKey::ReplayGainAlbumGain)),
         replay_gain_album_peak: tag.and_then(|tag| replay_gain(tag, ItemKey::ReplayGainAlbumPeak)),
         lyrics,
+        embedded_lyrics_kind,
         artwork,
         has_embedded_artwork,
         raw_metadata,
@@ -578,28 +585,131 @@ fn replay_gain(tag: &Tag, key: ItemKey) -> Option<f64> {
 fn extract_lyrics(tag: &Tag) -> Option<EmbeddedLyrics> {
     #[cfg(test)]
     LYRICS_EXTRACTION_ATTEMPTS.with(|count| count.set(count.get() + 1));
-    for (key, synchronized) in [(ItemKey::Lyrics, true), (ItemKey::UnsyncLyrics, false)] {
+    let (kind, item) = best_tag_lyrics(tag)?;
+    let content = item.value().text()?;
+    Some(EmbeddedLyrics {
+        content: content.to_owned(),
+        synchronized: kind.is_synchronized(),
+        language: language(item.lang()),
+        description: non_empty(item.description()),
+    })
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord)]
+enum EmbeddedLyricsKind {
+    #[default]
+    None,
+    Plain,
+    LineTimed,
+    WordTimed,
+    Ttml,
+}
+
+impl EmbeddedLyricsKind {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::None => "None",
+            Self::Plain => "Plain",
+            Self::LineTimed => "LineTimed",
+            Self::WordTimed => "WordTimed",
+            Self::Ttml => "Ttml",
+        }
+    }
+
+    fn is_synchronized(self) -> bool {
+        matches!(self, Self::LineTimed | Self::WordTimed | Self::Ttml)
+    }
+}
+
+fn classify_tag_lyrics(tag: &Tag) -> Option<EmbeddedLyricsKind> {
+    best_tag_lyrics(tag).map(|(kind, _)| kind)
+}
+
+fn best_tag_lyrics(tag: &Tag) -> Option<(EmbeddedLyricsKind, &lofty::tag::TagItem)> {
+    let mut best = None;
+    for key in [ItemKey::Lyrics, ItemKey::UnsyncLyrics] {
         for item in tag.get_items(key) {
             let Some(content) = item.value().text().filter(|value| !value.trim().is_empty()) else {
                 continue;
             };
-            return Some(EmbeddedLyrics {
-                content: content.to_owned(),
-                synchronized: synchronized && looks_synchronized(content),
-                language: language(item.lang()),
-                description: non_empty(item.description()),
-            });
+            let kind = classify_lyrics(content);
+            if best.is_none_or(|(best_kind, _)| kind > best_kind) {
+                best = Some((kind, item));
+            }
         }
     }
-    None
+    best
+}
+
+fn classify_lyrics(content: &str) -> EmbeddedLyricsKind {
+    if content.contains("http://www.w3.org/ns/ttml") {
+        EmbeddedLyricsKind::Ttml
+    } else if looks_word_timed(content) {
+        EmbeddedLyricsKind::WordTimed
+    } else if looks_synchronized(content) {
+        EmbeddedLyricsKind::LineTimed
+    } else {
+        EmbeddedLyricsKind::Plain
+    }
 }
 
 fn looks_synchronized(content: &str) -> bool {
     content.lines().any(|line| {
-        line.strip_prefix('[')
+        line.trim_start()
+            .strip_prefix('[')
             .and_then(|line| line.split_once(']'))
-            .is_some_and(|(timestamp, _)| timestamp.contains(':'))
+            .is_some_and(|(timestamp, _)| timestamp.contains(':') || is_numeric_token(timestamp, 2))
     })
+}
+
+fn looks_word_timed(content: &str) -> bool {
+    content.lines().any(|raw_line| {
+        let line = raw_line.trim();
+        let Some((line_timestamp, body)) =
+            line.strip_prefix('[').and_then(|line| line.split_once(']'))
+        else {
+            return false;
+        };
+        if line_timestamp.contains(':') {
+            return contains_timed_token(body, '<', '>', ':')
+                || contains_timed_token(body, '[', ']', ':');
+        }
+        if line_timestamp
+            .chars()
+            .all(|character| character.is_ascii_digit())
+            && contains_numeric_token(body, '(', ')', 2)
+        {
+            return true;
+        }
+        if !is_numeric_token(line_timestamp, 2) {
+            return false;
+        }
+        contains_numeric_token(body, '<', '>', 3)
+            || contains_numeric_token(body, '(', ')', 2)
+            || contains_numeric_token(body, '(', ')', 3)
+    })
+}
+
+fn contains_timed_token(value: &str, open: char, close: char, separator: char) -> bool {
+    value.split(open).skip(1).any(|part| {
+        part.split_once(close)
+            .is_some_and(|(token, text)| token.contains(separator) && !text.is_empty())
+    })
+}
+
+fn contains_numeric_token(value: &str, open: char, close: char, parts: usize) -> bool {
+    value.split(open).skip(1).any(|part| {
+        part.split_once(close)
+            .is_some_and(|(token, text)| is_numeric_token(token, parts) && !text.is_empty())
+    })
+}
+
+fn is_numeric_token(value: &str, parts: usize) -> bool {
+    let values = value.split(',').map(str::trim).collect::<Vec<_>>();
+    values.len() == parts
+        && values.iter().all(|part| {
+            !part.is_empty() && part.chars().all(|character| character.is_ascii_digit())
+        })
 }
 
 fn extract_raw_metadata(tag: &Tag) -> Result<Vec<RawMetadataEntry>, MetadataError> {
@@ -836,8 +946,74 @@ mod tests {
         assert_eq!(metadata.artwork, None);
         assert!(metadata.has_embedded_artwork);
         assert_eq!(metadata.lyrics, None);
+        assert_eq!(metadata.embedded_lyrics_kind, "LineTimed");
         assert!(metadata.raw_metadata.is_empty());
         assert_eq!(extraction_attempt_counts(), (0, 0, 0));
+    }
+
+    #[test]
+    fn classifies_word_timed_and_ttml_lyrics_without_extracting_content() {
+        for (content, expected) in [
+            (
+                "[00:02.00]<00:02.000>Hello<00:02.500> world<00:03.000>",
+                "WordTimed",
+            ),
+            ("[4]I (0,214)promise (214,345)you", "WordTimed"),
+            (
+                r#"<tt xmlns="http://www.w3.org/ns/ttml"><body><div><p begin="00:01.000" end="00:02.000">Line</p></div></body></tt>"#,
+                "Ttml",
+            ),
+        ] {
+            let mut tag = Tag::new(TagType::VorbisComments);
+            tag.push(TagItem::new(
+                ItemKey::Lyrics,
+                ItemValue::Text(content.to_string()),
+            ));
+
+            let metadata = normalize_metadata(
+                Some(&tag),
+                &FileProperties::default(),
+                FileType::Flac,
+                MetadataReadOptions {
+                    read_artwork: false,
+                    read_lyrics: false,
+                    read_raw_metadata: false,
+                },
+            )
+            .unwrap();
+
+            assert_eq!(metadata.lyrics, None);
+            assert_eq!(metadata.embedded_lyrics_kind, expected);
+        }
+    }
+
+    #[test]
+    fn treats_ttml_stored_in_unsynchronized_tag_as_synchronized() {
+        let mut tag = Tag::new(TagType::VorbisComments);
+        tag.push(TagItem::new(
+            ItemKey::Lyrics,
+            ItemValue::Text("Plain lyrics".to_string()),
+        ));
+        tag.push(TagItem::new(
+            ItemKey::UnsyncLyrics,
+            ItemValue::Text(
+                r#"<tt xmlns="http://www.w3.org/ns/ttml"><body><div><p begin="00:01.000" end="00:02.000">Line</p></div></body></tt>"#
+                    .to_string(),
+            ),
+        ));
+
+        let metadata = normalize_metadata(
+            Some(&tag),
+            &FileProperties::default(),
+            FileType::Flac,
+            MetadataReadOptions::default(),
+        )
+        .unwrap();
+
+        assert_eq!(metadata.embedded_lyrics_kind, "Ttml");
+        let lyrics = metadata.lyrics.expect("lyrics");
+        assert!(lyrics.synchronized);
+        assert!(lyrics.content.contains("http://www.w3.org/ns/ttml"));
     }
 
     #[test]
