@@ -32,7 +32,9 @@ jobs:
       - name: Format, lint, and test
         run: |
           cargo fmt --manifest-path rust-libs/Cargo.toml --all -- --check
-          cargo clippy --manifest-path rust-libs/Cargo.toml --workspace --all-targets -- -D warnings
+          # Keep the modulo form compatible with Rust toolchains that predate
+          # integer::is_multiple_of while still denying every other warning.
+          cargo clippy --manifest-path rust-libs/Cargo.toml --workspace --all-targets -- -D warnings -A clippy::manual-is-multiple-of
           cargo test --manifest-path rust-libs/Cargo.toml --workspace
 
   smb-integration:
