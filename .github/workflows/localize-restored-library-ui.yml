@@ -1,0 +1,422 @@
+name: Localize restored library UI
+
+on:
+  push:
+    branches:
+      - fix/localize-restored-library-ui
+    paths:
+      - .github/workflows/localize-restored-library-ui.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-localization:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/localize-restored-library-ui
+          fetch-depth: 0
+
+      - name: Localize visible library design text without changing UI
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          source_path = Path("feature/library/src/commonMain/kotlin/io/github/julystar/musicapp/feature/library/presentation/LibraryDesignScreen.kt")
+          helper_path = Path("feature/library/src/commonMain/kotlin/io/github/julystar/musicapp/feature/library/presentation/LibraryDesignLocalization.kt")
+          en_path = Path("feature/library/src/commonMain/composeResources/values/strings.xml")
+          zh_path = Path("feature/library/src/commonMain/composeResources/values-zh/strings.xml")
+
+          source = source_path.read_text(encoding="utf-8")
+
+          def replace_required(old: str, new: str, *, count: int = -1) -> None:
+              global source
+              found = source.count(old)
+              if found == 0:
+                  raise SystemExit(f"Required source snippet not found: {old!r}")
+              source = source.replace(old, new, count)
+
+          replace_required("text = group.label,", "text = localizedLibraryText(group.label),")
+          replace_required("text = category.label,", "text = localizedLibraryText(category.label),")
+          replace_required('text = "Library",', 'text = localizedLibraryText("Library"),')
+          replace_required('title = "Library",', 'title = localizedLibraryText("Library"),')
+          replace_required("text = title,", "text = localizedLibraryText(title),")
+          replace_required(
+              """            Text(
+                text = metadata,
+                color = MiuixTheme.colorScheme.onBackgroundVariant,
+                style = MiuixTheme.textStyles.footnote1,
+            )""",
+              """            Text(
+                text = localizedLibraryText(metadata),
+                color = MiuixTheme.colorScheme.onBackgroundVariant,
+                style = MiuixTheme.textStyles.footnote1,
+            )""",
+          )
+          replace_required('text = "Shuffle",', 'text = localizedLibraryText("Shuffle"),')
+          replace_required('text = "Play all",', 'text = localizedLibraryText("Play all"),')
+          replace_required('text = "New",', 'text = localizedLibraryText("New"),')
+          replace_required("text = placeholder,", "text = localizedLibraryText(placeholder),")
+          replace_required(
+              'contentDescription = "Filter songs, sorted by ${current.label}",',
+              'contentDescription = localizedLibraryText("Filter songs, sorted by ${current.label}"),',
+          )
+          replace_required(
+              'text = track.artist ?: "Unknown Artist",',
+              'text = track.artist ?: localizedLibraryText("Unknown Artist"),',
+          )
+          replace_required(
+              'contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",',
+              'contentDescription = localizedLibraryText(if (isFavorite) "Remove from favorites" else "Add to favorites"),',
+          )
+          replace_required(
+              'contentDescription = "More actions for ${track.title}",',
+              'contentDescription = localizedLibraryText("More actions for ${track.title}"),',
+          )
+          replace_required(
+              'text = artist.genre ?: "Artist",',
+              'text = artist.genre ?: localizedLibraryText("Artist"),',
+          )
+          replace_required('text = "$albumCount albums",', 'text = localizedLibraryText("$albumCount albums"),')
+          replace_required("text = playlist.title,", "text = localizedLibraryText(playlist.title),")
+          replace_required("text = playlist.description,", "text = localizedLibraryText(playlist.description),")
+          replace_required(
+              'text = "${playlist.musicCount} tracks",',
+              'text = localizedLibraryText("${playlist.musicCount} tracks"),',
+          )
+          replace_required("text = playlist.durationLabel,", "text = localizedLibraryText(playlist.durationLabel),")
+          replace_required(
+              'contentDescription = if (isPinned) "Unpin playlist" else "Pin playlist",',
+              'contentDescription = localizedLibraryText(if (isPinned) "Unpin playlist" else "Pin playlist"),',
+          )
+          replace_required("text = message,", "text = localizedLibraryText(message),")
+          replace_required("text = action.first,", "text = localizedLibraryText(action.first),")
+
+          source_path.write_text(source, encoding="utf-8")
+
+          helper_path.write_text(r'''package io.github.julystar.musicapp.feature.library.presentation
+
+import androidx.compose.runtime.Composable
+import musicapp.feature.library.generated.resources.Res
+import musicapp.feature.library.generated.resources.library_action_browse_songs
+import musicapp.feature.library.generated.resources.library_action_clear_search
+import musicapp.feature.library.generated.resources.library_action_import_folder
+import musicapp.feature.library.generated.resources.library_action_new
+import musicapp.feature.library.generated.resources.library_action_play_all
+import musicapp.feature.library.generated.resources.library_action_shuffle
+import musicapp.feature.library.generated.resources.library_add_favorite
+import musicapp.feature.library.generated.resources.library_artist_count
+import musicapp.feature.library.generated.resources.library_artist_fallback
+import musicapp.feature.library.generated.resources.library_available_offline
+import musicapp.feature.library.generated.resources.library_category_albums
+import musicapp.feature.library.generated.resources.library_category_artists
+import musicapp.feature.library.generated.resources.library_category_downloads
+import musicapp.feature.library.generated.resources.library_category_favorites
+import musicapp.feature.library.generated.resources.library_category_folders
+import musicapp.feature.library.generated.resources.library_category_genres
+import musicapp.feature.library.generated.resources.library_category_hires
+import musicapp.feature.library.generated.resources.library_category_history
+import musicapp.feature.library.generated.resources.library_category_lossless
+import musicapp.feature.library.generated.resources.library_category_playlists
+import musicapp.feature.library.generated.resources.library_category_recently_added
+import musicapp.feature.library.generated.resources.library_category_recently_played
+import musicapp.feature.library.generated.resources.library_category_songs
+import musicapp.feature.library.generated.resources.library_category_sources
+import musicapp.feature.library.generated.resources.library_duration_hours
+import musicapp.feature.library.generated.resources.library_duration_minutes
+import musicapp.feature.library.generated.resources.library_empty_collection_message
+import musicapp.feature.library.generated.resources.library_empty_favorites
+import musicapp.feature.library.generated.resources.library_empty_hires_after_scan
+import musicapp.feature.library.generated.resources.library_empty_lossless_after_scan
+import musicapp.feature.library.generated.resources.library_filter_sort_description
+import musicapp.feature.library.generated.resources.library_genre_count
+import musicapp.feature.library.generated.resources.library_import_folder_message
+import musicapp.feature.library.generated.resources.library_import_music_folder
+import musicapp.feature.library.generated.resources.library_liked_songs
+import musicapp.feature.library.generated.resources.library_metadata_playlist_count
+import musicapp.feature.library.generated.resources.library_metadata_song_count
+import musicapp.feature.library.generated.resources.library_more_actions
+import musicapp.feature.library.generated.resources.library_my_favorites
+import musicapp.feature.library.generated.resources.library_no_category
+import musicapp.feature.library.generated.resources.library_no_collection_data
+import musicapp.feature.library.generated.resources.library_no_downloads_yet
+import musicapp.feature.library.generated.resources.library_no_folders_added
+import musicapp.feature.library.generated.resources.library_no_matches
+import musicapp.feature.library.generated.resources.library_no_tracks
+import musicapp.feature.library.generated.resources.library_offline_message
+import musicapp.feature.library.generated.resources.library_pin_playlist
+import musicapp.feature.library.generated.resources.library_remove_favorite
+import musicapp.feature.library.generated.resources.library_search_category_hint
+import musicapp.feature.library.generated.resources.library_search_hint
+import musicapp.feature.library.generated.resources.library_sidebar_collection
+import musicapp.feature.library.generated.resources.library_sidebar_more
+import musicapp.feature.library.generated.resources.library_sidebar_storage
+import musicapp.feature.library.generated.resources.library_sort_album
+import musicapp.feature.library.generated.resources.library_sort_artist
+import musicapp.feature.library.generated.resources.library_sort_title
+import musicapp.feature.library.generated.resources.library_sources_message
+import musicapp.feature.library.generated.resources.library_sources_title
+import musicapp.feature.library.generated.resources.library_title
+import musicapp.feature.library.generated.resources.library_track_count
+import musicapp.feature.library.generated.resources.library_track_count_with_duration
+import musicapp.feature.library.generated.resources.library_try_different_search
+import musicapp.feature.library.generated.resources.library_unpin_playlist
+import org.jetbrains.compose.resources.stringResource
+
+private val LibraryHoursMinutesPattern = Regex("""^(\\d+)h (\\d+)m$""")
+private val LibraryMinutesPattern = Regex("""^(\\d+) min$""")
+private val LibrarySongDurationPattern = Regex("""^(\\d+) songs · (.+)$""")
+private val LibraryTrackDurationPattern = Regex("""^(\\d+) tracks? · (.+)$""")
+private val LibraryPlaylistMetadataPattern = Regex("""^(\\d+) playlists · Long press to edit$""")
+private val LibraryAlbumCountPattern = Regex("""^(\\d+) albums$""")
+private val LibraryArtistCountPattern = Regex("""^(\\d+) artists$""")
+private val LibraryGenreCountPattern = Regex("""^(\\d+) genres$""")
+private val LibraryTrackCountPattern = Regex("""^(\\d+) tracks$""")
+private val LibraryFilterDescriptionPattern = Regex("""^Filter songs, sorted by (.+)$""")
+private val LibraryMoreActionsPattern = Regex("""^More actions for (.+)$""")
+
+@Composable
+internal fun localizedLibraryText(value: String): String {
+    localizedLibraryCategory(value)?.let { return it }
+
+    when (value) {
+        "Library" -> return stringResource(Res.string.library_title)
+        "Collection" -> return stringResource(Res.string.library_sidebar_collection)
+        "Storage" -> return stringResource(Res.string.library_sidebar_storage)
+        "More" -> return stringResource(Res.string.library_sidebar_more)
+        "Shuffle" -> return stringResource(Res.string.library_action_shuffle)
+        "Play all" -> return stringResource(Res.string.library_action_play_all)
+        "New" -> return stringResource(Res.string.library_action_new)
+        "Search songs, artists, or albums" -> return stringResource(Res.string.library_search_hint)
+        "No matches" -> return stringResource(Res.string.library_no_matches)
+        "No tracks" -> return stringResource(Res.string.library_no_tracks)
+        "Try a different search." -> return stringResource(Res.string.library_try_different_search)
+        "Clear search" -> return stringResource(Res.string.library_action_clear_search)
+        "No folders added" -> return stringResource(Res.string.library_no_folders_added)
+        "Import a folder to add its music to your library." -> return stringResource(Res.string.library_import_folder_message)
+        "Import folder" -> return stringResource(Res.string.library_action_import_folder)
+        "No downloads yet" -> return stringResource(Res.string.library_no_downloads_yet)
+        "Keep music available when you are offline." -> return stringResource(Res.string.library_offline_message)
+        "Browse songs" -> return stringResource(Res.string.library_action_browse_songs)
+        "One library, every source" -> return stringResource(Res.string.library_sources_title)
+        "Manage Local and WebDAV sources from Settings." -> return stringResource(Res.string.library_sources_message)
+        "Unknown Artist" -> return stringResource(Res.string.library_unknown_artist)
+        "Artist" -> return stringResource(Res.string.library_artist_fallback)
+        "Remove from favorites" -> return stringResource(Res.string.library_remove_favorite)
+        "Add to favorites" -> return stringResource(Res.string.library_add_favorite)
+        "Unpin playlist" -> return stringResource(Res.string.library_unpin_playlist)
+        "Pin playlist" -> return stringResource(Res.string.library_pin_playlist)
+        "Import a music folder" -> return stringResource(Res.string.library_import_music_folder)
+        "Available offline" -> return stringResource(Res.string.library_available_offline)
+        "No collection data available" -> return stringResource(Res.string.library_no_collection_data)
+        "My Favorites" -> return stringResource(Res.string.library_my_favorites)
+        "Your liked songs" -> return stringResource(Res.string.library_liked_songs)
+        "No music is available in this collection yet." -> return stringResource(Res.string.library_empty_collection_message)
+        "Favorite songs will appear here." -> return stringResource(Res.string.library_empty_favorites)
+        "Lossless tracks appear after scan." -> return stringResource(Res.string.library_empty_lossless_after_scan)
+        "Hi-Res tracks appear after scan." -> return stringResource(Res.string.library_empty_hires_after_scan)
+        "Title" -> return stringResource(Res.string.library_sort_title)
+        "Artist" -> return stringResource(Res.string.library_sort_artist)
+        "Album" -> return stringResource(Res.string.library_sort_album)
+    }
+
+    if (value.startsWith("Search ")) {
+        localizedLibraryCategory(value.removePrefix("Search "))?.let { category ->
+            return stringResource(Res.string.library_search_category_hint, category)
+        }
+    }
+
+    if (value.startsWith("No ")) {
+        localizedLibraryCategory(value.removePrefix("No "))?.let { category ->
+            return stringResource(Res.string.library_no_category, category)
+        }
+    }
+
+    LibraryHoursMinutesPattern.matchEntire(value)?.let { match ->
+        return stringResource(
+            Res.string.library_duration_hours,
+            match.groupValues[1].toLong(),
+            match.groupValues[2].toLong(),
+        )
+    }
+    LibraryMinutesPattern.matchEntire(value)?.let { match ->
+        return stringResource(Res.string.library_duration_minutes, match.groupValues[1].toLong())
+    }
+    LibrarySongDurationPattern.matchEntire(value)?.let { match ->
+        return stringResource(
+            Res.string.library_metadata_song_count,
+            match.groupValues[1].toLong(),
+            localizedLibraryText(match.groupValues[2]),
+        )
+    }
+    LibraryTrackDurationPattern.matchEntire(value)?.let { match ->
+        return stringResource(
+            Res.string.library_track_count_with_duration,
+            match.groupValues[1].toLong(),
+            localizedLibraryText(match.groupValues[2]),
+        )
+    }
+    LibraryPlaylistMetadataPattern.matchEntire(value)?.let { match ->
+        return stringResource(Res.string.library_metadata_playlist_count, match.groupValues[1].toLong())
+    }
+    LibraryAlbumCountPattern.matchEntire(value)?.let { match ->
+        return stringResource(Res.string.library_album_count, match.groupValues[1].toLong())
+    }
+    LibraryArtistCountPattern.matchEntire(value)?.let { match ->
+        return stringResource(Res.string.library_artist_count, match.groupValues[1].toLong())
+    }
+    LibraryGenreCountPattern.matchEntire(value)?.let { match ->
+        return stringResource(Res.string.library_genre_count, match.groupValues[1].toLong())
+    }
+    LibraryTrackCountPattern.matchEntire(value)?.let { match ->
+        return stringResource(Res.string.library_track_count, match.groupValues[1].toLong())
+    }
+    LibraryFilterDescriptionPattern.matchEntire(value)?.let { match ->
+        return stringResource(
+            Res.string.library_filter_sort_description,
+            localizedLibraryText(match.groupValues[1]),
+        )
+    }
+    LibraryMoreActionsPattern.matchEntire(value)?.let { match ->
+        return stringResource(Res.string.library_more_actions, match.groupValues[1])
+    }
+
+    return value
+}
+
+@Composable
+private fun localizedLibraryCategory(value: String): String? = when (value.lowercase()) {
+    "playlists" -> stringResource(Res.string.library_category_playlists)
+    "songs" -> stringResource(Res.string.library_category_songs)
+    "albums" -> stringResource(Res.string.library_category_albums)
+    "artists" -> stringResource(Res.string.library_category_artists)
+    "genres" -> stringResource(Res.string.library_category_genres)
+    "folders" -> stringResource(Res.string.library_category_folders)
+    "favorites" -> stringResource(Res.string.library_category_favorites)
+    "downloads" -> stringResource(Res.string.library_category_downloads)
+    "history" -> stringResource(Res.string.library_category_history)
+    "recently added" -> stringResource(Res.string.library_category_recently_added)
+    "recently played" -> stringResource(Res.string.library_category_recently_played)
+    "lossless" -> stringResource(Res.string.library_category_lossless)
+    "hi-res" -> stringResource(Res.string.library_category_hires)
+    "sources" -> stringResource(Res.string.library_category_sources)
+    else -> null
+}
+''', encoding="utf-8")
+
+          en_additions = r'''
+    <string name="library_sidebar_collection">Collection</string>
+    <string name="library_sidebar_storage">Storage</string>
+    <string name="library_sidebar_more">More</string>
+    <string name="library_action_shuffle">Shuffle</string>
+    <string name="library_action_play_all">Play all</string>
+    <string name="library_action_new">New</string>
+    <string name="library_search_hint">Search songs, artists, or albums</string>
+    <string name="library_search_category_hint">Search %1$s</string>
+    <string name="library_no_matches">No matches</string>
+    <string name="library_no_tracks">No tracks</string>
+    <string name="library_try_different_search">Try a different search.</string>
+    <string name="library_action_clear_search">Clear search</string>
+    <string name="library_no_folders_added">No folders added</string>
+    <string name="library_import_folder_message">Import a folder to add its music to your library.</string>
+    <string name="library_action_import_folder">Import folder</string>
+    <string name="library_no_downloads_yet">No downloads yet</string>
+    <string name="library_offline_message">Keep music available when you are offline.</string>
+    <string name="library_action_browse_songs">Browse songs</string>
+    <string name="library_sources_title">One library, every source</string>
+    <string name="library_sources_message">Manage Local and WebDAV sources from Settings.</string>
+    <string name="library_artist_fallback">Artist</string>
+    <string name="library_remove_favorite">Remove from favorites</string>
+    <string name="library_add_favorite">Add to favorites</string>
+    <string name="library_more_actions">More actions for %1$s</string>
+    <string name="library_filter_sort_description">Filter songs, sorted by %1$s</string>
+    <string name="library_sort_title">Title</string>
+    <string name="library_sort_artist">Artist</string>
+    <string name="library_sort_album">Album</string>
+    <string name="library_album_count">%1$d albums</string>
+    <string name="library_artist_count">%1$d artists</string>
+    <string name="library_genre_count">%1$d genres</string>
+    <string name="library_track_count">%1$d tracks</string>
+    <string name="library_metadata_song_count">%1$d songs · %2$s</string>
+    <string name="library_track_count_with_duration">%1$d tracks · %2$s</string>
+    <string name="library_metadata_playlist_count">%1$d playlists · Long press to edit</string>
+    <string name="library_import_music_folder">Import a music folder</string>
+    <string name="library_available_offline">Available offline</string>
+    <string name="library_no_collection_data">No collection data available</string>
+    <string name="library_my_favorites">My Favorites</string>
+    <string name="library_liked_songs">Your liked songs</string>
+    <string name="library_pin_playlist">Pin playlist</string>
+    <string name="library_unpin_playlist">Unpin playlist</string>
+    <string name="library_no_category">No %1$s</string>
+    <string name="library_empty_collection_message">No music is available in this collection yet.</string>
+    <string name="library_empty_lossless_after_scan">Lossless tracks appear after scan.</string>
+    <string name="library_empty_hires_after_scan">Hi-Res tracks appear after scan.</string>
+'''
+
+          zh_additions = r'''
+    <string name="library_sidebar_collection">收藏</string>
+    <string name="library_sidebar_storage">存储</string>
+    <string name="library_sidebar_more">更多</string>
+    <string name="library_action_shuffle">随机播放</string>
+    <string name="library_action_play_all">全部播放</string>
+    <string name="library_action_new">新建</string>
+    <string name="library_search_hint">搜索歌曲、艺术家或专辑</string>
+    <string name="library_search_category_hint">搜索%1$s</string>
+    <string name="library_no_matches">没有匹配结果</string>
+    <string name="library_no_tracks">暂无歌曲</string>
+    <string name="library_try_different_search">请尝试其他搜索关键词。</string>
+    <string name="library_action_clear_search">清除搜索</string>
+    <string name="library_no_folders_added">尚未添加文件夹</string>
+    <string name="library_import_folder_message">导入文件夹，将其中的音乐添加到音乐库。</string>
+    <string name="library_action_import_folder">导入文件夹</string>
+    <string name="library_no_downloads_yet">暂无下载</string>
+    <string name="library_offline_message">下载音乐后可在离线时继续收听。</string>
+    <string name="library_action_browse_songs">浏览歌曲</string>
+    <string name="library_sources_title">汇聚所有音源</string>
+    <string name="library_sources_message">请在“设置”中管理本地与 WebDAV 音源。</string>
+    <string name="library_artist_fallback">艺术家</string>
+    <string name="library_remove_favorite">取消收藏</string>
+    <string name="library_add_favorite">添加到收藏</string>
+    <string name="library_more_actions">“%1$s”的更多操作</string>
+    <string name="library_filter_sort_description">筛选歌曲，当前按%1$s排序</string>
+    <string name="library_sort_title">标题</string>
+    <string name="library_sort_artist">艺术家</string>
+    <string name="library_sort_album">专辑</string>
+    <string name="library_album_count">%1$d 张专辑</string>
+    <string name="library_artist_count">%1$d 位艺术家</string>
+    <string name="library_genre_count">%1$d 个流派</string>
+    <string name="library_track_count">%1$d 首歌曲</string>
+    <string name="library_metadata_song_count">%1$d 首歌曲 · %2$s</string>
+    <string name="library_track_count_with_duration">%1$d 首歌曲 · %2$s</string>
+    <string name="library_metadata_playlist_count">%1$d 个播放列表 · 长按编辑</string>
+    <string name="library_import_music_folder">导入音乐文件夹</string>
+    <string name="library_available_offline">可离线使用</string>
+    <string name="library_no_collection_data">暂无收藏数据</string>
+    <string name="library_my_favorites">我的收藏</string>
+    <string name="library_liked_songs">收藏的歌曲</string>
+    <string name="library_pin_playlist">置顶播放列表</string>
+    <string name="library_unpin_playlist">取消置顶播放列表</string>
+    <string name="library_no_category">暂无%1$s</string>
+    <string name="library_empty_collection_message">此收藏中暂时没有音乐。</string>
+    <string name="library_empty_lossless_after_scan">扫描完成后，无损歌曲会显示在这里。</string>
+    <string name="library_empty_hires_after_scan">扫描完成后，Hi-Res 歌曲会显示在这里。</string>
+'''
+
+          for path, additions in ((en_path, en_additions), (zh_path, zh_additions)):
+              text = path.read_text(encoding="utf-8")
+              if 'name="library_sidebar_collection"' in text:
+                  raise SystemExit(f"Localization resources already exist in {path}")
+              text = text.replace("</resources>", additions + "</resources>")
+              path.write_text(text, encoding="utf-8")
+          PY
+
+          rm .github/workflows/localize-restored-library-ui.yml
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(i18n): localize restored library design text"
+          git push origin HEAD:fix/localize-restored-library-ui
