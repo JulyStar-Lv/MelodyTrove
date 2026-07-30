@@ -6,7 +6,6 @@ import androidx.compose.runtime.Composable
  * Compatibility entry point retained for existing navigation wiring.
  * The production screen delegates to the fully localized library implementation.
  */
-@Suppress("UNUSED_PARAMETER")
 @Composable
 fun LibraryDesignScreen(
     state: LibraryState,
@@ -22,6 +21,10 @@ fun LibraryDesignScreen(
         state = state,
         currentPlayingTrackId = currentPlayingTrackId,
         onNavigateToLibraryFolderImport = onNavigateToLibraryFolderImport,
+        onNavigateToAlbum = onNavigateToAlbum,
+        onNavigateToArtist = onNavigateToArtist,
+        onNavigateToPlaylist = onNavigateToPlaylist,
+        onNavigateToPlaylists = onNavigateToPlaylists,
         onAction = onAction,
     )
 }
