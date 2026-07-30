@@ -47,22 +47,27 @@ private fun JsonObject.matchesPluginConfigValues(
 ): Boolean {
     if (depth > MAX_PLUGIN_CONFIG_DEPENDENCY_DEPTH) return false
 
+    val dependencyTypeCount = keys.count { key ->
+        key == "match" || key == "and" || key == "or" || key == "not"
+    }
+    if (dependencyTypeCount != 1) return false
+
     (this["match"] as? JsonObject)?.let { match ->
-        val key = (match["key"] as? JsonPrimitive)?.contentOrNull ?: return false
-        val expected = (match["value"] as? JsonPrimitive)?.contentOrNull ?: return false
-        return values[key] == expected
+        val key = (match["key"] as? JsonPrimitive)?.contentOrNull
+        val expected = (match["value"] as? JsonPrimitive)?.contentOrNull
+        return !key.isNullOrBlank() && expected != null && values[key] == expected
     }
 
     (this["and"] as? JsonObject)?.let { and ->
         val conditions = and["conditions"] as? JsonArray ?: return false
-        return conditions.all { condition ->
+        return conditions.isNotEmpty() && conditions.all { condition ->
             (condition as? JsonObject)?.matchesPluginConfigValues(values, depth + 1) == true
         }
     }
 
     (this["or"] as? JsonObject)?.let { or ->
         val conditions = or["conditions"] as? JsonArray ?: return false
-        return conditions.any { condition ->
+        return conditions.isNotEmpty() && conditions.any { condition ->
             (condition as? JsonObject)?.matchesPluginConfigValues(values, depth + 1) == true
         }
     }
