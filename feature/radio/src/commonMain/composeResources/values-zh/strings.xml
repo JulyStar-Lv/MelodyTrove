@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="radio_title">电台</string>
+    <string name="radio_track_count">%1$d 首歌曲</string>
+    <string name="radio_refresh">刷新</string>
+    <string name="radio_play_all">播放全部</string>
+    <string name="radio_generating">正在生成电台</string>
+    <string name="radio_finding_tracks">正在选择歌曲…</string>
+    <string name="radio_unavailable">电台不可用</string>
+    <string name="radio_no_tracks">没有歌曲</string>
+    <string name="radio_empty_message">音乐库中没有可用于电台的歌曲。</string>
+    <string name="radio_download">下载</string>
+</resources>
