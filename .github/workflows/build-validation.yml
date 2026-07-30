@@ -1,168 +1,67 @@
-name: Build validation
+name: CI
 
 on:
   pull_request:
-    branches:
-      - main
+    branches: [main]
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: build-validation-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
 
 jobs:
   rust:
-    name: Rust format, lint, and tests
+    name: Rust
     runs-on: ubuntu-latest
     timeout-minutes: 45
-
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Install Linux native dependencies
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - name: Install native dependencies
+        run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends libasound2-dev pkg-config
+      - name: Format, lint, and test
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends \
-            libasound2-dev \
-            pkg-config
-
-      - name: Set up Rust
-        run: |
-          rustup toolchain install stable --profile minimal --no-self-update \
-            --component clippy,rustfmt
-          rustup default stable
-
-      - name: Check Rust formatting
-        run: cargo fmt --manifest-path rust-libs/Cargo.toml --all -- --check
-
-      - name: Run Clippy
-        run: cargo clippy --manifest-path rust-libs/Cargo.toml --workspace --all-targets -- -D warnings
-
-      - name: Run Rust workspace tests
-        run: cargo test --manifest-path rust-libs/Cargo.toml --workspace
+          cargo fmt --manifest-path rust-libs/Cargo.toml --all -- --check
+          cargo clippy --manifest-path rust-libs/Cargo.toml --workspace --all-targets -- -D warnings
+          cargo test --manifest-path rust-libs/Cargo.toml --workspace
 
   smb-integration:
-    name: SMB2/3 Samba integration
+    name: SMB2/3 integration
     runs-on: ubuntu-latest
     timeout-minutes: 20
-
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Rust
-        run: |
-          rustup toolchain install stable --profile minimal --no-self-update
-          rustup default stable
-
-      - name: Install and start isolated Samba fixture
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends samba netcat-openbsd
-          sudo systemctl stop smbd nmbd 2>/dev/null || true
-
-          fixture=/tmp/musicapp-smb-fixture
-          sudo mkdir -p "${fixture}/音乐" "${fixture}/restricted"
-          printf '0123456789' | sudo tee "${fixture}/range.bin" >/dev/null
-          printf '0123456789' | sudo tee "${fixture}/mutable.bin" >/dev/null
-          printf 'unicode fixture' | sudo tee "${fixture}/音乐/大海.flac" >/dev/null
-          sudo dd if=/dev/zero of="${fixture}/large.flac" bs=1M count=4 status=none
-          sudo chmod -R a+rX "${fixture}"
-          sudo chmod a+rw "${fixture}/mutable.bin"
-          sudo chmod 000 "${fixture}/restricted"
-
-          test_password="$(openssl rand -hex 24)"
-          sudo useradd --no-create-home --shell /usr/sbin/nologin musicapp-smb
-          printf '%s\n%s\n' "${test_password}" "${test_password}" | \
-            sudo smbpasswd -a -s musicapp-smb
-
-          sudo tee "${RUNNER_TEMP}/smb.conf" >/dev/null <<EOF
-          [global]
-          server min protocol = SMB2
-          server max protocol = SMB3
-          map to guest = Bad User
-          interfaces = 127.0.0.1
-          bind interfaces only = yes
-          smb ports = 445
-          log file = ${RUNNER_TEMP}/samba.log
-
-          [authenticated]
-          path = ${fixture}
-          read only = yes
-          guest ok = no
-          valid users = musicapp-smb
-
-          [guest]
-          path = ${fixture}
-          read only = yes
-          guest ok = yes
-          EOF
-
-          sudo /usr/sbin/smbd --foreground --no-process-group \
-            --configfile="${RUNNER_TEMP}/smb.conf" &
-          for attempt in {1..30}; do
-            if nc -z 127.0.0.1 445; then
-              break
-            fi
-            sleep 1
-          done
-          nc -z 127.0.0.1 445
-
-          {
-            echo "MUSICAPP_SMB_TEST_AUTH_URL=smb://127.0.0.1/authenticated"
-            echo "MUSICAPP_SMB_TEST_GUEST_URL=smb://127.0.0.1/guest"
-            echo "MUSICAPP_SMB_TEST_USERNAME=musicapp-smb"
-            echo "MUSICAPP_SMB_TEST_PASSWORD=${test_password}"
-            echo "MUSICAPP_SMB_TEST_FIXTURE_DIR=${fixture}"
-          } >> "${GITHUB_ENV}"
-
-      - name: Run ignored SMB integration tests
-        run: >-
-          cargo test --manifest-path rust-libs/Cargo.toml
-          --package storage-backend
-          --test smb_integration -- --ignored --nocapture
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run Samba fixture tests
+        run: bash scripts/ci/run-smb-integration.sh
 
   android:
-    name: Android debug build
+    name: Android
     runs-on: ubuntu-latest
     timeout-minutes: 45
-
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Set up current Android command-line tools
-        uses: android-actions/setup-android@v4
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: android-actions/setup-android@v4
         with:
           cmdline-tools-version: 14742923
           packages: ""
-
-      - name: Reclaim unused runner disk space
-        shell: bash
+      - name: Reclaim runner disk space
         run: |
-          set -euo pipefail
-
-          echo "Disk usage before cleanup:"
-          df -h /
-
           sudo rm -rf \
             "${ANDROID_SDK_ROOT:?}/system-images" \
             /usr/share/dotnet \
@@ -170,136 +69,63 @@ jobs:
             /opt/hostedtoolcache/CodeQL \
             /usr/local/share/boost
           sudo apt-get clean
-
-          echo "Disk usage after cleanup:"
-          df -h /
-
       - name: Install Android 17 SDK
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          sdkmanager --channel=3 --list > "$RUNNER_TEMP/sdkmanager-packages.txt"
-
-          if grep -qE '^[[:space:]]*platforms;android-37([[:space:]]|\|)' "$RUNNER_TEMP/sdkmanager-packages.txt"; then
-            platform_package="platforms;android-37"
-          elif grep -qE '^[[:space:]]*platforms;android-CinnamonBun([[:space:]]|\|)' "$RUNNER_TEMP/sdkmanager-packages.txt"; then
-            platform_package="platforms;android-CinnamonBun"
-          else
-            echo "Android 17 SDK package was not found. Available Android platforms:"
-            grep -E '^[[:space:]]*platforms;android-' "$RUNNER_TEMP/sdkmanager-packages.txt" | tail -n 30 || true
-            exit 1
-          fi
-
-          build_tools_package="$({
-            grep -E '^[[:space:]]*build-tools;37\.[0-9]+\.[0-9]+([[:space:]]|\|)' "$RUNNER_TEMP/sdkmanager-packages.txt" || true
-          } | awk -F '|' '{gsub(/^[ \t]+|[ \t]+$/, "", $1); print $1}' | sort -V | tail -n 1)"
-
-          packages=("platform-tools" "$platform_package")
-          if [[ -n "$build_tools_package" ]]; then
-            packages+=("$build_tools_package")
-          fi
-
-          printf 'Installing SDK packages: %s\n' "${packages[*]}"
-          sdkmanager --channel=3 "${packages[@]}"
-
-          if [[ "$platform_package" == "platforms;android-CinnamonBun" ]] && \
-             [[ ! -e "$ANDROID_SDK_ROOT/platforms/android-37" ]]; then
-            ln -s "$ANDROID_SDK_ROOT/platforms/android-CinnamonBun" \
-              "$ANDROID_SDK_ROOT/platforms/android-37"
-          fi
-
-      - name: Set up Android NDK
-        uses: nttld/setup-ndk@v1
+        run: bash scripts/ci/install-android-sdk.sh
+      - uses: nttld/setup-ndk@v1
         id: setup-ndk
         with:
           ndk-version: r28-beta2
           add-to-path: false
-
-      - name: Set up Rust Android targets
-        run: |
-          rustup toolchain install stable --profile minimal --no-self-update
-          rustup default stable
-          rustup target add aarch64-linux-android x86_64-linux-android
-          cargo install --locked cargo-ndk@3.5.4
-
-      - name: Configure Android NDK for Gradle
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android, x86_64-linux-android
+      - name: Install cargo-ndk
+        run: cargo install --locked cargo-ndk@3.5.4
+      - name: Configure Android NDK
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: |
           mkdir -p ~/.gradle
-          echo "ANDROID_NDK=${ANDROID_NDK_HOME}" >> ~/.gradle/gradle.properties
+          echo "ANDROID_NDK=$ANDROID_NDK_HOME" >> ~/.gradle/gradle.properties
+      - name: Check SMB Android targets
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
-
-      - name: Check SMB crate Android targets
         run: ./scripts/check-smb-cross-targets.sh android
+      - name: Build debug APK
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
-
-      - name: Compile Android debug APK
         run: ./gradlew --no-daemon --stacktrace :androidApp:assembleDebug
-        env:
-          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
 
   apple:
-    name: Apple SMB targets and iOS source
+    name: iOS
     runs-on: macos-14
     timeout-minutes: 35
-
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Set up Rust
-        run: |
-          rustup toolchain install stable --profile minimal --no-self-update
-          rustup default stable
-
-      - name: Check SMB crate Apple targets
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Check SMB Apple targets
         run: ./scripts/check-smb-cross-targets.sh apple
-
-      - name: Compile SMB iOS source adapter
-        run: >-
-          ./gradlew --no-daemon --stacktrace
-          :source:smb:compileKotlinIosSimulatorArm64
+      - name: Compile iOS source adapter
+        run: ./gradlew --no-daemon --stacktrace :source:smb:compileKotlinIosSimulatorArm64
 
   desktop:
-    name: Desktop compile and tests
+    name: Desktop and Kotlin tests
     runs-on: ubuntu-latest
     timeout-minutes: 45
-
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Install Linux native dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends \
-            libasound2-dev \
-            pkg-config
-
-      - name: Set up Rust
-        run: |
-          rustup toolchain install stable --profile minimal --no-self-update
-          rustup default stable
-
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install native dependencies
+        run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends libasound2-dev pkg-config
       - name: Compile Desktop and run shared tests
         run: ./gradlew --no-daemon --stacktrace :desktopApp:compileKotlinDesktop :shared:desktopTest
