@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="downloads_task_count">%1$d tasks</string>
+    <string name="downloads_empty_message">Start a download from the library or search.</string>
+    <string name="downloads_status_queued">Queued</string>
+    <string name="downloads_status_resolving">Preparing</string>
+    <string name="downloads_status_downloading">Downloading</string>
+    <string name="downloads_status_paused">Paused</string>
+    <string name="downloads_status_completed">Completed</string>
+    <string name="downloads_status_failed">Failed</string>
+    <string name="downloads_status_cancelled">Cancelled</string>
+    <string name="downloads_progress">%1$d%% · %2$s / %3$s</string>
+</resources>
