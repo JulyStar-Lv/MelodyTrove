@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="plugins_title">Metadata plugins</string>
+    <string name="plugins_overview">Lyrico Plugin API v3 providers</string>
+    <string name="plugins_count">%1$d installed · %2$d enabled</string>
+    <string name="plugins_installed">Installed plugins</string>
+    <string name="plugins_empty">No plugins installed</string>
+    <string name="plugins_empty_summary">Import a compatible ZIP package to add metadata, lyrics, or cover providers.</string>
+    <string name="plugins_enabled">Enabled</string>
+    <string name="plugins_disabled">Disabled</string>
+    <string name="plugins_configure">Configure</string>
+    <string name="plugins_uninstall">Uninstall</string>
+    <string name="plugins_import">Import plugin</string>
+    <string name="plugins_choose_zip">Choose ZIP</string>
+    <string name="plugins_selected_archive">Selected: %1$s</string>
+    <string name="plugins_install">Install</string>
+    <string name="plugins_installing">Installing…</string>
+    <string name="plugins_install_success">Plugin installed</string>
+    <string name="plugins_cancel">Cancel</string>
+    <string name="plugins_status">Status</string>
+    <string name="plugins_operation_failed">Plugin operation failed</string>
+    <string name="plugins_no_installable">No installable plugin was found in the ZIP.</string>
+    <string name="plugins_validation_failed">%1$d plugin entries failed validation.</string>
+    <string name="plugins_configuration">Configure %1$s</string>
+    <string name="plugins_permissions">Lookup permissions</string>
+    <string name="plugins_manual_lookup">Manual lookup</string>
+    <string name="plugins_manual_lookup_summary">Available while the plugin is enabled.</string>
+    <string name="plugins_automatic_lookup">Automatic lookup</string>
+    <string name="plugins_automatic_lookup_summary">Allow background metadata lookup.</string>
+    <string name="plugins_batch_lookup">Batch lookup</string>
+    <string name="plugins_batch_lookup_summary">Allow bulk metadata lookup.</string>
+    <string name="plugins_configuration_fields">Plugin settings</string>
+    <string name="plugins_no_configuration">This plugin has no configurable fields.</string>
+    <string name="plugins_required">Required</string>
+    <string name="plugins_save">Save</string>
+    <string name="plugins_clear_cache">Clear cache</string>
+    <string name="plugins_confirm_uninstall">Uninstall plugin</string>
+    <string name="plugins_confirm_uninstall_message">Remove %1$s and its saved configuration? Cached plugin data will also be cleared.</string>
+    <string name="plugins_version_author">Version %1$s · %2$s</string>
+    <string name="plugins_capabilities">Capabilities: %1$s</string>
+    <string name="plugins_last_error">Last error: %1$s</string>
+    <string name="plugins_choose_option">Choose an option</string>
+</resources>
