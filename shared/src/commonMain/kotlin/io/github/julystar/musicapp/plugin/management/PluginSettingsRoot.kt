@@ -142,6 +142,9 @@ fun PluginSettingsRoot(
     var selectedArchive by remember { mutableStateOf<PlatformFile?>(null) }
     var editingPluginId by remember { mutableStateOf<String?>(null) }
     var pendingUninstall by remember { mutableStateOf<PluginSummary?>(null) }
+    val operationFailedText = pluginUiText("Plugin operation failed")
+    val noInstallableText = pluginUiText("No installable plugin found in ZIP")
+    val validationFailedText = pluginUiText("0 plugin entries failed validation")
 
     LaunchedEffect(plugins.map { it.id to it.updatedAt }) {
         plugins.forEach { plugin ->
@@ -171,7 +174,7 @@ fun PluginSettingsRoot(
             runCatching { block() }
                 .onSuccess { onSuccess() }
                 .onFailure { error ->
-                    operationError = error.message ?: "Plugin operation failed"
+                    operationError = error.message ?: operationFailedText
                     onFailure()
                 }
             busy = false
@@ -266,7 +269,7 @@ fun PluginSettingsRoot(
                 enabledCount = plugins.count(PluginSummary::enabled),
             )
 
-            DesignSettingsGroup(title = "Installed plugins") {
+            DesignSettingsGroup(title = pluginUiText("Installed plugins")) {
                 if (plugins.isEmpty()) {
                     EmptyPluginsRow()
                 } else {
@@ -311,11 +314,11 @@ fun PluginSettingsRoot(
                             val result = manager.installFromZip(localZip.path)
                             if (result.installed.isEmpty()) {
                                 val reason = result.failed.firstOrNull()?.reason
-                                    ?: "No installable plugin found in ZIP"
+                                    ?: noInstallableText
                                 error(reason)
                             }
                             if (result.failed.isNotEmpty()) {
-                                error("${result.failed.size} plugin entries failed validation")
+                                error(validationFailedText.replaceFirst("0", result.failed.size.toString()))
                             }
                         } finally {
                             localZip.delete()
@@ -325,9 +328,9 @@ fun PluginSettingsRoot(
             )
 
             operationError?.let { message ->
-                DesignSettingsGroup(title = "Status") {
+                DesignSettingsGroup(title = pluginUiText("Status")) {
                     DesignPreferenceRow(
-                        title = "Plugin operation failed",
+                        title = pluginUiText("Plugin operation failed"),
                         summary = message,
                         titleColor = MiuixTheme.colorScheme.error,
                         showDivider = false,
@@ -337,7 +340,7 @@ fun PluginSettingsRoot(
             Spacer(modifier = Modifier.height(24.dp))
         }
         DesignStickyGlassActionBar(
-            title = "Metadata plugins",
+            title = pluginUiText("Metadata plugins"),
             collapseFraction = 1f,
             onNavigateBack = onBack,
             showBackButtonBackground = false,
@@ -385,7 +388,7 @@ private fun PluginOverviewCard(installedCount: Int, enabledCount: Int) {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "Metadata providers",
+                        text = pluginUiText("Metadata providers"),
                         color = MiuixTheme.colorScheme.onSurface,
                         fontWeight = FontWeight.SemiBold,
                         style = MiuixTheme.textStyles.body1,
@@ -403,7 +406,7 @@ private fun PluginOverviewCard(installedCount: Int, enabledCount: Int) {
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Enabled plugins are available for manual lookup. Automatic and batch access can be granted separately.",
+                    text = pluginUiText("Enabled plugins are available for manual lookup. Automatic and batch access can be granted separately."),
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     fontSize = 12.sp,
                     lineHeight = 18.sp,
@@ -417,9 +420,9 @@ private fun PluginOverviewCard(installedCount: Int, enabledCount: Int) {
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    StatChip(label = "installed", value = installedCount.toString())
+                    StatChip(label = pluginUiText("installed"), value = installedCount.toString())
                     StatChip(
-                        label = "enabled",
+                        label = pluginUiText("enabled"),
                         value = enabledCount.toString(),
                         accentColor = DesignPalette.SupportGreen,
                     )
@@ -506,7 +509,7 @@ private fun PluginListRow(
                     size = DesignIconButtonSize.Touch,
                     variant = DesignIconButtonVariant.Default,
                     painter = painterResource(CoreRes.drawable.icon_settings_sliders),
-                    contentDescription = "Configure ${plugin.name}",
+                    contentDescription = pluginUiText("Configure ${plugin.name}"),
                     enabled = !busy,
                     onClick = onConfigure,
                 )
@@ -516,7 +519,7 @@ private fun PluginListRow(
                 size = DesignIconButtonSize.Touch,
                 variant = DesignIconButtonVariant.Default,
                 painter = painterResource(CoreRes.drawable.icon_deleteseep),
-                contentDescription = "Uninstall ${plugin.name}",
+                contentDescription = pluginUiText("Uninstall ${plugin.name}"),
                 enabled = !busy,
                 onClick = onUninstall,
             )
@@ -555,14 +558,14 @@ private fun EmptyPluginsRow() {
             }
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "No plugins installed",
+                text = pluginUiText("No plugins installed"),
                 color = MiuixTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Medium,
                 fontSize = 14.sp,
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Import a ZIP that follows Lyrico Plugin API v3.",
+                text = pluginUiText("Import a ZIP that follows Lyrico Plugin API v3."),
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 fontSize = 12.sp,
             )
@@ -579,7 +582,7 @@ private fun PluginImportCard(
     onCancel: () -> Unit,
     onInstall: () -> Unit,
 ) {
-    DesignSettingsGroup(title = "Import") {
+    DesignSettingsGroup(title = pluginUiText("Import")) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -618,8 +621,8 @@ private fun PluginImportCard(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 val title = when (state) {
-                    PluginImportState.Idle -> "Import local ZIP"
-                    PluginImportState.Success -> "Plugin installed"
+                    PluginImportState.Idle -> pluginUiText("Import local ZIP")
+                    PluginImportState.Success -> pluginUiText("Plugin installed")
                     else -> archiveName.orEmpty()
                 }
                 Text(
@@ -631,10 +634,10 @@ private fun PluginImportCard(
                     overflow = TextOverflow.Ellipsis,
                 )
                 val subtitle = when (state) {
-                    PluginImportState.Idle -> "Archives are validated before an existing version is replaced"
-                    PluginImportState.Selected -> "Ready to validate and install"
-                    PluginImportState.Installing -> "Validating archive and plugin manifest…"
-                    PluginImportState.Success -> "Imported plugin is disabled until you review it"
+                    PluginImportState.Idle -> pluginUiText("Archives are validated before an existing version is replaced")
+                    PluginImportState.Selected -> pluginUiText("Ready to validate and install")
+                    PluginImportState.Installing -> pluginUiText("Validating archive and plugin manifest…")
+                    PluginImportState.Success -> pluginUiText("Imported plugin is disabled until you review it")
                 }
                 Text(
                     text = subtitle,
@@ -645,7 +648,7 @@ private fun PluginImportCard(
             }
             when (state) {
                 PluginImportState.Idle -> DesignTextButton(
-                    text = "Choose ZIP",
+                    text = pluginUiText("Choose ZIP"),
                     variant = DesignTextButtonVariant.PrimaryFilled,
                     size = DesignTextButtonSize.Medium,
                     enabled = !busy,
@@ -653,7 +656,7 @@ private fun PluginImportCard(
                 )
                 PluginImportState.Selected -> Row {
                     DesignTextButton(
-                        text = "Cancel",
+                        text = pluginUiText("Cancel"),
                         variant = DesignTextButtonVariant.Default,
                         size = DesignTextButtonSize.Small,
                         enabled = !busy,
@@ -661,7 +664,7 @@ private fun PluginImportCard(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     DesignTextButton(
-                        text = "Install",
+                        text = pluginUiText("Install"),
                         variant = DesignTextButtonVariant.PrimaryFilled,
                         size = DesignTextButtonSize.Small,
                         enabled = !busy,
@@ -931,7 +934,7 @@ private fun PluginConfigurationDialog(
                             Column(
                                 verticalArrangement = Arrangement.spacedBy(8.dp),
                             ) {
-                                PluginDialogSectionLabel("Configuration")
+                                PluginDialogSectionLabel(pluginUiText("Configuration"))
                                 Column(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -961,7 +964,7 @@ private fun PluginConfigurationDialog(
                         Column(
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            PluginDialogSectionLabel("Additional access")
+                            PluginDialogSectionLabel(pluginUiText("Additional access"))
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -974,8 +977,8 @@ private fun PluginConfigurationDialog(
                                     .background(MiuixTheme.colorScheme.surfaceContainer),
                             ) {
                                 PermissionToggleRow(
-                                    title = "Automatic lookup",
-                                    summary = "Use during background metadata refresh",
+                                    title = pluginUiText("Automatic lookup"),
+                                    summary = pluginUiText("Use during background metadata refresh"),
                                     checked = dialogPlugin.allowAutomaticLookup,
                                     enabled = dialogVisible && dialogPlugin.enabled && !busy,
                                     onChange = { value ->
@@ -983,8 +986,8 @@ private fun PluginConfigurationDialog(
                                     },
                                 )
                                 PermissionToggleRow(
-                                    title = "Batch lookup",
-                                    summary = "Use when updating multiple tracks",
+                                    title = pluginUiText("Batch lookup"),
+                                    summary = pluginUiText("Use when updating multiple tracks"),
                                     checked = dialogPlugin.allowBatchLookup,
                                     enabled = dialogVisible && dialogPlugin.enabled && !busy,
                                     onChange = { value ->
@@ -1018,7 +1021,7 @@ private fun PluginConfigurationDialog(
                                     onClick = onClearCache,
                                 )
                                 DesignTextButton(
-                                    text = if (visibleEditable.isNotEmpty()) "Save" else "Done",
+                                    text = pluginUiText(if (visibleEditable.isNotEmpty()) "Save" else "Done"),
                                     variant = DesignTextButtonVariant.PrimaryFilled,
                                     size = DesignTextButtonSize.Medium,
                                     enabled = dialogVisible && !busy,
@@ -1056,7 +1059,7 @@ private fun PluginClearCacheButton(
             modifier = Modifier.size(14.dp),
         )
         Text(
-            text = "Clear cache",
+            text = pluginUiText("Clear cache"),
             color = MiuixTheme.colorScheme.onSurface,
             fontWeight = FontWeight.SemiBold,
             fontSize = 12.sp,
@@ -1292,14 +1295,14 @@ private fun PluginRemovalDialog(
         }
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Uninstall ${dialogPlugin.name}?",
+            text = pluginUiText("Uninstall ${dialogPlugin.name}?"),
             color = MiuixTheme.colorScheme.onSurface,
             fontWeight = FontWeight.SemiBold,
             fontSize = 18.sp,
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
-            text = "Plugin files, configuration, cache, and private runtime context will be removed from this device.",
+            text = pluginUiText("Plugin files, configuration, cache, and private runtime context will be removed from this device."),
             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             fontSize = 12.sp,
             lineHeight = 18.sp,
@@ -1310,14 +1313,14 @@ private fun PluginRemovalDialog(
             horizontalArrangement = Arrangement.End,
         ) {
             DesignTextButton(
-                text = "Cancel",
+                text = pluginUiText("Cancel"),
                 variant = DesignTextButtonVariant.Default,
                 size = DesignTextButtonSize.Medium,
                 onClick = onDismiss,
             )
             Spacer(modifier = Modifier.width(8.dp))
             DesignTextButton(
-                text = "Uninstall",
+                text = pluginUiText("Uninstall"),
                 variant = DesignTextButtonVariant.Error,
                 size = DesignTextButtonSize.Medium,
                 onClick = onConfirm,
@@ -1718,21 +1721,27 @@ private fun JsonObject.matches(
     values: Map<String, String>,
     depth: Int,
 ): Boolean {
-    if (depth > 16) return false
+    if (depth > MAX_PLUGIN_CONFIG_DEPENDENCY_DEPTH) return false
+
+    val dependencyTypeCount = keys.count { key ->
+        key == "match" || key == "and" || key == "or" || key == "not"
+    }
+    if (dependencyTypeCount != 1) return false
+
     (this["match"] as? JsonObject)?.let { match ->
-        val key = (match["key"] as? JsonPrimitive)?.contentOrNull ?: return false
-        val expected = (match["value"] as? JsonPrimitive)?.contentOrNull ?: return false
-        return values[key] == expected
+        val key = (match["key"] as? JsonPrimitive)?.contentOrNull
+        val expected = (match["value"] as? JsonPrimitive)?.contentOrNull
+        return !key.isNullOrBlank() && expected != null && values[key] == expected
     }
     (this["and"] as? JsonObject)?.let { and ->
         val conditions = and["conditions"] as? JsonArray ?: return false
-        return conditions.all { condition ->
+        return conditions.isNotEmpty() && conditions.all { condition ->
             (condition as? JsonObject)?.matches(values, depth + 1) == true
         }
     }
     (this["or"] as? JsonObject)?.let { or ->
         val conditions = or["conditions"] as? JsonArray ?: return false
-        return conditions.any { condition ->
+        return conditions.isNotEmpty() && conditions.any { condition ->
             (condition as? JsonObject)?.matches(values, depth + 1) == true
         }
     }
@@ -1742,3 +1751,5 @@ private fun JsonObject.matches(
     }
     return false
 }
+
+private const val MAX_PLUGIN_CONFIG_DEPENDENCY_DEPTH = 16
