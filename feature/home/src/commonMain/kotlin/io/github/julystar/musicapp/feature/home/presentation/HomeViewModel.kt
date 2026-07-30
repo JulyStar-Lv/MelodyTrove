@@ -1,14 +1,14 @@
 package io.github.julystar.musicapp.feature.home.presentation
 
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.compose.ui.graphics.Color
 import io.github.julystar.musicapp.core.domain.model.LibraryAlbumItem
 import io.github.julystar.musicapp.core.domain.model.LibraryArtistItem
 import io.github.julystar.musicapp.core.domain.model.LibraryTrackItem
 import io.github.julystar.musicapp.core.domain.model.PlaylistSummary
-import io.github.julystar.musicapp.core.domain.repository.LibraryRepository
 import io.github.julystar.musicapp.core.domain.repository.FavoritesRepository
+import io.github.julystar.musicapp.core.domain.repository.LibraryRepository
 import io.github.julystar.musicapp.core.domain.repository.PlaylistRepository
 import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.feature.home.domain.HistoryPlayItem
@@ -139,18 +139,13 @@ private fun LibraryArtistItem.toHomeArtist(): HomeArtist = HomeArtist(
 
 private fun PlaylistSummary.toHomePlaylist(): HomePlaylist = HomePlaylist(
     title = title,
-    description = "$musicCount tracks",
-    meta = durationMs.toHomeDurationLabel(),
+    description = "",
+    meta = "",
+    trackCount = musicCount,
+    durationMs = durationMs,
     artworkIndex = indexFor(id),
     colors = homeGradient(id),
 )
-
-private fun Long.toHomeDurationLabel(): String {
-    val totalMinutes = (this / 60_000L).coerceAtLeast(0L)
-    val hours = totalMinutes / 60L
-    val minutes = totalMinutes % 60L
-    return if (hours > 0L) "$hours h $minutes m" else "$minutes min"
-}
 
 private fun indexFor(id: Long): Int = ((id % 8L + 8L) % 8L).toInt() + 1
 
