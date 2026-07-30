@@ -214,7 +214,17 @@ fn user_home() -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::{Mutex, MutexGuard};
+
     use super::*;
+
+    static MUSIC_ROOTS_TEST_LOCK: Mutex<()> = Mutex::new(());
+
+    fn music_roots_test_guard() -> MutexGuard<'static, ()> {
+        MUSIC_ROOTS_TEST_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+    }
 
     #[test]
     fn redacts_credentials_headers_queries_and_paths() {
@@ -254,6 +264,7 @@ mod tests {
 
     #[test]
     fn replaces_known_music_roots() {
+        let _guard = music_roots_test_guard();
         set_music_roots(vec!["/mnt/private-music".to_string()]);
         assert_eq!(
             redact_text("/mnt/private-music/album/song.flac", None, None),
@@ -264,6 +275,7 @@ mod tests {
 
     #[test]
     fn persisted_music_roots_are_available_before_full_application_startup() {
+        let _guard = music_roots_test_guard();
         let root = super::super::file_ops::temporary_test_directory("redaction-roots");
         let path = root.join("music-roots.json");
         persist_music_roots(&path, vec!["/Volumes/private-music".to_string()]).unwrap();
