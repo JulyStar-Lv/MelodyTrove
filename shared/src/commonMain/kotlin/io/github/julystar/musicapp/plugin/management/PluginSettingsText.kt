@@ -46,8 +46,9 @@ private val PluginConfirmUninstallPattern = Regex("^Uninstall (.+)\\?$")
 private val PluginUninstallPattern = Regex("^Uninstall (.+)$")
 
 /**
- * Localizes only application-owned labels from the restored plugin UI.
- * Plugin manifest names, descriptions, field labels, markdown, and option labels fall through unchanged.
+ * Localizes only application-owned labels from the restored plugin UI while preserving
+ * its original component tree and interaction model. Plugin manifest names, descriptions,
+ * field labels, markdown, and option labels fall through unchanged.
  */
 @Composable
 internal fun pluginUiText(value: String): String {
