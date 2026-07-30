@@ -1,0 +1,37 @@
+name: HMI i18n audit
+
+on:
+  pull_request:
+    paths:
+      - "**/composeResources/values/**"
+      - "**/composeResources/values-zh/**"
+      - "**/res/values/**"
+      - "**/res/values-zh-rCN/**"
+      - "**/src/commonMain/**/*.kt"
+      - "**/src/androidMain/**/*.kt"
+      - "**/src/desktopMain/**/*.kt"
+      - "**/src/iosMain/**/*.kt"
+      - "scripts/audit-hmi-i18n.py"
+      - ".github/workflows/hmi-i18n-audit.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "**/composeResources/values/**"
+      - "**/composeResources/values-zh/**"
+      - "**/res/values/**"
+      - "**/res/values-zh-rCN/**"
+      - "scripts/audit-hmi-i18n.py"
+      - ".github/workflows/hmi-i18n-audit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Check Chinese and English HMI resources
+        run: python3 scripts/audit-hmi-i18n.py
