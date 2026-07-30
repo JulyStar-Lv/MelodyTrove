@@ -16,6 +16,8 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
+  CARGO_NET_RETRY: 5
+  CARGO_HTTP_TIMEOUT: 120
 
 jobs:
   rust:
@@ -29,6 +31,17 @@ jobs:
           components: clippy, rustfmt
       - name: Install native dependencies
         run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends libasound2-dev pkg-config
+      - name: Fetch Rust dependencies
+        run: |
+          for attempt in 1 2 3; do
+            if cargo fetch --locked --manifest-path rust-libs/Cargo.toml; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            sleep $((attempt * 10))
+          done
       - name: Format, lint, and test
         run: |
           cargo fmt --manifest-path rust-libs/Cargo.toml --all -- --check
