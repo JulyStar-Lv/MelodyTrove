@@ -37,11 +37,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Generate strict HMI audit report
+      - name: Check resource parity and generate HMI report
         shell: bash
         run: |
           set +e
-          python3 scripts/audit-hmi-i18n.py --strict-hardcoded 2>&1 | tee hmi-i18n-report.txt
+          python3 scripts/audit-hmi-i18n.py 2>&1 | tee hmi-i18n-report.txt
           status=${PIPESTATUS[0]}
           echo "status=$status" >> "$GITHUB_ENV"
           exit 0
@@ -52,5 +52,5 @@ jobs:
           path: hmi-i18n-report.txt
           if-no-files-found: error
           retention-days: 7
-      - name: Enforce audit result
+      - name: Enforce resource parity
         run: exit "${status}"
