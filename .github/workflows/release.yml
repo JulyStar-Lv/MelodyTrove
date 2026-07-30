@@ -1,30 +1,31 @@
-﻿name: Build and release
+name: Release
 
 on:
-  pull_request:
   push:
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
       - "pre-v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+"
-    branches:
-      - master
-
-env:
-  CARGO_TERM_COLOR: always
 
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
-  build:
+  android:
+    name: Android release
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Resolve tagged app version
-        if: ${{ startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/pre-v') }}
-        shell: bash
+      - name: Resolve app version
         run: |
           version="${GITHUB_REF_NAME#pre-v}"
           version="${version#v}"
@@ -32,70 +33,53 @@ jobs:
             echo "APP_VERSION_NAME=$version"
             echo "APP_VERSION_CODE=$GITHUB_RUN_NUMBER"
           } >> "$GITHUB_ENV"
-      - name: Prepare cargo cache
-        uses: actions/cache@v3
-        continue-on-error: false
+      - uses: actions/setup-java@v4
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-          key: ${{ runner.os }}-cargo
-          restore-keys: ${{ runner.os }}-cargo
-      - uses: pnpm/action-setup@v4
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: android-actions/setup-android@v4
         with:
-          version: latest
+          cmdline-tools-version: 14742923
+          packages: ""
+      - name: Install Android 17 SDK
+        run: bash scripts/ci/install-android-sdk.sh
       - uses: nttld/setup-ndk@v1
         id: setup-ndk
         with:
           ndk-version: r28-beta2
           add-to-path: false
-      - name: Set Up JDK
-        uses: actions/setup-java@v4
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          distribution: "zulu"
-          java-version: "21"
-          cache: "gradle"
-      - name: Install Linux native dependencies
+          targets: aarch64-linux-android
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends \
-            libasound2-dev \
-            pkg-config
-      - name: Install scripts runtime
-        run: pnpm install
-      - name: Install cargo-ndk
-        run: |
-          cargo install --locked cargo-ndk@3.5.4 || true
-          rustup target add aarch64-linux-android
-      - name: Install cargo nextest
-        run: curl -LsSf https://get.nexte.st/latest/linux | tar zxf - -C ${CARGO_HOME:-~/.cargo}/bin
-      - name: Build JNI
-        run: pnpm run build:jni
-      - name: Run tests
-        run: pnpm run test
-      - name: Run plugin release audit
-        run: pnpm run audit:release
-      - name: Build APK
-        if: ${{ startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/pre-v') }}
-        run: |
-          mkdir -p ~/.gradle
-          echo "ANDROID_NDK=$ANDROID_NDK_HOME" >> ~/.gradle/gradle.properties
-          pnpm run build:apk
+          sudo apt-get install --yes --no-install-recommends libasound2-dev pkg-config
+          cargo install --locked cargo-ndk@3.5.4
+          pnpm install --frozen-lockfile
+      - name: Build signed APK
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           ANDROID_SIGN_JKS: ${{ secrets.ANDROID_SIGN_JKS }}
           ANDROID_SIGN_PASSWORD: ${{ secrets.ANDROID_SIGN_PASSWORD }}
-      - name: Upload binaries to artifacts
-        uses: actions/upload-artifact@v4
+        run: |
+          mkdir -p ~/.gradle
+          echo "ANDROID_NDK=$ANDROID_NDK_HOME" >> ~/.gradle/gradle.properties
+          pnpm run build:apk
+      - name: Audit release artifacts
+        run: pnpm run audit:release
+      - uses: actions/upload-artifact@v4
         with:
           name: apk
-          path: |
-            artifacts/apk/*.apk
-      - name: Upload binaries to release
+          path: artifacts/apk/*.apk
+          if-no-files-found: error
+      - name: Upload stable release assets
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: svenstaro/upload-release-action@v2
-        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: artifacts/apk/*.apk
