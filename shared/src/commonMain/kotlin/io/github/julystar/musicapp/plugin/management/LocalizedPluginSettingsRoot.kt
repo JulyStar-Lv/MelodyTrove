@@ -333,7 +333,7 @@ private fun LocalizedPluginRow(
         DesignPreferenceRow(
             title = plugin.name,
             summary = buildString {
-                append(stringResource(Res.string.plugins_version_author, plugin.version, plugin.author))
+                append(stringResource(Res.string.plugins_version_author, plugin.versionName, plugin.author))
                 if (plugin.capabilities.isNotEmpty()) {
                     append("\n")
                     append(
@@ -607,15 +607,15 @@ private fun LocalizedPluginConfigField(
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         field.options.forEach { option ->
                             DesignTextButton(
-                                text = option,
-                                variant = if (value == option) {
+                                text = option.label,
+                                variant = if (value == option.value) {
                                     DesignTextButtonVariant.Primary
                                 } else {
                                     DesignTextButtonVariant.Default
                                 },
                                 size = DesignTextButtonSize.Small,
                                 enabled = enabled,
-                                onClick = { onValueChange(option) },
+                                onClick = { onValueChange(option.value) },
                             )
                         }
                     }
