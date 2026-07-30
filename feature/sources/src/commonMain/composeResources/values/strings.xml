@@ -8,6 +8,13 @@
     <string name="sources_logs">Logs</string>
     <string name="sources_settings">Settings</string>
     <string name="sources_default_library">Default library</string>
+    <string name="source_editor_back">Back</string>
+    <string name="source_editor_delete">Delete source</string>
+    <string name="source_editor_edit">Edit source</string>
+    <string name="source_editor_new">New source</string>
+    <string name="source_editor_save">Save source</string>
+    <string name="source_editor_source">Source</string>
+    <string name="source_editor_test">Test connection</string>
     <string name="storage_edit_addr">ADDRESS</string>
     <string name="storage_edit_alias">NAME (ALIAS)</string>
     <string name="storage_edit_anonymous">ANONYMOUS</string>
