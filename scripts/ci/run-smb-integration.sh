@@ -5,7 +5,20 @@ sudo apt-get update
 sudo apt-get install --yes --no-install-recommends samba netcat-openbsd
 sudo systemctl stop smbd nmbd 2>/dev/null || true
 
-fixture="${RUNNER_TEMP:-/tmp}/musicapp-smb-fixture"
+fixture="$(mktemp -d /tmp/musicapp-smb-fixture.XXXXXX)"
+smb_config="$(mktemp /tmp/musicapp-smb-config.XXXXXX)"
+samba_log="$(mktemp /tmp/musicapp-smb-log.XXXXXX)"
+smb_pid=""
+
+cleanup() {
+  if [[ -n "$smb_pid" ]]; then
+    sudo kill "$smb_pid" 2>/dev/null || true
+  fi
+  sudo rm -rf "$fixture" "$smb_config" "$samba_log"
+}
+trap cleanup EXIT
+
+sudo chmod 0755 "$fixture"
 sudo mkdir -p "$fixture/音乐" "$fixture/restricted"
 printf '0123456789' | sudo tee "$fixture/range.bin" >/dev/null
 printf '0123456789' | sudo tee "$fixture/mutable.bin" >/dev/null
@@ -16,10 +29,11 @@ sudo chmod a+rw "$fixture/mutable.bin"
 sudo chmod 000 "$fixture/restricted"
 
 test_password="$(openssl rand -hex 24)"
-sudo useradd --no-create-home --shell /usr/sbin/nologin musicapp-smb
+if ! id musicapp-smb >/dev/null 2>&1; then
+  sudo useradd --no-create-home --shell /usr/sbin/nologin musicapp-smb
+fi
 printf '%s\n%s\n' "$test_password" "$test_password" | sudo smbpasswd -a -s musicapp-smb
 
-smb_config="${RUNNER_TEMP:-/tmp}/smb.conf"
 sudo tee "$smb_config" >/dev/null <<EOF_CONFIG
 [global]
 server min protocol = SMB2
@@ -28,7 +42,7 @@ map to guest = Bad User
 interfaces = 127.0.0.1
 bind interfaces only = yes
 smb ports = 445
-log file = ${RUNNER_TEMP:-/tmp}/samba.log
+log file = $samba_log
 
 [authenticated]
 path = $fixture
@@ -43,6 +57,7 @@ guest ok = yes
 EOF_CONFIG
 
 sudo /usr/sbin/smbd --foreground --no-process-group --configfile="$smb_config" &
+smb_pid=$!
 for _ in {1..30}; do
   if nc -z 127.0.0.1 445; then
     break
