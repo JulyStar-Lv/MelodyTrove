@@ -1,7 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="music_count_unit">Musics</string>
-    <string name="playlist_empty">Empty Playlists. Tap to add one.</string>
+    <string name="playlist_empty">No playlists yet</string>
+    <string name="playlist_empty_message">Create a playlist to organize your music.</string>
+    <string name="playlist_create">Create Playlist</string>
+    <string name="playlist_list_title">Playlists</string>
+    <string name="playlist_list_count">%1$d playlists</string>
+    <string name="playlist_adjust">Reorder playlists</string>
+    <string name="playlist_add">Add playlist</string>
+    <string name="playlist_done">Finish reordering</string>
+    <string name="playlist_summary">%1$s songs · %2$s</string>
     <string name="playlist_empty_list">Empty Musics in playlist</string>
     <string name="playlist_list_count_suffix">Music</string>
     <string name="playlist_list_count_suffixes">Musics</string>
