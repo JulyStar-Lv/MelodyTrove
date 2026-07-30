@@ -25,14 +25,16 @@ jobs:
         run: |
           python3 - <<'PY'
           import re
-          import textwrap
           from pathlib import Path
 
           workflow = Path('.github/workflows/localize-restored-library-ui.yml').read_text(encoding='utf-8')
           match = re.search(r"python3 - <<'PY'\n(.*?)\n\s*PY\n", workflow, re.DOTALL)
           if match is None:
               raise SystemExit('Unable to extract prepared localization script')
-          script = textwrap.dedent(match.group(1))
+          script = '\n'.join(
+              line[10:] if line.startswith('          ') else line
+              for line in match.group(1).splitlines()
+          )
           exec(compile(script, 'localize_restored_library.py', 'exec'), {'__name__': '__main__'})
           PY
 
