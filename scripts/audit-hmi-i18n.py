@@ -66,16 +66,24 @@ def parse_resources(path: Path) -> dict[str, ResourceValue]:
 
 
 def resource_pairs(root: Path) -> Iterable[tuple[Path, Path]]:
-    for default in root.rglob("strings.xml"):
+    """Yield every default values XML that actually contains translatable text."""
+    for default in root.rglob("*.xml"):
         if any(part in SKIP_DIRS for part in default.parts):
             continue
         parent = default.parent
         if parent.name != "values":
             continue
+        try:
+            source = parse_resources(default)
+        except ValueError:
+            # Let audit_pair report parse failures only for candidate string files.
+            source = {}
+        if not source:
+            continue
         if parent.parent.name == "composeResources":
-            yield default, parent.parent / "values-zh" / "strings.xml"
+            yield default, parent.parent / "values-zh" / default.name
         elif parent.parent.name == "res":
-            yield default, parent.parent / "values-zh-rCN" / "strings.xml"
+            yield default, parent.parent / "values-zh-rCN" / default.name
 
 
 def audit_pair(default: Path, translated: Path, root: Path) -> list[str]:
