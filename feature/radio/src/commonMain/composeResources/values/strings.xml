@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="radio_title">Radio</string>
+    <string name="radio_track_count">%1$d tracks</string>
+    <string name="radio_refresh">Refresh</string>
+    <string name="radio_play_all">Play All</string>
+    <string name="radio_generating">Generating radio</string>
+    <string name="radio_finding_tracks">Finding tracks…</string>
+    <string name="radio_unavailable">Radio unavailable</string>
+    <string name="radio_no_tracks">No tracks</string>
+    <string name="radio_empty_message">The library has no tracks available for radio.</string>
+    <string name="radio_download">Download</string>
+</resources>
