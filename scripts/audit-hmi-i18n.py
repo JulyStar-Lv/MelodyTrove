@@ -59,13 +59,9 @@ def parse_resources(path: Path) -> dict[str, ResourceValue]:
             result[name] = ResourceValue("string", placeholders(text))
         elif child.tag == "plurals":
             token_set: set[str] = set()
-            quantities: list[str] = []
             for item in child.findall("item"):
-                quantities.append(item.attrib.get("quantity", ""))
                 token_set.update(placeholders("".join(item.itertext())))
-            result[name] = ResourceValue(
-                "plurals:" + ",".join(sorted(quantities)), tuple(sorted(token_set))
-            )
+            result[name] = ResourceValue("plurals", tuple(sorted(token_set)))
     return result
 
 
