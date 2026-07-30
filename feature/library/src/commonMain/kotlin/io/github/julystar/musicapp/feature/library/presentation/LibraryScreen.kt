@@ -1,14 +1,11 @@
 package io.github.julystar.musicapp.feature.library.presentation
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,21 +28,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import io.github.julystar.musicapp.core.domain.model.LibraryTrackItem
 import io.github.julystar.musicapp.core.domain.model.LibraryAlbumItem
 import io.github.julystar.musicapp.core.domain.model.LibraryArtistItem
+import io.github.julystar.musicapp.core.domain.model.LibraryTrackItem
+import io.github.julystar.musicapp.core.domain.model.PlaylistSummary
+import io.github.julystar.musicapp.core.domain.model.RepositoryState
+import io.github.julystar.musicapp.core.domain.repository.LibraryFolderItem
+import io.github.julystar.musicapp.core.presentation.components.DesignCardSurface
 import io.github.julystar.musicapp.core.presentation.components.DesignEmptyState
 import io.github.julystar.musicapp.core.presentation.components.DesignPageHeader
-import io.github.julystar.musicapp.core.presentation.components.QualityBadge
-import io.github.julystar.musicapp.core.presentation.components.QualityBadgeType
+import io.github.julystar.musicapp.core.presentation.components.DesignStatusCard
 import io.github.julystar.musicapp.core.presentation.components.DesignTabItem
 import io.github.julystar.musicapp.core.presentation.components.DesignTabs
 import io.github.julystar.musicapp.core.presentation.components.DesignTabsVariant
@@ -53,21 +52,63 @@ import io.github.julystar.musicapp.core.presentation.components.DesignTextButton
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonVariant
 import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
-import org.jetbrains.compose.resources.painterResource
 import musicapp.core.presentation.generated.resources.Res as CorePresentationRes
 import musicapp.core.presentation.generated.resources.icon_adjust
 import musicapp.core.presentation.generated.resources.icon_album
 import musicapp.core.presentation.generated.resources.icon_chevron_right
-import musicapp.core.presentation.generated.resources.icon_cloud
 import musicapp.core.presentation.generated.resources.icon_download
 import musicapp.core.presentation.generated.resources.icon_folder
-import musicapp.core.presentation.generated.resources.icon_log
 import musicapp.core.presentation.generated.resources.icon_mode_list
-import musicapp.core.presentation.generated.resources.icon_mode_repeat
 import musicapp.core.presentation.generated.resources.icon_music_note
-import musicapp.core.presentation.generated.resources.icon_onedrive
 import musicapp.core.presentation.generated.resources.icon_pause
-import musicapp.core.presentation.generated.resources.icon_vertialcal_more
+import musicapp.feature.library.generated.resources.Res
+import musicapp.feature.library.generated.resources.library_add_folder
+import musicapp.feature.library.generated.resources.library_category_albums
+import musicapp.feature.library.generated.resources.library_category_artists
+import musicapp.feature.library.generated.resources.library_category_downloads
+import musicapp.feature.library.generated.resources.library_category_favorites
+import musicapp.feature.library.generated.resources.library_category_folders
+import musicapp.feature.library.generated.resources.library_category_genres
+import musicapp.feature.library.generated.resources.library_category_hires
+import musicapp.feature.library.generated.resources.library_category_history
+import musicapp.feature.library.generated.resources.library_category_lossless
+import musicapp.feature.library.generated.resources.library_category_playlists
+import musicapp.feature.library.generated.resources.library_category_recently_added
+import musicapp.feature.library.generated.resources.library_category_recently_played
+import musicapp.feature.library.generated.resources.library_category_songs
+import musicapp.feature.library.generated.resources.library_category_sources
+import musicapp.feature.library.generated.resources.library_download
+import musicapp.feature.library.generated.resources.library_duration_hours
+import musicapp.feature.library.generated.resources.library_duration_minutes
+import musicapp.feature.library.generated.resources.library_empty_albums
+import musicapp.feature.library.generated.resources.library_empty_artists
+import musicapp.feature.library.generated.resources.library_empty_downloads
+import musicapp.feature.library.generated.resources.library_empty_favorites
+import musicapp.feature.library.generated.resources.library_empty_folders
+import musicapp.feature.library.generated.resources.library_empty_genres
+import musicapp.feature.library.generated.resources.library_empty_hires
+import musicapp.feature.library.generated.resources.library_empty_history
+import musicapp.feature.library.generated.resources.library_empty_lossless
+import musicapp.feature.library.generated.resources.library_empty_message
+import musicapp.feature.library.generated.resources.library_empty_playlists
+import musicapp.feature.library.generated.resources.library_empty_recently_added
+import musicapp.feature.library.generated.resources.library_empty_recently_played
+import musicapp.feature.library.generated.resources.library_empty_sources
+import musicapp.feature.library.generated.resources.library_empty_title
+import musicapp.feature.library.generated.resources.library_filter
+import musicapp.feature.library.generated.resources.library_folder_track_count
+import musicapp.feature.library.generated.resources.library_list_view
+import musicapp.feature.library.generated.resources.library_loading
+import musicapp.feature.library.generated.resources.library_playlist_track_count
+import musicapp.feature.library.generated.resources.library_retry
+import musicapp.feature.library.generated.resources.library_song_summary
+import musicapp.feature.library.generated.resources.library_title
+import musicapp.feature.library.generated.resources.library_unavailable
+import musicapp.feature.library.generated.resources.library_unknown_artist
+import musicapp.feature.library.generated.resources.library_unknown_year
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -81,8 +122,8 @@ fun LibraryScreen(
 ) {
     var selectedCategory by remember { mutableStateOf(LibraryCategory.Songs) }
     val spacing = DesignTokens.spacing
-    val tracks = state.tracks.ifEmpty { demoLibraryTracks }
-    val categoryTracks = selectedCategory.selectTracks(tracks)
+    val categories = LibraryCategory.entries
+    val categoryLabels = categories.map { stringResource(it.labelRes) }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val horizontalPadding = spacing.pageCompact
@@ -96,32 +137,36 @@ fun LibraryScreen(
                 start = horizontalPadding,
                 top = 8.dp,
                 end = horizontalPadding,
-                bottom = 16.dp,
+                bottom = 24.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (showPageHeader) {
                 item {
                     DesignPageHeader(
-                        title = "Library",
+                        title = stringResource(Res.string.library_title),
                         subtitle = null,
                     )
                 }
             }
             item {
-                LibraryCategoryStrip(
-                    selectedCategory = selectedCategory,
-                    onCategorySelected = { selectedCategory = it },
+                DesignTabs(
+                    items = categoryLabels.map { label -> DesignTabItem(label = label) },
+                    selectedIndex = categories.indexOf(selectedCategory),
+                    onSelectedIndexChange = { index -> selectedCategory = categories[index] },
+                    variant = DesignTabsVariant.Pill,
+                    modifier = Modifier.padding(bottom = 8.dp),
                 )
             }
+
             when (selectedCategory) {
                 LibraryCategory.Songs -> {
-                    item { LibrarySongHeader(tracks) }
-                    if (tracks.isEmpty()) {
-                        item { LibraryEmptyState() }
+                    item { LibrarySongHeader(state.tracks) }
+                    if (state.tracks.isEmpty()) {
+                        item { LibraryRootEmptyState() }
                     } else {
                         itemsIndexed(
-                            items = tracks,
+                            items = state.tracks,
                             key = { index, track -> track.lazyListKey(index) },
                         ) { index, track ->
                             LibraryTrackRow(
@@ -134,25 +179,89 @@ fun LibraryScreen(
                         }
                     }
                 }
-                LibraryCategory.Albums -> item { LibraryAlbumGrid(state.albums) }
-                LibraryCategory.Artists -> item { LibraryArtistGrid(state.artists) }
-                LibraryCategory.Genres -> item { LibraryGenreGrid() }
-                LibraryCategory.Folders -> item {
-                    LibraryFoldersState(onImportFolder = onNavigateToLibraryFolderImport)
-                }
-                LibraryCategory.Favorites,
-                LibraryCategory.History,
-                LibraryCategory.RecentlyAdded,
-                LibraryCategory.RecentlyPlayed,
-                LibraryCategory.Lossless,
-                LibraryCategory.HiRes -> {
-                    if (categoryTracks.isEmpty()) {
+
+                LibraryCategory.Albums -> {
+                    if (state.albums.isEmpty()) {
                         item { LibraryCategoryEmpty(selectedCategory) }
                     } else {
-                        itemsIndexed(
-                            items = categoryTracks,
-                            key = { index, track -> "${selectedCategory.name}-${track.lazyListKey(index)}" },
-                        ) { index, track ->
+                        items(state.albums, key = { album -> album.id }) { album ->
+                            LibraryAlbumRow(album)
+                        }
+                    }
+                }
+
+                LibraryCategory.Artists -> {
+                    if (state.artists.isEmpty()) {
+                        item { LibraryCategoryEmpty(selectedCategory) }
+                    } else {
+                        items(state.artists, key = { artist -> artist.id }) { artist ->
+                            LibraryArtistRow(artist)
+                        }
+                    }
+                }
+
+                LibraryCategory.Genres -> when (val repositoryState = state.genreNames) {
+                    RepositoryState.Loading -> item { LibraryLoadingState() }
+                    is RepositoryState.Error -> item { LibraryErrorState { onAction(LibraryAction.Refresh) } }
+                    is RepositoryState.Empty -> item { LibraryCategoryEmpty(selectedCategory) }
+                    is RepositoryState.Loaded -> {
+                        if (repositoryState.data.isEmpty()) {
+                            item { LibraryCategoryEmpty(selectedCategory) }
+                        } else {
+                            items(repositoryState.data, key = { genre -> genre }) { genre ->
+                                LibraryNavigationRow(
+                                    title = genre,
+                                    painter = painterResource(CorePresentationRes.drawable.icon_music_note),
+                                    onClick = { onAction(LibraryAction.SelectGenre(genre)) },
+                                )
+                            }
+                        }
+                    }
+                }
+
+                LibraryCategory.Folders -> when (val repositoryState = state.folders) {
+                    RepositoryState.Loading -> item { LibraryLoadingState() }
+                    is RepositoryState.Error -> item { LibraryErrorState { onAction(LibraryAction.Refresh) } }
+                    is RepositoryState.Empty -> item { LibraryCategoryEmpty(selectedCategory) }
+                    is RepositoryState.Loaded -> {
+                        if (repositoryState.data.isEmpty()) {
+                            item { LibraryCategoryEmpty(selectedCategory) }
+                        } else {
+                            items(repositoryState.data, key = { folder -> folder.path }) { folder ->
+                                LibraryFolderRow(
+                                    folder = folder,
+                                    onClick = { onAction(LibraryAction.BrowseFolder(folder.path)) },
+                                )
+                            }
+                        }
+                    }
+                    item {
+                        DesignTextButton(
+                            text = stringResource(Res.string.library_add_folder),
+                            variant = DesignTextButtonVariant.Tonal,
+                            size = DesignTextButtonSize.Medium,
+                            onClick = onNavigateToLibraryFolderImport,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+
+                LibraryCategory.Playlists -> {
+                    if (state.playlists.isEmpty()) {
+                        item { LibraryCategoryEmpty(selectedCategory) }
+                    } else {
+                        items(state.playlists, key = { playlist -> playlist.id }) { playlist ->
+                            LibraryPlaylistRow(playlist)
+                        }
+                    }
+                }
+
+                LibraryCategory.RecentlyAdded -> {
+                    val tracks = state.tracks.take(50)
+                    if (tracks.isEmpty()) {
+                        item { LibraryCategoryEmpty(selectedCategory) }
+                    } else {
+                        itemsIndexed(tracks, key = { index, track -> track.lazyListKey(index) }) { index, track ->
                             LibraryTrackRow(
                                 track = track,
                                 index = index,
@@ -163,57 +272,64 @@ fun LibraryScreen(
                         }
                     }
                 }
-                LibraryCategory.Playlists -> item { LibraryPlaylistGrid() }
-                LibraryCategory.Sources -> item { LibrarySourcesGrid() }
-                LibraryCategory.Downloads -> item { LibraryCategoryEmpty(selectedCategory) }
+
+                LibraryCategory.Sources -> item { LibraryCategoryEmpty(selectedCategory) }
+
+                else -> {
+                    val repositoryState = selectedCategory.trackRepositoryState(state)
+                    when (repositoryState) {
+                        null -> item { LibraryCategoryEmpty(selectedCategory) }
+                        RepositoryState.Loading -> item { LibraryLoadingState() }
+                        is RepositoryState.Error -> item { LibraryErrorState { onAction(LibraryAction.Refresh) } }
+                        is RepositoryState.Empty -> item { LibraryCategoryEmpty(selectedCategory) }
+                        is RepositoryState.Loaded -> {
+                            if (repositoryState.data.isEmpty()) {
+                                item { LibraryCategoryEmpty(selectedCategory) }
+                            } else {
+                                itemsIndexed(
+                                    repositoryState.data,
+                                    key = { index, track -> track.lazyListKey(index) },
+                                ) { index, track ->
+                                    LibraryTrackRow(
+                                        track = track,
+                                        index = index,
+                                        playing = track.id == currentPlayingTrackId,
+                                        onPlay = { onAction(LibraryAction.PlayTrack(track.id)) },
+                                        onDownload = { onAction(LibraryAction.DownloadTrack(track)) },
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun LibraryCategoryStrip(
-    selectedCategory: LibraryCategory,
-    onCategorySelected: (LibraryCategory) -> Unit,
-) {
-    val categories = LibraryCategory.entries
-    DesignTabs(
-        items = categories.map { category ->
-            DesignTabItem(
-                label = category.label,
-                enabled = true,
-            )
-        },
-        selectedIndex = categories.indexOf(selectedCategory),
-        onSelectedIndexChange = { index -> onCategorySelected(categories[index]) },
-        variant = DesignTabsVariant.Pill,
-        modifier = Modifier.padding(bottom = 12.dp),
-    )
-}
-
-@Composable
 private fun LibrarySongHeader(tracks: List<LibraryTrackItem>) {
-    val totalMinutes = tracks.mapNotNull { it.durationMs }.sum() / 60_000
+    val totalMinutes = tracks.mapNotNull { it.durationMs }.sum() / 60_000L
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 8.dp),
+            .padding(bottom = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "${tracks.size} songs · ~$totalMinutes min",
+            text = stringResource(Res.string.library_song_summary, tracks.size, totalMinutes),
             color = MiuixTheme.colorScheme.onBackgroundVariant,
             style = MiuixTheme.textStyles.body2,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             LibraryRoundAction(
                 painter = painterResource(CorePresentationRes.drawable.icon_adjust),
-                contentDescription = "Filter",
+                contentDescription = stringResource(Res.string.library_filter),
             )
             LibraryRoundAction(
                 painter = painterResource(CorePresentationRes.drawable.icon_mode_list),
-                contentDescription = "List view",
+                contentDescription = stringResource(Res.string.library_list_view),
             )
         }
     }
@@ -226,15 +342,16 @@ private fun LibraryRoundAction(
 ) {
     Box(
         modifier = Modifier
-            .size(32.dp)
-            .clip(CircleShape),
+            .size(36.dp)
+            .clip(CircleShape)
+            .background(MiuixTheme.colorScheme.surfaceContainerHigh),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             painter = painter,
             tint = MiuixTheme.colorScheme.onBackgroundVariant,
             contentDescription = contentDescription,
-            modifier = Modifier.size(16.dp),
+            modifier = Modifier.size(17.dp),
         )
     }
 }
@@ -273,11 +390,8 @@ private fun LibraryTrackRow(
         ) {
             Icon(
                 painter = painterResource(
-                    if (playing) {
-                        CorePresentationRes.drawable.icon_pause
-                    } else {
-                        CorePresentationRes.drawable.icon_music_note
-                    },
+                    if (playing) CorePresentationRes.drawable.icon_pause
+                    else CorePresentationRes.drawable.icon_music_note,
                 ),
                 tint = Color.White.copy(alpha = 0.86f),
                 contentDescription = null,
@@ -285,25 +399,16 @@ private fun LibraryTrackRow(
             )
         }
         Column(modifier = Modifier.weight(1f)) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = track.title,
-                    color = titleColor,
-                    style = MiuixTheme.textStyles.body1,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
-                )
-                track.qualityBadgeType()?.let { badgeType ->
-                    QualityBadge(type = badgeType)
-                }
-            }
             Text(
-                text = track.artist ?: "Unknown Artist",
+                text = track.title,
+                color = titleColor,
+                style = MiuixTheme.textStyles.body1,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = track.artist ?: stringResource(Res.string.library_unknown_artist),
                 color = MiuixTheme.colorScheme.onBackgroundVariant,
                 style = MiuixTheme.textStyles.footnote1,
                 maxLines = 1,
@@ -311,7 +416,7 @@ private fun LibraryTrackRow(
             )
         }
         Text(
-            text = durationLabel(track.durationMs),
+            text = durationClockLabel(track.durationMs),
             color = MiuixTheme.colorScheme.onBackgroundVariant,
             style = MiuixTheme.textStyles.footnote1,
         )
@@ -319,596 +424,274 @@ private fun LibraryTrackRow(
             Icon(
                 painter = painterResource(CorePresentationRes.drawable.icon_download),
                 tint = MiuixTheme.colorScheme.primary,
-                contentDescription = "Download",
+                contentDescription = stringResource(Res.string.library_download),
                 modifier = Modifier
                     .clip(CircleShape)
                     .clickable(onClick = onDownload)
-                    .padding(4.dp)
-                    .size(16.dp),
+                    .padding(6.dp)
+                    .size(18.dp),
             )
         }
     }
 }
 
 @Composable
-@OptIn(ExperimentalLayoutApi::class)
-private fun LibraryAlbumGrid(albums: List<LibraryAlbumItem>) {
-    if (albums.isEmpty()) {
-        LibraryCategoryEmpty(LibraryCategory.Albums)
-        return
-    }
-    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        val columns = if (maxWidth >= 640.dp) 3 else 2
-        val columnWidth = (maxWidth - 16.dp * (columns - 1)) / columns
-        val cardWidth = if (columnWidth < 160.dp) columnWidth else 160.dp
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-            maxItemsInEachRow = columns,
-        ) {
-            albums.forEachIndexed { index, album ->
-                Box(
-                    modifier = Modifier.width(columnWidth),
-                ) {
-                    LibraryAlbumCard(album, index, cardWidth)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun LibraryAlbumCard(album: LibraryAlbumItem, index: Int, width: Dp) {
-    val first = libraryGradientColors[index % libraryGradientColors.size]
-    val second = libraryGradientColors[(index + 1) % libraryGradientColors.size]
-    Column(
-        modifier = Modifier.width(width),
-    ) {
-        val artworkShape = RoundedCornerShape(24.dp)
-        Box(
-            modifier = Modifier
-                .size(width)
-                .shadow(8.dp, artworkShape, clip = false)
-                .clip(artworkShape)
-                .background(Brush.linearGradient(listOf(first, second))),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(CorePresentationRes.drawable.icon_album),
-                tint = Color.White.copy(alpha = 0.24f),
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
-            )
-        }
-        Spacer(modifier = Modifier.height(12.dp))
-        Text(
-            text = album.name,
-            color = MiuixTheme.colorScheme.onBackground,
-            style = MiuixTheme.textStyles.body1,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(
-            text = album.year?.toString() ?: "Unknown Year",
-            color = MiuixTheme.colorScheme.onBackgroundVariant,
-            style = MiuixTheme.textStyles.footnote1,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-@Composable
-@OptIn(ExperimentalLayoutApi::class)
-private fun LibraryArtistGrid(artists: List<LibraryArtistItem>) {
-    if (artists.isEmpty()) {
-        LibraryCategoryEmpty(LibraryCategory.Artists)
-        return
-    }
-    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        val columns = 3
-        val cellWidth = (maxWidth - 24.dp) / columns
-        val cardWidth = if (cellWidth < 128.dp) cellWidth else 128.dp
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp),
-            maxItemsInEachRow = columns,
-        ) {
-            artists.forEachIndexed { index, artist ->
-                Box(
-                    modifier = Modifier.width(cellWidth),
-                    contentAlignment = Alignment.TopCenter,
-                ) {
-                    Column(
-                        modifier = Modifier.width(cardWidth),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(cardWidth)
-                                .shadow(8.dp, CircleShape, clip = false)
-                                .clip(CircleShape)
-                                .background(
-                                    Brush.linearGradient(
-                                        listOf(
-                                            libraryGradientColors[index % libraryGradientColors.size],
-                                            libraryGradientColors[(index + 1) % libraryGradientColors.size],
-                                        ),
-                                    ),
-                                ),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                text = artist.name.initials(),
-                                color = Color.White.copy(alpha = 0.90f),
-                                style = MiuixTheme.textStyles.title2,
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = artist.name,
-                            color = MiuixTheme.colorScheme.onBackground,
-                            style = MiuixTheme.textStyles.body1,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-@OptIn(ExperimentalLayoutApi::class)
-private fun LibraryGenreGrid() {
-    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        val cardWidth = (maxWidth - 12.dp) / 2
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            libraryGenres.forEachIndexed { index, genre ->
-                Box(
-                    modifier = Modifier
-                        .width(cardWidth)
-                        .height(96.dp)
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(
-                            Brush.linearGradient(
-                                listOf(
-                                    libraryGradientColors[index % libraryGradientColors.size],
-                                    libraryGradientColors[(index + 1) % libraryGradientColors.size],
-                                ),
-                            ),
-                        )
-                        .padding(16.dp),
-                    contentAlignment = Alignment.BottomStart,
-                ) {
-                    Text(
-                        text = genre,
-                        color = Color.White,
-                        style = MiuixTheme.textStyles.body1,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-@OptIn(ExperimentalLayoutApi::class)
-private fun LibraryPlaylistGrid() {
-    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-        val columns = 2
-        val cellWidth = (maxWidth - 16.dp) / columns
-        val cardWidth = if (cellWidth < 160.dp) cellWidth else 160.dp
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-            maxItemsInEachRow = columns,
-        ) {
-            libraryPlaylists.forEachIndexed { index, playlist ->
-                Box(
-                    modifier = Modifier.width(cellWidth),
-                ) {
-                    Column(modifier = Modifier.width(cardWidth)) {
-                    val artworkShape = RoundedCornerShape(24.dp)
-                    Box(
-                        modifier = Modifier
-                            .size(cardWidth)
-                            .shadow(8.dp, artworkShape, clip = false)
-                            .clip(artworkShape)
-                            .background(
-                                Brush.linearGradient(
-                                    listOf(
-                                        libraryGradientColors[index % libraryGradientColors.size],
-                                        libraryGradientColors[(index + 1) % libraryGradientColors.size],
-                                    ),
-                                ),
-                            ),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            painter = painterResource(CorePresentationRes.drawable.icon_mode_list),
-                            tint = Color.White.copy(alpha = 0.32f),
-                            contentDescription = null,
-                            modifier = Modifier.size(56.dp),
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = playlist.title,
-                        color = MiuixTheme.colorScheme.onBackground,
-                        style = MiuixTheme.textStyles.body1,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "${playlist.trackCount} songs · ${playlist.duration}",
-                        color = MiuixTheme.colorScheme.onBackgroundVariant,
-                        style = MiuixTheme.textStyles.footnote1,
-                        maxLines = 1,
-                    )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun LibrarySourcesGrid() {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        librarySources.forEachIndexed { index, source ->
-            LibrarySourceCard(source = source, index = index)
-        }
-        DesignTextButton(
-            text = "+  Add Source",
-            variant = DesignTextButtonVariant.Tonal,
-            size = DesignTextButtonSize.Medium,
-            onClick = {},
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-}
-
-@Composable
-private fun LibrarySourceCard(
-    source: LibrarySourceDemo,
-    index: Int,
-) {
-    val statusColor = when (source.status) {
-        "Connected" -> DesignPalette.SupportGreen
-        "Syncing" -> DesignPalette.SupportBlue
-        "Error" -> MiuixTheme.colorScheme.error
-        else -> MiuixTheme.colorScheme.onBackgroundVariant
-    }
-    val sourcePainter = when (source.type) {
-        "Local" -> painterResource(CorePresentationRes.drawable.icon_folder)
-        "OneDrive" -> painterResource(CorePresentationRes.drawable.icon_onedrive)
-        "Plex" -> painterResource(CorePresentationRes.drawable.icon_album)
-        "Jellyfin",
-        "Navidrome" -> painterResource(CorePresentationRes.drawable.icon_music_note)
-        else -> painterResource(CorePresentationRes.drawable.icon_cloud)
-    }
-    val shape = RoundedCornerShape(24.dp)
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(shape)
-            .background(MiuixTheme.colorScheme.surfaceContainer)
-            .border(1.dp, MiuixTheme.colorScheme.outline, shape)
-            .padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
+private fun LibraryAlbumRow(album: LibraryAlbumItem) {
+    DesignCardSurface(contentPadding = PaddingValues(14.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Top,
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(
-                        Brush.linearGradient(
-                            listOf(
-                                libraryGradientColors[index % libraryGradientColors.size],
-                                libraryGradientColors[(index + 1) % libraryGradientColors.size],
-                            ),
-                        ),
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    painter = sourcePainter,
-                    tint = Color.White,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-            Spacer(modifier = Modifier.width(12.dp))
+            LibraryArtworkTile(painterResource(CorePresentationRes.drawable.icon_album))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = source.name,
+                    text = album.name,
                     color = MiuixTheme.colorScheme.onBackground,
                     style = MiuixTheme.textStyles.body1,
                     fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = source.type,
+                    text = album.year?.toString() ?: stringResource(Res.string.library_unknown_year),
                     color = MiuixTheme.colorScheme.onBackgroundVariant,
                     style = MiuixTheme.textStyles.footnote1,
                 )
             }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(6.dp)
-                        .clip(CircleShape)
-                        .background(statusColor),
-                )
-                Text(
-                    text = source.status,
-                    color = statusColor,
-                    style = MiuixTheme.textStyles.footnote1,
-                    fontWeight = FontWeight.Medium,
-                )
-            }
         }
+    }
+}
+
+@Composable
+private fun LibraryArtistRow(artist: LibraryArtistItem) {
+    DesignCardSurface(contentPadding = PaddingValues(14.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            LibrarySourceMetric(
-                label = "Storage",
-                value = source.storage,
-                modifier = Modifier.weight(1f),
-            )
-            LibrarySourceMetric(
-                label = "Tracks",
-                value = source.trackCount.groupedCount(),
-                modifier = Modifier.weight(1f),
-            )
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Row(
+            Box(
                 modifier = Modifier
-                    .weight(1f)
-                    .height(32.dp)
-                    .clip(RoundedCornerShape(DesignTokens.shapes.sm))
-                    .background(MiuixTheme.colorScheme.tertiaryContainer)
-                    .clickable(onClick = {})
-                    .padding(horizontal = 12.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(Brush.linearGradient(listOf(DesignPalette.Primary, DesignPalette.Secondary))),
+                contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    painter = painterResource(CorePresentationRes.drawable.icon_mode_repeat),
-                    tint = MiuixTheme.colorScheme.primary,
-                    contentDescription = null,
-                    modifier = Modifier.size(14.dp),
-                )
-                Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "Sync",
-                    color = MiuixTheme.colorScheme.primary,
-                    style = MiuixTheme.textStyles.footnote1,
-                    fontWeight = FontWeight.SemiBold,
+                    text = artist.name.initials(),
+                    color = Color.White,
+                    style = MiuixTheme.textStyles.body1,
+                    fontWeight = FontWeight.Bold,
                 )
             }
-            LibrarySourceAction(
-                painter = painterResource(CorePresentationRes.drawable.icon_log),
-                contentDescription = "Logs",
-            )
-            LibrarySourceAction(
-                painter = painterResource(CorePresentationRes.drawable.icon_adjust),
-                contentDescription = "Settings",
-            )
-            LibrarySourceAction(
-                painter = painterResource(CorePresentationRes.drawable.icon_vertialcal_more),
-                contentDescription = "More",
+            Text(
+                text = artist.name,
+                color = MiuixTheme.colorScheme.onBackground,
+                style = MiuixTheme.textStyles.body1,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
             )
         }
     }
 }
 
 @Composable
-private fun LibrarySourceMetric(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(MiuixTheme.colorScheme.surfaceContainerHigh)
-            .padding(12.dp),
-    ) {
-        Text(
-            text = label,
-            color = MiuixTheme.colorScheme.onBackgroundVariant,
-            style = MiuixTheme.textStyles.footnote2,
-        )
-        Text(
-            text = value,
-            color = MiuixTheme.colorScheme.onBackground,
-            style = MiuixTheme.textStyles.body1,
-            fontWeight = FontWeight.SemiBold,
-        )
-    }
+private fun LibraryFolderRow(folder: LibraryFolderItem, onClick: () -> Unit) {
+    LibraryNavigationRow(
+        title = folder.displayName.ifBlank { folder.path.substringAfterLast('/') },
+        subtitle = stringResource(Res.string.library_folder_track_count, folder.trackCount),
+        painter = painterResource(CorePresentationRes.drawable.icon_folder),
+        onClick = onClick,
+    )
 }
 
 @Composable
-private fun LibrarySourceAction(
+private fun LibraryPlaylistRow(playlist: PlaylistSummary) {
+    LibraryNavigationRow(
+        title = playlist.title,
+        subtitle = buildString {
+            append(stringResource(Res.string.library_playlist_track_count, playlist.musicCount))
+            append(" · ")
+            append(libraryDurationLabel(playlist.durationMs))
+        },
+        painter = painterResource(CorePresentationRes.drawable.icon_mode_list),
+        onClick = {},
+    )
+}
+
+@Composable
+private fun LibraryNavigationRow(
+    title: String,
     painter: Painter,
-    contentDescription: String,
+    onClick: () -> Unit,
+    subtitle: String? = null,
 ) {
-    Box(
+    Row(
         modifier = Modifier
-            .size(32.dp)
-            .clip(RoundedCornerShape(DesignTokens.shapes.sm))
-            .clickable(onClick = {}),
-        contentAlignment = Alignment.Center,
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        LibraryArtworkTile(painter)
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                color = MiuixTheme.colorScheme.onBackground,
+                style = MiuixTheme.textStyles.body1,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            subtitle?.let {
+                Text(
+                    text = it,
+                    color = MiuixTheme.colorScheme.onBackgroundVariant,
+                    style = MiuixTheme.textStyles.footnote1,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
         Icon(
-            painter = painter,
+            painter = painterResource(CorePresentationRes.drawable.icon_chevron_right),
             tint = MiuixTheme.colorScheme.onBackgroundVariant,
-            contentDescription = contentDescription,
+            contentDescription = null,
             modifier = Modifier.size(16.dp),
         )
     }
 }
 
 @Composable
-private fun LibraryEmptyState() {
-    DesignEmptyState(
-        title = "No tracks in library.",
-        message = "Add a source or scan local music to start building your collection.",
-        marker = "M",
-    )
-}
-
-@Composable
-private fun LibraryFoldersState(onImportFolder: () -> Unit) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        libraryFolders.forEach { path ->
-            val name = path.substringAfterLast('/')
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .clickable(onClick = {})
-                    .padding(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MiuixTheme.colorScheme.surfaceContainerHigh),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        painter = painterResource(CorePresentationRes.drawable.icon_folder),
-                        tint = MiuixTheme.colorScheme.onBackgroundVariant,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = name,
-                        color = MiuixTheme.colorScheme.onBackground,
-                        style = MiuixTheme.textStyles.body1,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        text = path,
-                        color = MiuixTheme.colorScheme.onBackgroundVariant,
-                        style = MiuixTheme.textStyles.footnote1,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                Icon(
-                    painter = painterResource(CorePresentationRes.drawable.icon_chevron_right),
-                    tint = MiuixTheme.colorScheme.onBackgroundVariant,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                )
-            }
-        }
-        DesignTextButton(
-            text = "+  Add Folder",
-            variant = DesignTextButtonVariant.Tonal,
-            size = DesignTextButtonSize.Medium,
-            onClick = onImportFolder,
-            modifier = Modifier.fillMaxWidth(),
+private fun LibraryArtworkTile(painter: Painter) {
+    Box(
+        modifier = Modifier
+            .size(48.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(Brush.linearGradient(listOf(DesignPalette.Primary, DesignPalette.Secondary))),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painter = painter,
+            tint = Color.White.copy(alpha = 0.84f),
+            contentDescription = null,
+            modifier = Modifier.size(21.dp),
         )
     }
 }
 
 @Composable
-private fun LibraryCategoryEmpty(category: LibraryCategory) {
-    val message = when (category) {
-        LibraryCategory.Sources -> "Connect local, WebDAV, OneDrive or server sources from Settings."
-        LibraryCategory.Downloads -> "Downloaded songs will appear here."
-        LibraryCategory.Playlists -> "Create a playlist to organize your music."
-        else -> "Your ${category.label.lowercase()} will appear here."
-    }
+private fun LibraryRootEmptyState() {
     DesignEmptyState(
-        title = category.label,
-        message = message,
-        marker = category.label.take(1),
+        title = stringResource(Res.string.library_empty_title),
+        message = stringResource(Res.string.library_empty_message),
+        marker = "M",
     )
 }
 
-internal fun LibraryTrackItem.lazyListKey(index: Int): String {
+@Composable
+private fun LibraryCategoryEmpty(category: LibraryCategory) {
+    val label = stringResource(category.labelRes)
+    DesignEmptyState(
+        title = label,
+        message = stringResource(category.emptyMessageRes),
+        marker = label.take(1),
+    )
+}
+
+@Composable
+private fun LibraryLoadingState() {
+    DesignStatusCard(
+        title = stringResource(Res.string.library_loading),
+        message = stringResource(Res.string.library_title),
+        loading = true,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(220.dp),
+    )
+}
+
+@Composable
+private fun LibraryErrorState(onRetry: () -> Unit) {
+    DesignStatusCard(
+        title = stringResource(Res.string.library_unavailable),
+        message = stringResource(Res.string.library_empty_message),
+        actionText = stringResource(Res.string.library_retry),
+        onAction = onRetry,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(220.dp),
+    )
+}
+
+private fun LibraryCategory.trackRepositoryState(
+    state: LibraryState,
+): RepositoryState<List<LibraryTrackItem>>? = when (this) {
+    LibraryCategory.Favorites -> state.favorites
+    LibraryCategory.Downloads -> state.downloads
+    LibraryCategory.History,
+    LibraryCategory.RecentlyPlayed -> state.history
+    LibraryCategory.Lossless -> state.lossless
+    LibraryCategory.HiRes -> state.hiRes
+    else -> null
+}
+
+private fun LibraryTrackItem.lazyListKey(index: Int): String {
     val mediaKey = mediaId?.let { media ->
         "${media.sourceId.value}:${media.mediaType}:${media.remoteId}"
     } ?: "no-media-id"
     return "library-track-$id-$mediaKey-$index"
 }
 
-private fun durationLabel(durationMs: Long?): String {
+private fun durationClockLabel(durationMs: Long?): String {
     if (durationMs == null) return "--:--"
-    val totalSeconds = durationMs / 1000
-    val m = totalSeconds / 60
-    val s = totalSeconds % 60
-    return "$m:${s.toString().padStart(2, '0')}"
+    val totalSeconds = durationMs.coerceAtLeast(0L) / 1_000L
+    val minutes = totalSeconds / 60L
+    val seconds = totalSeconds % 60L
+    return "$minutes:${seconds.toString().padStart(2, '0')}"
 }
 
-private fun String.initials(): String = split(" ")
+@Composable
+private fun libraryDurationLabel(durationMs: Long): String {
+    val totalMinutes = (durationMs / 60_000L).coerceAtLeast(0L)
+    val hours = totalMinutes / 60L
+    val minutes = totalMinutes % 60L
+    return if (hours > 0L) {
+        stringResource(Res.string.library_duration_hours, hours, minutes)
+    } else {
+        stringResource(Res.string.library_duration_minutes, minutes)
+    }
+}
+
+private fun String.initials(): String = split(Regex("\\s+"))
     .filter { it.isNotBlank() }
     .take(2)
     .joinToString("") { it.first().uppercase() }
     .ifBlank { take(2).uppercase() }
 
-private fun Int.groupedCount(): String = toString()
-    .reversed()
-    .chunked(3)
-    .joinToString(",")
-    .reversed()
-
-private enum class LibraryCategory(val label: String) {
-    Songs("Songs"),
-    Albums("Albums"),
-    Artists("Artists"),
-    Genres("Genres"),
-    Folders("Folders"),
-    Playlists("Playlists"),
-    Favorites("Favorites"),
-    Downloads("Downloads"),
-    History("History"),
-    RecentlyAdded("Recently Added"),
-    RecentlyPlayed("Recently Played"),
-    Lossless("Lossless"),
-    HiRes("Hi-Res"),
-    Sources("Sources"),
+private enum class LibraryCategory(
+    val labelRes: StringResource,
+    val emptyMessageRes: StringResource,
+) {
+    Songs(Res.string.library_category_songs, Res.string.library_empty_message),
+    Albums(Res.string.library_category_albums, Res.string.library_empty_albums),
+    Artists(Res.string.library_category_artists, Res.string.library_empty_artists),
+    Genres(Res.string.library_category_genres, Res.string.library_empty_genres),
+    Folders(Res.string.library_category_folders, Res.string.library_empty_folders),
+    Playlists(Res.string.library_category_playlists, Res.string.library_empty_playlists),
+    Favorites(Res.string.library_category_favorites, Res.string.library_empty_favorites),
+    Downloads(Res.string.library_category_downloads, Res.string.library_empty_downloads),
+    History(Res.string.library_category_history, Res.string.library_empty_history),
+    RecentlyAdded(Res.string.library_category_recently_added, Res.string.library_empty_recently_added),
+    RecentlyPlayed(Res.string.library_category_recently_played, Res.string.library_empty_recently_played),
+    Lossless(Res.string.library_category_lossless, Res.string.library_empty_lossless),
+    HiRes(Res.string.library_category_hires, Res.string.library_empty_hires),
+    Sources(Res.string.library_category_sources, Res.string.library_empty_sources),
 }
 
 private val libraryGradientColors = listOf(
@@ -919,86 +702,3 @@ private val libraryGradientColors = listOf(
     DesignPalette.SupportGreen,
     DesignPalette.SupportYellow,
 )
-
-private val libraryGenres = listOf(
-    "Electronic",
-    "Ambient",
-    "Synthwave",
-    "Techno",
-    "IDM",
-    "Post-Rock",
-    "Shoegaze",
-    "Experimental",
-    "Jazz",
-    "Classical",
-)
-
-private data class LibraryPlaylistDemo(
-    val title: String,
-    val trackCount: Int,
-    val duration: String,
-)
-
-private val libraryPlaylists = listOf(
-    LibraryPlaylistDemo("Evening Frequencies", 24, "1h 32m"),
-    LibraryPlaylistDemo("Spatial Audio Mix", 18, "1h 08m"),
-    LibraryPlaylistDemo("Deep Focus", 32, "2h 15m"),
-    LibraryPlaylistDemo("Night Drive", 20, "1h 22m"),
-    LibraryPlaylistDemo("Sunrise Protocol", 16, "58m"),
-    LibraryPlaylistDemo("System Override", 28, "1h 45m"),
-)
-
-private val libraryFolders = listOf(
-    "/Music/Electronic",
-    "/Music/Ambient",
-    "/Downloads/Music",
-    "/Synced/WebDAV",
-    "/SD Card/Music",
-)
-
-private data class LibrarySourceDemo(
-    val name: String,
-    val type: String,
-    val status: String,
-    val storage: String,
-    val trackCount: Int,
-)
-
-private val librarySources = listOf(
-    LibrarySourceDemo("Local Storage", "Local", "Connected", "24.6 GB", 1284),
-    LibrarySourceDemo("Personal NAS", "WebDAV", "Connected", "128 GB", 5820),
-    LibrarySourceDemo("OneDrive Music", "OneDrive", "Syncing", "8.2 GB", 342),
-    LibrarySourceDemo("Jellyfin Home", "Jellyfin", "Error", "512 GB", 18200),
-    LibrarySourceDemo("Plex Server", "Plex", "Idle", "256 GB", 8400),
-    LibrarySourceDemo("Navidrome", "Navidrome", "Connected", "64 GB", 3100),
-)
-
-private val demoLibraryTracks = listOf(
-    LibraryTrackItem(1, "Midnight Cascade", "Luna Waves · Tidal Drift", 222_000),
-    LibraryTrackItem(2, "Neon Undertow", "Prism Circuit · Voltage Dreams", 258_000),
-    LibraryTrackItem(3, "Silver Tide", "Coastal Drift · Open Water", 235_000),
-    LibraryTrackItem(4, "Aurora Sequence", "Polar Echo · Northern Lights", 302_000),
-    LibraryTrackItem(5, "Depth Protocol", "Ocean Syntax · Subsonic", 210_000),
-    LibraryTrackItem(6, "Glass Architecture", "Fractal Mind · Prism", 284_000),
-    LibraryTrackItem(7, "Resonance Fields", "Wave Function · Quantum", 195_000),
-    LibraryTrackItem(8, "Liminal Space", "Threshold · Between", 330_000),
-)
-
-private fun LibraryTrackItem.qualityBadgeType(): QualityBadgeType? = when (title) {
-    "Midnight Cascade",
-    "Liminal Space" -> QualityBadgeType.HiRes
-    "Neon Undertow",
-    "Glass Architecture" -> QualityBadgeType.Flac
-    "Aurora Sequence" -> QualityBadgeType.DolbyAtmos
-    else -> null
-}
-
-private fun LibraryCategory.selectTracks(tracks: List<LibraryTrackItem>): List<LibraryTrackItem> = when (this) {
-    LibraryCategory.Favorites -> tracks.filterIndexed { index, _ -> index % 2 == 0 }
-    LibraryCategory.History -> tracks.reversed()
-    LibraryCategory.RecentlyAdded,
-    LibraryCategory.RecentlyPlayed -> tracks.take(6)
-    LibraryCategory.Lossless -> tracks.filter { it.title == "Neon Undertow" || it.title == "Glass Architecture" }
-    LibraryCategory.HiRes -> tracks.filter { it.title == "Midnight Cascade" || it.title == "Liminal Space" }
-    else -> tracks.take(12)
-}
