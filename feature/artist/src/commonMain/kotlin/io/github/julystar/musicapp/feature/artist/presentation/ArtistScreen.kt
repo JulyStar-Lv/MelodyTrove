@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -31,16 +30,30 @@ import androidx.compose.ui.unit.dp
 import io.github.julystar.musicapp.core.domain.model.Artwork
 import io.github.julystar.musicapp.core.presentation.components.DesignCardSurface
 import io.github.julystar.musicapp.core.presentation.components.DesignDetailHeaderSurface
-import io.github.julystar.musicapp.core.presentation.components.LocalDesignBottomContentInset
 import io.github.julystar.musicapp.core.presentation.components.DesignSectionHeader
 import io.github.julystar.musicapp.core.presentation.components.DesignStatusCard
-import io.github.julystar.musicapp.core.presentation.components.DesignTrackNumberBadge
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButton
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonSize
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonVariant
+import io.github.julystar.musicapp.core.presentation.components.DesignTrackNumberBadge
+import io.github.julystar.musicapp.core.presentation.components.LocalDesignBottomContentInset
 import io.github.julystar.musicapp.core.presentation.media.ArtworkImage
 import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
+import musicapp.feature.artist.generated.resources.Res
+import musicapp.feature.artist.generated.resources.artist_albums
+import musicapp.feature.artist.generated.resources.artist_default_title
+import musicapp.feature.artist.generated.resources.artist_download
+import musicapp.feature.artist.generated.resources.artist_loading
+import musicapp.feature.artist.generated.resources.artist_no_content
+import musicapp.feature.artist.generated.resources.artist_play_all
+import musicapp.feature.artist.generated.resources.artist_release_count
+import musicapp.feature.artist.generated.resources.artist_retry
+import musicapp.feature.artist.generated.resources.artist_song_count
+import musicapp.feature.artist.generated.resources.artist_summary
+import musicapp.feature.artist.generated.resources.artist_top_tracks
+import musicapp.feature.artist.generated.resources.artist_unavailable
+import org.jetbrains.compose.resources.stringResource
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -51,6 +64,7 @@ fun ArtistScreen(
 ) {
     val spacing = DesignTokens.spacing
     val bottomContentInset = LocalDesignBottomContentInset.current
+    val defaultTitle = stringResource(Res.string.artist_default_title)
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val horizontalPadding = if (maxWidth < 600.dp) spacing.pageCompact else spacing.pageExpanded
 
@@ -62,17 +76,17 @@ fun ArtistScreen(
         ) {
             when {
                 state.isLoading -> DesignStatusCard(
-                    title = "Loading artist",
-                    message = state.name.ifBlank { "Artist" },
+                    title = stringResource(Res.string.artist_loading),
+                    message = state.name.ifBlank { defaultTitle },
                     loading = true,
                     loadingColor = DesignPalette.Secondary,
                     modifier = Modifier.weight(1f),
                 )
                 state.error != null -> DesignStatusCard(
-                    title = "Artist unavailable",
+                    title = stringResource(Res.string.artist_unavailable),
                     message = state.error,
                     modifier = Modifier.weight(1f),
-                    actionText = "Retry",
+                    actionText = stringResource(Res.string.artist_retry),
                     onAction = { onAction(ArtistAction.Retry) },
                 )
                 else -> {
@@ -83,7 +97,7 @@ fun ArtistScreen(
                     ) {
                         item {
                             ArtistHeader(
-                                name = state.name.ifBlank { "Artist" },
+                                name = state.name.ifBlank { defaultTitle },
                                 artwork = state.artwork,
                                 albumCount = state.albums.size,
                                 trackCount = state.tracks.size,
@@ -95,8 +109,8 @@ fun ArtistScreen(
                         if (state.albums.isNotEmpty()) {
                             item {
                                 DesignSectionHeader(
-                                    title = "Albums",
-                                    metadata = "${state.albums.size} releases",
+                                    title = stringResource(Res.string.artist_albums),
+                                    metadata = stringResource(Res.string.artist_release_count, state.albums.size),
                                     titleWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(top = 6.dp),
                                 )
@@ -107,7 +121,10 @@ fun ArtistScreen(
                                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 ) {
                                     itemsIndexed(state.albums, key = { index, album -> album.lazyListKey(index) }) { _, album ->
-                                        ArtistAlbumCard(album = album, onClick = { onAction(ArtistAction.NavigateToAlbum(album.id)) })
+                                        ArtistAlbumCard(
+                                            album = album,
+                                            onClick = { onAction(ArtistAction.NavigateToAlbum(album.id)) },
+                                        )
                                     }
                                 }
                             }
@@ -115,8 +132,8 @@ fun ArtistScreen(
                         if (state.tracks.isNotEmpty()) {
                             item {
                                 DesignSectionHeader(
-                                    title = "Top Tracks",
-                                    metadata = "${state.tracks.size} songs",
+                                    title = stringResource(Res.string.artist_top_tracks),
+                                    metadata = stringResource(Res.string.artist_song_count, state.tracks.size),
                                     titleWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(top = 6.dp),
                                 )
@@ -125,14 +142,22 @@ fun ArtistScreen(
                                 ArtistTrackRow(
                                     track = track,
                                     onPlay = { onAction(ArtistAction.PlayTrack(track.id)) },
-                                    onAlbumClick = track.albumId?.let { id -> { onAction(ArtistAction.NavigateToAlbum(id)) } },
-                                    onDownload = { if (track.canDownload) onAction(ArtistAction.DownloadTrack(track)) },
+                                    onAlbumClick = track.albumId?.let { id ->
+                                        { onAction(ArtistAction.NavigateToAlbum(id)) }
+                                    },
+                                    onDownload = {
+                                        if (track.canDownload) onAction(ArtistAction.DownloadTrack(track))
+                                    },
                                 )
                             }
                         }
                         if (state.albums.isEmpty() && state.tracks.isEmpty()) {
                             item {
-                                DesignStatusCard(title = "No artist content", message = state.name.ifBlank { "Artist" }, modifier = Modifier.heightIn(min = 260.dp))
+                                DesignStatusCard(
+                                    title = stringResource(Res.string.artist_no_content),
+                                    message = state.name.ifBlank { defaultTitle },
+                                    modifier = Modifier.heightIn(min = 260.dp),
+                                )
                             }
                         }
                     }
@@ -152,11 +177,23 @@ private fun ArtistHeader(
 ) {
     val shapes = DesignTokens.shapes
 
-    DesignDetailHeaderSurface(accentColor = DesignPalette.Secondary, accentAlpha = 0.66f, borderAlpha = 0.18f) {
-        Box(modifier = Modifier.size(220.dp).clip(RoundedCornerShape(shapes.full)).background(MiuixTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))) {
+    DesignDetailHeaderSurface(
+        accentColor = DesignPalette.Secondary,
+        accentAlpha = 0.66f,
+        borderAlpha = 0.18f,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(220.dp)
+                .clip(RoundedCornerShape(shapes.full))
+                .background(MiuixTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)),
+        ) {
             ArtworkImage(artwork = artwork, modifier = Modifier.fillMaxSize())
         }
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
             Text(
                 text = name,
                 style = MiuixTheme.textStyles.title2,
@@ -168,7 +205,7 @@ private fun ArtistHeader(
                 modifier = Modifier.widthIn(max = 620.dp),
             )
             Text(
-                text = artistSummary(albumCount = albumCount, trackCount = trackCount),
+                text = stringResource(Res.string.artist_summary, albumCount, trackCount),
                 style = MiuixTheme.textStyles.footnote1,
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 textAlign = TextAlign.Center,
@@ -177,7 +214,12 @@ private fun ArtistHeader(
             )
         }
         onPlayAll?.let {
-            DesignTextButton(text = "Play All", variant = DesignTextButtonVariant.PrimaryFilled, size = DesignTextButtonSize.Medium, onClick = it)
+            DesignTextButton(
+                text = stringResource(Res.string.artist_play_all),
+                variant = DesignTextButtonVariant.PrimaryFilled,
+                size = DesignTextButtonSize.Medium,
+                onClick = it,
+            )
         }
     }
 }
@@ -185,13 +227,35 @@ private fun ArtistHeader(
 @Composable
 private fun ArtistAlbumCard(album: ArtistAlbumItem, onClick: () -> Unit) {
     val shapes = DesignTokens.shapes
-    DesignCardSurface(modifier = Modifier.width(156.dp), contentPadding = PaddingValues(10.dp), fillMaxWidth = false, onClick = onClick) {
+    DesignCardSurface(
+        modifier = Modifier.width(156.dp),
+        contentPadding = PaddingValues(10.dp),
+        fillMaxWidth = false,
+        onClick = onClick,
+    ) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Box(modifier = Modifier.size(136.dp).clip(RoundedCornerShape(shapes.md)).background(MiuixTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f))) {
+            Box(
+                modifier = Modifier
+                    .size(136.dp)
+                    .clip(RoundedCornerShape(shapes.md))
+                    .background(MiuixTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f)),
+            ) {
                 ArtworkImage(artwork = album.artwork, modifier = Modifier.fillMaxSize())
             }
-            Text(text = album.name, style = MiuixTheme.textStyles.body2, color = MiuixTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Text(text = album.year?.toString() ?: "Album", style = MiuixTheme.textStyles.footnote1, color = MiuixTheme.colorScheme.onSurfaceVariantSummary, maxLines = 1)
+            Text(
+                text = album.name,
+                style = MiuixTheme.textStyles.body2,
+                color = MiuixTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = album.year?.toString() ?: stringResource(Res.string.artist_default_title),
+                style = MiuixTheme.textStyles.footnote1,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                maxLines = 1,
+            )
         }
     }
 }
@@ -204,25 +268,62 @@ private fun ArtistTrackRow(
     onDownload: () -> Unit,
 ) {
     val trackLabel = track.trackLabel()
-    DesignCardSurface(modifier = Modifier.heightIn(min = 64.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp), onClick = onPlay) {
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    DesignCardSurface(
+        modifier = Modifier.heightIn(min = 64.dp),
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+        onClick = onPlay,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             DesignTrackNumberBadge(label = trackLabel)
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(text = track.title, style = MiuixTheme.textStyles.body1, color = MiuixTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = track.title,
+                    style = MiuixTheme.textStyles.body1,
+                    color = MiuixTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 track.albumName?.let { album ->
                     Text(
-                        text = album, style = MiuixTheme.textStyles.footnote1,
-                        color = if (onAlbumClick != null) DesignPalette.Secondary else MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        modifier = if (onAlbumClick != null) Modifier.clickable(onClick = onAlbumClick) else Modifier,
+                        text = album,
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = if (onAlbumClick != null) {
+                            DesignPalette.Secondary
+                        } else {
+                            MiuixTheme.colorScheme.onSurfaceVariantSummary
+                        },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = if (onAlbumClick != null) {
+                            Modifier.clickable(onClick = onAlbumClick)
+                        } else {
+                            Modifier
+                        },
                     )
                 }
                 track.durationMs?.let {
-                    Text(text = durationLabel(it), style = MiuixTheme.textStyles.footnote1, color = MiuixTheme.colorScheme.onSurfaceVariantSummary, maxLines = 1)
+                    Text(
+                        text = durationLabel(it),
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        maxLines = 1,
+                    )
                 }
             }
             if (track.canDownload) {
-                DesignTextButton(text = "DL", variant = DesignTextButtonVariant.Default, size = DesignTextButtonSize.Small, onClick = onDownload)
+                DesignTextButton(
+                    text = stringResource(Res.string.artist_download),
+                    variant = DesignTextButtonVariant.Default,
+                    size = DesignTextButtonSize.Small,
+                    onClick = onDownload,
+                )
             }
         }
     }
@@ -233,13 +334,10 @@ internal fun ArtistTrackItem.lazyListKey(index: Int): String = "artist-track-$in
 
 private fun ArtistTrackItem.trackLabel(): String = buildString {
     if (discNumber != null && discNumber > 1) append("$discNumber.")
-    if (trackNumber != null) { if (isNotEmpty()) append("-"); append("$trackNumber") }
-}
-
-private fun artistSummary(albumCount: Int, trackCount: Int): String {
-    val albumLabel = if (albumCount == 1) "1 album" else "$albumCount albums"
-    val trackLabel = if (trackCount == 1) "1 song" else "$trackCount songs"
-    return "$albumLabel, $trackLabel"
+    if (trackNumber != null) {
+        if (isNotEmpty()) append("-")
+        append("$trackNumber")
+    }
 }
 
 private fun durationLabel(durationMs: Long): String {

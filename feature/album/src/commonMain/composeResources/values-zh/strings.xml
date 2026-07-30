@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="album_default_title">专辑</string>
+    <string name="album_loading">正在加载专辑</string>
+    <string name="album_unavailable">专辑不可用</string>
+    <string name="album_retry">重试</string>
+    <string name="album_no_tracks">没有歌曲</string>
+    <string name="album_tracks">歌曲</string>
+    <string name="album_song_count">%1$d 首歌曲</string>
+    <string name="album_summary">%1$d 首歌曲，%2$s</string>
+    <string name="album_play_all">播放全部</string>
+    <string name="album_download">下载</string>
+</resources>

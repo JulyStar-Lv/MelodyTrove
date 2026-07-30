@@ -1,22 +1,20 @@
 package io.github.julystar.musicapp.feature.onboarding.presentation
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -29,15 +27,25 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import io.github.julystar.musicapp.core.presentation.components.DesignButton
-import io.github.julystar.musicapp.core.presentation.components.DesignButtonVariant
-import io.github.julystar.musicapp.core.presentation.components.DesignCardSurface
-import io.github.julystar.musicapp.core.presentation.components.DesignTextButton
-import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonSize
-import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonVariant
 import io.github.julystar.musicapp.core.presentation.components.appIconPainter
 import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
+import musicapp.feature.onboarding.generated.resources.Res
+import musicapp.feature.onboarding.generated.resources.onboarding_app_name
+import musicapp.feature.onboarding.generated.resources.onboarding_enter
+import musicapp.feature.onboarding.generated.resources.onboarding_footer
+import musicapp.feature.onboarding.generated.resources.onboarding_principle_adaptive
+import musicapp.feature.onboarding.generated.resources.onboarding_principle_calm
+import musicapp.feature.onboarding.generated.resources.onboarding_principle_content_first
+import musicapp.feature.onboarding.generated.resources.onboarding_principle_cross_platform
+import musicapp.feature.onboarding.generated.resources.onboarding_principle_immersive
+import musicapp.feature.onboarding.generated.resources.onboarding_principle_music_first
+import musicapp.feature.onboarding.generated.resources.onboarding_principle_native
+import musicapp.feature.onboarding.generated.resources.onboarding_principle_plugin_driven
+import musicapp.feature.onboarding.generated.resources.onboarding_principle_simple
+import musicapp.feature.onboarding.generated.resources.onboarding_tagline
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -47,16 +55,17 @@ fun OnboardingScreen(
     onAction: (OnboardingAction) -> Unit,
 ) {
     val spacing = DesignTokens.spacing
+    val appName = stringResource(Res.string.onboarding_app_name)
     val principles = listOf(
-        "Simple",
-        "Calm",
-        "Immersive",
-        "Music First",
-        "Content First",
-        "Adaptive",
-        "Native",
-        "Cross Platform",
-        "Plugin Driven",
+        Res.string.onboarding_principle_simple,
+        Res.string.onboarding_principle_calm,
+        Res.string.onboarding_principle_immersive,
+        Res.string.onboarding_principle_music_first,
+        Res.string.onboarding_principle_content_first,
+        Res.string.onboarding_principle_adaptive,
+        Res.string.onboarding_principle_native,
+        Res.string.onboarding_principle_cross_platform,
+        Res.string.onboarding_principle_plugin_driven,
     )
 
     Box(
@@ -92,17 +101,23 @@ fun OnboardingScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            CoverLogo()
+            Image(
+                painter = appIconPainter(),
+                contentDescription = appName,
+                modifier = Modifier
+                    .size(92.dp)
+                    .clip(RoundedCornerShape(28.dp)),
+            )
             Spacer(modifier = Modifier.height(28.dp))
             Text(
-                text = "MelodyTrove",
+                text = appName,
                 color = DesignPalette.Primary,
                 style = MiuixTheme.textStyles.title1,
                 fontWeight = FontWeight.Black,
                 textAlign = TextAlign.Center,
             )
             Text(
-                text = "One Library. Every Source.",
+                text = stringResource(Res.string.onboarding_tagline),
                 color = Color(0xFF9B97B0),
                 style = MiuixTheme.textStyles.body1,
                 fontWeight = FontWeight.Medium,
@@ -111,33 +126,10 @@ fun OnboardingScreen(
             )
 
             Spacer(modifier = Modifier.height(48.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                principles.take(3).forEach { principle ->
-                    CoverPrincipleChip(text = principle)
-                }
-            }
-            Spacer(modifier = Modifier.height(10.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                principles.drop(3).take(3).forEach { principle ->
-                    CoverPrincipleChip(text = principle)
-                }
-            }
-            Spacer(modifier = Modifier.height(10.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                principles.drop(6).forEach { principle ->
-                    CoverPrincipleChip(text = principle)
+            principles.chunked(3).forEachIndexed { index, row ->
+                PrincipleRow(row)
+                if (index != principles.chunked(3).lastIndex) {
+                    Spacer(modifier = Modifier.height(10.dp))
                 }
             }
 
@@ -148,10 +140,7 @@ fun OnboardingScreen(
                     .clip(RoundedCornerShape(DesignTokens.shapes.full))
                     .background(
                         Brush.linearGradient(
-                            listOf(
-                                DesignPalette.Primary,
-                                DesignPalette.Secondary,
-                            ),
+                            listOf(DesignPalette.Primary, DesignPalette.Secondary),
                         ),
                     )
                     .clickable { onAction(OnboardingAction.Finish) }
@@ -166,7 +155,7 @@ fun OnboardingScreen(
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    text = "Enter MelodyTrove",
+                    text = stringResource(Res.string.onboarding_enter),
                     color = Color.White,
                     style = MiuixTheme.textStyles.body1,
                     fontWeight = FontWeight.Bold,
@@ -175,7 +164,7 @@ fun OnboardingScreen(
 
             Spacer(modifier = Modifier.height(56.dp))
             Text(
-                text = "MelodyTrove Design System · v3.0 · 2024",
+                text = stringResource(Res.string.onboarding_footer),
                 color = Color(0xFF9B97B0),
                 style = MiuixTheme.textStyles.footnote2,
                 textAlign = TextAlign.Center,
@@ -185,18 +174,20 @@ fun OnboardingScreen(
 }
 
 @Composable
-private fun CoverLogo() {
-    Image(
-        painter = appIconPainter(),
-        contentDescription = "MelodyTrove",
-        modifier = Modifier
-            .size(92.dp)
-            .clip(RoundedCornerShape(28.dp)),
-    )
+private fun PrincipleRow(principles: List<StringResource>) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        principles.forEach { principle ->
+            PrincipleChip(text = stringResource(principle))
+        }
+    }
 }
 
 @Composable
-private fun CoverPrincipleChip(text: String) {
+private fun PrincipleChip(text: String) {
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(DesignTokens.shapes.full))
@@ -217,119 +208,5 @@ private fun CoverPrincipleChip(text: String) {
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-    }
-}
-
-@Composable
-private fun OnboardingMark(page: OnboardingPage) {
-    val label = when (page) {
-        OnboardingPage.Welcome -> "T"
-        OnboardingPage.AddSources -> "+"
-        OnboardingPage.Ready -> "OK"
-    }
-
-    Box(
-        modifier = Modifier
-            .size(92.dp)
-            .clip(RoundedCornerShape(DesignTokens.shapes.xxl))
-            .background(
-                Brush.linearGradient(
-                    listOf(
-                        DesignPalette.Primary,
-                        DesignPalette.Secondary,
-                    ),
-                ),
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = label,
-            color = MiuixTheme.colorScheme.onPrimary,
-            style = MiuixTheme.textStyles.title1,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-        )
-    }
-}
-
-@Composable
-private fun OnboardingIndicators(currentPage: Int) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        OnboardingPage.entries.forEachIndexed { index, _ ->
-            val selected = index == currentPage
-            Box(
-                modifier = Modifier
-                    .height(8.dp)
-                    .width(if (selected) 24.dp else 8.dp)
-                    .clip(RoundedCornerShape(DesignTokens.shapes.full))
-                    .background(
-                        if (selected) {
-                            DesignPalette.Primary
-                        } else {
-                            MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.28f)
-                        },
-                    ),
-            )
-        }
-    }
-}
-
-@Composable
-private fun OnboardingActions(
-    page: OnboardingPage,
-    isLastPage: Boolean,
-    currentPage: Int,
-    onAction: (OnboardingAction) -> Unit,
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        when (page) {
-            OnboardingPage.Welcome -> {
-                DesignButton(
-                    text = "Get Started",
-                    variant = DesignButtonVariant.Primary,
-                    onClick = { onAction(OnboardingAction.NextPage) },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-            OnboardingPage.AddSources -> {
-                DesignButton(
-                    text = "Add Music Sources",
-                    variant = DesignButtonVariant.Primary,
-                    onClick = { onAction(OnboardingAction.NavigateToSources) },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                DesignTextButton(
-                    text = "Skip",
-                    variant = DesignTextButtonVariant.Default,
-                    size = DesignTextButtonSize.Medium,
-                    onClick = { onAction(OnboardingAction.NextPage) },
-                )
-            }
-            OnboardingPage.Ready -> {
-                DesignButton(
-                    text = "Start Listening",
-                    variant = DesignButtonVariant.Primary,
-                    onClick = { onAction(OnboardingAction.Finish) },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        }
-
-        if (!isLastPage && currentPage > 0) {
-            Spacer(Modifier.height(2.dp))
-            DesignTextButton(
-                text = "Back",
-                variant = DesignTextButtonVariant.Default,
-                size = DesignTextButtonSize.Small,
-                onClick = { onAction(OnboardingAction.PreviousPage) },
-            )
-        }
     }
 }

@@ -21,6 +21,10 @@ on:
       - "**/composeResources/values-zh/**"
       - "**/res/values/**"
       - "**/res/values-zh-rCN/**"
+      - "**/src/commonMain/**/*.kt"
+      - "**/src/androidMain/**/*.kt"
+      - "**/src/desktopMain/**/*.kt"
+      - "**/src/iosMain/**/*.kt"
       - "scripts/audit-hmi-i18n.py"
       - ".github/workflows/hmi-i18n-audit.yml"
 
@@ -33,5 +37,20 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Check Chinese and English HMI resources
-        run: python3 scripts/audit-hmi-i18n.py
+      - name: Generate strict HMI audit report
+        shell: bash
+        run: |
+          set +e
+          python3 scripts/audit-hmi-i18n.py --strict-hardcoded 2>&1 | tee hmi-i18n-report.txt
+          status=${PIPESTATUS[0]}
+          echo "status=$status" >> "$GITHUB_ENV"
+          exit 0
+      - name: Upload HMI audit report
+        uses: actions/upload-artifact@v4
+        with:
+          name: hmi-i18n-report
+          path: hmi-i18n-report.txt
+          if-no-files-found: error
+          retention-days: 7
+      - name: Enforce audit result
+        run: exit "${status}"

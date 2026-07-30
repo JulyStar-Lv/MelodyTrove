@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="downloads_task_count">%1$d 个任务</string>
+    <string name="downloads_empty_message">请从音乐库或搜索结果中开始下载。</string>
+    <string name="downloads_status_queued">等待中</string>
+    <string name="downloads_status_resolving">准备中</string>
+    <string name="downloads_status_downloading">下载中</string>
+    <string name="downloads_status_paused">已暂停</string>
+    <string name="downloads_status_completed">已完成</string>
+    <string name="downloads_status_failed">失败</string>
+    <string name="downloads_status_cancelled">已取消</string>
+    <string name="downloads_progress">%1$d%% · %2$s / %3$s</string>
+</resources>

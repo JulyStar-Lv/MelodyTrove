@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="recently_played_title">最近播放</string>
+    <string name="recently_played_track_count">%1$d 首歌曲</string>
+    <string name="recently_played_play_all">播放全部</string>
+    <string name="recently_played_loading">正在加载最近播放</string>
+    <string name="recently_played_checking">正在检查音乐库…</string>
+    <string name="recently_played_unavailable">最近播放内容不可用</string>
+    <string name="recently_played_retry">重试</string>
+    <string name="recently_played_empty">暂无最近播放的歌曲</string>
+    <string name="recently_played_empty_message">播放歌曲后会显示在这里</string>
+    <string name="recently_played_download">下载</string>
+</resources>

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="browse_title">浏览</string>
+    <string name="browse_summary">%1$d 张专辑 · %2$d 位艺术家 · %3$d 个流派</string>
+    <string name="browse_loading">正在加载浏览内容</string>
+    <string name="browse_loading_message">正在整理音乐库分类</string>
+    <string name="browse_unavailable">浏览内容不可用</string>
+    <string name="browse_retry">重试</string>
+    <string name="browse_albums">专辑</string>
+    <string name="browse_artists">艺术家</string>
+    <string name="browse_genres">流派</string>
+    <string name="browse_no_content">暂无浏览内容</string>
+    <string name="browse_import_first">请先导入音乐</string>
+    <string name="browse_track_count">%1$d 首歌曲</string>
+    <string name="browse_album_meta">%1$d 年 · %2$d 首歌曲</string>
+    <string name="genre_loading">正在加载流派</string>
+    <string name="genre_unavailable">流派内容不可用</string>
+    <string name="genre_retry">重试</string>
+    <string name="genre_no_tracks">此流派中没有歌曲</string>
+    <string name="genre_play_all">播放全部</string>
+    <string name="genre_download">下载</string>
+    <string name="genre_track_count">%1$d 首歌曲</string>
+</resources>

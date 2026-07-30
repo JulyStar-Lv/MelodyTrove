@@ -7,13 +7,11 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -29,15 +27,27 @@ import androidx.compose.ui.unit.dp
 import io.github.julystar.musicapp.core.domain.model.Artwork
 import io.github.julystar.musicapp.core.presentation.components.DesignCardSurface
 import io.github.julystar.musicapp.core.presentation.components.DesignDetailHeaderSurface
-import io.github.julystar.musicapp.core.presentation.components.LocalDesignBottomContentInset
 import io.github.julystar.musicapp.core.presentation.components.DesignSectionHeader
 import io.github.julystar.musicapp.core.presentation.components.DesignStatusCard
-import io.github.julystar.musicapp.core.presentation.components.DesignTrackNumberBadge
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButton
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonSize
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonVariant
+import io.github.julystar.musicapp.core.presentation.components.DesignTrackNumberBadge
+import io.github.julystar.musicapp.core.presentation.components.LocalDesignBottomContentInset
 import io.github.julystar.musicapp.core.presentation.media.ArtworkImage
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
+import musicapp.feature.album.generated.resources.Res
+import musicapp.feature.album.generated.resources.album_default_title
+import musicapp.feature.album.generated.resources.album_download
+import musicapp.feature.album.generated.resources.album_loading
+import musicapp.feature.album.generated.resources.album_no_tracks
+import musicapp.feature.album.generated.resources.album_play_all
+import musicapp.feature.album.generated.resources.album_retry
+import musicapp.feature.album.generated.resources.album_song_count
+import musicapp.feature.album.generated.resources.album_summary
+import musicapp.feature.album.generated.resources.album_tracks
+import musicapp.feature.album.generated.resources.album_unavailable
+import org.jetbrains.compose.resources.stringResource
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -48,6 +58,7 @@ fun AlbumScreen(
 ) {
     val spacing = DesignTokens.spacing
     val bottomContentInset = LocalDesignBottomContentInset.current
+    val defaultTitle = stringResource(Res.string.album_default_title)
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val horizontalPadding = if (maxWidth < 600.dp) spacing.pageCompact else spacing.pageExpanded
 
@@ -60,21 +71,21 @@ fun AlbumScreen(
         ) {
             when {
                 state.isLoading -> DesignStatusCard(
-                    title = "Loading album",
-                    message = state.title.ifBlank { "Album" },
+                    title = stringResource(Res.string.album_loading),
+                    message = state.title.ifBlank { defaultTitle },
                     loading = true,
                     modifier = Modifier.weight(1f),
                 )
                 state.error != null -> DesignStatusCard(
-                    title = "Album unavailable",
+                    title = stringResource(Res.string.album_unavailable),
                     message = state.error,
                     modifier = Modifier.weight(1f),
-                    actionText = "Retry",
+                    actionText = stringResource(Res.string.album_retry),
                     onAction = { onAction(AlbumAction.Retry) },
                 )
                 state.tracks.isEmpty() -> {
                     AlbumHeader(
-                        title = state.title.ifBlank { "Album" },
+                        title = state.title.ifBlank { defaultTitle },
                         artist = state.artist,
                         artwork = state.artwork,
                         trackCount = 0,
@@ -82,8 +93,8 @@ fun AlbumScreen(
                         onPlayAll = null,
                     )
                     DesignStatusCard(
-                        title = "No tracks",
-                        message = state.title.ifBlank { "Album" },
+                        title = stringResource(Res.string.album_no_tracks),
+                        message = state.title.ifBlank { defaultTitle },
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -105,8 +116,8 @@ fun AlbumScreen(
                         }
                         item {
                             DesignSectionHeader(
-                                title = "Tracks",
-                                metadata = "${state.tracks.size} songs",
+                                title = stringResource(Res.string.album_tracks),
+                                metadata = stringResource(Res.string.album_song_count, state.tracks.size),
                                 titleWeight = FontWeight.Bold,
                                 modifier = Modifier.padding(top = 6.dp),
                             )
@@ -185,7 +196,7 @@ private fun AlbumHeader(
         }
         onPlayAll?.let {
             DesignTextButton(
-                text = "Play All",
+                text = stringResource(Res.string.album_play_all),
                 variant = DesignTextButtonVariant.PrimaryFilled,
                 size = DesignTextButtonSize.Medium,
                 onClick = it,
@@ -235,7 +246,7 @@ private fun AlbumTrackRow(
             }
             if (track.canDownload) {
                 DesignTextButton(
-                    text = "DL",
+                    text = stringResource(Res.string.album_download),
                     variant = DesignTextButtonVariant.Default,
                     size = DesignTextButtonSize.Small,
                     onClick = onDownload,
@@ -255,12 +266,12 @@ private fun AlbumTrackItem.trackLabel(): String = buildString {
     }
 }
 
+@Composable
 private fun albumSummary(trackCount: Int, totalDurationMs: Long): String {
-    val countLabel = if (trackCount == 1) "1 song" else "$trackCount songs"
     return if (totalDurationMs > 0) {
-        "$countLabel, ${durationLabel(totalDurationMs)}"
+        stringResource(Res.string.album_summary, trackCount, durationLabel(totalDurationMs))
     } else {
-        countLabel
+        stringResource(Res.string.album_song_count, trackCount)
     }
 }
 

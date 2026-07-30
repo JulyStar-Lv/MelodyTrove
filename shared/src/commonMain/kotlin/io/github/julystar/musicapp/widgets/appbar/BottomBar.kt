@@ -19,6 +19,7 @@ import io.github.julystar.musicapp.core.presentation.components.getBottomBarSpac
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import io.github.julystar.musicapp.navigation.HomeTab
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
@@ -48,10 +49,11 @@ fun BoxScope.BottomBar(
     }
 
     val bottomItems = HomeTab.entries.map { tab ->
+        val label = stringResource(tab.labelRes)
         DesignBottomNavigationItem(
-            label = tab.label,
+            label = label,
             painter = painterResource(tab.painterRes),
-            contentDescription = tab.label,
+            contentDescription = label,
         )
     }
     Column(

@@ -7,16 +7,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -26,15 +24,25 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.unit.dp
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
-import org.jetbrains.compose.resources.painterResource
 import musicapp.core.presentation.generated.resources.Res as CorePresentationRes
 import musicapp.core.presentation.generated.resources.icon_chevron_left
 import musicapp.core.presentation.generated.resources.icon_chevron_right
 import musicapp.core.presentation.generated.resources.icon_lyrics
 import musicapp.core.presentation.generated.resources.icon_vertialcal_more
 import musicapp.shared.generated.resources.Res as SharedRes
+import musicapp.shared.generated.resources.desktop_back
+import musicapp.shared.generated.resources.desktop_close
+import musicapp.shared.generated.resources.desktop_forward
+import musicapp.shared.generated.resources.desktop_lyrics
+import musicapp.shared.generated.resources.desktop_lyrics_open_player
+import musicapp.shared.generated.resources.desktop_nothing_playing
+import musicapp.shared.generated.resources.desktop_notifications
+import musicapp.shared.generated.resources.desktop_search
+import musicapp.shared.generated.resources.desktop_theme
 import musicapp.shared.generated.resources.icon_adjust
 import musicapp.shared.generated.resources.icon_search
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -63,12 +71,12 @@ fun DesktopToolbar(
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 DesktopToolButton(
                     painter = painterResource(CorePresentationRes.drawable.icon_chevron_left),
-                    contentDescription = "Back",
+                    contentDescription = stringResource(SharedRes.string.desktop_back),
                     filled = true,
                 )
                 DesktopToolButton(
                     painter = painterResource(CorePresentationRes.drawable.icon_chevron_right),
-                    contentDescription = "Forward",
+                    contentDescription = stringResource(SharedRes.string.desktop_forward),
                     filled = true,
                 )
             }
@@ -91,7 +99,7 @@ fun DesktopToolbar(
                     modifier = Modifier.size(14.dp),
                 )
                 Text(
-                    text = "Search MelodyTrove…",
+                    text = stringResource(SharedRes.string.desktop_search),
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     style = MiuixTheme.textStyles.footnote1,
                     maxLines = 1,
@@ -101,7 +109,7 @@ fun DesktopToolbar(
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 DesktopToolButton(
                     painter = painterResource(CorePresentationRes.drawable.icon_lyrics),
-                    contentDescription = "Lyrics",
+                    contentDescription = stringResource(SharedRes.string.desktop_lyrics),
                     active = rightPanel == DesktopRightPanel.Lyrics,
                     onClick = {
                         onRightPanelChange(
@@ -111,12 +119,12 @@ fun DesktopToolbar(
                 )
                 DesktopToolButton(
                     painter = painterResource(SharedRes.drawable.icon_adjust),
-                    contentDescription = "Theme",
+                    contentDescription = stringResource(SharedRes.string.desktop_theme),
                     onClick = onToggleTheme,
                 )
                 DesktopToolButton(
                     painter = painterResource(CorePresentationRes.drawable.icon_vertialcal_more),
-                    contentDescription = "Notifications",
+                    contentDescription = stringResource(SharedRes.string.desktop_notifications),
                     showDot = true,
                 )
             }
@@ -158,7 +166,11 @@ private fun DesktopToolButton(
     ) {
         Icon(
             painter = painter,
-            tint = if (active) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            tint = if (active) {
+                MiuixTheme.colorScheme.primary
+            } else {
+                MiuixTheme.colorScheme.onSurfaceVariantSummary
+            },
             contentDescription = contentDescription,
             modifier = Modifier.size(if (filled) 14.dp else 16.dp),
         )
@@ -193,50 +205,56 @@ fun DesktopRightPanelContent(
             .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.60f)),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().height(52.dp).padding(horizontal = 20.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp)
+                .padding(horizontal = 20.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "Lyrics",
+                text = stringResource(SharedRes.string.desktop_lyrics),
                 style = MiuixTheme.textStyles.subtitle,
                 color = MiuixTheme.colorScheme.onSurface,
             )
             Box(
-                modifier = Modifier.size(32.dp).clip(RoundedCornerShape(12.dp))
-                    .background(MiuixTheme.colorScheme.surfaceContainerHigh).clickable(onClick = onClose),
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MiuixTheme.colorScheme.surfaceContainerHigh)
+                    .clickable(onClick = onClose),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(text = "×", color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
+                Text(
+                    text = "×",
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    modifier = Modifier,
+                )
             }
         }
-        Box(Modifier.fillMaxWidth().height(1.dp).background(MiuixTheme.colorScheme.outline))
-        if (!hasCurrentMusic) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(text = "Nothing playing", color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
-            }
-        } else {
-            Column(
-                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
-            ) {
-                desktopLyrics.forEachIndexed { index, line ->
-                    Text(
-                        text = line,
-                        style = MiuixTheme.textStyles.body2,
-                        color = if (index == 3) MiuixTheme.colorScheme.onSurface else MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    )
-                }
-            }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(MiuixTheme.colorScheme.outline),
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = stringResource(
+                    if (hasCurrentMusic) {
+                        SharedRes.string.desktop_lyrics_open_player
+                    } else {
+                        SharedRes.string.desktop_nothing_playing
+                    },
+                ),
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                style = MiuixTheme.textStyles.body2,
+            )
         }
     }
 }
-
-private val desktopLyrics = listOf(
-    "City lights dissolve into the rain",
-    "Signals drift across the avenue",
-    "The frequency shifts as the night moves on",
-    "Midnight cascade, carry me away",
-    "Every echo finds another wave",
-    "Midnight cascade, where frequencies are found",
-)

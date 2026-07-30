@@ -22,8 +22,10 @@ data class DownloadTaskUi(
     val id: DownloadTaskId,
     val title: String,
     val subtitle: String,
-    val statusLabel: String,
-    val progressLabel: String,
+    val status: DownloadStatus,
+    val progressPercent: Int?,
+    val downloadedBytes: Long,
+    val totalBytes: Long?,
     val progressFraction: Float?,
     val errorMessage: String?,
     val canPause: Boolean,
@@ -50,25 +52,22 @@ internal fun DownloadTask.toDownloadTaskUi(): DownloadTaskUi {
         id = id,
         title = title,
         subtitle = listOfNotNull(artist, album).joinToString(" - ").ifBlank { mediaId.sourceId.value },
-        statusLabel = status.label(),
-        progressLabel = when {
-            status == DownloadStatus.Completed -> status.label()
-            progressPercent != null -> "$progressPercent% - ${formatByteCount(downloadedBytes)} / ${formatByteCount(totalBytes ?: 0)}"
-            downloadedBytes > 0L -> formatByteCount(downloadedBytes)
-            else -> status.label()
-        },
+        status = status,
+        progressPercent = progressPercent,
+        downloadedBytes = downloadedBytes,
+        totalBytes = totalBytes,
         progressFraction = when {
             status == DownloadStatus.Completed -> 1f
-            else -> totalBytes?.let { tb ->
-                if (tb > 0L) {
-                    (downloadedBytes.toFloat() / tb.toFloat()).coerceIn(0f, 1f)
+            else -> totalBytes?.let { total ->
+                if (total > 0L) {
+                    (downloadedBytes.toFloat() / total.toFloat()).coerceIn(0f, 1f)
                 } else null
             }
         },
         errorMessage = errorMessage?.takeIf { it.isNotBlank() },
         canPause = status.canTransitionTo(DownloadStatus.Paused),
         canResume = status == DownloadStatus.Paused && status.canTransitionTo(DownloadStatus.Queued),
-        canRetry = status.canTransitionTo(DownloadStatus.Queued) && status == DownloadStatus.Failed,
+        canRetry = status == DownloadStatus.Failed && status.canTransitionTo(DownloadStatus.Queued),
         canCancel = status.canTransitionTo(DownloadStatus.Cancelled),
         isActive = status in setOf(
             DownloadStatus.Queued,
@@ -82,22 +81,12 @@ internal fun DownloadTask.toDownloadTaskUi(): DownloadTaskUi {
 private fun DownloadTask.progressPercent(): Int? {
     val total = totalBytes ?: return null
     if (total <= 0L) return null
-    return ((downloadedBytes.toDouble() / total.toDouble()) * 100).roundToInt().coerceIn(0, 100)
+    return ((downloadedBytes.toDouble() / total.toDouble()) * 100)
+        .roundToInt()
+        .coerceIn(0, 100)
 }
 
-private fun DownloadStatus.label(): String {
-    return when (this) {
-        DownloadStatus.Queued -> "QUEUED"
-        DownloadStatus.Resolving -> "RESOLVING"
-        DownloadStatus.Downloading -> "DOWNLOADING"
-        DownloadStatus.Paused -> "PAUSED"
-        DownloadStatus.Completed -> "COMPLETED"
-        DownloadStatus.Failed -> "FAILED"
-        DownloadStatus.Cancelled -> "CANCELLED"
-    }
-}
-
-private fun formatByteCount(bytes: Long): String {
+internal fun formatByteCount(bytes: Long): String {
     if (bytes < 1024L) return "$bytes B"
     val units = listOf("KB", "MB", "GB", "TB")
     var value = bytes.toDouble() / 1024.0

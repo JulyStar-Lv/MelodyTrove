@@ -1,7 +1,7 @@
 package io.github.julystar.musicapp.widgets.appbar
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -29,7 +29,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -39,7 +38,12 @@ import io.github.julystar.musicapp.core.presentation.platform.LocalDesktopTitleB
 import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import io.github.julystar.musicapp.navigation.HomeTab
+import musicapp.shared.generated.resources.Res
+import musicapp.shared.generated.resources.app_name
+import musicapp.shared.generated.resources.sidebar_discover
+import musicapp.shared.generated.resources.sidebar_tagline
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -55,6 +59,9 @@ fun SidebarBar(
 ) {
     val shapes = DesignTokens.shapes
     val titleBarInset = LocalDesktopTitleBarInset.current
+    val appName = stringResource(Res.string.app_name)
+    val tagline = stringResource(Res.string.sidebar_tagline)
+    val discover = stringResource(Res.string.sidebar_discover)
     val darkSurface = MiuixTheme.colorScheme.background.luminance() < 0.5f
     val sidebarColor = if (darkSurface) {
         Color(0xFF110E1E)
@@ -88,7 +95,7 @@ fun SidebarBar(
             ) {
                 Image(
                     painter = appIconPainter(),
-                    contentDescription = "MelodyTrove",
+                    contentDescription = appName,
                     modifier = Modifier
                         .size(38.dp)
                         .clip(RoundedCornerShape(shapes.sm)),
@@ -96,13 +103,13 @@ fun SidebarBar(
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
                     Text(
-                        text = "MelodyTrove",
+                        text = appName,
                         color = MiuixTheme.colorScheme.onSurface,
                         style = MiuixTheme.textStyles.body1,
                         fontWeight = FontWeight.Bold,
                     )
                     Text(
-                        text = "One Library. Every Source.",
+                        text = tagline,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         style = MiuixTheme.textStyles.footnote2,
                         maxLines = 1,
@@ -111,7 +118,7 @@ fun SidebarBar(
             }
             Spacer(modifier = Modifier.height(24.dp))
             Text(
-                text = "DISCOVER",
+                text = discover.uppercase(),
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 style = MiuixTheme.textStyles.footnote2,
                 fontWeight = FontWeight.Bold,
@@ -148,6 +155,7 @@ private fun SidebarItem(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
+    val label = stringResource(tab.labelRes)
     val shapes = DesignTokens.shapes
     val itemShape = RoundedCornerShape(shapes.compactCard)
     val contentColor = if (selected) {
@@ -179,7 +187,7 @@ private fun SidebarItem(
                 onClick = onClick,
             )
             .clearAndSetSemantics {
-                contentDescription = tab.label
+                contentDescription = label
                 this.role = Role.Tab
                 this.selected = selected
                 onClick { onClick(); true }
@@ -194,7 +202,7 @@ private fun SidebarItem(
         )
         Spacer(modifier = Modifier.width(12.dp))
         Text(
-            text = tab.label,
+            text = label,
             color = contentColor,
             style = MiuixTheme.textStyles.body1,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,

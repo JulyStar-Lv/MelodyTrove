@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="library_title">Library</string>
+    <string name="library_category_songs">Songs</string>
+    <string name="library_category_albums">Albums</string>
+    <string name="library_category_artists">Artists</string>
+    <string name="library_category_genres">Genres</string>
+    <string name="library_category_folders">Folders</string>
+    <string name="library_category_playlists">Playlists</string>
+    <string name="library_category_favorites">Favorites</string>
+    <string name="library_category_downloads">Downloads</string>
+    <string name="library_category_history">History</string>
+    <string name="library_category_recently_added">Recently Added</string>
+    <string name="library_category_recently_played">Recently Played</string>
+    <string name="library_category_lossless">Lossless</string>
+    <string name="library_category_hires">Hi-Res</string>
+    <string name="library_category_sources">Sources</string>
+    <string name="library_song_summary">%1$d songs · about %2$d min</string>
+    <string name="library_filter">Filter</string>
+    <string name="library_list_view">List view</string>
+    <string name="library_unknown_artist">Unknown artist</string>
+    <string name="library_download">Download</string>
+    <string name="library_unknown_year">Unknown year</string>
+    <string name="library_loading">Loading library</string>
+    <string name="library_unavailable">Library unavailable</string>
+    <string name="library_retry">Retry</string>
+    <string name="library_empty_title">Your library is empty</string>
+    <string name="library_empty_message">Add a source or scan local music to start building your collection.</string>
+    <string name="library_empty_albums">Albums will appear here after music is indexed.</string>
+    <string name="library_empty_artists">Artists will appear here after music is indexed.</string>
+    <string name="library_empty_genres">Genres will appear here when genre metadata is available.</string>
+    <string name="library_empty_folders">Add or scan a local music folder to browse it here.</string>
+    <string name="library_empty_playlists">Create a playlist to organize your music.</string>
+    <string name="library_empty_favorites">Favorite songs will appear here.</string>
+    <string name="library_empty_downloads">Downloaded songs will appear here.</string>
+    <string name="library_empty_history">Played songs will appear here.</string>
+    <string name="library_empty_recently_added">Recently added songs will appear here.</string>
+    <string name="library_empty_recently_played">Recently played songs will appear here.</string>
+    <string name="library_empty_lossless">Lossless songs will appear here.</string>
+    <string name="library_empty_hires">Hi-Res songs will appear here.</string>
+    <string name="library_empty_sources">Manage local and remote sources in Settings.</string>
+    <string name="library_add_folder">Add Folder</string>
+    <string name="library_folder_track_count">%1$d songs</string>
+    <string name="library_playlist_track_count">%1$d songs</string>
+    <string name="library_duration_hours">%1$d h %2$d m</string>
+    <string name="library_duration_minutes">%1$d min</string>
+</resources>

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="recently_played_title">Recently Played</string>
+    <string name="recently_played_track_count">%1$d tracks</string>
+    <string name="recently_played_play_all">Play All</string>
+    <string name="recently_played_loading">Loading recently played</string>
+    <string name="recently_played_checking">Checking library…</string>
+    <string name="recently_played_unavailable">Recently played unavailable</string>
+    <string name="recently_played_retry">Retry</string>
+    <string name="recently_played_empty">No recently played tracks</string>
+    <string name="recently_played_empty_message">Play some music first</string>
+    <string name="recently_played_download">Download</string>
+</resources>

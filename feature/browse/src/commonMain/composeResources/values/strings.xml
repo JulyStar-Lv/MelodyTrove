@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="browse_title">Browse</string>
+    <string name="browse_summary">%1$d albums · %2$d artists · %3$d genres</string>
+    <string name="browse_loading">Loading browse</string>
+    <string name="browse_loading_message">Scanning library categories</string>
+    <string name="browse_unavailable">Browse unavailable</string>
+    <string name="browse_retry">Retry</string>
+    <string name="browse_albums">Albums</string>
+    <string name="browse_artists">Artists</string>
+    <string name="browse_genres">Genres</string>
+    <string name="browse_no_content">No browse content</string>
+    <string name="browse_import_first">Import music first</string>
+    <string name="browse_track_count">%1$d tracks</string>
+    <string name="browse_album_meta">%1$d · %2$d tracks</string>
+    <string name="genre_loading">Loading genre</string>
+    <string name="genre_unavailable">Genre unavailable</string>
+    <string name="genre_retry">Retry</string>
+    <string name="genre_no_tracks">No tracks in this genre</string>
+    <string name="genre_play_all">Play All</string>
+    <string name="genre_download">Download</string>
+    <string name="genre_track_count">%1$d tracks</string>
+</resources>

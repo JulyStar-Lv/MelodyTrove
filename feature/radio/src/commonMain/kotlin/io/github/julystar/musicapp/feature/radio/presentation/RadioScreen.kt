@@ -19,13 +19,25 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.julystar.musicapp.core.presentation.components.DesignCardSurface
-import io.github.julystar.musicapp.core.presentation.components.LocalDesignBottomContentInset
 import io.github.julystar.musicapp.core.presentation.components.DesignPageHeader
 import io.github.julystar.musicapp.core.presentation.components.DesignStatusCard
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButton
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonSize
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonVariant
+import io.github.julystar.musicapp.core.presentation.components.LocalDesignBottomContentInset
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
+import musicapp.feature.radio.generated.resources.Res
+import musicapp.feature.radio.generated.resources.radio_download
+import musicapp.feature.radio.generated.resources.radio_empty_message
+import musicapp.feature.radio.generated.resources.radio_finding_tracks
+import musicapp.feature.radio.generated.resources.radio_generating
+import musicapp.feature.radio.generated.resources.radio_no_tracks
+import musicapp.feature.radio.generated.resources.radio_play_all
+import musicapp.feature.radio.generated.resources.radio_refresh
+import musicapp.feature.radio.generated.resources.radio_title
+import musicapp.feature.radio.generated.resources.radio_track_count
+import musicapp.feature.radio.generated.resources.radio_unavailable
+import org.jetbrains.compose.resources.stringResource
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -47,26 +59,60 @@ fun RadioScreen(
             verticalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
             DesignPageHeader(
-                title = "Radio",
-                subtitle = "${state.tracks.size} tracks",
+                title = stringResource(Res.string.radio_title),
+                subtitle = stringResource(Res.string.radio_track_count, state.tracks.size),
                 trailing = {
-                    DesignTextButton(text = "Refresh", variant = DesignTextButtonVariant.PrimaryFilled, size = DesignTextButtonSize.Small, onClick = { onAction(RadioAction.Refresh) })
+                    DesignTextButton(
+                        text = stringResource(Res.string.radio_refresh),
+                        variant = DesignTextButtonVariant.PrimaryFilled,
+                        size = DesignTextButtonSize.Small,
+                        onClick = { onAction(RadioAction.Refresh) },
+                    )
                     if (!state.isLoading && state.tracks.isNotEmpty()) {
-                        DesignTextButton(text = "Play All", variant = DesignTextButtonVariant.PrimaryFilled, size = DesignTextButtonSize.Small, onClick = { onAction(RadioAction.PlayAll) })
+                        DesignTextButton(
+                            text = stringResource(Res.string.radio_play_all),
+                            variant = DesignTextButtonVariant.PrimaryFilled,
+                            size = DesignTextButtonSize.Small,
+                            onClick = { onAction(RadioAction.PlayAll) },
+                        )
                     }
                 },
             )
             when {
-                state.isLoading -> DesignStatusCard(title = "Generating radio", message = "Finding tracks…", loading = true, modifier = Modifier.weight(1f))
-                state.error != null -> DesignStatusCard(title = "Radio unavailable", message = state.error, actionText = "Refresh", onAction = { onAction(RadioAction.Refresh) }, modifier = Modifier.weight(1f))
-                state.tracks.isEmpty() -> DesignStatusCard(title = "No tracks", message = "Library has no tracks for radio", modifier = Modifier.weight(1f))
+                state.isLoading -> DesignStatusCard(
+                    title = stringResource(Res.string.radio_generating),
+                    message = stringResource(Res.string.radio_finding_tracks),
+                    loading = true,
+                    modifier = Modifier.weight(1f),
+                )
+                state.error != null -> DesignStatusCard(
+                    title = stringResource(Res.string.radio_unavailable),
+                    message = stringResource(Res.string.radio_finding_tracks),
+                    actionText = stringResource(Res.string.radio_refresh),
+                    onAction = { onAction(RadioAction.Refresh) },
+                    modifier = Modifier.weight(1f),
+                )
+                state.tracks.isEmpty() -> DesignStatusCard(
+                    title = stringResource(Res.string.radio_no_tracks),
+                    message = stringResource(Res.string.radio_empty_message),
+                    modifier = Modifier.weight(1f),
+                )
                 else -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(bottom = spacing.xl + bottomContentInset),
                 ) {
-                    itemsIndexed(state.tracks, key = { index, track -> track.lazyListKey(index) }) { _, track ->
-                        RadioTrackRow(track = track, onPlay = { onAction(RadioAction.PlayTrack(track.id)) }, onDownload = { if (track.canDownload) onAction(RadioAction.DownloadTrack(track)) })
+                    itemsIndexed(
+                        state.tracks,
+                        key = { index, track -> track.lazyListKey(index) },
+                    ) { _, track ->
+                        RadioTrackRow(
+                            track = track,
+                            onPlay = { onAction(RadioAction.PlayTrack(track.id)) },
+                            onDownload = {
+                                if (track.canDownload) onAction(RadioAction.DownloadTrack(track))
+                            },
+                        )
                     }
                 }
             }
@@ -75,15 +121,58 @@ fun RadioScreen(
 }
 
 @Composable
-private fun RadioTrackRow(track: RadioTrackItem, onPlay: () -> Unit, onDownload: () -> Unit) {
-    DesignCardSurface(modifier = Modifier.heightIn(min = 58.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp), onClick = onPlay) {
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(text = track.title, style = MiuixTheme.textStyles.body1, color = MiuixTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                track.artist?.let { Text(text = it, style = MiuixTheme.textStyles.footnote1, color = MiuixTheme.colorScheme.onSurfaceVariantSummary, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+private fun RadioTrackRow(
+    track: RadioTrackItem,
+    onPlay: () -> Unit,
+    onDownload: () -> Unit,
+) {
+    DesignCardSurface(
+        modifier = Modifier.heightIn(min = 58.dp),
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+        onClick = onPlay,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = track.title,
+                    style = MiuixTheme.textStyles.body1,
+                    color = MiuixTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                track.artist?.let {
+                    Text(
+                        text = it,
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
-            track.durationMs?.let { Text(text = durationLabel(it), style = MiuixTheme.textStyles.footnote1, color = MiuixTheme.colorScheme.onSurfaceVariantSummary) }
-            if (track.canDownload) DesignTextButton(text = "DL", variant = DesignTextButtonVariant.Default, size = DesignTextButtonSize.Small, onClick = onDownload)
+            track.durationMs?.let {
+                Text(
+                    text = durationLabel(it),
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                )
+            }
+            if (track.canDownload) {
+                DesignTextButton(
+                    text = stringResource(Res.string.radio_download),
+                    variant = DesignTextButtonVariant.Default,
+                    size = DesignTextButtonSize.Small,
+                    onClick = onDownload,
+                )
+            }
         }
     }
 }

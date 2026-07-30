@@ -6,12 +6,10 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
@@ -21,14 +19,23 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.julystar.musicapp.core.presentation.components.DesignCardSurface
-import io.github.julystar.musicapp.core.presentation.components.LocalDesignBottomContentInset
 import io.github.julystar.musicapp.core.presentation.components.DesignPageHeader
 import io.github.julystar.musicapp.core.presentation.components.DesignStatusCard
-import io.github.julystar.musicapp.core.presentation.components.DesignTrackNumberBadge
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButton
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonSize
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonVariant
+import io.github.julystar.musicapp.core.presentation.components.DesignTrackNumberBadge
+import io.github.julystar.musicapp.core.presentation.components.LocalDesignBottomContentInset
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
+import musicapp.feature.browse.generated.resources.Res
+import musicapp.feature.browse.generated.resources.genre_download
+import musicapp.feature.browse.generated.resources.genre_loading
+import musicapp.feature.browse.generated.resources.genre_no_tracks
+import musicapp.feature.browse.generated.resources.genre_play_all
+import musicapp.feature.browse.generated.resources.genre_retry
+import musicapp.feature.browse.generated.resources.genre_track_count
+import musicapp.feature.browse.generated.resources.genre_unavailable
+import org.jetbrains.compose.resources.stringResource
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -51,11 +58,11 @@ fun GenreTracksScreen(
         ) {
             DesignPageHeader(
                 title = state.genre,
-                subtitle = "${state.tracks.size} tracks",
+                subtitle = stringResource(Res.string.genre_track_count, state.tracks.size),
                 trailing = {
                     if (!state.isLoading && state.tracks.isNotEmpty()) {
                         DesignTextButton(
-                            text = "Play All",
+                            text = stringResource(Res.string.genre_play_all),
                             variant = DesignTextButtonVariant.PrimaryFilled,
                             size = DesignTextButtonSize.Small,
                             onClick = { onAction(GenreTracksAction.PlayAll) },
@@ -64,20 +71,42 @@ fun GenreTracksScreen(
                 },
             )
             when {
-                state.isLoading -> DesignStatusCard(title = "Loading genre", message = state.genre, loading = true, modifier = Modifier.weight(1f))
-                state.error != null -> DesignStatusCard(title = "Genre unavailable", message = state.error, actionText = "Retry", onAction = { onAction(GenreTracksAction.Retry) }, modifier = Modifier.weight(1f))
-                state.tracks.isEmpty() -> DesignStatusCard(title = "No tracks", message = state.genre, modifier = Modifier.weight(1f))
+                state.isLoading -> DesignStatusCard(
+                    title = stringResource(Res.string.genre_loading),
+                    message = state.genre,
+                    loading = true,
+                    modifier = Modifier.weight(1f),
+                )
+                state.error != null -> DesignStatusCard(
+                    title = stringResource(Res.string.genre_unavailable),
+                    message = state.genre,
+                    actionText = stringResource(Res.string.genre_retry),
+                    onAction = { onAction(GenreTracksAction.Retry) },
+                    modifier = Modifier.weight(1f),
+                )
+                state.tracks.isEmpty() -> DesignStatusCard(
+                    title = stringResource(Res.string.genre_no_tracks),
+                    message = state.genre,
+                    modifier = Modifier.weight(1f),
+                )
                 else -> {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                         contentPadding = PaddingValues(bottom = spacing.xl + bottomContentInset),
                     ) {
-                        itemsIndexed(state.tracks, key = { index, track -> track.lazyListKey(index) }) { _, track ->
+                        itemsIndexed(
+                            state.tracks,
+                            key = { index, track -> track.lazyListKey(index) },
+                        ) { _, track ->
                             GenreTrackRow(
                                 track = track,
                                 onPlay = { onAction(GenreTracksAction.PlayTrack(track.id)) },
-                                onDownload = { if (track.canDownload) onAction(GenreTracksAction.DownloadTrack(track)) },
+                                onDownload = {
+                                    if (track.canDownload) {
+                                        onAction(GenreTracksAction.DownloadTrack(track))
+                                    }
+                                },
                             )
                         }
                     }
@@ -104,17 +133,42 @@ private fun GenreTrackRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             DesignTrackNumberBadge(label = "")
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(text = track.title, style = MiuixTheme.textStyles.body1, color = MiuixTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = track.title,
+                    style = MiuixTheme.textStyles.body1,
+                    color = MiuixTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
                 track.artist?.let {
-                    Text(text = it, style = MiuixTheme.textStyles.footnote1, color = MiuixTheme.colorScheme.onSurfaceVariantSummary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        text = it,
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
             track.durationMs?.let { ms ->
-                Text(text = durationLabel(ms), style = MiuixTheme.textStyles.footnote1, color = MiuixTheme.colorScheme.onSurfaceVariantSummary)
+                Text(
+                    text = durationLabel(ms),
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                )
             }
             if (track.canDownload) {
-                DesignTextButton(text = "DL", variant = DesignTextButtonVariant.Default, size = DesignTextButtonSize.Small, onClick = onDownload)
+                DesignTextButton(
+                    text = stringResource(Res.string.genre_download),
+                    variant = DesignTextButtonVariant.Default,
+                    size = DesignTextButtonSize.Small,
+                    onClick = onDownload,
+                )
             }
         }
     }

@@ -35,13 +35,30 @@ import androidx.compose.ui.unit.dp
 import io.github.julystar.musicapp.core.presentation.components.QualityBadge
 import io.github.julystar.musicapp.core.presentation.layout.WindowSizeClass
 import io.github.julystar.musicapp.core.presentation.layout.rememberWindowSizeClass
-import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignGradients
+import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
-import org.jetbrains.compose.resources.painterResource
 import musicapp.feature.home.generated.resources.Res
+import musicapp.feature.home.generated.resources.home_continue_playing
+import musicapp.feature.home.generated.resources.home_duration_hours
+import musicapp.feature.home.generated.resources.home_duration_minutes
+import musicapp.feature.home.generated.resources.home_featured_default_description
+import musicapp.feature.home.generated.resources.home_featured_default_title
+import musicapp.feature.home.generated.resources.home_featured_playlist
+import musicapp.feature.home.generated.resources.home_good_evening
+import musicapp.feature.home.generated.resources.home_liked
+import musicapp.feature.home.generated.resources.home_pinned_playlists
+import musicapp.feature.home.generated.resources.home_play
+import musicapp.feature.home.generated.resources.home_playlist_track_count
+import musicapp.feature.home.generated.resources.home_recently_added
+import musicapp.feature.home.generated.resources.home_recently_played
+import musicapp.feature.home.generated.resources.home_recommended_artists
+import musicapp.feature.home.generated.resources.home_save
+import musicapp.feature.home.generated.resources.home_see_all
 import musicapp.feature.home.generated.resources.icon_heart
 import musicapp.feature.home.generated.resources.icon_music_note
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -57,6 +74,7 @@ fun HomeOverviewScreen(
         val layout = homeOverviewLayout(windowSizeClass)
         val showMobileHeader = windowSizeClass != WindowSizeClass.Large &&
             windowSizeClass != WindowSizeClass.XL
+        val seeAll = stringResource(Res.string.home_see_all)
 
         LazyColumn(
             modifier = Modifier
@@ -72,7 +90,7 @@ fun HomeOverviewScreen(
         ) {
             if (showMobileHeader) {
                 item {
-                    MobilePageHeader(title = "Good Evening")
+                    MobilePageHeader(title = stringResource(Res.string.home_good_evening))
                 }
             }
             item {
@@ -83,7 +101,10 @@ fun HomeOverviewScreen(
                 )
             }
             item {
-                HomeMediaSection(title = "Continue Listening", action = "See All") {
+                HomeMediaSection(
+                    title = stringResource(Res.string.home_continue_playing),
+                    action = seeAll,
+                ) {
                     MediaCardRow(
                         albums = state.featuredAlbums,
                         cardSize = layout.albumCardSize,
@@ -91,7 +112,10 @@ fun HomeOverviewScreen(
                 }
             }
             item {
-                HomeMediaSection(title = "Recently Added", action = "See All") {
+                HomeMediaSection(
+                    title = stringResource(Res.string.home_recently_added),
+                    action = seeAll,
+                ) {
                     MediaCardRow(
                         albums = state.recentlyAddedAlbums,
                         cardSize = layout.smallAlbumCardSize,
@@ -99,22 +123,28 @@ fun HomeOverviewScreen(
                 }
             }
             item {
-                HomeMediaSection(title = "Recommended Artists", action = "See All") {
+                HomeMediaSection(
+                    title = stringResource(Res.string.home_recommended_artists),
+                    action = seeAll,
+                ) {
                     ArtistRow(artists = state.artists)
                 }
             }
             item {
-                HomeMediaSection(title = "Pinned Playlists", action = "See All") {
+                HomeMediaSection(
+                    title = stringResource(Res.string.home_pinned_playlists),
+                    action = seeAll,
+                ) {
                     PlaylistRow(playlists = state.pinnedPlaylists)
                 }
             }
             item {
-                HomeMediaSection(title = "Recently Played") {
+                HomeMediaSection(title = stringResource(Res.string.home_recently_played)) {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         state.recentTracks.forEach { track ->
                             RecentTrackRow(
                                 track = track,
-                            onClick = { onAction(HomeAction.NavigateToLibrary) },
+                                onClick = { onAction(HomeAction.NavigateToLibrary) },
                             )
                         }
                     }
@@ -198,11 +228,7 @@ private fun FeaturedHero(
                         .size(width = if (index == 0) 20.dp else 6.dp, height = 6.dp)
                         .clip(RoundedCornerShape(DesignTokens.shapes.full))
                         .background(
-                            if (index == 0) {
-                                Color.White
-                            } else {
-                                Color.White.copy(alpha = 0.40f)
-                            },
+                            if (index == 0) Color.White else Color.White.copy(alpha = 0.40f),
                         ),
                 )
             }
@@ -214,13 +240,13 @@ private fun FeaturedHero(
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
-                text = "FEATURED PLAYLIST",
+                text = stringResource(Res.string.home_featured_playlist).uppercase(),
                 color = Color.White.copy(alpha = 0.72f),
                 style = MiuixTheme.textStyles.footnote1,
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                text = playlist?.title ?: "Evening Frequencies",
+                text = playlist?.title ?: stringResource(Res.string.home_featured_default_title),
                 color = Color.White,
                 style = MiuixTheme.textStyles.title1,
                 fontWeight = FontWeight.Bold,
@@ -228,7 +254,9 @@ private fun FeaturedHero(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = playlist?.description ?: "Deep electronic for golden hour",
+                text = playlist?.let {
+                    stringResource(Res.string.home_playlist_track_count, it.trackCount)
+                } ?: stringResource(Res.string.home_featured_default_description),
                 color = Color.White.copy(alpha = 0.72f),
                 style = MiuixTheme.textStyles.body1,
                 maxLines = 1,
@@ -237,13 +265,13 @@ private fun FeaturedHero(
             Spacer(modifier = Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 HeroButton(
-                    text = "▶  Play",
+                    text = "▶  ${stringResource(Res.string.home_play)}",
                     background = Color.White,
                     foreground = Color(0xFF0D0B18),
                     onClick = onPlay,
                 )
                 HeroButton(
-                    text = "◇  Save",
+                    text = "◇  ${stringResource(Res.string.home_save)}",
                     background = Color.White.copy(alpha = 0.20f),
                     foreground = Color.White,
                 )
@@ -330,9 +358,7 @@ private fun AlbumCard(
     album: HomeFeaturedAlbum,
     size: Dp,
 ) {
-    Column(
-        modifier = Modifier.width(size),
-    ) {
+    Column(modifier = Modifier.width(size)) {
         val artworkShape = RoundedCornerShape(24.dp)
         Box(
             modifier = Modifier
@@ -358,14 +384,16 @@ private fun AlbumCard(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(
-            text = "${album.subtitle} · 2024",
-            color = MiuixTheme.colorScheme.onBackgroundVariant,
-            style = MiuixTheme.textStyles.footnote1,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        if (album.subtitle.isNotBlank()) {
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = album.subtitle,
+                color = MiuixTheme.colorScheme.onBackgroundVariant,
+                style = MiuixTheme.textStyles.footnote1,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -406,13 +434,15 @@ private fun ArtistRow(artists: List<HomeArtist>) {
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = artist.followers,
-                    color = MiuixTheme.colorScheme.onBackgroundVariant,
-                    style = MiuixTheme.textStyles.footnote1,
-                    maxLines = 1,
-                )
+                if (artist.followers.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = artist.followers,
+                        color = MiuixTheme.colorScheme.onBackgroundVariant,
+                        style = MiuixTheme.textStyles.footnote1,
+                        maxLines = 1,
+                    )
+                }
             }
         }
     }
@@ -427,9 +457,7 @@ private fun PlaylistRow(playlists: List<HomePlaylist>) {
         horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         playlists.forEach { playlist ->
-            Column(
-                modifier = Modifier.width(160.dp),
-            ) {
+            Column(modifier = Modifier.width(160.dp)) {
                 val artworkShape = RoundedCornerShape(24.dp)
                 Box(
                     modifier = Modifier
@@ -446,7 +474,7 @@ private fun PlaylistRow(playlists: List<HomePlaylist>) {
                         modifier = Modifier.size(56.dp),
                     )
                     Text(
-                        text = playlist.meta,
+                        text = homeDurationLabel(playlist.durationMs),
                         color = Color.White.copy(alpha = 0.82f),
                         style = MiuixTheme.textStyles.footnote1,
                         modifier = Modifier
@@ -465,7 +493,7 @@ private fun PlaylistRow(playlists: List<HomePlaylist>) {
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = playlist.description,
+                    text = stringResource(Res.string.home_playlist_track_count, playlist.trackCount),
                     color = MiuixTheme.colorScheme.onBackgroundVariant,
                     style = MiuixTheme.textStyles.footnote1,
                     maxLines = 1,
@@ -494,11 +522,7 @@ private fun RecentTrackRow(
             modifier = Modifier
                 .size(44.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(
-                    Brush.linearGradient(
-                        listOf(track.color, DesignPalette.Secondary),
-                    ),
-                ),
+                .background(Brush.linearGradient(listOf(track.color, DesignPalette.Secondary))),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -536,16 +560,18 @@ private fun RecentTrackRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = "3:42",
-                color = MiuixTheme.colorScheme.onBackgroundVariant,
-                style = MiuixTheme.textStyles.footnote1,
-            )
+            track.durationMs?.let { durationMs ->
+                Text(
+                    text = durationClockLabel(durationMs),
+                    color = MiuixTheme.colorScheme.onBackgroundVariant,
+                    style = MiuixTheme.textStyles.footnote1,
+                )
+            }
             if (track.liked) {
                 Icon(
                     painter = painterResource(Res.drawable.icon_heart),
                     tint = MiuixTheme.colorScheme.primary,
-                    contentDescription = "Liked",
+                    contentDescription = stringResource(Res.string.home_liked),
                     modifier = Modifier.size(16.dp),
                 )
             }
@@ -553,59 +579,36 @@ private fun RecentTrackRow(
     }
 }
 
-private fun String.initials(): String {
-    return split(" ")
-        .filter { it.isNotBlank() }
-        .take(2)
-        .joinToString("") { word -> word.first().uppercase() }
-        .ifBlank { take(2).uppercase() }
+@Composable
+private fun homeDurationLabel(durationMs: Long): String {
+    val totalMinutes = (durationMs / 60_000L).coerceAtLeast(0L)
+    val hours = totalMinutes / 60L
+    val minutes = totalMinutes % 60L
+    return if (hours > 0L) {
+        stringResource(Res.string.home_duration_hours, hours, minutes)
+    } else {
+        stringResource(Res.string.home_duration_minutes, minutes)
+    }
+}
+
+private fun durationClockLabel(durationMs: Long): String {
+    val totalSeconds = durationMs.coerceAtLeast(0L) / 1_000L
+    val minutes = totalSeconds / 60L
+    val seconds = totalSeconds % 60L
+    return "$minutes:${seconds.toString().padStart(2, '0')}"
 }
 
 @Composable
 private fun homeOverviewLayout(windowSizeClass: WindowSizeClass): HomeOverviewLayout {
     val spacing = DesignTokens.spacing
-    return when (windowSizeClass) {
-        WindowSizeClass.Compact -> HomeOverviewLayout(
-            horizontalPadding = spacing.pageCompact,
-            topPadding = 8.dp,
-            bottomPadding = 16.dp,
-            heroHeight = 208.dp,
-            albumCardSize = 160.dp,
-            smallAlbumCardSize = 120.dp,
-        )
-        WindowSizeClass.Medium -> HomeOverviewLayout(
-            horizontalPadding = spacing.pageCompact,
-            topPadding = 8.dp,
-            bottomPadding = 16.dp,
-            heroHeight = 208.dp,
-            albumCardSize = 160.dp,
-            smallAlbumCardSize = 120.dp,
-        )
-        WindowSizeClass.Expanded -> HomeOverviewLayout(
-            horizontalPadding = spacing.pageCompact,
-            topPadding = 8.dp,
-            bottomPadding = 16.dp,
-            heroHeight = 208.dp,
-            albumCardSize = 160.dp,
-            smallAlbumCardSize = 120.dp,
-        )
-        WindowSizeClass.Large -> HomeOverviewLayout(
-            horizontalPadding = spacing.pageCompact,
-            topPadding = 8.dp,
-            bottomPadding = 16.dp,
-            heroHeight = 208.dp,
-            albumCardSize = 160.dp,
-            smallAlbumCardSize = 120.dp,
-        )
-        WindowSizeClass.XL -> HomeOverviewLayout(
-            horizontalPadding = spacing.pageCompact,
-            topPadding = 8.dp,
-            bottomPadding = 16.dp,
-            heroHeight = 208.dp,
-            albumCardSize = 160.dp,
-            smallAlbumCardSize = 120.dp,
-        )
-    }
+    return HomeOverviewLayout(
+        horizontalPadding = spacing.pageCompact,
+        topPadding = 8.dp,
+        bottomPadding = 16.dp,
+        heroHeight = 208.dp,
+        albumCardSize = 160.dp,
+        smallAlbumCardSize = 120.dp,
+    )
 }
 
 private data class HomeOverviewLayout(

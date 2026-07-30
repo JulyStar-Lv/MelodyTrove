@@ -1,7 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="music_count_unit">首歌曲</string>
-    <string name="playlist_empty">暂无播放列表。点按以添加。</string>
+    <string name="playlist_empty">暂无播放列表</string>
+    <string name="playlist_empty_message">创建播放列表来整理音乐。</string>
+    <string name="playlist_create">创建播放列表</string>
+    <string name="playlist_list_title">播放列表</string>
+    <string name="playlist_list_count">%1$d 个播放列表</string>
+    <string name="playlist_adjust">调整播放列表顺序</string>
+    <string name="playlist_add">添加播放列表</string>
+    <string name="playlist_done">完成排序</string>
+    <string name="playlist_summary">%1$s 首歌曲 · %2$s</string>
     <string name="playlist_empty_list">播放列表中没有歌曲</string>
     <string name="playlist_list_count_suffix">首歌曲</string>
     <string name="playlist_list_count_suffixes">首歌曲</string>

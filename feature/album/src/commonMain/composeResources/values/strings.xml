@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="album_default_title">Album</string>
+    <string name="album_loading">Loading album</string>
+    <string name="album_unavailable">Album unavailable</string>
+    <string name="album_retry">Retry</string>
+    <string name="album_no_tracks">No tracks</string>
+    <string name="album_tracks">Tracks</string>
+    <string name="album_song_count">%1$d songs</string>
+    <string name="album_summary">%1$d songs, %2$s</string>
+    <string name="album_play_all">Play All</string>
+    <string name="album_download">Download</string>
+</resources>

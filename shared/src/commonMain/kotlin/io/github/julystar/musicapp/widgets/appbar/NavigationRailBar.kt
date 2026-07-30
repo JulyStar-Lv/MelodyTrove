@@ -1,8 +1,7 @@
 package io.github.julystar.musicapp.widgets.appbar
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -25,16 +24,18 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import io.github.julystar.musicapp.core.presentation.layout.WindowSizeClass
 import io.github.julystar.musicapp.core.presentation.components.appIconPainter
+import io.github.julystar.musicapp.core.presentation.layout.WindowSizeClass
 import io.github.julystar.musicapp.core.presentation.platform.LocalDesktopTitleBarInset
 import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import io.github.julystar.musicapp.navigation.HomeTab
+import musicapp.shared.generated.resources.Res
+import musicapp.shared.generated.resources.app_name
 import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -53,6 +54,7 @@ fun NavigationRailBar(
     val railWidth = getNavigationRailWidth(windowSizeClass)
     val shapes = DesignTokens.shapes
     val titleBarInset = LocalDesktopTitleBarInset.current
+    val appName = stringResource(Res.string.app_name)
 
     Column(
         modifier = modifier
@@ -62,7 +64,7 @@ fun NavigationRailBar(
     ) {
         Image(
             painter = appIconPainter(),
-            contentDescription = "MelodyTrove",
+            contentDescription = appName,
             modifier = Modifier
                 .padding(top = 18.dp + titleBarInset, bottom = 22.dp)
                 .size(38.dp)
@@ -96,6 +98,7 @@ private fun NavigationRailItem(
     itemWidth: Dp,
     onClick: () -> Unit,
 ) {
+    val label = stringResource(tab.labelRes)
     val shapes = DesignTokens.shapes
     val itemShape = RoundedCornerShape(shapes.compactCard)
     val contentColor = if (selected) {
@@ -125,7 +128,7 @@ private fun NavigationRailItem(
                 onClick = onClick,
             )
             .clearAndSetSemantics {
-                contentDescription = tab.label
+                contentDescription = label
                 this.role = Role.Tab
                 this.selected = selected
                 onClick { onClick(); true }
@@ -141,7 +144,7 @@ private fun NavigationRailItem(
         )
         Spacer(modifier = Modifier.height(5.dp))
         Text(
-            text = tab.label,
+            text = label,
             color = contentColor,
             style = MiuixTheme.textStyles.footnote2,
             maxLines = 1,

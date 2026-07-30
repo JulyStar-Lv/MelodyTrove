@@ -13,9 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.basic.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,12 +28,22 @@ import io.github.julystar.musicapp.core.presentation.components.DesignChip
 import io.github.julystar.musicapp.core.presentation.components.DesignStatusBadge
 import io.github.julystar.musicapp.core.presentation.components.DesignStatusTone
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
-import org.jetbrains.compose.resources.painterResource
-import org.jetbrains.compose.resources.stringResource
 import musicapp.feature.sources.generated.resources.Res
 import musicapp.feature.sources.generated.resources.dashboard_devices_add
 import musicapp.feature.sources.generated.resources.icon_cloud
 import musicapp.feature.sources.generated.resources.icon_plus
+import musicapp.feature.sources.generated.resources.sources_configured
+import musicapp.feature.sources.generated.resources.sources_default_library
+import musicapp.feature.sources.generated.resources.sources_logs
+import musicapp.feature.sources.generated.resources.sources_music
+import musicapp.feature.sources.generated.resources.sources_settings
+import musicapp.feature.sources.generated.resources.sources_storage
+import musicapp.feature.sources.generated.resources.sources_sync
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
+import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun SourcesScreen(
@@ -52,12 +59,9 @@ fun SourcesScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (state.sources.isEmpty()) {
-                EmptySourcesCard(
-                    onClick = { onAction(SourcesAction.AddSource) },
-                )
+                EmptySourcesCard(onClick = { onAction(SourcesAction.AddSource) })
                 return@Column
             }
-
             state.sources.forEach { source ->
                 SourceCard(
                     source = source,
@@ -69,9 +73,7 @@ fun SourcesScreen(
 }
 
 @Composable
-private fun EmptySourcesCard(
-    onClick: () -> Unit,
-) {
+private fun EmptySourcesCard(onClick: () -> Unit) {
     DesignCardSurface(
         modifier = Modifier.height(96.dp),
         contentPadding = PaddingValues(0.dp),
@@ -84,7 +86,7 @@ private fun EmptySourcesCard(
             Icon(
                 modifier = Modifier.size(12.dp),
                 painter = painterResource(Res.drawable.icon_plus),
-                contentDescription = null,
+                contentDescription = stringResource(Res.string.dashboard_devices_add),
             )
             Box(modifier = Modifier.size(4.dp))
             Text(
@@ -103,7 +105,6 @@ private fun SourceCard(
     onClick: () -> Unit,
 ) {
     val shapes = DesignTokens.shapes
-
     DesignCardSurface(
         contentPadding = PaddingValues(0.dp),
         onClick = onClick,
@@ -125,7 +126,7 @@ private fun SourceCard(
                     modifier = Modifier.size(24.dp),
                     painter = painterResource(Res.drawable.icon_cloud),
                     tint = MiuixTheme.colorScheme.primary,
-                    contentDescription = null,
+                    contentDescription = source.sourceType,
                 )
             }
             Box(modifier = Modifier.width(14.dp))
@@ -138,7 +139,7 @@ private fun SourceCard(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     DesignStatusBadge(
-                        label = "Configured",
+                        label = stringResource(Res.string.sources_configured),
                         tone = DesignStatusTone.Success,
                     )
                     Text(
@@ -157,14 +158,17 @@ private fun SourceCard(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = "Storage: ${source.storageLabel()}",
+                    text = stringResource(
+                        Res.string.sources_storage,
+                        source.subtitle.ifBlank { stringResource(Res.string.sources_default_library) },
+                    ),
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     style = MiuixTheme.textStyles.footnote1,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = "Music: ${source.musicCountLabel()}",
+                    text = stringResource(Res.string.sources_music, source.musicCount),
                     color = MiuixTheme.colorScheme.primary,
                     style = MiuixTheme.textStyles.footnote1,
                     maxLines = 1,
@@ -187,25 +191,16 @@ private fun SourceActionStrip() {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         DesignChip(
-            label = "Sync",
+            label = stringResource(Res.string.sources_sync),
             enabled = false,
         )
         DesignChip(
-            label = "Logs",
+            label = stringResource(Res.string.sources_logs),
             enabled = false,
         )
         DesignChip(
-            label = "Settings",
+            label = stringResource(Res.string.sources_settings),
             selected = true,
         )
     }
-}
-
-private fun SourceAccountUi.storageLabel(): String {
-    return subtitle.ifBlank { "Default library" }
-}
-
-private fun SourceAccountUi.musicCountLabel(): String {
-    val unit = if (musicCount == 1L) "track" else "tracks"
-    return "$musicCount $unit"
 }
