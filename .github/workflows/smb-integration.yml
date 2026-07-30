@@ -1,0 +1,48 @@
+name: SMB Integration
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "rust-libs/storage-backend/**"
+      - "rust-libs/Cargo.toml"
+      - "rust-libs/Cargo.lock"
+      - "source/smb/**"
+      - "scripts/ci/run-smb-integration.sh"
+      - "scripts/check-smb-cross-targets.sh"
+      - ".github/workflows/smb-integration.yml"
+  push:
+    branches: [main]
+    paths:
+      - "rust-libs/storage-backend/**"
+      - "rust-libs/Cargo.toml"
+      - "rust-libs/Cargo.lock"
+      - "source/smb/**"
+      - "scripts/ci/run-smb-integration.sh"
+      - "scripts/check-smb-cross-targets.sh"
+      - ".github/workflows/smb-integration.yml"
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: smb-integration-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  smb-integration:
+    name: SMB2/3 integration (advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run Samba fixture tests
+        run: bash scripts/ci/run-smb-integration.sh
