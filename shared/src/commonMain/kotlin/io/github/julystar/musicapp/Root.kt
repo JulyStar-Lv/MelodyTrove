@@ -30,6 +30,7 @@ import io.github.julystar.musicapp.feature.home.presentation.LocalPreloadedHomeV
 import io.github.julystar.musicapp.core.LocalNavController
 import io.github.julystar.musicapp.core.RoutesProvider
 import io.github.julystar.musicapp.navigation.AppNavigation
+import io.github.julystar.musicapp.platform.AppLocaleEnvironment
 import io.github.julystar.musicapp.service.playback.domain.NowPlayingRepository
 import io.github.julystar.musicapp.diagnostics.DiagnosticsBootstrapState
 import io.github.julystar.musicapp.diagnostics.RustDiagnosticsRepository
@@ -86,18 +87,20 @@ fun Root(
             previousValidArtworkSeedArgb = previousValidArtworkSeed,
             manualSeedArgb = loadedSettings.manualThemeSeedArgb,
         )
-        AppTheme(
-            themeMode = loadedSettings.themeMode.toPresentationThemeMode(),
-            themeSeedState = ThemeSeedState(
-                artworkThemeEnabled = loadedSettings.artworkThemeEnabled,
-                manualSeedArgb = loadedSettings.manualThemeSeedArgb,
-                effectiveSeedArgb = seedResolution.effectiveSeedArgb,
-                artworkStatus = artworkSeed.status,
-                source = seedResolution.source,
-            ),
-        ) {
-            CompositionLocalProvider(LocalPreloadedHomeViewModel provides homeViewModel) {
-                AppNavigation(navController = controller)
+        AppLocaleEnvironment(loadedSettings.languageMode) {
+            AppTheme(
+                themeMode = loadedSettings.themeMode.toPresentationThemeMode(),
+                themeSeedState = ThemeSeedState(
+                    artworkThemeEnabled = loadedSettings.artworkThemeEnabled,
+                    manualSeedArgb = loadedSettings.manualThemeSeedArgb,
+                    effectiveSeedArgb = seedResolution.effectiveSeedArgb,
+                    artworkStatus = artworkSeed.status,
+                    source = seedResolution.source,
+                ),
+            ) {
+                CompositionLocalProvider(LocalPreloadedHomeViewModel provides homeViewModel) {
+                    AppNavigation(navController = controller)
+                }
             }
         }
         LaunchedEffect(diagnosticsState?.startupPlan) {

@@ -19,7 +19,6 @@ import io.github.julystar.musicapp.core.data.settings.AutoScanCoordinator
 import io.github.julystar.musicapp.core.domain.repository.LibraryMaintenanceService
 import io.github.julystar.musicapp.core.domain.repository.SettingsMigration
 import io.github.julystar.musicapp.core.domain.repository.SettingsRepository
-import io.github.julystar.musicapp.platform.applyAppLanguageMode
 import io.github.julystar.musicapp.platform.currentTimeMillis
 import io.github.julystar.musicapp.service.librarysync.domain.LibrarySyncController
 import kotlinx.coroutines.flow.first
@@ -101,7 +100,6 @@ object AppInitializer {
         disabledComponents: Set<String> = emptySet(),
     ) {
         try {
-            applyAppLanguageMode(koin.get<SettingsRepository>().settings.first().languageMode)
             RustDiagnosticsRepository.updateStartupStage(DiagnosticStartupStage.PlaybackRestoring)
             koin.get<LibrarySyncController>().recoverInterruptedTasks()
             if ("playback_restore" !in disabledComponents) {
