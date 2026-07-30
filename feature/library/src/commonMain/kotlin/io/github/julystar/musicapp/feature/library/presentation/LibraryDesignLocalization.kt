@@ -9,6 +9,7 @@ import musicapp.feature.library.generated.resources.library_action_new
 import musicapp.feature.library.generated.resources.library_action_play_all
 import musicapp.feature.library.generated.resources.library_action_shuffle
 import musicapp.feature.library.generated.resources.library_add_favorite
+import musicapp.feature.library.generated.resources.library_album_count
 import musicapp.feature.library.generated.resources.library_artist_count
 import musicapp.feature.library.generated.resources.library_artist_fallback
 import musicapp.feature.library.generated.resources.library_available_offline
@@ -56,7 +57,6 @@ import musicapp.feature.library.generated.resources.library_sidebar_collection
 import musicapp.feature.library.generated.resources.library_sidebar_more
 import musicapp.feature.library.generated.resources.library_sidebar_storage
 import musicapp.feature.library.generated.resources.library_sort_album
-import musicapp.feature.library.generated.resources.library_sort_artist
 import musicapp.feature.library.generated.resources.library_sort_title
 import musicapp.feature.library.generated.resources.library_sources_message
 import musicapp.feature.library.generated.resources.library_sources_title
@@ -64,18 +64,19 @@ import musicapp.feature.library.generated.resources.library_title
 import musicapp.feature.library.generated.resources.library_track_count
 import musicapp.feature.library.generated.resources.library_track_count_with_duration
 import musicapp.feature.library.generated.resources.library_try_different_search
+import musicapp.feature.library.generated.resources.library_unknown_artist
 import musicapp.feature.library.generated.resources.library_unpin_playlist
 import org.jetbrains.compose.resources.stringResource
 
-private val LibraryHoursMinutesPattern = Regex("""^(\\d+)h (\\d+)m$""")
-private val LibraryMinutesPattern = Regex("""^(\\d+) min$""")
-private val LibrarySongDurationPattern = Regex("""^(\\d+) songs · (.+)$""")
-private val LibraryTrackDurationPattern = Regex("""^(\\d+) tracks? · (.+)$""")
-private val LibraryPlaylistMetadataPattern = Regex("""^(\\d+) playlists · Long press to edit$""")
-private val LibraryAlbumCountPattern = Regex("""^(\\d+) albums$""")
-private val LibraryArtistCountPattern = Regex("""^(\\d+) artists$""")
-private val LibraryGenreCountPattern = Regex("""^(\\d+) genres$""")
-private val LibraryTrackCountPattern = Regex("""^(\\d+) tracks$""")
+private val LibraryHoursMinutesPattern = Regex("""^(\d+)h (\d+)m$""")
+private val LibraryMinutesPattern = Regex("""^(\d+) min$""")
+private val LibrarySongDurationPattern = Regex("""^(\d+) songs · (.+)$""")
+private val LibraryTrackDurationPattern = Regex("""^(\d+) tracks? · (.+)$""")
+private val LibraryPlaylistMetadataPattern = Regex("""^(\d+) playlists · Long press to edit$""")
+private val LibraryAlbumCountPattern = Regex("""^(\d+) albums$""")
+private val LibraryArtistCountPattern = Regex("""^(\d+) artists$""")
+private val LibraryGenreCountPattern = Regex("""^(\d+) genres$""")
+private val LibraryTrackCountPattern = Regex("""^(\d+) tracks$""")
 private val LibraryFilterDescriptionPattern = Regex("""^Filter songs, sorted by (.+)$""")
 private val LibraryMoreActionsPattern = Regex("""^More actions for (.+)$""")
 
@@ -120,7 +121,6 @@ internal fun localizedLibraryText(value: String): String {
         "Lossless tracks appear after scan." -> return stringResource(Res.string.library_empty_lossless_after_scan)
         "Hi-Res tracks appear after scan." -> return stringResource(Res.string.library_empty_hires_after_scan)
         "Title" -> return stringResource(Res.string.library_sort_title)
-        "Artist" -> return stringResource(Res.string.library_sort_artist)
         "Album" -> return stringResource(Res.string.library_sort_album)
     }
 
