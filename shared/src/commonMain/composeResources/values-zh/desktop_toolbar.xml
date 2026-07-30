@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="desktop_back">后退</string>
+    <string name="desktop_forward">前进</string>
+    <string name="desktop_search">搜索旋律珍藏…</string>
+    <string name="desktop_lyrics">歌词</string>
+    <string name="desktop_theme">主题</string>
+    <string name="desktop_notifications">通知</string>
+    <string name="desktop_close">关闭</string>
+    <string name="desktop_nothing_playing">暂无播放</string>
+    <string name="desktop_lyrics_open_player">打开“正在播放”以查看同步歌词。</string>
+</resources>
