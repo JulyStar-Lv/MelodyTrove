@@ -208,7 +208,7 @@ fun LibraryDesignScreen(
                 )
             }
             DesignStickyGlassActionBar(
-                title = "Library",
+                title = localizedLibraryText("Library"),
                 collapseFraction = actionBarProgress,
                 modifier = Modifier.align(Alignment.TopCenter),
             )
@@ -243,7 +243,7 @@ private fun LibrarySidebar(
     ) {
         librarySidebarGroups.forEach { group ->
             Text(
-                text = group.label,
+                text = localizedLibraryText(group.label),
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.7f),
                 style = MiuixTheme.textStyles.footnote2,
                 fontWeight = FontWeight.Bold,
@@ -273,7 +273,7 @@ private fun LibrarySidebar(
                         modifier = Modifier.size(16.dp),
                     )
                     Text(
-                        text = category.label,
+                        text = localizedLibraryText(category.label),
                         color = if (isSelected) MiuixTheme.colorScheme.primary
                         else MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         style = MiuixTheme.textStyles.footnote1,
@@ -324,7 +324,7 @@ private fun LibraryMobileHeader(modifier: Modifier = Modifier) {
         contentAlignment = Alignment.BottomStart,
     ) {
         Text(
-            text = "Library",
+            text = localizedLibraryText("Library"),
             color = MiuixTheme.colorScheme.onBackground,
             style = MiuixTheme.textStyles.title1.copy(
                 fontSize = 32.sp,
@@ -366,7 +366,7 @@ private fun LibraryMobileTabs(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = category.label,
+                    text = localizedLibraryText(category.label),
                     color = if (isSelected) {
                         MiuixTheme.colorScheme.onPrimary
                     } else {
@@ -433,7 +433,7 @@ private fun LibraryContent(
             if (!compact) {
                 item {
                     DesignPageHeader(
-                        title = "Library",
+                        title = localizedLibraryText("Library"),
                         subtitle = null,
                         modifier = Modifier.alpha(pageTitleAlpha),
                     )
@@ -461,7 +461,7 @@ private fun LibraryContent(
             )
         }
         DesignStickyGlassActionBar(
-            title = "Library",
+            title = localizedLibraryText("Library"),
             collapseFraction = actionBarProgress,
             modifier = Modifier.align(Alignment.TopCenter),
         )
@@ -719,13 +719,13 @@ private fun CategorySectionHeader(
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             Text(
-                text = title,
+                text = localizedLibraryText(title),
                 color = MiuixTheme.colorScheme.onBackground,
                 style = MiuixTheme.textStyles.title2,
                 fontWeight = FontWeight.SemiBold,
             )
             Text(
-                text = metadata,
+                text = localizedLibraryText(metadata),
                 color = MiuixTheme.colorScheme.onBackgroundVariant,
                 style = MiuixTheme.textStyles.footnote1,
             )
@@ -766,7 +766,7 @@ private fun ShuffleButton(onClick: () -> Unit) {
             modifier = Modifier.size(15.dp),
         )
         Text(
-            text = "Shuffle",
+            text = localizedLibraryText("Shuffle"),
             color = MiuixTheme.colorScheme.onSurface,
             style = MiuixTheme.textStyles.footnote1,
             fontWeight = FontWeight.SemiBold,
@@ -793,7 +793,7 @@ private fun PlayAllButton(onClick: () -> Unit) {
             modifier = Modifier.size(16.dp),
         )
         Text(
-            text = "Play all",
+            text = localizedLibraryText("Play all"),
             color = Color.White,
             style = MiuixTheme.textStyles.footnote1,
             fontWeight = FontWeight.SemiBold,
@@ -821,7 +821,7 @@ private fun NewPlaylistButton(onClick: () -> Unit) {
             modifier = Modifier.size(16.dp),
         )
         Text(
-            text = "New",
+            text = localizedLibraryText("New"),
             color = Color.White,
             style = MiuixTheme.textStyles.footnote1,
             fontWeight = FontWeight.SemiBold,
@@ -875,7 +875,7 @@ private fun LibrarySongSearchBar(
                 ) {
                     if (value.isEmpty()) {
                         Text(
-                            text = placeholder,
+                            text = localizedLibraryText(placeholder),
                             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                             style = MiuixTheme.textStyles.body2.copy(
                                 fontSize = 14.sp,
@@ -927,7 +927,7 @@ private fun SongFilterButton(
     ) {
         Icon(
             painter = painterResource(CoreRes.drawable.icon_filter),
-            contentDescription = "Filter songs, sorted by ${current.label}",
+            contentDescription = localizedLibraryText("Filter songs, sorted by ${current.label}"),
             tint = if (current == LibrarySortBy.Title) {
                 MiuixTheme.colorScheme.onSurfaceVariantSummary
             } else {
@@ -1028,7 +1028,7 @@ private fun LibrarySongRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = track.artist ?: "Unknown Artist",
+                    text = track.artist ?: localizedLibraryText("Unknown Artist"),
                     color = MiuixTheme.colorScheme.onBackgroundVariant,
                     style = MiuixTheme.textStyles.footnote1.copy(
                         fontSize = 12.sp,
@@ -1055,7 +1055,7 @@ private fun LibrarySongRow(
                     painter = painterResource(
                         if (isFavorite) CoreRes.drawable.icon_heart_filled else CoreRes.drawable.icon_heart,
                     ),
-                    contentDescription = if (isFavorite) "Remove from favorites" else "Add to favorites",
+                    contentDescription = localizedLibraryText(if (isFavorite) "Remove from favorites" else "Add to favorites"),
                     tint = if (isFavorite) {
                         MiuixTheme.colorScheme.primary
                     } else {
@@ -1073,7 +1073,7 @@ private fun LibrarySongRow(
             ) {
                 Icon(
                     painter = painterResource(CoreRes.drawable.icon_vertialcal_more),
-                    contentDescription = "More actions for ${track.title}",
+                    contentDescription = localizedLibraryText("More actions for ${track.title}"),
                     tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     modifier = Modifier.size(16.dp),
                 )
@@ -1239,7 +1239,7 @@ private fun LibraryArtistGrouped(
                                     overflow = TextOverflow.Ellipsis,
                                 )
                                 Text(
-                                    text = artist.genre ?: "Artist",
+                                    text = artist.genre ?: localizedLibraryText("Artist"),
                                     color = MiuixTheme.colorScheme.onBackgroundVariant,
                                     style = MiuixTheme.textStyles.footnote1,
                                 )
@@ -1336,7 +1336,7 @@ private fun LibraryGenreGrid(
                     )
                     genre.albumCount?.let { albumCount ->
                         Text(
-                            text = "$albumCount albums",
+                            text = localizedLibraryText("$albumCount albums"),
                             color = Color.White,
                             style = MiuixTheme.textStyles.footnote2,
                             fontWeight = FontWeight.SemiBold,
@@ -1401,7 +1401,7 @@ private fun PlaylistListView(
                         verticalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
                         Text(
-                            text = playlist.title,
+                            text = localizedLibraryText(playlist.title),
                             color = MiuixTheme.colorScheme.onBackground,
                             style = MiuixTheme.textStyles.body1.copy(
                                 fontSize = 14.sp,
@@ -1412,7 +1412,7 @@ private fun PlaylistListView(
                             overflow = TextOverflow.Ellipsis,
                         )
                         Text(
-                            text = playlist.description,
+                            text = localizedLibraryText(playlist.description),
                             color = MiuixTheme.colorScheme.onBackgroundVariant,
                             style = MiuixTheme.textStyles.footnote1.copy(
                                 fontSize = 12.sp,
@@ -1428,13 +1428,13 @@ private fun PlaylistListView(
                             verticalArrangement = Arrangement.spacedBy(2.dp),
                         ) {
                             Text(
-                                text = "${playlist.musicCount} tracks",
+                                text = localizedLibraryText("${playlist.musicCount} tracks"),
                                 color = MiuixTheme.colorScheme.onSurface,
                                 style = MiuixTheme.textStyles.footnote2,
                                 fontWeight = FontWeight.Medium,
                             )
                             Text(
-                                text = playlist.durationLabel,
+                                text = localizedLibraryText(playlist.durationLabel),
                                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                                 style = MiuixTheme.textStyles.footnote2,
                             )
@@ -1458,7 +1458,7 @@ private fun PlaylistListView(
                         painter = painterResource(
                             if (isPinned) CoreRes.drawable.icon_pin_filled else CoreRes.drawable.icon_pin,
                         ),
-                        contentDescription = if (isPinned) "Unpin playlist" else "Pin playlist",
+                        contentDescription = localizedLibraryText(if (isPinned) "Unpin playlist" else "Pin playlist"),
                         tint = if (isPinned) {
                             MiuixTheme.colorScheme.primary
                         } else {
@@ -1558,21 +1558,21 @@ private fun LibraryEmptyContent(
             }
         }
         Text(
-            text = title,
+            text = localizedLibraryText(title),
             color = MiuixTheme.colorScheme.onSurface,
             style = MiuixTheme.textStyles.title3,
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center,
         )
         Text(
-            text = message,
+            text = localizedLibraryText(message),
             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             style = MiuixTheme.textStyles.body2,
             textAlign = TextAlign.Center,
         )
         if (action != null) {
             Text(
-                text = action.first,
+                text = localizedLibraryText(action.first),
                 color = Color.White,
                 style = MiuixTheme.textStyles.body1,
                 fontWeight = FontWeight.SemiBold,
