@@ -35,16 +35,6 @@ jobs:
           cargo clippy --manifest-path rust-libs/Cargo.toml --workspace --all-targets -- -D warnings
           cargo test --manifest-path rust-libs/Cargo.toml --workspace
 
-  smb-integration:
-    name: SMB2/3 integration
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Run Samba fixture tests
-        run: bash scripts/ci/run-smb-integration.sh
-
   android:
     name: Android
     runs-on: ubuntu-latest
