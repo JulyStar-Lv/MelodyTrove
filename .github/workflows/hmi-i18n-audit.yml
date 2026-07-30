@@ -21,6 +21,10 @@ on:
       - "**/composeResources/values-zh/**"
       - "**/res/values/**"
       - "**/res/values-zh-rCN/**"
+      - "**/src/commonMain/**/*.kt"
+      - "**/src/androidMain/**/*.kt"
+      - "**/src/desktopMain/**/*.kt"
+      - "**/src/iosMain/**/*.kt"
       - "scripts/audit-hmi-i18n.py"
       - ".github/workflows/hmi-i18n-audit.yml"
 
@@ -33,5 +37,5 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Check Chinese and English HMI resources
-        run: python3 scripts/audit-hmi-i18n.py
+      - name: Check Chinese and English HMI resources and hard-coded UI text
+        run: python3 scripts/audit-hmi-i18n.py --strict-hardcoded
