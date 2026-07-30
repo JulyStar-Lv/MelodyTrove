@@ -31,10 +31,22 @@ jobs:
           match = re.search(r"python3 - <<'PY'\n(.*?)\n\s*PY\n", workflow, re.DOTALL)
           if match is None:
               raise SystemExit('Unable to extract prepared localization script')
-          script = '\n'.join(
-              line[10:] if line.startswith('          ') else line
-              for line in match.group(1).splitlines()
-          )
+
+          output = []
+          inside_triple_quote = False
+          for line in match.group(1).splitlines():
+              if inside_triple_quote:
+                  output.append(line)
+                  if line.count("'''") % 2 == 1:
+                      inside_triple_quote = False
+                  continue
+
+              normalized = line[10:] if line.startswith('          ') else line
+              output.append(normalized)
+              if normalized.count("'''") % 2 == 1:
+                  inside_triple_quote = True
+
+          script = '\n'.join(output)
           exec(compile(script, 'localize_restored_library.py', 'exec'), {'__name__': '__main__'})
           PY
 
