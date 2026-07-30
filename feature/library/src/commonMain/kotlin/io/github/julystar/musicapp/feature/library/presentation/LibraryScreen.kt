@@ -112,6 +112,10 @@ fun LibraryScreen(
     state: LibraryState,
     currentPlayingTrackId: Long? = null,
     onNavigateToLibraryFolderImport: () -> Unit = {},
+    onNavigateToAlbum: (Long) -> Unit = {},
+    onNavigateToArtist: (Long) -> Unit = {},
+    onNavigateToPlaylist: (Long) -> Unit = {},
+    onNavigateToPlaylists: () -> Unit = {},
     onAction: (LibraryAction) -> Unit,
 ) {
     var category by remember { mutableStateOf(LibraryCategory.Songs) }
@@ -162,7 +166,9 @@ fun LibraryScreen(
                 if (state.albums.isEmpty()) {
                     item { CategoryEmpty(category) }
                 } else {
-                    items(state.albums, key = { it.id }) { AlbumRow(it) }
+                    items(state.albums, key = { it.id }) { album ->
+                        AlbumRow(album = album, onClick = { onNavigateToAlbum(album.id) })
+                    }
                 }
             }
 
@@ -170,7 +176,9 @@ fun LibraryScreen(
                 if (state.artists.isEmpty()) {
                     item { CategoryEmpty(category) }
                 } else {
-                    items(state.artists, key = { it.id }) { ArtistRow(it) }
+                    items(state.artists, key = { it.id }) { artist ->
+                        ArtistRow(artist = artist, onClick = { onNavigateToArtist(artist.id) })
+                    }
                 }
             }
 
@@ -223,9 +231,19 @@ fun LibraryScreen(
 
             LibraryCategory.Playlists -> {
                 if (state.playlists.isEmpty()) {
-                    item { CategoryEmpty(category) }
+                    item {
+                        CategoryEmpty(
+                            category = category,
+                            onClick = onNavigateToPlaylists,
+                        )
+                    }
                 } else {
-                    items(state.playlists, key = { it.id }) { PlaylistRow(it) }
+                    items(state.playlists, key = { it.id }) { playlist ->
+                        PlaylistRow(
+                            playlist = playlist,
+                            onClick = { onNavigateToPlaylist(playlist.id) },
+                        )
+                    }
                 }
             }
 
@@ -384,21 +402,21 @@ private fun TrackRow(
 }
 
 @Composable
-private fun AlbumRow(album: LibraryAlbumItem) {
+private fun AlbumRow(album: LibraryAlbumItem, onClick: () -> Unit) {
     NavigationRow(
         title = album.name,
         subtitle = album.year?.toString() ?: stringResource(Res.string.library_unknown_year),
         painter = painterResource(CorePresentationRes.drawable.icon_album),
-        onClick = {},
+        onClick = onClick,
     )
 }
 
 @Composable
-private fun ArtistRow(artist: LibraryArtistItem) {
+private fun ArtistRow(artist: LibraryArtistItem, onClick: () -> Unit) {
     NavigationRow(
         title = artist.name,
         painter = painterResource(CorePresentationRes.drawable.icon_music_note),
-        onClick = {},
+        onClick = onClick,
     )
 }
 
@@ -413,7 +431,7 @@ private fun FolderRow(folder: LibraryFolderItem, onClick: () -> Unit) {
 }
 
 @Composable
-private fun PlaylistRow(playlist: PlaylistSummary) {
+private fun PlaylistRow(playlist: PlaylistSummary, onClick: () -> Unit) {
     NavigationRow(
         title = playlist.title,
         subtitle = buildString {
@@ -422,7 +440,7 @@ private fun PlaylistRow(playlist: PlaylistSummary) {
             append(durationLabel(playlist.durationMs))
         },
         painter = painterResource(CorePresentationRes.drawable.icon_mode_list),
-        onClick = {},
+        onClick = onClick,
     )
 }
 
@@ -495,12 +513,22 @@ private fun RootEmpty() {
 }
 
 @Composable
-private fun CategoryEmpty(category: LibraryCategory) {
+private fun CategoryEmpty(category: LibraryCategory, onClick: (() -> Unit)? = null) {
     val title = stringResource(category.labelRes)
     DesignEmptyState(
         title = title,
         message = stringResource(category.emptyMessageRes),
         marker = title.take(1),
+        action = onClick?.let { click ->
+            {
+                DesignTextButton(
+                    text = title,
+                    variant = DesignTextButtonVariant.Tonal,
+                    size = DesignTextButtonSize.Medium,
+                    onClick = click,
+                )
+            }
+        },
     )
 }
 
