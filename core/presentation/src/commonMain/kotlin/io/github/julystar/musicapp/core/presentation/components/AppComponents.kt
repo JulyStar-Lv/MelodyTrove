@@ -14,6 +14,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.unit.dp
+import musicapp.core.presentation.generated.resources.Res
+import musicapp.core.presentation.generated.resources.common_retry
+import org.jetbrains.compose.resources.stringResource
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -134,7 +137,7 @@ fun AppErrorState(
                 Spacer(Modifier.height(12.dp))
                 DesignTextButton(
                     onClick = onRetry,
-                    text = "Retry",
+                    text = stringResource(Res.string.common_retry),
                     variant = DesignTextButtonVariant.Primary,
                     size = DesignTextButtonSize.Medium,
                 )

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Audit Chinese/English HMI resources and obvious hard-coded UI literals.
 
-The parity check is strict and intended for CI. The hard-coded literal scan is a
-heuristic report by default; pass --strict-hardcoded to make findings fatal.
+The resource parity check is strict and intended for CI. The Kotlin literal scan
+only targets presentation/UI source files. Pass --strict-hardcoded to make
+remaining user-visible literals fatal.
 """
 
 from __future__ import annotations
@@ -18,19 +19,34 @@ from typing import Iterable
 FORMAT_TOKEN_RE = re.compile(
     r"%(?:\d+\$)?[-#+ 0,(<]*\d*(?:\.\d+)?[a-zA-Z%]"
 )
-KOTLIN_LITERAL_PATTERNS = (
-    re.compile(
-        r"\b(?:text|title|subtitle|message|label|placeholder|contentDescription|"
-        r"actionText|summary|headline|supportingText)\s*=\s*\"([^\"$]*(?:\\.[^\"$]*)*)\""
-    ),
-    re.compile(r"\bText\(\s*\"([^\"$]*(?:\\.[^\"$]*)*)\""),
+NAMED_LITERAL_RE = re.compile(
+    r"\b(?P<property>text|title|subtitle|message|label|placeholder|contentDescription|"
+    r"actionText|summary|headline|supportingText)\s*=\s*"
+    r"\"(?P<literal>[^\"$]*(?:\\.[^\"$]*)*)\""
+)
+POSITIONAL_TEXT_RE = re.compile(
+    r"\bText\(\s*\"(?P<literal>[^\"$]*(?:\\.[^\"$]*)*)\""
 )
 HUMAN_TEXT_RE = re.compile(r"[A-Za-z\u3400-\u9fff]")
+SYMBOLIC_LITERAL_RE = re.compile(r"[a-z][A-Za-z0-9_-]*")
 SKIP_DIRS = {
     ".git", ".gradle", ".idea", "build", "generated", "node_modules",
     "vendor", "Design",
 }
 SOURCE_SET_NAMES = {"commonMain", "androidMain", "desktopMain", "iosMain"}
+UI_PATH_MARKERS = {"presentation", "ui", "widgets", "components"}
+INVARIANT_LITERALS = {
+    "MelodyTrove",
+    "MelodyTrove（旋律珍藏）",
+    "WebDAV",
+    "OneDrive",
+    "SMB",
+    "Navidrome",
+    "OpenSubsonic",
+    "Emby",
+    "Lyrico API v3",
+    "Theme color transition",
+}
 
 
 @dataclass(frozen=True)
@@ -76,7 +92,6 @@ def resource_pairs(root: Path) -> Iterable[tuple[Path, Path]]:
         try:
             source = parse_resources(default)
         except ValueError:
-            # Let audit_pair report parse failures only for candidate string files.
             source = {}
         if not source:
             continue
@@ -114,20 +129,36 @@ def audit_pair(default: Path, translated: Path, root: Path) -> list[str]:
     return errors
 
 
-def is_runtime_kotlin(path: Path) -> bool:
+def is_runtime_ui_kotlin(path: Path) -> bool:
     if path.suffix != ".kt":
         return False
     if any(part in SKIP_DIRS for part in path.parts):
         return False
     if any(part.endswith("Test") or part.endswith("TestFixtures") for part in path.parts):
         return False
-    return bool(SOURCE_SET_NAMES.intersection(path.parts))
+    if not SOURCE_SET_NAMES.intersection(path.parts):
+        return False
+    return bool(UI_PATH_MARKERS.intersection(path.parts)) or path.name == "Main.kt"
+
+
+def should_ignore_literal(literal: str, line: str) -> bool:
+    if "hmi-i18n-ignore" in line:
+        return True
+    if literal.startswith(("http://", "https://", "content://", "file://")):
+        return True
+    if literal in INVARIANT_LITERALS:
+        return True
+    # Compose animation/debug labels are normally lower camelCase or kebab-case,
+    # unlike user-facing labels. They should not be localized.
+    if SYMBOLIC_LITERAL_RE.fullmatch(literal):
+        return True
+    return False
 
 
 def scan_hardcoded(root: Path) -> list[str]:
     findings: list[str] = []
     for path in root.rglob("*.kt"):
-        if not is_runtime_kotlin(path):
+        if not is_runtime_ui_kotlin(path):
             continue
         try:
             lines = path.read_text(encoding="utf-8").splitlines()
@@ -137,16 +168,21 @@ def scan_hardcoded(root: Path) -> list[str]:
             stripped = line.strip()
             if stripped.startswith("//") or "@Preview" in stripped:
                 continue
-            for pattern in KOTLIN_LITERAL_PATTERNS:
-                for match in pattern.finditer(line):
-                    literal = match.group(1)
-                    if not HUMAN_TEXT_RE.search(literal):
-                        continue
-                    if literal.startswith(("http://", "https://", "content://", "file://")):
-                        continue
-                    findings.append(
-                        f"{path.relative_to(root)}:{line_number}: {literal}"
-                    )
+
+            matches: list[tuple[str, str]] = []
+            for match in NAMED_LITERAL_RE.finditer(line):
+                matches.append((match.group("property"), match.group("literal")))
+            for match in POSITIONAL_TEXT_RE.finditer(line):
+                matches.append(("text", match.group("literal")))
+
+            for _, literal in matches:
+                if not HUMAN_TEXT_RE.search(literal):
+                    continue
+                if should_ignore_literal(literal, line):
+                    continue
+                findings.append(
+                    f"{path.relative_to(root)}:{line_number}: {literal}"
+                )
     return sorted(set(findings))
 
 
