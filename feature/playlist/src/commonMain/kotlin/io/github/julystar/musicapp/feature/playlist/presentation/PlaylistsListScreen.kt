@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -34,25 +33,31 @@ import io.github.julystar.musicapp.core.presentation.components.DesignFab
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButton
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButtonSize
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButtonVariant
-import io.github.julystar.musicapp.core.presentation.components.LocalDesignBottomContentInset
 import io.github.julystar.musicapp.core.presentation.components.DesignPageHeader
+import io.github.julystar.musicapp.core.presentation.components.LocalDesignBottomContentInset
 import io.github.julystar.musicapp.core.presentation.media.ArtworkImage
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
+import musicapp.feature.playlist.generated.resources.Res
+import musicapp.feature.playlist.generated.resources.cover_default_image
+import musicapp.feature.playlist.generated.resources.icon_adjust
+import musicapp.feature.playlist.generated.resources.icon_drag
+import musicapp.feature.playlist.generated.resources.icon_plus
+import musicapp.feature.playlist.generated.resources.icon_yes
+import musicapp.feature.playlist.generated.resources.playlist_add
+import musicapp.feature.playlist.generated.resources.playlist_adjust
+import musicapp.feature.playlist.generated.resources.playlist_create
+import musicapp.feature.playlist.generated.resources.playlist_done
+import musicapp.feature.playlist.generated.resources.playlist_empty
+import musicapp.feature.playlist.generated.resources.playlist_empty_message
+import musicapp.feature.playlist.generated.resources.playlist_list_count
+import musicapp.feature.playlist.generated.resources.playlist_list_title
+import musicapp.feature.playlist.generated.resources.playlist_summary
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.ScrollMoveMode
 import sh.calvin.reorderable.rememberReorderableLazyGridState
-import musicapp.feature.playlist.generated.resources.Res
-import musicapp.feature.playlist.generated.resources.cover_default_image
-import musicapp.feature.playlist.generated.resources.empty_playlists
-import musicapp.feature.playlist.generated.resources.icon_adjust
-import musicapp.feature.playlist.generated.resources.icon_drag
-import musicapp.feature.playlist.generated.resources.icon_plus
-import musicapp.feature.playlist.generated.resources.icon_yes
-import musicapp.feature.playlist.generated.resources.music_count_unit
-import musicapp.feature.playlist.generated.resources.playlist_empty
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -75,7 +80,7 @@ fun PlaylistsListScreen(
             ) {
                 DesignEmptyState(
                     title = stringResource(Res.string.playlist_empty),
-                    message = "Tap to create a playlist",
+                    message = stringResource(Res.string.playlist_empty_message),
                     marker = "P",
                     action = {
                         Box(
@@ -87,7 +92,7 @@ fun PlaylistsListScreen(
                                 .padding(horizontal = 20.dp, vertical = 12.dp),
                         ) {
                             Text(
-                                text = "Create Playlist",
+                                text = stringResource(Res.string.playlist_create),
                                 color = MiuixTheme.colorScheme.onPrimary,
                                 style = MiuixTheme.textStyles.button,
                             )
@@ -96,20 +101,25 @@ fun PlaylistsListScreen(
                 )
             }
         } else {
-            Box(modifier = Modifier.fillMaxSize().background(MiuixTheme.colorScheme.background)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MiuixTheme.colorScheme.background),
+            ) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = horizontalPadding, vertical = 18.dp),
                 ) {
                     DesignPageHeader(
-                        title = "Playlists",
-                        subtitle = "${state.playlists.size} playlists",
+                        title = stringResource(Res.string.playlist_list_title),
+                        subtitle = stringResource(Res.string.playlist_list_count, state.playlists.size),
                         trailing = {
                             DesignIconButton(
                                 size = DesignIconButtonSize.Medium,
                                 variant = DesignIconButtonVariant.Default,
                                 painter = painterResource(Res.drawable.icon_adjust),
+                                contentDescription = stringResource(Res.string.playlist_adjust),
                                 enabled = state.mode != PlaylistsListMode.Adjust,
                                 onClick = { onAction(PlaylistsListAction.ToggleMode) },
                             )
@@ -117,6 +127,7 @@ fun PlaylistsListScreen(
                                 size = DesignIconButtonSize.Medium,
                                 variant = DesignIconButtonVariant.Default,
                                 painter = painterResource(Res.drawable.icon_plus),
+                                contentDescription = stringResource(Res.string.playlist_add),
                                 enabled = state.mode != PlaylistsListMode.Adjust,
                                 onClick = { onAction(PlaylistsListAction.CreatePlaylist) },
                             )
@@ -138,7 +149,7 @@ fun PlaylistsListScreen(
                         Icon(
                             painter = painterResource(Res.drawable.icon_yes),
                             tint = Color.White,
-                            contentDescription = null,
+                            contentDescription = stringResource(Res.string.playlist_done),
                         )
                     }
                 }
@@ -169,16 +180,21 @@ private fun GridPlaylists(
         state = lazyGridState,
         contentPadding = PaddingValues(bottom = 12.dp + bottomContentInset),
     ) {
-        itemsIndexed(playlists, key = { index, playlist -> playlist.lazyListKey(index) }) { index, playlist ->
-            ReorderableItem(reorderableLazyListState, key = playlist.lazyListKey(index)) { _ ->
+        itemsIndexed(
+            playlists,
+            key = { index, playlist -> playlist.lazyListKey(index) },
+        ) { index, playlist ->
+            ReorderableItem(
+                reorderableLazyListState,
+                key = playlist.lazyListKey(index),
+            ) {
                 PlaylistItem(playlist = playlist, mode = mode, onAction = onAction)
             }
         }
     }
 }
 
-internal fun PlaylistListItem.lazyListKey(index: Int): String =
-    "playlist-list-$index-$id"
+internal fun PlaylistListItem.lazyListKey(index: Int): String = "playlist-list-$index-$id"
 
 @Composable
 private fun ReorderableCollectionItemScope.PlaylistItem(
@@ -194,8 +210,8 @@ private fun ReorderableCollectionItemScope.PlaylistItem(
                 Modifier.draggableHandle()
             } else {
                 Modifier.clickable { onAction(PlaylistsListAction.NavigateToPlaylist(playlist.id)) }
-            }
-        )
+            },
+        ),
     ) {
         Column(
             modifier = Modifier.padding(12.dp, 8.dp),
@@ -232,7 +248,11 @@ private fun ReorderableCollectionItemScope.PlaylistItem(
                 )
             }
             Text(
-                text = "${playlist.musicCount} ${stringResource(Res.string.music_count_unit)}  ·  ${playlist.durationLabel}",
+                text = stringResource(
+                    Res.string.playlist_summary,
+                    playlist.musicCount,
+                    playlist.durationLabel,
+                ),
                 style = MiuixTheme.textStyles.footnote1,
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 maxLines = 1,
@@ -251,7 +271,7 @@ private fun ReorderableCollectionItemScope.PlaylistItem(
                     modifier = Modifier.size(12.dp),
                     painter = painterResource(Res.drawable.icon_drag),
                     tint = Color.White,
-                    contentDescription = null,
+                    contentDescription = stringResource(Res.string.playlist_adjust),
                 )
             }
         }
