@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="library_title">音乐库</string>
+    <string name="library_category_songs">歌曲</string>
+    <string name="library_category_albums">专辑</string>
+    <string name="library_category_artists">艺术家</string>
+    <string name="library_category_genres">流派</string>
+    <string name="library_category_folders">文件夹</string>
+    <string name="library_category_playlists">播放列表</string>
+    <string name="library_category_favorites">收藏</string>
+    <string name="library_category_downloads">下载</string>
+    <string name="library_category_history">播放历史</string>
+    <string name="library_category_recently_added">最近添加</string>
+    <string name="library_category_recently_played">最近播放</string>
+    <string name="library_category_lossless">无损</string>
+    <string name="library_category_hires">Hi-Res</string>
+    <string name="library_category_sources">音源</string>
+    <string name="library_song_summary">%1$d 首歌曲 · 约 %2$d 分钟</string>
+    <string name="library_filter">筛选</string>
+    <string name="library_list_view">列表视图</string>
+    <string name="library_unknown_artist">未知艺术家</string>
+    <string name="library_download">下载</string>
+    <string name="library_unknown_year">未知年份</string>
+    <string name="library_loading">正在加载音乐库</string>
+    <string name="library_unavailable">音乐库不可用</string>
+    <string name="library_retry">重试</string>
+    <string name="library_empty_title">音乐库为空</string>
+    <string name="library_empty_message">添加音源或扫描本地音乐后，即可开始建立个人收藏。</string>
+    <string name="library_empty_albums">音乐完成索引后，专辑会显示在这里。</string>
+    <string name="library_empty_artists">音乐完成索引后，艺术家会显示在这里。</string>
+    <string name="library_empty_genres">歌曲包含流派元数据后，流派会显示在这里。</string>
+    <string name="library_empty_folders">添加或扫描本地音乐文件夹后，可在这里浏览。</string>
+    <string name="library_empty_playlists">创建播放列表来整理音乐。</string>
+    <string name="library_empty_favorites">收藏的歌曲会显示在这里。</string>
+    <string name="library_empty_downloads">已下载的歌曲会显示在这里。</string>
+    <string name="library_empty_history">播放过的歌曲会显示在这里。</string>
+    <string name="library_empty_recently_added">最近添加的歌曲会显示在这里。</string>
+    <string name="library_empty_recently_played">最近播放的歌曲会显示在这里。</string>
+    <string name="library_empty_lossless">无损歌曲会显示在这里。</string>
+    <string name="library_empty_hires">Hi-Res 歌曲会显示在这里。</string>
+    <string name="library_empty_sources">请在“设置”中管理本地与远程音源。</string>
+    <string name="library_add_folder">添加文件夹</string>
+    <string name="library_folder_track_count">%1$d 首歌曲</string>
+    <string name="library_playlist_track_count">%1$d 首歌曲</string>
+    <string name="library_duration_hours">%1$d 小时 %2$d 分钟</string>
+    <string name="library_duration_minutes">%1$d 分钟</string>
+</resources>
