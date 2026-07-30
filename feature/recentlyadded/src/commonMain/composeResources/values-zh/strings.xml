@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="recently_added_title">最近添加</string>
+    <string name="recently_added_track_count">%1$d 首歌曲</string>
+    <string name="recently_added_play_all">播放全部</string>
+    <string name="recently_added_loading">正在加载最近添加</string>
+    <string name="recently_added_checking">正在检查音乐库…</string>
+    <string name="recently_added_unavailable">最近添加内容不可用</string>
+    <string name="recently_added_retry">重试</string>
+    <string name="recently_added_empty">暂无最近添加的歌曲</string>
+    <string name="recently_added_empty_message">向音乐库添加歌曲后会显示在这里</string>
+    <string name="recently_added_download">下载</string>
+</resources>
