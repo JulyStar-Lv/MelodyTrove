@@ -33,18 +33,20 @@ jobs:
               raise SystemExit('Unable to extract prepared localization script')
 
           output = []
-          inside_triple_quote = False
+          triple_delimiter = None
           for line in match.group(1).splitlines():
-              if inside_triple_quote:
+              if triple_delimiter is not None:
                   output.append(line)
-                  if line.count("'''") % 2 == 1:
-                      inside_triple_quote = False
+                  if line.count(triple_delimiter) % 2 == 1:
+                      triple_delimiter = None
                   continue
 
               normalized = line[10:] if line.startswith('          ') else line
               output.append(normalized)
-              if normalized.count("'''") % 2 == 1:
-                  inside_triple_quote = True
+              for delimiter in ("'''", '\"\"\"'):
+                  if normalized.count(delimiter) % 2 == 1:
+                      triple_delimiter = delimiter
+                      break
 
           script = '\n'.join(output)
           exec(compile(script, 'localize_restored_library.py', 'exec'), {'__name__': '__main__'})
