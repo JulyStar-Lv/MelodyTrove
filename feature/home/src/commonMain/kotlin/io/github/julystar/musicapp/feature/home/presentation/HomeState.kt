@@ -48,7 +48,7 @@ data class HomePlaylist(
     val title: String,
     val description: String,
     val meta: String,
-    val trackCount: Int = 0,
+    val trackCount: Long = 0L,
     val durationMs: Long = 0L,
     val artworkIndex: Int,
     val colors: ImmutableList<Color>,
