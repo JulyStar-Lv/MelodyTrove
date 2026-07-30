@@ -3,24 +3,22 @@ package io.github.julystar.musicapp.feature.search.presentation
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -33,38 +31,51 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.julystar.musicapp.core.presentation.components.DesignCardSurface
 import io.github.julystar.musicapp.core.presentation.components.DesignChipSection
-import io.github.julystar.musicapp.core.presentation.components.DesignIconBadge
-import io.github.julystar.musicapp.core.presentation.components.DesignIconBadgeVariant
-import io.github.julystar.musicapp.core.presentation.components.DesignLoadingIndicator
 import io.github.julystar.musicapp.core.presentation.components.DesignPageHeader
 import io.github.julystar.musicapp.core.presentation.components.DesignSearchBar
 import io.github.julystar.musicapp.core.presentation.components.DesignStatusBadge
+import io.github.julystar.musicapp.core.presentation.components.DesignStatusCard
 import io.github.julystar.musicapp.core.presentation.components.DesignStatusTone
-import io.github.julystar.musicapp.core.presentation.components.DesignSourceBadge
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButton
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonSize
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonVariant
+import io.github.julystar.musicapp.core.presentation.components.LocalDesignBottomContentInset
 import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
+import io.github.julystar.musicapp.feature.search.domain.LOCAL_LIBRARY_SOURCE_LABEL
+import io.github.julystar.musicapp.feature.search.domain.SearchAlbumItem
+import io.github.julystar.musicapp.feature.search.domain.SearchArtistItem
 import io.github.julystar.musicapp.feature.search.domain.SearchTrackItem
-import kotlin.time.Duration.Companion.milliseconds
-import org.jetbrains.compose.resources.painterResource
-import org.jetbrains.compose.resources.stringResource
 import musicapp.feature.search.generated.resources.Res
-import musicapp.feature.search.generated.resources.downloads_title
 import musicapp.feature.search.generated.resources.icon_download
 import musicapp.feature.search.generated.resources.icon_music_note
 import musicapp.feature.search.generated.resources.icon_search
+import musicapp.feature.search.generated.resources.search_albums
+import musicapp.feature.search.generated.resources.search_artists
+import musicapp.feature.search.generated.resources.search_clear
+import musicapp.feature.search.generated.resources.search_clear_search
+import musicapp.feature.search.generated.resources.search_connection_retry
+import musicapp.feature.search.generated.resources.search_download
 import musicapp.feature.search.generated.resources.search_empty
 import musicapp.feature.search.generated.resources.search_hint
-import musicapp.feature.search.generated.resources.search_connection_retry
+import musicapp.feature.search.generated.resources.search_local_library
+import musicapp.feature.search.generated.resources.search_no_history
+import musicapp.feature.search.generated.resources.search_no_matches_yet
 import musicapp.feature.search.generated.resources.search_recent_searches
-import musicapp.feature.search.generated.resources.search_remote_failures
+import musicapp.feature.search.generated.resources.search_result_count
+import musicapp.feature.search.generated.resources.search_result_summary
+import musicapp.feature.search.generated.resources.search_retry
+import musicapp.feature.search.generated.resources.search_songs
+import musicapp.feature.search.generated.resources.search_source_failures
+import musicapp.feature.search.generated.resources.search_sources_unavailable
+import musicapp.feature.search.generated.resources.search_subtitle
 import musicapp.feature.search.generated.resources.search_suggestions
 import musicapp.feature.search.generated.resources.search_title
-import musicapp.feature.search.generated.resources.search_try_suggestion
-import musicapp.feature.search.generated.resources.searching
-import musicapp.feature.search.generated.resources.downloads_retry
+import musicapp.feature.search.generated.resources.search_try_query
+import musicapp.feature.search.generated.resources.search_unknown_artist
+import musicapp.feature.search.generated.resources.searching_library
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -74,161 +85,228 @@ fun SearchScreen(
     state: SearchState,
     onAction: (SearchAction) -> Unit,
     modifier: Modifier = Modifier,
+    showSearchContent: Boolean = true,
 ) {
     val spacing = DesignTokens.spacing
+    val bottomInset = LocalDesignBottomContentInset.current
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        val horizontalPadding = spacing.pageCompact
-        val showPageHeader = maxWidth < 1024.dp
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MiuixTheme.colorScheme.background)
-            .padding(
-                start = horizontalPadding,
-                top = 8.dp,
-                end = horizontalPadding,
-                bottom = 16.dp,
-            ),
-        verticalArrangement = Arrangement.spacedBy(spacing.lg),
-    ) {
-        if (showPageHeader) {
+        val horizontalPadding = if (maxWidth < 600.dp) spacing.pageCompact else spacing.pageExpanded
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MiuixTheme.colorScheme.background)
+                .padding(horizontal = horizontalPadding, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(spacing.md),
+        ) {
             DesignPageHeader(
                 title = stringResource(Res.string.search_title),
-                subtitle = null,
+                subtitle = stringResource(Res.string.search_subtitle),
             )
-        }
-        SearchInput(
-            state = state,
-            onAction = onAction,
-        )
-        if (state.failedSourceCount > 0) {
-            DesignStatusBadge(
-                label = "${state.failedSourceCount} ${stringResource(Res.string.search_remote_failures)}",
-                tone = DesignStatusTone.Error,
+            DesignSearchBar(
+                value = state.query,
+                onValueChange = { onAction(SearchAction.QueryChanged(it)) },
+                placeholder = stringResource(Res.string.search_hint),
+                onSearch = { onAction(SearchAction.SubmitSearch) },
+                onClear = { onAction(SearchAction.ClearQuery) },
+                modifier = Modifier.fillMaxWidth(),
             )
+            if (state.failedSourceCount > 0) {
+                DesignStatusBadge(
+                    label = stringResource(Res.string.search_source_failures, state.failedSourceCount),
+                    tone = DesignStatusTone.Error,
+                )
+            }
+            if (showSearchContent) {
+                SearchBody(
+                    state = state,
+                    onAction = onAction,
+                    modifier = Modifier.weight(1f),
+                    bottomInset = bottomInset,
+                )
+            }
         }
-        SearchContent(
-            state = state,
-            onAction = onAction,
-            modifier = Modifier.weight(1f),
-        )
-    }
     }
 }
 
 @Composable
-private fun SearchInput(
-    state: SearchState,
-    onAction: (SearchAction) -> Unit,
-) {
-    DesignSearchBar(
-        value = state.query,
-        onValueChange = { query -> onAction(SearchAction.QueryChanged(query)) },
-        placeholder = stringResource(Res.string.search_hint),
-        onSearch = { onAction(SearchAction.SubmitSearch) },
-        onClear = { onAction(SearchAction.ClearQuery) },
-        modifier = Modifier.fillMaxWidth(),
-    )
-}
-
-@Composable
-private fun SearchContent(
+private fun SearchBody(
     state: SearchState,
     onAction: (SearchAction) -> Unit,
     modifier: Modifier,
+    bottomInset: androidx.compose.ui.unit.Dp,
 ) {
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = DesignTokens.spacing.lg),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        contentPadding = PaddingValues(bottom = DesignTokens.spacing.lg + bottomInset),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         when (state.loadState) {
-            SearchLoadState.Searching -> {
-                item {
-                    SearchStatusCard(
-                        title = stringResource(Res.string.searching),
-                        message = state.query.ifBlank { stringResource(Res.string.search_hint) },
-                        loading = true,
-                    )
-                }
+            SearchLoadState.Searching -> item {
+                DesignStatusCard(
+                    title = stringResource(Res.string.searching_library),
+                    message = state.query.ifBlank { stringResource(Res.string.search_hint) },
+                    loading = true,
+                )
             }
+
             SearchLoadState.Error -> {
                 item {
-                    SearchStatusCard(
-                        title = stringResource(Res.string.search_remote_failures),
+                    DesignStatusCard(
+                        title = stringResource(Res.string.search_sources_unavailable),
                         message = stringResource(Res.string.search_connection_retry),
-                        actionText = stringResource(Res.string.downloads_retry),
+                        actionText = stringResource(Res.string.search_retry),
                         onAction = { onAction(SearchAction.Retry) },
                     )
                 }
-                item {
-                    SearchDiscovery(
-                        state = state,
-                        onAction = onAction,
-                    )
-                }
+                addDiscovery(state, onAction)
             }
+
             SearchLoadState.Empty -> {
                 item {
-                    SearchStatusCard(
-                        title = stringResource(Res.string.search_empty),
-                        message = stringResource(Res.string.search_try_suggestion),
+                    DesignStatusCard(
+                        title = stringResource(Res.string.search_no_matches_yet),
+                        message = stringResource(Res.string.search_try_query),
+                        actionText = stringResource(Res.string.search_clear_search),
+                        onAction = { onAction(SearchAction.ClearQuery) },
                     )
                 }
-                item {
-                    SearchDiscovery(
-                        state = state,
-                        onAction = onAction,
-                    )
-                }
+                addDiscovery(state, onAction)
             }
+
             SearchLoadState.Results -> {
                 item {
-                    SearchResultHeader(resultCount = state.tracks.size)
-                }
-                itemsIndexed(
-                    items = state.tracks,
-                    key = { index, track -> track.lazyListKey(index) },
-                ) { _, track ->
-                    SearchTrackCard(
-                        track = track,
-                        onClick = { onAction(SearchAction.OpenTrack(track)) },
-                        onDownload = { onAction(SearchAction.DownloadTrack(track)) },
+                    Text(
+                        text = stringResource(
+                            Res.string.search_result_summary,
+                            state.tracks.size,
+                            state.albums.size,
+                            state.artists.size,
+                        ),
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        style = MiuixTheme.textStyles.body2,
                     )
                 }
+                if (state.tracks.isNotEmpty()) {
+                    item { ResultHeader(Res.string.search_songs, state.tracks.size) }
+                    itemsIndexed(
+                        items = state.tracks,
+                        key = { index, track -> track.stableKey(index) },
+                    ) { index, track ->
+                        TrackResult(
+                            rank = index + 1,
+                            track = track,
+                            onOpen = { onAction(SearchAction.OpenTrack(track)) },
+                            onDownload = { onAction(SearchAction.DownloadTrack(track)) },
+                        )
+                    }
+                }
+                if (state.albums.isNotEmpty()) {
+                    item { ResultHeader(Res.string.search_albums, state.albums.size) }
+                    items(state.albums, key = { it.id }) { album ->
+                        AlbumResult(album) { onAction(SearchAction.OpenAlbum(album)) }
+                    }
+                }
+                if (state.artists.isNotEmpty()) {
+                    item { ResultHeader(Res.string.search_artists, state.artists.size) }
+                    items(state.artists, key = { it.id }) { artist ->
+                        ArtistResult(artist) { onAction(SearchAction.OpenArtist(artist)) }
+                    }
+                }
+                if (state.tracks.isEmpty() && state.albums.isEmpty() && state.artists.isEmpty()) {
+                    item {
+                        DesignStatusCard(
+                            title = stringResource(Res.string.search_empty),
+                            message = stringResource(Res.string.search_try_query),
+                        )
+                    }
+                }
             }
+
             SearchLoadState.Idle,
-            SearchLoadState.Typing -> {
-                item {
-                    SearchDiscovery(
-                        state = state,
-                        onAction = onAction,
+            SearchLoadState.Typing -> addDiscovery(state, onAction)
+        }
+    }
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.addDiscovery(
+    state: SearchState,
+    onAction: (SearchAction) -> Unit,
+) {
+    val recent = state.history.take(8)
+    val suggestions = state.suggestions
+        .filterNot { it in recent }
+        .take(10)
+
+    if (recent.isNotEmpty()) {
+        item {
+            DesignChipSection(
+                title = stringResource(Res.string.search_recent_searches),
+                labels = recent,
+                trailing = {
+                    DesignTextButton(
+                        text = stringResource(Res.string.search_clear),
+                        variant = DesignTextButtonVariant.Default,
+                        size = DesignTextButtonSize.Small,
+                        onClick = { onAction(SearchAction.ClearHistory) },
                     )
-                }
-            }
+                },
+                chipLeading = {
+                    Icon(
+                        painter = painterResource(Res.drawable.icon_search),
+                        tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                    )
+                },
+                onLabelClick = { onAction(SearchAction.SelectSuggestion(it)) },
+            )
+        }
+    }
+    if (suggestions.isNotEmpty()) {
+        item {
+            DesignChipSection(
+                title = stringResource(Res.string.search_suggestions),
+                labels = suggestions,
+                chipLeading = {
+                    Icon(
+                        painter = painterResource(Res.drawable.icon_search),
+                        tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                    )
+                },
+                onLabelClick = { onAction(SearchAction.SelectSuggestion(it)) },
+            )
+        }
+    }
+    if (recent.isEmpty() && suggestions.isEmpty()) {
+        item {
+            DesignStatusCard(
+                title = stringResource(Res.string.search_no_history),
+                message = stringResource(Res.string.search_try_query),
+            )
         }
     }
 }
 
 @Composable
-private fun SearchResultHeader(resultCount: Int) {
+private fun ResultHeader(titleRes: org.jetbrains.compose.resources.StringResource, count: Int) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(bottom = 12.dp),
+            .padding(top = 8.dp, bottom = 2.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "Songs",
+            text = stringResource(titleRes),
             color = MiuixTheme.colorScheme.onBackground,
             style = MiuixTheme.textStyles.subtitle,
             fontWeight = FontWeight.SemiBold,
         )
         Text(
-            text = "$resultCount results",
+            text = stringResource(Res.string.search_result_count, count),
             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             style = MiuixTheme.textStyles.footnote1,
         )
@@ -236,373 +314,170 @@ private fun SearchResultHeader(resultCount: Int) {
 }
 
 @Composable
-private fun SearchStatusCard(
-    title: String,
-    message: String,
-    loading: Boolean = false,
-    actionText: String? = null,
-    onAction: (() -> Unit)? = null,
-) {
-    DesignCardSurface(
-        contentPadding = PaddingValues(18.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            DesignIconBadge(
-                variant = DesignIconBadgeVariant.Surface,
-            ) {
-                if (loading) {
-                    DesignLoadingIndicator(size = 24.dp)
-                } else {
-                    Text(
-                        text = "S",
-                        color = MiuixTheme.colorScheme.primary,
-                        style = MiuixTheme.textStyles.body1,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            }
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(
-                    text = title,
-                    color = MiuixTheme.colorScheme.onSurface,
-                    style = MiuixTheme.textStyles.body1,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = message,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    style = MiuixTheme.textStyles.footnote1,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            if (actionText != null && onAction != null) {
-                DesignTextButton(
-                    text = actionText,
-                    variant = DesignTextButtonVariant.Primary,
-                    size = DesignTextButtonSize.Small,
-                    onClick = onAction,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SearchDiscovery(
-    state: SearchState,
-    onAction: (SearchAction) -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(DesignTokens.spacing.lg)) {
-        DesignChipSection(
-            title = stringResource(Res.string.search_recent_searches),
-            labels = state.history.take(8).ifEmpty { state.trendingQueries().take(5) },
-            trailing = if (state.history.isNotEmpty()) {
-                {
-                    DesignTextButton(
-                        text = "Clear",
-                        variant = DesignTextButtonVariant.Default,
-                        size = DesignTextButtonSize.Small,
-                        onClick = { onAction(SearchAction.ClearHistory) },
-                    )
-                }
-            } else {
-                null
-            },
-            chipLeading = {
-                Icon(
-                    painter = painterResource(Res.drawable.icon_search),
-                    tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    contentDescription = null,
-                    modifier = Modifier.size(14.dp),
-                )
-            },
-            onLabelClick = { query -> onAction(SearchAction.SelectSuggestion(query)) },
-        )
-        SearchCategoryGrid()
-        SearchTrendingNow(onAction = onAction)
-    }
-}
-
-@Composable
-@OptIn(ExperimentalLayoutApi::class)
-private fun SearchCategoryGrid() {
-    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        Text(
-            text = "Browse Genres",
-            color = MiuixTheme.colorScheme.onBackground,
-            style = MiuixTheme.textStyles.subtitle,
-            fontWeight = FontWeight.SemiBold,
-        )
-        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-            val cardWidth = (maxWidth - 12.dp) / 2
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                searchCategories.forEach { category ->
-                    SearchCategoryCard(
-                        category = category,
-                        modifier = Modifier.width(cardWidth),
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SearchCategoryCard(
-    category: SearchCategoryUi,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier = modifier
-            .height(80.dp)
-            .clip(RoundedCornerShape(24.dp))
-            .background(
-                Brush.linearGradient(
-                    listOf(category.tint, category.endTint),
-                ),
-            )
-            .padding(16.dp),
-        contentAlignment = Alignment.BottomStart,
-    ) {
-        Text(
-            text = category.label,
-            color = Color.White,
-            style = MiuixTheme.textStyles.body1,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-@Composable
-private fun SearchTrackCard(
+private fun TrackResult(
+    rank: Int,
     track: SearchTrackItem,
-    onClick: () -> Unit,
+    onOpen: () -> Unit,
     onDownload: () -> Unit,
 ) {
     Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onOpen)
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .clickable(onClick = onClick)
-                .padding(14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+                .size(44.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Brush.linearGradient(listOf(DesignPalette.Primary, DesignPalette.Secondary))),
+            contentAlignment = Alignment.Center,
         ) {
-            Box(
+            Icon(
+                painter = painterResource(Res.drawable.icon_music_note),
+                tint = Color.White.copy(alpha = 0.86f),
+                contentDescription = null,
+                modifier = Modifier.size(17.dp),
+            )
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = track.title,
+                color = MiuixTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.body1,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = track.artist ?: stringResource(Res.string.search_unknown_artist),
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                style = MiuixTheme.textStyles.footnote1,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = if (track.sourceLabel == LOCAL_LIBRARY_SOURCE_LABEL) {
+                    stringResource(Res.string.search_local_library)
+                } else {
+                    track.sourceLabel
+                },
+                color = MiuixTheme.colorScheme.primary,
+                style = MiuixTheme.textStyles.footnote2,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        track.durationMs?.let {
+            Text(
+                text = durationLabel(it),
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                style = MiuixTheme.textStyles.footnote1,
+            )
+        }
+        if (track.mediaId != null) {
+            Icon(
+                painter = painterResource(Res.drawable.icon_download),
+                tint = MiuixTheme.colorScheme.primary,
+                contentDescription = stringResource(Res.string.search_download),
                 modifier = Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(
-                        Brush.linearGradient(
-                            listOf(DesignPalette.Primary, DesignPalette.Secondary),
-                        ),
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    painter = painterResource(Res.drawable.icon_music_note),
-                    tint = Color.White.copy(alpha = 0.82f),
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                )
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
+                    .clip(CircleShape)
+                    .clickable(onClick = onDownload)
+                    .padding(6.dp)
+                    .size(18.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun AlbumResult(album: SearchAlbumItem, onOpen: () -> Unit) {
+    DesignCardSurface(
+        contentPadding = PaddingValues(14.dp),
+        onClick = onOpen,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            ResultMarker(album.name.take(1).uppercase())
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = track.title,
+                    text = album.name,
                     color = MiuixTheme.colorScheme.onSurface,
                     style = MiuixTheme.textStyles.body1,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(
-                    text = track.artist ?: track.sourceLabel,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    style = MiuixTheme.textStyles.footnote1,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Row(
-                    modifier = Modifier.widthIn(max = 148.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (track.sourceLabel != "Library") {
-                        DesignSourceBadge(
-                            label = track.sourceLabel,
-                            modifier = Modifier.widthIn(max = 92.dp),
-                        )
-                    }
+                album.artist?.takeIf { it.isNotBlank() }?.let {
                     Text(
-                        text = track.durationMs.durationText(),
+                        text = it,
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                         style = MiuixTheme.textStyles.footnote1,
                         maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
-                    if (track.mediaId != null) {
-                        Icon(
-                            painter = painterResource(Res.drawable.icon_download),
-                            tint = MiuixTheme.colorScheme.primary,
-                            contentDescription = stringResource(Res.string.downloads_title),
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(DesignTokens.shapes.full))
-                                .clickable(onClick = onDownload)
-                                .padding(4.dp)
-                                .size(16.dp),
-                        )
-                    }
                 }
             }
         }
+    }
 }
 
 @Composable
-private fun SearchTrendingNow(
-    onAction: (SearchAction) -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(
-            text = "Trending Now",
-            color = MiuixTheme.colorScheme.onBackground,
-            style = MiuixTheme.textStyles.subtitle,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(bottom = 12.dp),
-        )
-        demoTrendingTracks.forEach { track ->
-            SearchTrackCard(
-                track = track,
-                onClick = { onAction(SearchAction.OpenTrack(track)) },
-                onDownload = { onAction(SearchAction.DownloadTrack(track)) },
+private fun ArtistResult(artist: SearchArtistItem, onOpen: () -> Unit) {
+    DesignCardSurface(
+        contentPadding = PaddingValues(14.dp),
+        onClick = onOpen,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            ResultMarker(artist.name.take(1).uppercase())
+            Text(
+                text = artist.name,
+                color = MiuixTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.body1,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
             )
         }
     }
 }
 
-internal fun SearchTrackItem.lazyListKey(index: Int): String {
-    val itemKey = mediaId?.let { mediaId ->
-        "${mediaId.sourceId.value}:${mediaId.remoteId}"
-    } ?: "local:${id ?: "unknown"}"
-    return "search-track-$index-$itemKey"
+@Composable
+private fun ResultMarker(label: String) {
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(CircleShape)
+            .background(MiuixTheme.colorScheme.tertiaryContainer),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            color = MiuixTheme.colorScheme.primary,
+            style = MiuixTheme.textStyles.body1,
+            fontWeight = FontWeight.Bold,
+        )
+    }
 }
 
-private fun SearchState.trendingQueries(): List<String> {
-    val historySet = history.toSet()
-    val suggestionQueries = suggestions
-        .filterNot { query -> query in historySet }
-        .map { query -> query.trim() }
-        .filter { query -> query.isNotBlank() }
-        .distinct()
-
-    return (suggestionQueries.ifEmpty { fallbackTrendingQueries }).take(8)
+private fun SearchTrackItem.stableKey(index: Int): String {
+    val mediaKey = mediaId?.let { "${it.sourceId.value}:${it.remoteId}" }
+        ?: "local:${id ?: index}"
+    return "search-track-$index-$mediaKey"
 }
 
-private fun Long?.durationText(): String {
-    val duration = this?.milliseconds ?: return "--:--"
-    val minutes = duration.inWholeMinutes
-    val seconds = duration.inWholeSeconds % 60
-    return "$minutes:${seconds.toString().padStart(2, '0')}"
+private fun durationLabel(durationMs: Long): String {
+    val totalSeconds = durationMs.coerceAtLeast(0L) / 1_000L
+    return "${totalSeconds / 60L}:${(totalSeconds % 60L).toString().padStart(2, '0')}"
 }
-
-private data class SearchCategoryUi(
-    val label: String,
-    val tint: Color,
-    val endTint: Color,
-)
-
-private val fallbackTrendingQueries = listOf(
-    "Luna Waves",
-    "Synthwave",
-    "Midnight Cascade",
-    "Hi-Res",
-    "Ambient",
-)
-
-private val searchCategories = listOf(
-    SearchCategoryUi(
-        label = "Electronic",
-        tint = DesignPalette.Primary,
-        endTint = DesignPalette.Secondary,
-    ),
-    SearchCategoryUi(
-        label = "Ambient",
-        tint = DesignPalette.Secondary,
-        endTint = DesignPalette.SupportBlue,
-    ),
-    SearchCategoryUi(
-        label = "Synthwave",
-        tint = DesignPalette.SupportOrange,
-        endTint = DesignPalette.Primary,
-    ),
-    SearchCategoryUi(
-        label = "Techno",
-        tint = DesignPalette.SupportGreen,
-        endTint = DesignPalette.SupportBlue,
-    ),
-    SearchCategoryUi(
-        label = "IDM",
-        tint = DesignPalette.SupportYellow,
-        endTint = DesignPalette.SupportOrange,
-    ),
-    SearchCategoryUi(
-        label = "Post-Rock",
-        tint = DesignPalette.SupportBlue,
-        endTint = DesignPalette.Secondary,
-    ),
-    SearchCategoryUi(
-        label = "Shoegaze",
-        tint = DesignPalette.Primary,
-        endTint = DesignPalette.SupportOrange,
-    ),
-    SearchCategoryUi(
-        label = "Experimental",
-        tint = DesignPalette.Secondary,
-        endTint = DesignPalette.SupportGreen,
-    ),
-    SearchCategoryUi(
-        label = "Jazz",
-        tint = DesignPalette.Primary,
-        endTint = DesignPalette.Secondary,
-    ),
-    SearchCategoryUi(
-        label = "Classical",
-        tint = DesignPalette.SupportBlue,
-        endTint = DesignPalette.SupportBlue,
-    ),
-)
-
-private val demoTrendingTracks = listOf(
-    SearchTrackItem(id = 1, title = "Midnight Cascade", artist = "Luna Waves · Tidal Drift", durationMs = 222_000, sourceLabel = "Hi-Res"),
-    SearchTrackItem(id = 2, title = "Neon Undertow", artist = "Prism Circuit · Voltage Dreams", durationMs = 258_000, sourceLabel = "Lossless"),
-    SearchTrackItem(id = 3, title = "Silver Tide", artist = "Coastal Drift · Open Water", durationMs = 235_000, sourceLabel = "Library"),
-    SearchTrackItem(id = 4, title = "Aurora Sequence", artist = "Polar Echo · Northern Lights", durationMs = 302_000, sourceLabel = "Dolby Atmos"),
-    SearchTrackItem(id = 5, title = "Depth Protocol", artist = "Ocean Syntax · Subsonic", durationMs = 210_000, sourceLabel = "Library"),
-    SearchTrackItem(id = 6, title = "Glass Architecture", artist = "Fractal Mind · Prism", durationMs = 284_000, sourceLabel = "Lossless"),
-    SearchTrackItem(id = 7, title = "Resonance Fields", artist = "Wave Function · Quantum", durationMs = 195_000, sourceLabel = "Library"),
-    SearchTrackItem(id = 8, title = "Liminal Space", artist = "Threshold · Between", durationMs = 330_000, sourceLabel = "Hi-Res"),
-)
