@@ -19,13 +19,25 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.julystar.musicapp.core.presentation.components.DesignCardSurface
-import io.github.julystar.musicapp.core.presentation.components.LocalDesignBottomContentInset
 import io.github.julystar.musicapp.core.presentation.components.DesignPageHeader
 import io.github.julystar.musicapp.core.presentation.components.DesignStatusCard
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButton
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonSize
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonVariant
+import io.github.julystar.musicapp.core.presentation.components.LocalDesignBottomContentInset
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
+import musicapp.feature.recentlyplayed.generated.resources.Res
+import musicapp.feature.recentlyplayed.generated.resources.recently_played_checking
+import musicapp.feature.recentlyplayed.generated.resources.recently_played_download
+import musicapp.feature.recentlyplayed.generated.resources.recently_played_empty
+import musicapp.feature.recentlyplayed.generated.resources.recently_played_empty_message
+import musicapp.feature.recentlyplayed.generated.resources.recently_played_loading
+import musicapp.feature.recentlyplayed.generated.resources.recently_played_play_all
+import musicapp.feature.recentlyplayed.generated.resources.recently_played_retry
+import musicapp.feature.recentlyplayed.generated.resources.recently_played_title
+import musicapp.feature.recentlyplayed.generated.resources.recently_played_track_count
+import musicapp.feature.recentlyplayed.generated.resources.recently_played_unavailable
+import org.jetbrains.compose.resources.stringResource
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -38,7 +50,6 @@ fun RecentlyPlayedScreen(
     val bottomContentInset = LocalDesignBottomContentInset.current
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val horizontalPadding = if (maxWidth < 600.dp) spacing.pageCompact else spacing.pageExpanded
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -47,25 +58,54 @@ fun RecentlyPlayedScreen(
             verticalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
             DesignPageHeader(
-                title = "Recently Played",
-                subtitle = "${state.tracks.size} tracks",
+                title = stringResource(Res.string.recently_played_title),
+                subtitle = stringResource(Res.string.recently_played_track_count, state.tracks.size),
                 trailing = {
                     if (!state.isLoading && state.tracks.isNotEmpty()) {
-                        DesignTextButton(text = "Play All", variant = DesignTextButtonVariant.PrimaryFilled, size = DesignTextButtonSize.Small, onClick = { onAction(RecentlyPlayedAction.PlayAll) })
+                        DesignTextButton(
+                            text = stringResource(Res.string.recently_played_play_all),
+                            variant = DesignTextButtonVariant.PrimaryFilled,
+                            size = DesignTextButtonSize.Small,
+                            onClick = { onAction(RecentlyPlayedAction.PlayAll) },
+                        )
                     }
                 },
             )
             when {
-                state.isLoading -> DesignStatusCard(title = "Loading recently played", message = "Checking library…", loading = true, modifier = Modifier.weight(1f))
-                state.error != null -> DesignStatusCard(title = "Recently played unavailable", message = state.error, actionText = "Retry", onAction = { onAction(RecentlyPlayedAction.Retry) }, modifier = Modifier.weight(1f))
-                state.tracks.isEmpty() -> DesignStatusCard(title = "No recently played tracks", message = "Play some music first", modifier = Modifier.weight(1f))
+                state.isLoading -> DesignStatusCard(
+                    title = stringResource(Res.string.recently_played_loading),
+                    message = stringResource(Res.string.recently_played_checking),
+                    loading = true,
+                    modifier = Modifier.weight(1f),
+                )
+                state.error != null -> DesignStatusCard(
+                    title = stringResource(Res.string.recently_played_unavailable),
+                    message = stringResource(Res.string.recently_played_checking),
+                    actionText = stringResource(Res.string.recently_played_retry),
+                    onAction = { onAction(RecentlyPlayedAction.Retry) },
+                    modifier = Modifier.weight(1f),
+                )
+                state.tracks.isEmpty() -> DesignStatusCard(
+                    title = stringResource(Res.string.recently_played_empty),
+                    message = stringResource(Res.string.recently_played_empty_message),
+                    modifier = Modifier.weight(1f),
+                )
                 else -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(bottom = spacing.xl + bottomContentInset),
                 ) {
-                    itemsIndexed(state.tracks, key = { index, track -> track.lazyListKey(index) }) { _, track ->
-                        RecentlyPlayedTrackRow(track = track, onPlay = { onAction(RecentlyPlayedAction.PlayTrack(track.id)) }, onDownload = { if (track.canDownload) onAction(RecentlyPlayedAction.DownloadTrack(track)) })
+                    itemsIndexed(
+                        state.tracks,
+                        key = { index, track -> track.lazyListKey(index) },
+                    ) { _, track ->
+                        TrackRow(
+                            track = track,
+                            onPlay = { onAction(RecentlyPlayedAction.PlayTrack(track.id)) },
+                            onDownload = {
+                                if (track.canDownload) onAction(RecentlyPlayedAction.DownloadTrack(track))
+                            },
+                        )
                     }
                 }
             }
@@ -74,15 +114,58 @@ fun RecentlyPlayedScreen(
 }
 
 @Composable
-private fun RecentlyPlayedTrackRow(track: RecentlyPlayedTrackItem, onPlay: () -> Unit, onDownload: () -> Unit) {
-    DesignCardSurface(modifier = Modifier.heightIn(min = 58.dp), contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp), onClick = onPlay) {
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(text = track.title, style = MiuixTheme.textStyles.body1, color = MiuixTheme.colorScheme.onSurface, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                track.artist?.let { Text(text = it, style = MiuixTheme.textStyles.footnote1, color = MiuixTheme.colorScheme.onSurfaceVariantSummary, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+private fun TrackRow(
+    track: RecentlyPlayedTrackItem,
+    onPlay: () -> Unit,
+    onDownload: () -> Unit,
+) {
+    DesignCardSurface(
+        modifier = Modifier.heightIn(min = 58.dp),
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+        onClick = onPlay,
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = track.title,
+                    style = MiuixTheme.textStyles.body1,
+                    color = MiuixTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                track.artist?.let {
+                    Text(
+                        text = it,
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
-            track.durationMs?.let { Text(text = durationLabel(it), style = MiuixTheme.textStyles.footnote1, color = MiuixTheme.colorScheme.onSurfaceVariantSummary) }
-            if (track.canDownload) DesignTextButton(text = "DL", variant = DesignTextButtonVariant.Default, size = DesignTextButtonSize.Small, onClick = onDownload)
+            track.durationMs?.let {
+                Text(
+                    text = durationLabel(it),
+                    style = MiuixTheme.textStyles.footnote1,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                )
+            }
+            if (track.canDownload) {
+                DesignTextButton(
+                    text = stringResource(Res.string.recently_played_download),
+                    variant = DesignTextButtonVariant.Default,
+                    size = DesignTextButtonSize.Small,
+                    onClick = onDownload,
+                )
+            }
         }
     }
 }
