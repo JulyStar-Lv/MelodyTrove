@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="artist_default_title">Artist</string>
+    <string name="artist_loading">Loading artist</string>
+    <string name="artist_unavailable">Artist unavailable</string>
+    <string name="artist_retry">Retry</string>
+    <string name="artist_albums">Albums</string>
+    <string name="artist_release_count">%1$d releases</string>
+    <string name="artist_top_tracks">Top Tracks</string>
+    <string name="artist_song_count">%1$d songs</string>
+    <string name="artist_no_content">No artist content</string>
+    <string name="artist_summary">%1$d albums, %2$d songs</string>
+    <string name="artist_play_all">Play All</string>
+    <string name="artist_download">Download</string>
+</resources>
