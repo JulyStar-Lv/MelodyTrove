@@ -25,6 +25,7 @@ kotlin {
             implementation(project(":core:presentation"))
             implementation(compose.runtime)
             implementation(compose.foundation)
+            implementation(compose.components.resources)
             implementation(libs.miuix.ui)
             implementation(libs.koin.core)
             implementation(libs.koin.compose)

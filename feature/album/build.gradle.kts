@@ -26,6 +26,8 @@ kotlin {
             implementation(project(":core:presentation"))
             implementation(libs.runtime)
             implementation(libs.foundation)
+            // Required by the generated Res accessors used by localized UI.
+            implementation(libs.components.resources)
             implementation(libs.miuix.ui)
             implementation(libs.kotlinx.collections.immutable)
             implementation(libs.koin.core)
