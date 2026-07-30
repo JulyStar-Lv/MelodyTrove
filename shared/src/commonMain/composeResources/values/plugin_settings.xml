@@ -40,4 +40,20 @@
     <string name="plugins_capabilities">Capabilities: %1$s</string>
     <string name="plugins_last_error">Last error: %1$s</string>
     <string name="plugins_choose_option">Choose an option</string>
+
+    <string name="plugins_overview_title">Metadata providers</string>
+    <string name="plugins_overview_summary">Enabled plugins are available for manual lookup. Automatic and batch access can be granted separately.</string>
+    <string name="plugins_installed_label">installed</string>
+    <string name="plugins_enabled_label">enabled</string>
+    <string name="plugins_import_local_zip">Import local ZIP</string>
+    <string name="plugins_import_idle_summary">Archives are validated before an existing version is replaced</string>
+    <string name="plugins_import_selected_summary">Ready to validate and install</string>
+    <string name="plugins_import_installing_summary">Validating archive and plugin manifest…</string>
+    <string name="plugins_import_success_summary">Imported plugin is disabled until you review it</string>
+    <string name="plugins_configuration_section">Configuration</string>
+    <string name="plugins_additional_access">Additional access</string>
+    <string name="plugins_done">Done</string>
+    <string name="plugins_uninstall_named">Uninstall %1$s</string>
+    <string name="plugins_confirm_uninstall_named">Uninstall %1$s?</string>
+    <string name="plugins_remove_data_message">Plugin files, configuration, cache, and private runtime context will be removed from this device.</string>
 </resources>
