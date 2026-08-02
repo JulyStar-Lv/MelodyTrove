@@ -678,7 +678,7 @@ private fun QueueTrackRow(
                 title = item.title,
                 canMoveUp = onMoveUp != null,
                 canMoveDown = onMoveDown != null,
-                enabled = interactionsEnabled,
+                enabled = interactionsEnabled || isDragged,
                 isDragged = isDragged,
                 onMoveUp = onMoveUp,
                 onMoveDown = onMoveDown,
