@@ -51,6 +51,7 @@ jobs:
           add-to-path: false
       - uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: "1.96.0"
           targets: aarch64-linux-android
       - uses: pnpm/action-setup@v4
         with:
