@@ -17,8 +17,35 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  release:
+    name: Prepare GitHub release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Create GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            exit 0
+          fi
+
+          release_args=(
+            release create "$GITHUB_REF_NAME"
+            --repo "$GITHUB_REPOSITORY"
+            --verify-tag
+            --title "$GITHUB_REF_NAME"
+            --generate-notes
+          )
+          if [[ "$GITHUB_REF_NAME" == pre-v* ]]; then
+            release_args+=(--prerelease)
+          fi
+          gh "${release_args[@]}"
+
   android:
     name: Android release
+    needs: release
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -77,15 +104,72 @@ jobs:
         run: pnpm run audit:release
       - uses: actions/upload-artifact@v4
         with:
-          name: apk
+          name: melodytrove-android-${{ github.ref_name }}
           path: artifacts/apk/*.apk
           if-no-files-found: error
-      - name: Upload stable release assets
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: svenstaro/upload-release-action@v2
+      - name: Upload APK to GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" artifacts/apk/*.apk --clobber
+
+  desktop:
+    name: Desktop ${{ matrix.platform }} release
+    needs: release
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macOS
+            runner: macos-14
+            gradle_task: :desktopApp:packageDmg
+            artifact_path: desktopApp/build/compose/binaries/main/dmg/*.dmg
+          - platform: Windows
+            runner: windows-latest
+            gradle_task: :desktopApp:packageMsi
+            artifact_path: desktopApp/build/compose/binaries/main/msi/*.msi
+          - platform: Linux
+            runner: ubuntu-latest
+            gradle_task: :desktopApp:packageDeb
+            artifact_path: desktopApp/build/compose/binaries/main/deb/*.deb
+    steps:
+      - uses: actions/checkout@v7
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: artifacts/apk/*.apk
-          tag: ${{ github.ref }}
-          overwrite: true
-          file_glob: true
+          fetch-depth: 0
+      - name: Resolve app version
+        shell: bash
+        run: |
+          version="${GITHUB_REF_NAME#pre-v}"
+          version="${version#v}"
+          {
+            echo "APP_VERSION_NAME=$version"
+            echo "APP_VERSION_CODE=$GITHUB_RUN_NUMBER"
+          } >> "$GITHUB_ENV"
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: gradle/actions/setup-gradle@v5
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.96.0"
+      - name: Install Linux native dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends libasound2-dev pkg-config
+      - name: Build desktop package
+        shell: bash
+        run: ./gradlew --no-daemon --stacktrace "${{ matrix.gradle_task }}"
+      - name: Audit release artifacts
+        run: node scripts/audit-release.js
+      - uses: actions/upload-artifact@v4
+        with:
+          name: melodytrove-${{ matrix.platform }}-${{ github.ref_name }}
+          path: ${{ matrix.artifact_path }}
+          if-no-files-found: error
+      - name: Upload desktop package to GitHub release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$GITHUB_REF_NAME" ${{ matrix.artifact_path }} --clobber

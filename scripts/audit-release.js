@@ -89,6 +89,8 @@ function auditText(filePath, content) {
   const basename = path.basename(filePath);
   const normalized = filePath.replace(/\\/g, "/");
 
+  // Design/ is a standalone prototype and is not bundled in application artifacts.
+  if (normalized.startsWith("Design/")) return;
   if (normalized.includes("vendor/quickjs-ng")) return;
   if (normalized.includes("build/generated")) return;
   if (normalized.includes("target/")) return;
