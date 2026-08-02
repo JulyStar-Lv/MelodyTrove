@@ -521,6 +521,12 @@ private fun QueueTrackRow(
     val contentColor = if (active) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurface
     val secondaryColor = if (active) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurfaceVariantSummary
     val dividerColor = MiuixTheme.colorScheme.outline.copy(alpha = 0.05f)
+    val rowShape = RoundedCornerShape(12.dp)
+    val rowBackground = if (isDragged) {
+        MiuixTheme.colorScheme.surfaceContainerHigh
+    } else {
+        MiuixTheme.colorScheme.surfaceContainer
+    }
     val subtitle = item.subtitle()
 
     Row(
@@ -531,9 +537,11 @@ private fun QueueTrackRow(
                 scaleX = if (isDragged) 1.01f else 1f
                 scaleY = if (isDragged) 1.01f else 1f
                 shadowElevation = if (isDragged) 8.dp.toPx() else 0f
+                shape = rowShape
             }
             .fillMaxWidth()
             .height(56.dp)
+            .background(color = rowBackground, shape = rowShape)
             .drawBehind {
                 drawLine(
                     color = dividerColor,
