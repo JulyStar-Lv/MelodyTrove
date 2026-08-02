@@ -5,6 +5,7 @@ import androidx.compose.runtime.ProvidedValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import platform.Foundation.NSLocale
 import platform.Foundation.NSUserDefaults
+import platform.Foundation.preferredLanguages
 
 private const val APPLE_LANGUAGES_KEY = "AppleLanguages"
 private val systemLanguageAtStartup: String =
