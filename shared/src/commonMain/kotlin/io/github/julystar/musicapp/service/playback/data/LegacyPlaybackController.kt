@@ -48,6 +48,7 @@ class LegacyPlaybackController(
     private val positionPollMillis: Long = 100,
     private val settingsRepository: SettingsRepository? = null,
 ) : PlaybackController {
+    private val queueOrderKeyManager = QueueOrderKeyManager()
     private val immediatePositionRefreshes = MutableSharedFlow<Unit>(
         extraBufferCapacity = 1,
     )
@@ -229,7 +230,9 @@ class LegacyPlaybackController(
             val currentId = playerRepository.music.value?.meta?.id
             val current = playlist.musics.firstOrNull { it.meta.id == currentId }
             val shuffled = playlist.musics.filterNot { it.meta.id == currentId }.shuffled()
-            playerRepository.replacePlaybackQueue(listOfNotNull(current) + shuffled)
+            playerRepository.replacePlaybackQueue(
+                queueOrderKeyManager.rebalance(listOfNotNull(current) + shuffled),
+            )
         }
     }
 
@@ -240,10 +243,14 @@ class LegacyPlaybackController(
     }
 
     override fun moveQueueItem(from: Int, to: Int) {
-        val musics = playerRepository.playlist.value?.musics?.toMutableList() ?: return
-        if (from !in musics.indices || to !in musics.indices || from == to) return
-        musics.add(to, musics.removeAt(from))
-        playerRepository.replacePlaybackQueue(musics)
+        val playlist = playerRepository.playlist.value ?: return
+        val reordered = queueOrderKeyManager.move(
+            items = playlist.musics,
+            fromIndex = from,
+            toIndex = to,
+        )
+        if (reordered == playlist.musics) return
+        playerRepository.replacePlaybackQueue(reordered)
     }
 
     override fun removeQueueItem(index: Int) {

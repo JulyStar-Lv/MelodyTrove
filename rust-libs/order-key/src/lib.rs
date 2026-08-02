@@ -4,6 +4,10 @@ pub use crate::ipl::OrderKeyRef;
 mod error;
 mod ipl;
 
+/// A queue key with more than this many segments is rebalanced before another
+/// insertion. This bounds growth during repeated moves into a tight interval.
+pub const MAX_SEGMENTS: usize = 8;
+
 #[derive(Debug, Clone)]
 pub struct OrderKey {
     value: Vec<u32>,
@@ -49,7 +53,19 @@ impl<'a> From<&'a OrderKey> for OrderKeyRef<'a> {
 
 impl OrderKey {
     pub fn wrap(value: Vec<u32>) -> Self {
-        Self { value }
+        Self {
+            value: Self::normalize_raw(value),
+        }
+    }
+
+    /// Parses a persisted key. Empty keys are invalid for a queue entry; a
+    /// trailing-zero representation is canonicalized before use.
+    pub fn try_from_raw(value: Vec<u32>) -> Result<Self, OrderKeyError> {
+        let value = Self::normalize_raw(value);
+        if value.is_empty() {
+            return Err(OrderKeyError::Invalid { l: value });
+        }
+        Ok(Self { value })
     }
 
     #[allow(dead_code)]
@@ -87,11 +103,62 @@ impl OrderKey {
     pub fn into_raw(self) -> Vec<u32> {
         self.value
     }
+
+    pub fn exceeds_max_segments(&self) -> bool {
+        self.value.len() > MAX_SEGMENTS
+    }
+
+    pub fn is_strictly_increasing(values: &[OrderKey]) -> bool {
+        values.windows(2).all(|pair| pair[0] < pair[1])
+    }
+
+    /// Produces evenly-spaced, canonical one-segment keys with room at both
+    /// ends for future insertions.
+    pub fn rebalance(count: usize) -> Result<Vec<Self>, OrderKeyError> {
+        if count == 0 {
+            return Ok(Vec::new());
+        }
+        if count >= u32::MAX as usize {
+            return Err(OrderKeyError::RebalanceCountTooLarge { count });
+        }
+
+        let max = u32::MAX as u128;
+        let denominator = count as u128 + 1;
+        Ok((0..count)
+            .map(|index| Self {
+                value: vec![(((index as u128 + 1) * max) / denominator) as u32],
+            })
+            .collect())
+    }
+
+    /// Returns true when persisted keys cannot safely receive another local
+    /// insertion without normalizing the complete queue first.
+    pub fn needs_rebalance(values: &[Vec<u32>]) -> bool {
+        let mut parsed = Vec::with_capacity(values.len());
+        for value in values {
+            let normalized = Self::normalize_raw(value.clone());
+            if normalized.is_empty() || normalized != *value || normalized.len() > MAX_SEGMENTS {
+                return true;
+            }
+            let Ok(key) = Self::try_from_raw(normalized) else {
+                return true;
+            };
+            parsed.push(key);
+        }
+        !Self::is_strictly_increasing(&parsed)
+    }
+
+    fn normalize_raw(mut value: Vec<u32>) -> Vec<u32> {
+        while value.last() == Some(&0) {
+            value.pop();
+        }
+        value
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::OrderKey;
+    use crate::{MAX_SEGMENTS, OrderKey};
 
     #[test]
     fn test_1() {
@@ -200,12 +267,25 @@ mod tests {
     }
 
     #[test]
-    fn test_equal_keys() {
+    fn equal_keys_are_rejected() {
         let a = OrderKey::wrap(vec![5, 10]);
         let b = OrderKey::wrap(vec![5, 10]);
 
-        let m = OrderKey::between(&a, &b).unwrap();
-        assert!(a <= m && m <= b);
+        assert!(matches!(
+            OrderKey::between(&a, &b),
+            Err(crate::OrderKeyError::Equal { .. })
+        ));
+    }
+
+    #[test]
+    fn reversed_keys_are_rejected() {
+        let left = OrderKey::wrap(vec![9]);
+        let right = OrderKey::wrap(vec![3]);
+
+        assert!(matches!(
+            OrderKey::between(&left, &right),
+            Err(crate::OrderKeyError::LhsLess { .. })
+        ));
     }
 
     #[test]
@@ -328,5 +408,49 @@ mod tests {
         let key = OrderKey::wrap(raw_vec.clone());
         let recovered = key.into_raw();
         assert_eq!(raw_vec, recovered);
+    }
+
+    #[test]
+    fn normalizes_trailing_zeroes_when_parsing_persisted_keys() {
+        let key = OrderKey::try_from_raw(vec![7, 0, 0]).unwrap();
+        assert_eq!(key.into_raw(), vec![7]);
+        assert!(OrderKey::try_from_raw(vec![0, 0]).is_err());
+    }
+
+    #[test]
+    fn rebalance_returns_strictly_increasing_keys_with_head_and_tail_room() {
+        let keys = OrderKey::rebalance(3).unwrap();
+        assert_eq!(keys.len(), 3);
+        assert!(OrderKey::is_strictly_increasing(&keys));
+        assert!(OrderKey::less(&keys[0]).is_ok());
+        assert!(
+            keys.last()
+                .is_some_and(|last| OrderKey::greater(last) > *last)
+        );
+    }
+
+    #[test]
+    fn rebalance_handles_empty_and_single_entry_queues() {
+        assert!(OrderKey::rebalance(0).unwrap().is_empty());
+        assert_eq!(OrderKey::rebalance(1).unwrap(), vec![OrderKey::default()]);
+    }
+
+    #[test]
+    fn repeated_middle_insertions_stay_strictly_between_their_boundaries() {
+        let left = OrderKey::wrap(vec![0]);
+        let mut right = OrderKey::wrap(vec![1]);
+
+        for _ in 0..32 {
+            right = OrderKey::between(&left, &right).unwrap();
+            assert!(left < right);
+        }
+    }
+
+    #[test]
+    fn detects_invalid_duplicate_and_overlong_key_sequences() {
+        assert!(OrderKey::needs_rebalance(&[vec![], vec![2]]));
+        assert!(OrderKey::needs_rebalance(&[vec![1], vec![1]]));
+        assert!(OrderKey::needs_rebalance(&[vec![1; MAX_SEGMENTS + 1]]));
+        assert!(!OrderKey::needs_rebalance(&[vec![1], vec![2]]));
     }
 }

@@ -15,6 +15,9 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -51,11 +54,23 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButton
@@ -84,6 +99,9 @@ import musicapp.feature.queue.generated.resources.queue_clear
 import musicapp.feature.queue.generated.resources.queue_empty
 import musicapp.feature.queue.generated.resources.queue_locate_current
 import musicapp.feature.queue.generated.resources.queue_more_actions
+import musicapp.feature.queue.generated.resources.queue_move_down
+import musicapp.feature.queue.generated.resources.queue_move_up
+import musicapp.feature.queue.generated.resources.queue_reorder_item
 import musicapp.feature.queue.generated.resources.queue_remove_favorite
 import musicapp.feature.queue.generated.resources.queue_remove_item
 import musicapp.feature.queue.generated.resources.queue_title
@@ -103,6 +121,7 @@ private val NowPlayingColumnsGap = 34.dp
 private const val NowPlayingLyricsWeight = 0.54f
 private const val QueueEnterDurationMillis = 240
 private const val QueueExitDurationMillis = 180
+private const val QueueDragAutoScrollIntervalMillis = 16L
 
 /** Matches the maintained Design player breakpoints for the queue surface. */
 internal fun isQueueSideDialog(maxWidth: androidx.compose.ui.unit.Dp, maxHeight: androidx.compose.ui.unit.Dp): Boolean =
@@ -127,12 +146,23 @@ fun QueueDialog(
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    val autoScrollEdgePx = with(density) { 48.dp.toPx() }
+    val autoScrollStepPx = with(density) { 8.dp.toPx() }
+    var displayItems: List<QueueItemUi> by remember { mutableStateOf(state.items) }
+    var dragState by remember { mutableStateOf<QueueDragState?>(null) }
     val hasCurrentItem = state.currentIndex in state.items.indices
     var contentVisible by remember { mutableStateOf(false) }
     var dismissing by remember { mutableStateOf(false) }
 
+    fun cancelDrag() {
+        dragState = null
+        displayItems = state.items
+    }
+
     fun requestDismiss() {
         if (dismissing) return
+        cancelDrag()
         dismissing = true
         contentVisible = false
         coroutineScope.launch {
@@ -143,6 +173,19 @@ fun QueueDialog(
 
     LaunchedEffect(Unit) {
         contentVisible = true
+    }
+
+    LaunchedEffect(state.items) {
+        if (dragState != null) dragState = null
+        displayItems = state.items
+    }
+
+    LaunchedEffect(dragState?.originalIndex) {
+        while (dragState != null) {
+            val scrollDelta = dragState?.autoScrollDelta ?: 0f
+            if (scrollDelta != 0f) listState.scrollBy(scrollDelta)
+            delay(QueueDragAutoScrollIntervalMillis)
+        }
     }
 
     Dialog(
@@ -265,7 +308,10 @@ fun QueueDialog(
                                 listState.animateScrollToItem(state.currentIndex)
                             }
                         },
-                        onClear = { onAction(QueueAction.ClearQueue) },
+                        onClear = {
+                            cancelDrag()
+                            onAction(QueueAction.ClearQueue)
+                        },
                     )
 
                     if (state.items.isEmpty()) {
@@ -279,20 +325,98 @@ fun QueueDialog(
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
                         ) {
                             itemsIndexed(
-                                items = state.items,
-                                key = { index, item -> item.lazyListKey(index) },
-                            ) { index, item ->
+                                items = displayItems,
+                                key = { _, item -> item.lazyListKey() },
+                            ) { visualIndex, item ->
+                                val activeDrag = dragState
                                 QueueTrackRow(
                                     item = item,
-                                    position = index + 1,
+                                    position = visualIndex + 1,
                                     active = item.isCurrent && state.isPlaying,
+                                    interactionsEnabled = activeDrag == null,
+                                    isDragged = activeDrag?.originalIndex == item.index,
+                                    dragOffsetY = activeDrag?.takeIf {
+                                        it.originalIndex == item.index
+                                    }?.offsetY ?: 0f,
                                     onClick = { onAction(QueueAction.PlayItem(item.index)) },
                                     onToggleFavorite = {
                                         item.trackId?.let { trackId ->
                                             onAction(QueueAction.ToggleFavorite(trackId))
                                         }
                                     },
-                                    onRemove = { onAction(QueueAction.RemoveItem(item.index)) },
+                                    onRemove = {
+                                        cancelDrag()
+                                        onAction(QueueAction.RemoveItem(item.index))
+                                    },
+                                    onMoveUp = if (visualIndex > 0) {
+                                        { onAction(QueueAction.MoveItem(item.index, visualIndex - 1)) }
+                                    } else {
+                                        null
+                                    },
+                                    onMoveDown = if (visualIndex < displayItems.lastIndex) {
+                                        { onAction(QueueAction.MoveItem(item.index, visualIndex + 1)) }
+                                    } else {
+                                        null
+                                    },
+                                    onDragStart = {
+                                        if (dragState == null) {
+                                            dragState = QueueDragState(
+                                                originalIndex = item.index,
+                                                currentIndex = visualIndex,
+                                            )
+                                        }
+                                    },
+                                    onDrag = onDrag@{ dragAmount ->
+                                        val drag = dragState ?: return@onDrag
+                                        val visibleItems = listState.layoutInfo.visibleItemsInfo
+                                        val draggedItem = visibleItems.firstOrNull {
+                                            it.index == drag.currentIndex
+                                        } ?: return@onDrag
+                                        val nextOffset = drag.offsetY + dragAmount
+                                        val draggedCenter =
+                                            draggedItem.offset + nextOffset + draggedItem.size / 2f
+                                        val target = visibleItems.firstOrNull { visibleItem ->
+                                            visibleItem.index != drag.currentIndex &&
+                                                draggedCenter >= visibleItem.offset &&
+                                                draggedCenter <= visibleItem.offset + visibleItem.size
+                                        }
+                                        val viewport = listState.layoutInfo
+                                        val autoScrollDelta = when {
+                                            draggedCenter < viewport.viewportStartOffset + autoScrollEdgePx -> -autoScrollStepPx
+                                            draggedCenter > viewport.viewportEndOffset - autoScrollEdgePx -> autoScrollStepPx
+                                            else -> 0f
+                                        }
+                                        if (target == null) {
+                                            dragState = drag.copy(
+                                                offsetY = nextOffset,
+                                                autoScrollDelta = autoScrollDelta,
+                                            )
+                                        } else {
+                                            displayItems = displayItems.move(
+                                                fromIndex = drag.currentIndex,
+                                                toIndex = target.index,
+                                            )
+                                            dragState = drag.copy(
+                                                currentIndex = target.index,
+                                                offsetY = nextOffset + draggedItem.offset - target.offset,
+                                                autoScrollDelta = autoScrollDelta,
+                                            )
+                                        }
+                                    },
+                                    onDragEnd = {
+                                        val finishedDrag = dragState ?: return@QueueTrackRow
+                                        dragState = null
+                                        displayItems = state.items
+                                        if (finishedDrag.originalIndex != finishedDrag.currentIndex) {
+                                            onAction(
+                                                QueueAction.MoveItem(
+                                                    fromIndex = finishedDrag.originalIndex,
+                                                    toIndex = finishedDrag.currentIndex,
+                                                ),
+                                            )
+                                        }
+                                    },
+                                    onDragCancel = ::cancelDrag,
                                 )
                             }
                         }
@@ -379,9 +503,18 @@ private fun QueueTrackRow(
     item: QueueItemUi,
     position: Int,
     active: Boolean,
+    interactionsEnabled: Boolean,
+    isDragged: Boolean,
+    dragOffsetY: Float,
     onClick: () -> Unit,
     onToggleFavorite: () -> Unit,
     onRemove: () -> Unit,
+    onMoveUp: (() -> Unit)?,
+    onMoveDown: (() -> Unit)?,
+    onDragStart: () -> Unit,
+    onDrag: (Float) -> Unit,
+    onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit,
 ) {
     var moreMenuExpanded by remember { mutableStateOf(false) }
     val contentColor = if (active) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurface
@@ -391,6 +524,13 @@ private fun QueueTrackRow(
 
     Row(
         modifier = Modifier
+            .zIndex(if (isDragged) 1f else 0f)
+            .graphicsLayer {
+                translationY = dragOffsetY
+                scaleX = if (isDragged) 1.01f else 1f
+                scaleY = if (isDragged) 1.01f else 1f
+                shadowElevation = if (isDragged) 8.dp.toPx() else 0f
+            }
             .fillMaxWidth()
             .height(56.dp)
             .drawBehind {
@@ -409,7 +549,7 @@ private fun QueueTrackRow(
                 .weight(1f)
                 .fillMaxHeight()
                 .clip(RoundedCornerShape(2.dp))
-                .clickable(onClick = onClick),
+                .clickable(enabled = interactionsEnabled, onClick = onClick),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -461,7 +601,7 @@ private fun QueueTrackRow(
             }
         }
         Row(
-            modifier = Modifier.width(64.dp),
+            modifier = Modifier.width(104.dp),
             horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -470,7 +610,7 @@ private fun QueueTrackRow(
                     .size(32.dp)
                     .clip(CircleShape)
                     .clickable(
-                        enabled = item.trackId != null,
+                        enabled = interactionsEnabled && item.trackId != null,
                         onClick = onToggleFavorite,
                     ),
                 contentAlignment = Alignment.Center,
@@ -504,7 +644,7 @@ private fun QueueTrackRow(
                     modifier = Modifier
                         .size(32.dp)
                         .clip(CircleShape)
-                        .clickable { moreMenuExpanded = true },
+                        .clickable(enabled = interactionsEnabled) { moreMenuExpanded = true },
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
@@ -533,7 +673,103 @@ private fun QueueTrackRow(
                     ),
                 )
             }
+            QueueDragHandle(
+                title = item.title,
+                canMoveUp = onMoveUp != null,
+                canMoveDown = onMoveDown != null,
+                enabled = interactionsEnabled,
+                isDragged = isDragged,
+                onMoveUp = onMoveUp,
+                onMoveDown = onMoveDown,
+                onDragStart = onDragStart,
+                onDrag = onDrag,
+                onDragEnd = onDragEnd,
+                onDragCancel = onDragCancel,
+            )
         }
+    }
+}
+
+@Composable
+private fun QueueDragHandle(
+    title: String,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean,
+    enabled: Boolean,
+    isDragged: Boolean,
+    onMoveUp: (() -> Unit)?,
+    onMoveDown: (() -> Unit)?,
+    onDragStart: () -> Unit,
+    onDrag: (Float) -> Unit,
+    onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit,
+) {
+    val reorderLabel = stringResource(QueueRes.string.queue_reorder_item, title)
+    val moveUpLabel = stringResource(QueueRes.string.queue_move_up)
+    val moveDownLabel = stringResource(QueueRes.string.queue_move_down)
+    val tint = if (isDragged) {
+        MiuixTheme.colorScheme.primary
+    } else {
+        MiuixTheme.colorScheme.onSurfaceVariantSummary
+    }
+    val accessibilityActions = buildList {
+        if (canMoveUp) {
+            add(
+                CustomAccessibilityAction(moveUpLabel) {
+                    onMoveUp?.invoke()
+                    true
+                },
+            )
+        }
+        if (canMoveDown) {
+            add(
+                CustomAccessibilityAction(moveDownLabel) {
+                    onMoveDown?.invoke()
+                    true
+                },
+            )
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .focusable(enabled = enabled)
+            .onPreviewKeyEvent { event ->
+                if (event.type != KeyEventType.KeyDown || !enabled) {
+                    false
+                } else {
+                    when (event.key) {
+                        Key.DirectionUp -> onMoveUp?.let { action -> action(); true } ?: false
+                        Key.DirectionDown -> onMoveDown?.let { action -> action(); true } ?: false
+                        else -> false
+                    }
+                }
+            }
+            .semantics {
+                contentDescription = reorderLabel
+                customActions = accessibilityActions
+            }
+            .pointerInput(enabled) {
+                if (!enabled) return@pointerInput
+                detectDragGestures(
+                    onDragStart = { onDragStart() },
+                    onDragEnd = onDragEnd,
+                    onDragCancel = onDragCancel,
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        onDrag(dragAmount.y)
+                    },
+                )
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painter = painterResource(CoreRes.drawable.icon_mode_list),
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(18.dp),
+        )
     }
 }
 
@@ -604,4 +840,16 @@ private fun QueueEmptyState(modifier: Modifier = Modifier) {
     }
 }
 
-internal fun QueueItemUi.lazyListKey(index: Int): String = "queue-item-$index-${this.index}"
+private data class QueueDragState(
+    val originalIndex: Int,
+    val currentIndex: Int,
+    val offsetY: Float = 0f,
+    val autoScrollDelta: Float = 0f,
+)
+
+private fun <T> List<T>.move(fromIndex: Int, toIndex: Int): List<T> {
+    if (fromIndex !in indices || toIndex !in indices || fromIndex == toIndex) return this
+    return toMutableList().apply { add(toIndex, removeAt(fromIndex)) }
+}
+
+internal fun QueueItemUi.lazyListKey(): String = "queue-item-$index"

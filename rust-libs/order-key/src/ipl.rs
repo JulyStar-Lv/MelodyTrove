@@ -109,6 +109,12 @@ impl<'a> OrderKeyRef<'a> {
                 r: b.value.to_vec(),
             });
         }
+        if cmp == Ordering::Equal {
+            return Err(OrderKeyError::Equal {
+                l: a.value.to_vec(),
+                r: b.value.to_vec(),
+            });
+        }
 
         let mut fill = LeftFill::None;
         let max_len = a.value.len().max(b.value.len());

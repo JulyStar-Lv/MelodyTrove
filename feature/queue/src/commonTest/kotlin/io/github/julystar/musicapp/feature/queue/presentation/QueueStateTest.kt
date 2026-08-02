@@ -62,13 +62,16 @@ class QueueStateTest {
     fun `row actions carry track and queue indices`() {
         assertEquals(42L, QueueAction.ToggleFavorite(42L).trackId)
         assertEquals(3, QueueAction.RemoveItem(3).index)
+        assertEquals(1, QueueAction.MoveItem(fromIndex = 1, toIndex = 3).fromIndex)
+        assertEquals(3, QueueAction.MoveItem(fromIndex = 1, toIndex = 3).toIndex)
     }
 
     @Test
-    fun `row keys stay unique when queue indices repeat`() {
+    fun `row key follows the queue entry rather than its visual position`() {
         val item = QueueItemUi(index = 3, title = "T", artist = null, isCurrent = false)
 
-        assertNotEquals(item.lazyListKey(0), item.copy(title = "T2").lazyListKey(1))
+        assertEquals(item.lazyListKey(), item.copy(title = "T2").lazyListKey())
+        assertNotEquals(item.lazyListKey(), item.copy(index = 4).lazyListKey())
     }
 
     @Test

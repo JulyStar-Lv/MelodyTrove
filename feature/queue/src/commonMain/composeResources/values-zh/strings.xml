@@ -7,4 +7,7 @@
     <string name="queue_remove_favorite">将%1$s从喜欢中移除</string>
     <string name="queue_more_actions">%1$s的更多操作</string>
     <string name="queue_remove_item">从播放列表移除</string>
+    <string name="queue_reorder_item">调整%1$s的顺序</string>
+    <string name="queue_move_up">上移</string>
+    <string name="queue_move_down">下移</string>
 </resources>

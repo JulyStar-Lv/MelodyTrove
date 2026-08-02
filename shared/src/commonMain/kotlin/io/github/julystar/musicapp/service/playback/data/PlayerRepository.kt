@@ -49,6 +49,7 @@ class PlayerRepository(
     private val statisticsRepository: HomeStatisticsRepository? = null,
     private val lyricsEnricher: PlaybackLyricsEnricher? = null,
 ) {
+    private val queueOrderKeyManager = QueueOrderKeyManager()
     private val _music = MutableStateFlow(null as Music?)
     private val _playlist = MutableStateFlow(null as Playlist?)
     private val _playing = MutableStateFlow(false)
@@ -314,15 +315,19 @@ class PlayerRepository(
 
     fun replacePlaybackQueue(musics: List<MusicAbstract>) {
         val playlist = _playlist.value ?: return
+        val normalizedMusics = queueOrderKeyManager.normalize(musics)
         _playlist.value = playlist.copy(
-            abstr = playlist.abstr.copy(musicCount = musics.size.toULong()),
-            musics = musics,
+            abstr = playlist.abstr.copy(musicCount = normalizedMusics.size.toULong()),
+            musics = normalizedMusics,
         )
     }
 
     suspend fun restorePlaybackQueueOrder() {
         val playlistId = _playlist.value?.abstr?.meta?.id ?: return
-        _playlist.value = roomLibraryStore.getPlaylist(playlistId)
+        val playlist = roomLibraryStore.getPlaylist(playlistId) ?: return
+        _playlist.value = playlist.copy(
+            musics = queueOrderKeyManager.normalize(playlist.musics),
+        )
     }
 
     fun updateDuration(id: MusicId, durationMs: Long) {

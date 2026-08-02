@@ -7,4 +7,7 @@
     <string name="queue_remove_favorite">Remove %1$s from favorites</string>
     <string name="queue_more_actions">More actions for %1$s</string>
     <string name="queue_remove_item">Remove from queue</string>
+    <string name="queue_reorder_item">Reorder %1$s</string>
+    <string name="queue_move_up">Move up</string>
+    <string name="queue_move_down">Move down</string>
 </resources>

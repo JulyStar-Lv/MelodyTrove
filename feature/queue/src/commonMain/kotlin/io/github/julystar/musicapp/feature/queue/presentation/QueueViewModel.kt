@@ -67,6 +67,18 @@ class QueueViewModel(
                     favoritesRepository.toggleFavorite(action.trackId)
                 }
             }
+            is QueueAction.MoveItem -> {
+                if (
+                    action.fromIndex in cachedItems.indices &&
+                    action.toIndex in cachedItems.indices &&
+                    action.fromIndex != action.toIndex
+                ) {
+                    playbackController.moveQueueItem(
+                        from = action.fromIndex,
+                        to = action.toIndex,
+                    )
+                }
+            }
             is QueueAction.RemoveItem -> playbackController.removeQueueItem(action.index)
             QueueAction.ClearQueue -> playbackController.clearQueue()
         }

@@ -19,6 +19,33 @@ class PlaybackQueueTest {
     }
 
     @Test
+    fun movingTheCurrentItemKeepsItsIdentityAtTheDestination() {
+        val queue = PlaybackQueue(
+            items = listOf(item(1), item(2), item(3)),
+            currentIndex = 1,
+        )
+
+        val moved = queue.moveItem(from = 1, to = 2)
+
+        assertEquals(listOf(1L, 3L, 2L), moved.items.map { it.libraryTrackId })
+        assertEquals(2, moved.currentIndex)
+        assertEquals(2L, moved.currentItem?.libraryTrackId)
+    }
+
+    @Test
+    fun movingAnItemAfterCurrentDoesNotChangeCurrentIndex() {
+        val queue = PlaybackQueue(
+            items = listOf(item(1), item(2), item(3), item(4)),
+            currentIndex = 1,
+        )
+
+        val moved = queue.moveItem(from = 3, to = 2)
+
+        assertEquals(1, moved.currentIndex)
+        assertEquals(2L, moved.currentItem?.libraryTrackId)
+    }
+
+    @Test
     fun removingItemBeforeCurrentShiftsCurrentIndex() {
         val queue = PlaybackQueue(
             items = listOf(item(1), item(2), item(3)),
