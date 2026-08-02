@@ -1,11 +1,15 @@
 package io.github.julystar.musicapp.service.playback.presentation.nowplaying
 
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
@@ -20,6 +24,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -27,8 +32,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -46,6 +53,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -83,11 +91,18 @@ import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import io.github.julystar.musicapp.core.utils.toMusicDurationMs
 import io.github.julystar.musicapp.service.playback.domain.RepeatMode
 import io.github.julystar.musicapp.service.playback.presentation.transition.playerArtworkSharedElement
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.math.abs
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import musicapp.core.presentation.generated.resources.Res as CoreRes
+import musicapp.core.presentation.generated.resources.icon_deleteseep
+import musicapp.core.presentation.generated.resources.icon_download
+import musicapp.core.presentation.generated.resources.icon_search
+import musicapp.core.presentation.generated.resources.icon_settings_sliders
 import musicapp.service.playback.presentation.generated.resources.Res
 import musicapp.service.playback.presentation.generated.resources.downloads_title
 import musicapp.service.playback.presentation.generated.resources.icon_back
@@ -103,6 +118,7 @@ import musicapp.service.playback.presentation.generated.resources.icon_transport
 import musicapp.service.playback.presentation.generated.resources.icon_transport_repeat
 import musicapp.service.playback.presentation.generated.resources.icon_transport_repeat_one
 import musicapp.service.playback.presentation.generated.resources.icon_transport_shuffle
+import musicapp.core.presentation.generated.resources.icon_timelapse
 import musicapp.service.playback.presentation.generated.resources.icon_vertialcal_more
 import musicapp.service.playback.presentation.generated.resources.music_lyric_add
 import musicapp.service.playback.presentation.generated.resources.music_lyric_fail
@@ -133,6 +149,19 @@ import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 private val DesktopPlayerBreakpoint = 860.dp
+private const val NowPlayingDismissDistanceFraction = 0.5f
+private val NowPlayingDismissVelocityThreshold = 900.dp
+
+@Composable
+private fun NowPlayingDismissGestureArea(
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(44.dp),
+    )
+}
 
 // ── Player Header ──
 
@@ -208,6 +237,7 @@ private fun NowPlayingMoreButton(
                 items = listOfNotNull(
                     DesignContextMenuItem(
                         label = Res.string.music_player_search_metadata,
+                        icon = CoreRes.drawable.icon_search,
                         onClick = {
                             moreMenuExpanded = false
                             onAction(NowPlayingAction.SearchMetadata)
@@ -216,6 +246,7 @@ private fun NowPlayingMoreButton(
                     if (nowPlayingState.externalEditorSupported) {
                         DesignContextMenuItem(
                             label = Res.string.music_player_edit_metadata,
+                            icon = CoreRes.drawable.icon_settings_sliders,
                             onClick = {
                                 moreMenuExpanded = false
                                 onAction(NowPlayingAction.OpenMetadataEditor)
@@ -225,6 +256,7 @@ private fun NowPlayingMoreButton(
                     if (nowPlayingState.externalEditorSupported) {
                         DesignContextMenuItem(
                             label = Res.string.music_player_edit_lyric_timing,
+                            icon = CoreRes.drawable.icon_timelapse,
                             onClick = {
                                 moreMenuExpanded = false
                                 onAction(NowPlayingAction.OpenLyricTimingEditor)
@@ -234,6 +266,7 @@ private fun NowPlayingMoreButton(
                     if (hasLyric) {
                         DesignContextMenuItem(
                             label = Res.string.music_lyric_remove,
+                            icon = CoreRes.drawable.icon_deleteseep,
                             onClick = {
                                 moreMenuExpanded = false
                                 onAction(NowPlayingAction.RemoveLyric)
@@ -242,6 +275,7 @@ private fun NowPlayingMoreButton(
                     } else {
                         DesignContextMenuItem(
                             label = Res.string.music_lyric_add,
+                            icon = Res.drawable.icon_lyrics,
                             onClick = {
                                 moreMenuExpanded = false
                                 onAction(NowPlayingAction.AddLyric)
@@ -251,6 +285,7 @@ private fun NowPlayingMoreButton(
                     if (nowPlayingState.currentTrack?.canDownload == true) {
                         DesignContextMenuItem(
                             label = Res.string.downloads_title,
+                            icon = CoreRes.drawable.icon_download,
                             onClick = {
                                 moreMenuExpanded = false
                                 onAction(NowPlayingAction.DownloadCurrentTrack)
@@ -259,6 +294,7 @@ private fun NowPlayingMoreButton(
                     } else null,
                     DesignContextMenuItem(
                         label = Res.string.music_player_context_menu_remove,
+                        icon = CoreRes.drawable.icon_deleteseep,
                         isError = true,
                         onClick = {
                             moreMenuExpanded = false
@@ -676,7 +712,8 @@ private fun CompactTransportButton(
     ) {
         Box(
             modifier = Modifier
-                .size(buttonSize)
+                .sizeIn(maxWidth = buttonSize, maxHeight = buttonSize)
+                .aspectRatio(1f)
                 .then(
                     if (background.alpha > 0f) {
                         Modifier.shadow(
@@ -1128,7 +1165,7 @@ private fun CompactLyricsSurface(
                     useBlurEffect = lyricDisplaySettings.blurEffectEnabled,
                     tapToSeekEnabled = true,
                     verticalContentPaddingFraction = 0.04f,
-                    lineHorizontalPadding = 8.dp,
+                    lineHorizontalPadding = if (dense) 0.dp else 8.dp,
                     lineVerticalPadding = if (dense) 1.dp else 2.dp,
                     modifier = Modifier.fillMaxSize(),
                 )
@@ -1149,7 +1186,10 @@ private fun CompactLyricsStatus(
             fontSize = if (dense) 16.sp else 17.sp,
             lineHeight = if (dense) 22.sp else 24.sp,
         ),
-        modifier = Modifier.padding(horizontal = 8.dp, vertical = if (dense) 4.dp else 12.dp),
+        modifier = Modifier.padding(
+            horizontal = if (dense) 0.dp else 8.dp,
+            vertical = if (dense) 4.dp else 12.dp,
+        ),
     )
 }
 
@@ -1257,12 +1297,39 @@ private fun CompactLandscapeNowPlayingLayout(
         )
 
         Row(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .width(artworkColumnWidth)
+                    .height(stageHeight)
+                    .align(Alignment.CenterVertically)
+                    .padding(start = 40.dp, end = 20.dp),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                CoverImage(
+                    artwork = track?.artwork,
+                    modifier = Modifier.size(stageHeight),
+                    maxArtworkSize = 340.dp,
+                    cornerRadius = 18.dp,
+                    shadowOffsetY = 16.dp,
+                    shadowBlurRadius = 42.dp,
+                    borderWidth = 1.dp,
+                    borderColor = Color.White.copy(alpha = 0.10f),
+                    swipeEnabled = playerInteractionSettings.coverSwipeEnabled,
+                    onSwipePrevious = {
+                        if (state.queue.canPlayPrevious) onAction(NowPlayingAction.PlayPrevious)
+                    },
+                    onSwipeNext = {
+                        if (state.queue.canPlayNext) onAction(NowPlayingAction.PlayNext)
+                    },
+                )
+            }
+
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .height(stageHeight)
                     .align(Alignment.CenterVertically)
-                    .padding(start = 40.dp, end = 8.dp),
+                    .padding(start = 8.dp, end = 40.dp),
             ) {
                 TrackRow(
                     state = state,
@@ -1292,32 +1359,6 @@ private fun CompactLandscapeNowPlayingLayout(
                     nowPlayingState = state,
                     onAction = onAction,
                     dense = true,
-                )
-            }
-
-            Box(
-                modifier = Modifier
-                    .width(artworkColumnWidth)
-                    .fillMaxHeight()
-                    .padding(start = 20.dp, end = 87.dp),
-                contentAlignment = Alignment.CenterEnd,
-            ) {
-                CoverImage(
-                    artwork = track?.artwork,
-                    modifier = Modifier.size(stageHeight),
-                    maxArtworkSize = 340.dp,
-                    cornerRadius = 18.dp,
-                    shadowOffsetY = 16.dp,
-                    shadowBlurRadius = 42.dp,
-                    borderWidth = 1.dp,
-                    borderColor = Color.White.copy(alpha = 0.10f),
-                    swipeEnabled = playerInteractionSettings.coverSwipeEnabled,
-                    onSwipePrevious = {
-                        if (state.queue.canPlayPrevious) onAction(NowPlayingAction.PlayPrevious)
-                    },
-                    onSwipeNext = {
-                        if (state.queue.canPlayNext) onAction(NowPlayingAction.PlayNext)
-                    },
                 )
             }
         }
@@ -1385,18 +1426,32 @@ fun NowPlayingScreen(
 ) {
     val currentTrack = state.currentTrack
     val titleBarInset = LocalDesktopTitleBarInset.current
+    val density = LocalDensity.current
+    val dragAnimationScope = rememberCoroutineScope()
+    var dragOffsetPx by remember { mutableFloatStateOf(0f) }
+    var dragAnimationJob by remember { mutableStateOf<Job?>(null) }
 
     Box(
         modifier = modifier
             .clipToBounds()
             .fillMaxSize(),
     ) {
-        NowPlayingBackground(artwork = currentTrack?.artwork)
+        ImmersivePlayerBackground(artwork = currentTrack?.artwork)
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = titleBarInset),
+                .padding(top = titleBarInset)
+                .graphicsLayer {
+                    translationY = dragOffsetPx
+                },
         ) {
+            val viewportHeightPx = with(density) { maxHeight.toPx() }
+            val dismissVelocityPxPerSecond =
+                with(density) { NowPlayingDismissVelocityThreshold.toPx() }
+            val indicatorDraggableState = rememberDraggableState { deltaPx ->
+                dragOffsetPx = (dragOffsetPx + deltaPx).coerceIn(0f, viewportHeightPx)
+            }
+
             if (maxWidth >= DesktopPlayerBreakpoint && maxHeight >= 520.dp) {
                 Column(
                     modifier = Modifier
@@ -1430,13 +1485,60 @@ fun NowPlayingScreen(
                     onLikedChange = { onToggleFavorite() },
                     onAction = onAction,
                 )
+                NowPlayingDismissGestureArea(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .statusBarsPadding()
+                        .draggable(
+                            state = indicatorDraggableState,
+                            orientation = Orientation.Vertical,
+                            onDragStarted = {
+                                dragAnimationJob?.cancel()
+                            },
+                            onDragStopped = { velocityPxPerSecond ->
+                                if (
+                                    shouldDismissNowPlayingScreen(
+                                        dragOffsetPx = dragOffsetPx,
+                                        viewportHeightPx = viewportHeightPx,
+                                        velocityPxPerSecond = velocityPxPerSecond,
+                                        velocityThresholdPxPerSecond = dismissVelocityPxPerSecond,
+                                    )
+                                ) {
+                                    onAction(NowPlayingAction.NavigateBack)
+                                } else {
+                                    dragAnimationJob?.cancel()
+                                    dragAnimationJob = dragAnimationScope.launch {
+                                        animate(
+                                            initialValue = dragOffsetPx,
+                                            targetValue = 0f,
+                                            animationSpec = spring(),
+                                        ) { value, _ ->
+                                            dragOffsetPx = value
+                                        }
+                                    }
+                                }
+                            },
+                        ),
+                )
             }
         }
     }
 }
 
+internal fun shouldDismissNowPlayingScreen(
+    dragOffsetPx: Float,
+    viewportHeightPx: Float,
+    velocityPxPerSecond: Float,
+    velocityThresholdPxPerSecond: Float,
+): Boolean =
+    viewportHeightPx > 0f &&
+        (
+            dragOffsetPx >= viewportHeightPx * NowPlayingDismissDistanceFraction ||
+                velocityPxPerSecond >= velocityThresholdPxPerSecond
+        )
+
 @Composable
-private fun NowPlayingBackground(artwork: Artwork?) {
+fun ImmersivePlayerBackground(artwork: Artwork?) {
     Box(
         modifier = Modifier
             .fillMaxSize()

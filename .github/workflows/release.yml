@@ -66,6 +66,8 @@ jobs:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           ANDROID_SIGN_JKS: ${{ secrets.ANDROID_SIGN_JKS }}
           ANDROID_SIGN_PASSWORD: ${{ secrets.ANDROID_SIGN_PASSWORD }}
+          ANDROID_SIGN_KEY_ALIAS: ${{ secrets.ANDROID_SIGN_KEY_ALIAS }}
+          ANDROID_SIGN_KEY_PASSWORD: ${{ secrets.ANDROID_SIGN_KEY_PASSWORD }}
         run: |
           mkdir -p ~/.gradle
           echo "ANDROID_NDK=$ANDROID_NDK_HOME" >> ~/.gradle/gradle.properties

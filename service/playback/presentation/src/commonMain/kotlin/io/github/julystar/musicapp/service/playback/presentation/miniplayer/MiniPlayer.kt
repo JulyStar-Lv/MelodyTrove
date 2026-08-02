@@ -203,7 +203,7 @@ private fun MiniPlayerBar(
                     contentDescription = stringResource(
                         if (isFavorite) Res.string.player_remove_favorite else Res.string.player_add_favorite,
                     ),
-                    tint = actionTint,
+                    tint = if (isFavorite) MiuixTheme.colorScheme.primary else actionTint,
                     enabled = playbackAvailable,
                     onClick = onToggleFavorite,
                 )
@@ -314,7 +314,7 @@ private fun ExpandedMiniPlayerBar(
                 contentDescription = stringResource(
                     if (isFavorite) Res.string.player_remove_favorite else Res.string.player_add_favorite,
                 ),
-                tint = actionTint,
+                tint = if (isFavorite) MiuixTheme.colorScheme.primary else actionTint,
                 enabled = playbackAvailable,
                 onClick = onToggleFavorite,
             )

@@ -1,6 +1,9 @@
 package io.github.julystar.musicapp.feature.home.presentation
 
 import androidx.compose.ui.graphics.Color
+import io.github.julystar.musicapp.core.domain.model.Artwork
+import io.github.julystar.musicapp.core.domain.model.LibraryAlbumItem
+import io.github.julystar.musicapp.core.domain.model.LibraryTrackItem
 import kotlinx.collections.immutable.persistentListOf
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -88,5 +91,31 @@ class HomeStateTest {
         assertEquals(3600_000L, state.statistics.totalListeningDurationMs)
         assertEquals(3, state.statistics.tracksPlayedToday)
         assertEquals(listOf(1L, 2L, 3L), state.statistics.mostPlayedTrackIds)
+    }
+
+    @Test
+    fun `home tracks request metadata and plugin artwork lookup`() {
+        val item = LibraryTrackItem(
+            id = 42L,
+            title = "Real track",
+            artist = "Artist",
+            durationMs = 180_000L,
+        ).toHomeTrack(liked = false)
+
+        assertEquals(
+            Artwork.LibraryTrack(trackId = 42L, allowPluginLookup = true),
+            item.artwork,
+        )
+    }
+
+    @Test
+    fun `home albums resolve artwork by album id`() {
+        val item = LibraryAlbumItem(
+            id = 7L,
+            name = "Real album",
+            year = 2026,
+        ).toHomeAlbum()
+
+        assertEquals(Artwork.LibraryAlbum(albumId = 7L), item.artwork)
     }
 }

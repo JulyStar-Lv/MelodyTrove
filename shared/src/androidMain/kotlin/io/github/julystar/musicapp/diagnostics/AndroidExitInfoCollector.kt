@@ -16,6 +16,21 @@ import java.io.InputStream
 private const val MaxExitTraceBytes = 1024 * 1024
 private const val MaxHistoricalExitCount = 32
 
+fun lastUserRequestedProcessExitAtEpochMs(): Long? {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
+    val activityManager = appContext.getSystemService(ActivityManager::class.java) ?: return null
+    return runCatching {
+        activityManager
+            .getHistoricalProcessExitReasons(appContext.packageName, 0, 1)
+            .firstOrNull()
+            ?.takeIf { exit ->
+                exit.processName == appContext.packageName &&
+                    isUserRequestedExitReason(exit.reason)
+            }
+            ?.timestamp
+    }.getOrNull()
+}
+
 fun collectAndroidHistoricalExitInfo() {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
     val activityManager = appContext.getSystemService(ActivityManager::class.java) ?: return
@@ -83,6 +98,9 @@ private fun ApplicationExitInfo.readLimitedTrace(): LimitedTrace {
 
 internal fun historicalExitInfoSupported(apiLevel: Int): Boolean =
     apiLevel >= Build.VERSION_CODES.R
+
+internal fun isUserRequestedExitReason(reason: Int): Boolean =
+    reason == ApplicationExitInfo.REASON_USER_REQUESTED
 
 internal fun historicalExitKey(
     timestamp: Long,

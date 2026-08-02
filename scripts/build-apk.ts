@@ -21,7 +21,12 @@ function decodeAndDecompress(
   fs.writeFileSync(outputFilePath, decompressed);
 }
 
-const { ANDROID_SIGN_PASSWORD, ANDROID_SIGN_JKS } = process.env;
+const {
+  ANDROID_SIGN_JKS,
+  ANDROID_SIGN_PASSWORD,
+  ANDROID_SIGN_KEY_ALIAS,
+  ANDROID_SIGN_KEY_PASSWORD,
+} = process.env;
 
 const rootDir = ROOT;
 const version = resolveAppVersion(rootDir);
@@ -36,8 +41,8 @@ decodeAndDecompress(ANDROID_SIGN_JKS!, jksPath);
 writeFileSync(
   keyPropertiesPath,
   `storePassword=${ANDROID_SIGN_PASSWORD}
-keyPassword=${ANDROID_SIGN_PASSWORD}
-keyAlias=key0
+keyPassword=${ANDROID_SIGN_KEY_PASSWORD}
+keyAlias=${ANDROID_SIGN_KEY_ALIAS}
 storeFile=androidApp/root.jks`,
 );
 console.log(`${keyPropertiesPath} written`);

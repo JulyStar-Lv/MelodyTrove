@@ -102,4 +102,44 @@ class LyricsStateTest {
         assertEquals("Hello", line.words[0].text)
         assertEquals(0L, line.words[0].startOffset.inWholeMilliseconds)
     }
+
+    @Test
+    fun `lyrics screen dismisses after half screen drag`() {
+        assertFalse(
+            shouldDismissLyricsScreen(
+                dragOffsetPx = 499f,
+                viewportHeightPx = 1000f,
+                velocityPxPerSecond = 899f,
+                velocityThresholdPxPerSecond = 900f,
+            ),
+        )
+        assertTrue(
+            shouldDismissLyricsScreen(
+                dragOffsetPx = 500f,
+                viewportHeightPx = 1000f,
+                velocityPxPerSecond = 0f,
+                velocityThresholdPxPerSecond = 900f,
+            ),
+        )
+    }
+
+    @Test
+    fun `lyrics screen dismisses only for fast downward fling`() {
+        assertTrue(
+            shouldDismissLyricsScreen(
+                dragOffsetPx = 100f,
+                viewportHeightPx = 1000f,
+                velocityPxPerSecond = 900f,
+                velocityThresholdPxPerSecond = 900f,
+            ),
+        )
+        assertFalse(
+            shouldDismissLyricsScreen(
+                dragOffsetPx = 100f,
+                viewportHeightPx = 1000f,
+                velocityPxPerSecond = -1200f,
+                velocityThresholdPxPerSecond = 900f,
+            ),
+        )
+    }
 }

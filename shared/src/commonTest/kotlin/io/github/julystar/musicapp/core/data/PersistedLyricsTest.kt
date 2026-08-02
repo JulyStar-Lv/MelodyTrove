@@ -112,6 +112,31 @@ class PersistedLyricsTest {
     }
 
     @Test
+    fun preservesTtmlTranslationForPlayback() {
+        val lyrics = LyricsEntity(
+            trackId = 1,
+            format = "TTML",
+            language = null,
+            synchronized = true,
+            content = """
+                <tt xmlns="http://www.w3.org/ns/ttml" xmlns:ttm="http://www.w3.org/ns/ttml#metadata">
+                    <body><div>
+                        <p begin="00:01.000" end="00:02.000">
+                            <span begin="00:01.000" end="00:02.000">Hello</span>
+                            <span ttm:role="x-translation">你好</span>
+                        </p>
+                    </div></body>
+                </tt>
+            """.trimIndent(),
+            sourcePath = "external:test",
+            updatedAt = 2,
+            sourceKind = "ExternalTtml",
+        ).toPlaybackLyrics()
+
+        assertEquals("Hello\n你好", lyrics.lines.single().text)
+    }
+
+    @Test
     fun keepsPlainLrcAsLineTimedLyrics() {
         val lyrics = LyricsEntity(
             trackId = 1,

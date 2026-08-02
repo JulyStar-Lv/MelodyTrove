@@ -415,6 +415,7 @@ pub struct DiagnosticsRuntimeInit {
     pub git_commit_sha: String,
     pub process_name: String,
     pub user_forced_safe_mode: bool,
+    pub last_user_requested_exit_at_epoch_ms: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, uniffi::Record)]

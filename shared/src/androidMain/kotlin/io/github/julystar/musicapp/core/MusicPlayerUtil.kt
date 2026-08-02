@@ -1,5 +1,6 @@
 package io.github.julystar.musicapp.core
 
+import java.util.Base64
 import androidx.annotation.OptIn
 import androidx.core.net.toUri
 import androidx.core.text.isDigitsOnly
@@ -21,6 +22,13 @@ import uniffi.app_backend.Music
 import uniffi.app_backend.MusicAbstract
 import uniffi.app_backend.MusicId
 
+private val defaultArtworkData: ByteArray by lazy(LazyThreadSafetyMode.NONE) {
+    Base64.getDecoder().decode(DEFAULT_COVER_BASE64.substringAfter("base64,"))
+}
+
+internal fun MediaMetadata.Builder.withDefaultArtwork(): MediaMetadata.Builder {
+    return setArtworkData(defaultArtworkData, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
+}
 
 @OptIn(UnstableApi::class)
 private fun extractCurrentTracksCover(player: Player): ByteArray? {
@@ -78,7 +86,7 @@ private fun buildMediaItem(
         .setMediaMetadata(
             MediaMetadata.Builder()
                 .setTitle(meta.title)
-                .setArtworkUri(DEFAULT_COVER_BASE64.toUri())
+                .withDefaultArtwork()
                 .build()
         )
         .build()
@@ -103,7 +111,7 @@ fun buildMediaItem(item: PlayableItem, playbackUri: String): MediaItem {
         .setMediaMetadata(
             MediaMetadata.Builder()
                 .setTitle(item.title)
-                .setArtworkUri(DEFAULT_COVER_BASE64.toUri())
+                .withDefaultArtwork()
                 .build()
         )
         .build()

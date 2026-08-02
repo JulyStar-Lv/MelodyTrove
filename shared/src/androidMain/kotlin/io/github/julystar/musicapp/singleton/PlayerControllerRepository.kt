@@ -233,12 +233,13 @@ class PlayerControllerRepository internal constructor(
         playbackJob = _scope.launch(mainDispatcher) {
             playerState.setIsLoading(true)
             try {
+                val queuedPlaylist = _playlist.value?.takeIf { queue ->
+                    queue.abstr.meta.id == playlistId && queue.musics.any { it.meta.id == id }
+                }
                 stopForPlayback(engine)
 
                 val music = playbackLibrary.getMusic(id)
-                val playlist = _playlist.value?.takeIf { queue ->
-                    queue.abstr.meta.id == playlistId && queue.musics.any { it.meta.id == id }
-                } ?: playbackLibrary.getPlaylist(playlistId)
+                val playlist = queuedPlaylist ?: playbackLibrary.getPlaylist(playlistId)
                 if (
                     music == null ||
                     playlist == null ||

@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -37,8 +38,6 @@ import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import kotlin.math.roundToInt
@@ -144,9 +143,13 @@ fun DesignDialog(
         PaddingValues(20.dp)
     }
 
-    Dialog(
+    DesignDialogHost(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
+        navigationBarStyle = if (compact) {
+            DesignDialogNavigationBarStyle.Surface
+        } else {
+            DesignDialogNavigationBarStyle.Dimmed
+        },
     ) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -191,6 +194,9 @@ fun DesignDialog(
                             indication = null,
                             interactionSource = remember { MutableInteractionSource() },
                         ) { }
+                        .then(
+                            if (compact) Modifier.navigationBarsPadding() else Modifier,
+                        )
                         .padding(contentPadding),
                     content = content,
                 )

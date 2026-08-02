@@ -3,6 +3,7 @@ package io.github.julystar.musicapp.service.playback.data
 import io.github.julystar.musicapp.core.domain.model.Artwork
 import io.github.julystar.musicapp.service.playback.domain.PlaybackPosition
 import io.github.julystar.musicapp.service.playback.domain.PlaybackStatus
+import io.github.julystar.musicapp.service.playback.domain.PlayableItem
 import io.github.julystar.musicapp.service.playback.domain.RepeatMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -106,6 +107,37 @@ class LegacyPlaybackControllerTest {
         assertEquals(listOf(3L, 3L, 3L), queue.items.map { it.libraryPlaylistId })
         assertEquals(1, queue.currentIndex)
         assertEquals("Two", queue.currentItem?.title)
+    }
+
+    @Test
+    fun buildsPlaybackPlaylistFromRequestedItemsInOrder() {
+        val playlist = playlist(
+            id = 3,
+            musics = listOf(
+                musicAbstract(id = 1, title = "One"),
+                musicAbstract(id = 2, title = "Two"),
+                musicAbstract(id = 3, title = "Three"),
+            ),
+        )
+
+        val queue = playlist.forPlaybackItems(
+            listOf(
+                PlayableItem(title = "Three", libraryTrackId = 3),
+                PlayableItem(title = "One", libraryTrackId = 1),
+            ),
+        )
+
+        assertEquals(listOf(3L, 1L), queue?.musics?.map { it.meta.id.value })
+        assertEquals(2uL, queue?.abstr?.musicCount)
+        assertEquals(360_000.milliseconds, queue?.abstr?.duration)
+    }
+
+    @Test
+    fun multiTrackQueuePromotesDefaultSingleModeToList() {
+        assertEquals(PlayMode.LIST, playbackModeForQueue(PlayMode.SINGLE, queueSize = 2))
+        assertEquals(PlayMode.SINGLE, playbackModeForQueue(PlayMode.SINGLE, queueSize = 1))
+        assertEquals(PlayMode.SINGLE_LOOP, playbackModeForQueue(PlayMode.SINGLE_LOOP, queueSize = 2))
+        assertEquals(PlayMode.LIST_LOOP, playbackModeForQueue(PlayMode.LIST_LOOP, queueSize = 2))
     }
 
     @Test

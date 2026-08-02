@@ -14,6 +14,9 @@ fun DesignBottomSheet(
         show = show,
         title = title,
         onDismissRequest = onDismissRequest,
-        content = content,
+        content = {
+            DesignDialogSystemBarsEffect(DesignDialogNavigationBarStyle.Surface)
+            content()
+        },
     )
 }

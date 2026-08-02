@@ -2,6 +2,7 @@ package io.github.julystar.musicapp.feature.home.presentation
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
+import io.github.julystar.musicapp.core.domain.model.Artwork
 import io.github.julystar.musicapp.core.domain.model.MediaId
 import io.github.julystar.musicapp.core.presentation.components.QualityBadgeType
 import io.github.julystar.musicapp.feature.home.domain.HomeStatistics
@@ -30,6 +31,7 @@ internal val HomeState.shouldShowEmptyStateOnly: Boolean
 data class HomeFeaturedAlbum(
     val title: String,
     val subtitle: String,
+    val artwork: Artwork,
     val artworkIndex: Int,
     val colors: ImmutableList<Color>,
 )
@@ -61,6 +63,7 @@ data class HomeRecentTrack(
     val durationMs: Long?,
     val title: String,
     val subtitle: String,
+    val artwork: Artwork,
     val artworkIndex: Int,
     val color: Color,
     val qualityBadge: QualityBadgeType? = null,

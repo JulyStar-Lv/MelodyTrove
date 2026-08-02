@@ -208,6 +208,7 @@
     <string name="settings_source_manage_summary">添加或移除本地音乐目录</string>
     <string name="settings_source_edit_action">编辑音乐音源</string>
     <string name="settings_source_scan_action">扫描音乐音源</string>
+    <string name="settings_source_scan_results">扫描结果</string>
     <string name="settings_source_delete_action">删除音乐音源</string>
     <string name="settings_add_source">添加音源</string>
     <string name="settings_add_source_summary">本地、网络、云端或媒体服务器</string>

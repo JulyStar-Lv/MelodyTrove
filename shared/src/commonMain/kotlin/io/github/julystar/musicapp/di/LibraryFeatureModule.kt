@@ -4,6 +4,7 @@ import io.github.julystar.musicapp.core.data.AlbumDetailRepositoryImpl
 import io.github.julystar.musicapp.core.data.ArtistDetailRepositoryImpl
 import io.github.julystar.musicapp.core.data.BrowseRepositoryImpl
 import io.github.julystar.musicapp.core.data.media.LegacyArtworkRepository
+import io.github.julystar.musicapp.core.data.media.PluginArtworkResolver
 import io.github.julystar.musicapp.core.data.LegacyEditPlaylistGateway
 import io.github.julystar.musicapp.core.data.LibraryRepositoryImpl
 import io.github.julystar.musicapp.core.data.LyricsRepositoryImpl
@@ -54,7 +55,8 @@ val libraryFeatureModule = module {
     )
 
     single { AssetRepository(get(), get(), get()) }
-    single<ArtworkRepository> { LegacyArtworkRepository(get(), get(), get(), get(), get()) }
+    single { PluginArtworkResolver(get(), get(), get(), get(), get(), get()) }
+    single<ArtworkRepository> { LegacyArtworkRepository(get(), get(), get(), get(), get(), get()) }
     single<ArtworkImageLoader> { RepositoryArtworkImageLoader(get()) }
     single<LibraryRepository> { LibraryRepositoryImpl(get(), get(), get(), get()) }
     single<BrowseRepository> { BrowseRepositoryImpl(get(), get()) }

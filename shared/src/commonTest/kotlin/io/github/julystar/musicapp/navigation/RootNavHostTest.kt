@@ -18,9 +18,25 @@ class RootNavHostTest {
     }
 
     @Test
-    fun `persistent mini player is hidden on root home and now playing`() {
+    fun `persistent navigation chrome is hidden on immersive routes`() {
         assertFalse(shouldShowPersistentMiniPlayer("Home"))
         assertFalse(shouldShowPersistentMiniPlayer("io.github.julystar.musicapp.MusicGraph.NowPlaying"))
+        assertFalse(
+            shouldShowPersistentMiniPlayer(
+                "io.github.julystar.musicapp.core.presentation.navigation.MusicGraph.Lyrics/{id}",
+            ),
+        )
+    }
+
+    @Test
+    fun `now playing and lyrics share immersive player transitions`() {
+        assertTrue(isImmersivePlayerRoute("io.github.julystar.musicapp.MusicGraph.NowPlaying"))
+        assertTrue(
+            isImmersivePlayerRoute(
+                "io.github.julystar.musicapp.core.presentation.navigation.MusicGraph.Lyrics/{id}",
+            ),
+        )
+        assertFalse(isImmersivePlayerRoute("io.github.julystar.musicapp.MusicGraph.Album/{id}"))
     }
 
     @Test
@@ -33,7 +49,6 @@ class RootNavHostTest {
             "io.github.julystar.musicapp.MusicGraph.EditStorage",
             "io.github.julystar.musicapp.MusicGraph.Import",
             "io.github.julystar.musicapp.MusicGraph.Downloads",
-            "io.github.julystar.musicapp.MusicGraph.Lyrics",
             "io.github.julystar.musicapp.MusicGraph.PluginSettings",
         ).forEach { route ->
             assertTrue(shouldShowPersistentMiniPlayer(route), route)

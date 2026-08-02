@@ -5,7 +5,11 @@ import kotlinx.collections.immutable.persistentListOf
 import kotlin.time.Duration
 
 sealed interface Artwork {
-    data class LibraryTrack(val trackId: Long) : Artwork
+    data class LibraryTrack(
+        val trackId: Long,
+        val allowPluginLookup: Boolean = false,
+    ) : Artwork
+    data class LibraryAlbum(val albumId: Long) : Artwork
     data class LibraryCover(val trackId: Long) : Artwork
     data class SourceMedia(val mediaId: MediaId) : Artwork
     data class LegacyStorageEntry(

@@ -57,11 +57,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.julystar.musicapp.core.domain.model.Artwork
 import io.github.julystar.musicapp.core.presentation.components.DesignPageHeader
 import io.github.julystar.musicapp.core.presentation.components.DesignGlassScene
 import io.github.julystar.musicapp.core.presentation.components.DesignStickyGlassActionBar
 import io.github.julystar.musicapp.core.presentation.components.LocalDesignBottomContentInset
 import io.github.julystar.musicapp.core.presentation.components.designLiquidGlass
+import io.github.julystar.musicapp.core.presentation.media.ArtworkImage
 import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import com.kyant.backdrop.backdrops.layerBackdrop
@@ -410,6 +412,7 @@ private fun DailyPicksHero(
             DailyPicksPlayButton(onClick = onPlay)
         }
         DailyPicksArtwork(
+            artwork = track?.artwork,
             artworkIndex = artworkIndex,
             modifier = Modifier
                 .align(Alignment.CenterEnd)
@@ -538,6 +541,7 @@ private fun dailyPicksAnimation(durationMillis: Int) = infiniteRepeatable<Float>
 
 @Composable
 private fun DailyPicksArtwork(
+    artwork: Artwork?,
     artworkIndex: Int,
     modifier: Modifier,
 ) {
@@ -545,7 +549,8 @@ private fun DailyPicksArtwork(
         modifier = modifier,
     ) {
         DailyPicksCover(
-            resource = homeCover(artworkIndex + 3),
+            artwork = artwork,
+            demoIndex = artworkIndex + 3,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .size(72.dp)
@@ -553,7 +558,8 @@ private fun DailyPicksArtwork(
             shape = CircleShape,
         )
         DailyPicksCover(
-            resource = homeCover(artworkIndex + 5),
+            artwork = artwork,
+            demoIndex = artworkIndex + 5,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(end = 20.dp)
@@ -562,7 +568,8 @@ private fun DailyPicksArtwork(
             shape = RoundedCornerShape(32.dp, 20.dp, 28.dp, 24.dp),
         )
         DailyPicksCover(
-            resource = homeCover(artworkIndex + 7),
+            artwork = artwork,
+            demoIndex = artworkIndex + 7,
             modifier = Modifier
                 .align(Alignment.CenterStart)
                 .padding(top = 22.dp)
@@ -575,7 +582,8 @@ private fun DailyPicksArtwork(
 
 @Composable
 private fun DailyPicksCover(
-    resource: DrawableResource,
+    artwork: Artwork?,
+    demoIndex: Int,
     modifier: Modifier,
     shape: Shape,
 ) {
@@ -584,11 +592,10 @@ private fun DailyPicksCover(
             .border(2.5.dp, Color.White.copy(alpha = 0.72f), shape)
             .clip(shape),
     ) {
-        Image(
-            painter = painterResource(resource),
-            contentDescription = null,
+        HomeArtworkImage(
+            artwork = artwork,
+            demoIndex = demoIndex,
             modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop,
         )
     }
 }
@@ -927,11 +934,10 @@ private fun NewSongRow(
                             ),
                         ),
                 ) {
-                    Image(
-                        painter = painterResource(homeCover(track.artworkIndex)),
-                        contentDescription = null,
+                    HomeArtworkImage(
+                        artwork = track.artwork,
+                        demoIndex = track.artworkIndex,
                         modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
                     )
                 }
                 Spacer(modifier = Modifier.height(12.dp))
@@ -985,11 +991,10 @@ private fun AlbumRow(
                         .background(Brush.linearGradient(album.colors)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Image(
-                        painter = painterResource(homeCover(album.artworkIndex)),
-                        contentDescription = null,
+                    HomeArtworkImage(
+                        artwork = album.artwork,
+                        demoIndex = album.artworkIndex,
                         modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
                     )
                     Box(
                         modifier = Modifier
@@ -1092,13 +1097,33 @@ private fun ArtworkTile(track: HomeRecentTrack, size: Dp) {
                 ),
             ),
     ) {
-        Image(
-            painter = painterResource(homeCover(track.artworkIndex)),
-            contentDescription = null,
+        HomeArtworkImage(
+            artwork = track.artwork,
+            demoIndex = track.artworkIndex,
             modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop,
         )
     }
+}
+
+@Composable
+private fun HomeArtworkImage(
+    artwork: Artwork?,
+    demoIndex: Int,
+    modifier: Modifier,
+) {
+    ArtworkImage(
+        artwork = artwork,
+        modifier = modifier,
+        contentScale = ContentScale.Crop,
+        fallback = {
+            Image(
+                painter = painterResource(homeCover(demoIndex)),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        },
+    )
 }
 
 private fun homeCover(index: Int): DrawableResource = when ((index - 1).mod(8)) {

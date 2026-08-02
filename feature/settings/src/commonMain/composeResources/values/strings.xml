@@ -208,6 +208,7 @@
     <string name="settings_source_manage_summary">Add or remove local music directories</string>
     <string name="settings_source_edit_action">Edit music source</string>
     <string name="settings_source_scan_action">Scan music source</string>
+    <string name="settings_source_scan_results">Scan results</string>
     <string name="settings_source_delete_action">Delete music source</string>
     <string name="settings_add_source">Add source</string>
     <string name="settings_add_source_summary">Local, network, cloud, or media server</string>

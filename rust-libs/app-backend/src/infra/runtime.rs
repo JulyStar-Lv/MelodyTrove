@@ -501,6 +501,7 @@ impl DiagnosticsRuntime {
         };
         if previous.stable
             || previous.graceful_shutdown
+            || self.previous_exit_was_user_requested(&previous)
             || self
                 .incident_store
                 .has_incident_for_startup_attempt(&previous.attempt_id)
@@ -534,6 +535,15 @@ impl DiagnosticsRuntime {
         Ok(())
     }
 
+    fn previous_exit_was_user_requested(&self, previous: &StartupAttempt) -> bool {
+        self.init
+            .last_user_requested_exit_at_epoch_ms
+            .is_some_and(|timestamp| {
+                timestamp >= previous.last_updated_at_epoch_ms
+                    && timestamp <= self.startup_journal.current().started_at_epoch_ms
+            })
+    }
+
     fn operation_guard(&self) -> io::Result<MutexGuard<'_, ()>> {
         self.operation_lock
             .lock()
@@ -560,6 +570,7 @@ mod tests {
             git_commit_sha: "abc".into(),
             process_name: "test".into(),
             user_forced_safe_mode: false,
+            last_user_requested_exit_at_epoch_ms: None,
         };
         let first = DiagnosticsRuntime::start(init.clone()).unwrap();
         first.request_safe_mode_next_start().unwrap();
@@ -579,6 +590,84 @@ mod tests {
         let retry = second.begin_recovery(Vec::new()).unwrap();
         assert!(retry.recovery_attempted);
         assert_eq!(retry.last_stage, StartupStage::PlatformExitsCollected);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn repeated_user_requested_exits_do_not_create_unknown_exit_incidents() {
+        let root = temporary_test_directory("user-requested-exits");
+        let mut init = DiagnosticsRuntimeInit {
+            app_document_dir: root.to_string_lossy().into_owned(),
+            app_cache_dir: root.join("cache").to_string_lossy().into_owned(),
+            platform: "android".into(),
+            app_version: "1".into(),
+            build_info: "debug".into(),
+            git_commit_sha: "abc".into(),
+            process_name: "test".into(),
+            user_forced_safe_mode: false,
+            last_user_requested_exit_at_epoch_ms: None,
+        };
+
+        let first = DiagnosticsRuntime::start(init.clone()).unwrap();
+        first
+            .update_startup_stage(StartupStage::FirstFrameRendered)
+            .unwrap();
+        init.last_user_requested_exit_at_epoch_ms =
+            Some(first.state().startup_attempt.last_updated_at_epoch_ms);
+        drop(first);
+
+        let second = DiagnosticsRuntime::start(init.clone()).unwrap();
+        second
+            .update_startup_stage(StartupStage::FirstFrameRendered)
+            .unwrap();
+        init.last_user_requested_exit_at_epoch_ms =
+            Some(second.state().startup_attempt.last_updated_at_epoch_ms);
+        drop(second);
+
+        let third = DiagnosticsRuntime::start(init).unwrap();
+        assert!(third
+            .incident_store
+            .list(&IncidentFilter::default())
+            .unwrap()
+            .incidents
+            .is_empty());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn stale_user_requested_exit_does_not_hide_a_later_unknown_exit() {
+        let root = temporary_test_directory("stale-user-requested-exit");
+        let mut init = DiagnosticsRuntimeInit {
+            app_document_dir: root.to_string_lossy().into_owned(),
+            app_cache_dir: root.join("cache").to_string_lossy().into_owned(),
+            platform: "android".into(),
+            app_version: "1".into(),
+            build_info: "debug".into(),
+            git_commit_sha: "abc".into(),
+            process_name: "test".into(),
+            user_forced_safe_mode: false,
+            last_user_requested_exit_at_epoch_ms: None,
+        };
+
+        let first = DiagnosticsRuntime::start(init.clone()).unwrap();
+        first
+            .update_startup_stage(StartupStage::FirstFrameRendered)
+            .unwrap();
+        init.last_user_requested_exit_at_epoch_ms =
+            Some(first.state().startup_attempt.started_at_epoch_ms - 1);
+        drop(first);
+
+        let second = DiagnosticsRuntime::start(init).unwrap();
+        let incidents = second
+            .incident_store
+            .list(&IncidentFilter::default())
+            .unwrap()
+            .incidents;
+        assert_eq!(incidents.len(), 1);
+        assert_eq!(
+            incidents[0].incident_type,
+            IncidentType::UnknownAbnormalExit
+        );
         fs::remove_dir_all(root).unwrap();
     }
 }

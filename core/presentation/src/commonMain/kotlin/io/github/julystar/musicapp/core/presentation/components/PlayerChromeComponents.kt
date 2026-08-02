@@ -1,7 +1,5 @@
 package io.github.julystar.musicapp.core.presentation.components
 
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -9,7 +7,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -20,7 +17,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -29,7 +25,6 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -395,41 +390,15 @@ fun DesignBottomNavigationBar(
     if (items.isEmpty()) return
 
     val shapes = DesignTokens.shapes
-    val motion = DesignTokens.motion
     val navigation = DesignTokens.navigation
 
-    BoxWithConstraints(
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .height(height ?: navigation.compactBarHeight)
             .padding(contentPadding),
     ) {
         val selected = selectedIndex.coerceIn(0, items.lastIndex)
-        val itemWidth = maxWidth / items.size
-        val indicatorOffset by animateDpAsState(
-            targetValue = itemWidth * selected,
-            animationSpec = tween(durationMillis = motion.standardMillis),
-            label = "designBottomNavigationIndicatorOffset",
-        )
-
-        Box(
-            modifier = Modifier
-                .offset(x = indicatorOffset)
-                .width(itemWidth)
-                .fillMaxHeight(),
-            contentAlignment = Alignment.TopCenter,
-        ) {
-            Box(
-                modifier = Modifier
-                    .padding(top = 5.dp)
-                    .size(
-                        width = navigation.compactSelectedIndicatorWidth,
-                        height = navigation.compactSelectedIndicatorHeight,
-                    )
-                    .clip(RoundedCornerShape(shapes.full))
-                    .background(MiuixTheme.colorScheme.primary.copy(alpha = 0.12f)),
-            )
-        }
 
         Row(
             modifier = Modifier

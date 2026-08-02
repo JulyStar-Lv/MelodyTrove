@@ -127,6 +127,29 @@ class PlayerControllerRepositoryTest {
         assertNull(harness.playerState.music.value)
     }
 
+    @Test
+    fun preparedPlaybackQueueSurvivesTrackLoadingReset() = withHarness(
+        sourceResult = SourcePlaybackResult.Success(TEST_RESOURCE),
+        engine = RecordingAndroidPlaybackEngine(PlaybackEngineLoadResult.Ready),
+    ) { harness ->
+        val preparedQueue = playlist(
+            id = PLAYLIST_ID,
+            musics = listOf(musicAbstract(id = TRACK_ID, title = TRACK_TITLE)),
+        ).let { playlist ->
+            playlist.copy(
+                abstr = playlist.abstr.copy(
+                    meta = playlist.abstr.meta.copy(title = "Daily Picks"),
+                ),
+            )
+        }
+        harness.playerState.playlist.value = preparedQueue
+
+        harness.controller.play(MusicId(TRACK_ID), PlaylistId(PLAYLIST_ID))
+
+        awaitUntil { harness.playerState.playing.value }
+        assertEquals("Daily Picks", harness.playerState.playlist.value?.abstr?.meta?.title)
+    }
+
     private fun withHarness(
         sourceResult: SourcePlaybackResult,
         engine: RecordingAndroidPlaybackEngine,

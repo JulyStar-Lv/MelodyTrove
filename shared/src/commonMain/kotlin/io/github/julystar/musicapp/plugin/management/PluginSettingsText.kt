@@ -18,6 +18,7 @@ import musicapp.shared.generated.resources.plugins_empty
 import musicapp.shared.generated.resources.plugins_empty_summary
 import musicapp.shared.generated.resources.plugins_enabled_label
 import musicapp.shared.generated.resources.plugins_import
+import musicapp.shared.generated.resources.plugins_more_options_named
 import musicapp.shared.generated.resources.plugins_import_idle_summary
 import musicapp.shared.generated.resources.plugins_import_installing_summary
 import musicapp.shared.generated.resources.plugins_import_local_zip
@@ -42,6 +43,7 @@ import org.jetbrains.compose.resources.stringResource
 
 private val PluginValidationFailurePattern = Regex("^(\\d+) plugin entries failed validation$")
 private val PluginConfigurePattern = Regex("^Configure (.+)$")
+private val PluginMoreOptionsPattern = Regex("^More options for (.+)$")
 private val PluginConfirmUninstallPattern = Regex("^Uninstall (.+)\\?$")
 private val PluginUninstallPattern = Regex("^Uninstall (.+)$")
 
@@ -95,6 +97,9 @@ internal fun pluginUiText(value: String): String {
     }
     PluginConfigurePattern.matchEntire(value)?.let { match ->
         return stringResource(Res.string.plugins_configuration, match.groupValues[1])
+    }
+    PluginMoreOptionsPattern.matchEntire(value)?.let { match ->
+        return stringResource(Res.string.plugins_more_options_named, match.groupValues[1])
     }
     PluginConfirmUninstallPattern.matchEntire(value)?.let { match ->
         return stringResource(Res.string.plugins_confirm_uninstall_named, match.groupValues[1])

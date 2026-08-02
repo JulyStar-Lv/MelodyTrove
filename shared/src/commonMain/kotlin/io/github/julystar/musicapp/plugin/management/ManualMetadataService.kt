@@ -2,6 +2,10 @@ package io.github.julystar.musicapp.plugin.management
 
 import androidx.room.immediateTransaction
 import androidx.room.useWriterConnection
+import com.mocharealm.accompanist.lyrics.core.model.karaoke.KaraokeLine
+import com.mocharealm.accompanist.lyrics.core.model.synced.SyncedLine
+import com.mocharealm.accompanist.lyrics.core.model.synced.UncheckedSyncedLine
+import com.mocharealm.accompanist.lyrics.core.parser.AutoParser
 import io.github.julystar.musicapp.core.domain.model.MetadataScanMode
 import io.github.julystar.musicapp.core.domain.model.toOptions
 import io.github.julystar.musicapp.database.AlbumArtistCrossRef
@@ -28,6 +32,7 @@ import io.github.julystar.musicapp.source.api.MetaSongCandidate
 import io.github.julystar.musicapp.source.api.MetaSongQuery
 import io.github.julystar.musicapp.source.storage.RemoteMetadataReader
 import uniffi.app_backend.RemoteMetadata
+import kotlin.math.abs
 
 class ManualMetadataService(
     private val lookup: MetadataLookupUseCase,
@@ -40,16 +45,26 @@ class ManualMetadataService(
     suspend fun search(
         track: NowPlayingTrackItem,
         keyword: String,
-    ): MetadataLookupCollection<MetaSongCandidate> = lookup.searchSongs(
-        query = MetaSongQuery(
-            title = track.title,
-            artist = track.artist,
-            durationMs = track.durationMs,
-            keyword = keyword.trim().takeIf(String::isNotEmpty),
-            pageSize = MANUAL_METADATA_RESULTS_PER_SOURCE,
-        ),
-        mode = PluginLookupMode.MANUAL,
-    )
+    ): MetadataLookupCollection<MetaSongCandidate> {
+        val normalizedKeyword = keyword.trim()
+        val result = lookup.searchSongs(
+            query = MetaSongQuery(
+                title = track.title,
+                artist = track.artist,
+                durationMs = track.durationMs,
+                keyword = normalizedKeyword.takeIf(String::isNotEmpty),
+                pageSize = MANUAL_METADATA_RESULTS_PER_SOURCE,
+            ),
+            mode = PluginLookupMode.MANUAL,
+        )
+        return result.copy(
+            items = rankManualMetadataCandidates(
+                candidates = result.items,
+                track = track,
+                keyword = normalizedKeyword,
+            ),
+        )
+    }
 
     suspend fun apply(
         trackId: Long,
@@ -205,6 +220,67 @@ class ManualMetadataService(
 
 private const val MANUAL_METADATA_RESULTS_PER_SOURCE = 3
 
+internal fun rankManualMetadataCandidates(
+    candidates: List<MetaSongCandidate>,
+    track: NowPlayingTrackItem,
+    keyword: String,
+): List<MetaSongCandidate> = candidates
+    .distinctBy { candidate -> candidate.sourceId to candidate.id }
+    .sortedByDescending { candidate ->
+        candidate.manualMetadataMatchScore(track, keyword)
+    }
+
+private fun MetaSongCandidate.manualMetadataMatchScore(
+    track: NowPlayingTrackItem,
+    keyword: String,
+): Int {
+    val titleKey = title.manualMetadataMatchKey()
+    val artistKey = artist?.manualMetadataMatchKey().orEmpty()
+    val albumKey = album?.manualMetadataMatchKey().orEmpty()
+    val combinedKey = titleKey + artistKey + albumKey
+    val keywordKey = keyword.manualMetadataMatchKey()
+    val trackTitleKey = track.title.manualMetadataMatchKey()
+    val trackArtistKey = track.artist?.manualMetadataMatchKey().orEmpty()
+
+    var score = 0
+    if (keywordKey.isNotEmpty() && keywordKey in combinedKey) score += 80
+    score += keyword
+        .split(Regex("\\s+"))
+        .map(String::manualMetadataMatchKey)
+        .filter(String::isNotEmpty)
+        .count { token -> token in combinedKey } * 8
+
+    if (trackTitleKey.isNotEmpty()) {
+        score += when {
+            titleKey == trackTitleKey -> 60
+            titleKey in trackTitleKey || trackTitleKey in titleKey -> 25
+            else -> 0
+        }
+    }
+    if (trackArtistKey.isNotEmpty() && artistKey.isNotEmpty()) {
+        score += when {
+            artistKey == trackArtistKey -> 30
+            artistKey in trackArtistKey || trackArtistKey in artistKey -> 15
+            else -> 0
+        }
+    }
+
+    val expectedDuration = track.durationMs
+    val resultDuration = durationMs
+    if (expectedDuration != null && resultDuration != null) {
+        score += when (abs(expectedDuration - resultDuration)) {
+            in 0L..2_000L -> 30
+            in 2_001L..5_000L -> 20
+            in 5_001L..10_000L -> 10
+            else -> 0
+        }
+    }
+    return score
+}
+
+private fun String.manualMetadataMatchKey(): String =
+    lowercase().filter(Char::isLetterOrDigit)
+
 internal suspend fun MetadataDao.resolveManualMetadataAlbum(
     name: String,
     date: String?,
@@ -236,30 +312,49 @@ internal suspend fun MetadataDao.resolveManualMetadataAlbum(
 }
 
 internal fun MetaLyrics.toEntity(trackId: Long, updatedAt: Long): LyricsEntity? {
-    val wordTimed = listOfNotNull(
+    val persistableLines = lines.attachTranslatedTrack(translated)
+    val structuredWordTimed = persistableLines.toEnhancedLrcOrNull()?.let { content ->
+        PersistedLyricPayload("LRC", content, wordTimed = true)
+    }
+    val rawWordTimed = listOfNotNull(
         rawTtml.toPayload("TTML", wordTimed = true),
         rawMultiPersonEnhancedLrc.toPayload("LRC", wordTimed = true),
         rawEnhancedLrc.toPayload("LRC", wordTimed = true),
         rawVerbatimLrc.toPayload("LRC", wordTimed = true),
-        lines.toEnhancedLrcOrNull()?.let { content ->
-            PersistedLyricPayload("LRC", content, wordTimed = true)
-        },
     ).firstOrNull()
-    val plain = rawPlainLrc.toPayload("LRC")
-    val generated = lines.takeIf { it.isNotEmpty() }?.joinToString("\n") { line ->
-        val text = line.text.trim()
-        line.startMs?.let { startMs -> "${startMs.toLrcTimestamp()}$text" } ?: text
+    val hasStructuredTranslation = persistableLines.any { !it.translation.isNullOrBlank() }
+    val wordTimed = if (hasStructuredTranslation) {
+        structuredWordTimed ?: rawWordTimed
+    } else {
+        rawWordTimed ?: structuredWordTimed
     }
-    val payload = wordTimed
-        ?: plain
-        ?: generated?.let { content ->
-            PersistedLyricPayload(
-                format = if (lines.any { it.startMs != null }) "LRC" else "TEXT",
-                content = content,
-                wordTimed = false,
-            )
+    val plain = rawPlainLrc.toPayload("LRC")
+    val generated = persistableLines.takeIf { it.isNotEmpty() }?.joinToString("\n") { line ->
+        val text = line.text.trim()
+        val timeTag = line.startMs?.toLrcTimestamp().orEmpty()
+        buildString {
+            append(timeTag)
+            append(text)
+            line.translation?.trim()?.takeIf(String::isNotEmpty)?.let { translation ->
+                append('\n')
+                append(timeTag)
+                append(translation)
+            }
         }
-        ?: return null
+    }
+    val generatedPayload = generated?.let { content ->
+        PersistedLyricPayload(
+            format = if (persistableLines.any { it.startMs != null }) "LRC" else "TEXT",
+            content = content,
+            wordTimed = false,
+        )
+    }
+    val fallbackPayload = if (hasStructuredTranslation) {
+        generatedPayload ?: plain
+    } else {
+        plain ?: generatedPayload
+    }
+    val payload = wordTimed ?: fallbackPayload ?: return null
     val synchronized = payload.format != "TEXT"
     return LyricsEntity(
         trackId = trackId,
@@ -275,6 +370,52 @@ internal fun MetaLyrics.toEntity(trackId: Long, updatedAt: Long): LyricsEntity? 
             else -> "ExternalPlain"
         },
     )
+}
+
+private fun List<MetaLyricLine>.attachTranslatedTrack(translated: String?): List<MetaLyricLine> {
+    val candidates = translated?.toTranslationCandidates().orEmpty()
+    if (candidates.isEmpty()) return this
+
+    return mapIndexed { index, line ->
+        if (!line.translation.isNullOrBlank()) return@mapIndexed line
+        val timestampMatch = line.startMs?.let { startMs ->
+            candidates
+                .mapNotNull { candidate ->
+                    candidate.startMs?.let { candidateStartMs ->
+                        candidate to abs(candidateStartMs - startMs)
+                    }
+                }
+                .minByOrNull { (_, distanceMs) -> distanceMs }
+                ?.takeIf { (_, distanceMs) -> distanceMs <= 150L }
+                ?.first
+        }
+        line.copy(translation = (timestampMatch ?: candidates.getOrNull(index))?.text)
+    }
+}
+
+private data class TranslationCandidate(
+    val text: String,
+    val startMs: Long?,
+)
+
+private fun String.toTranslationCandidates(): List<TranslationCandidate> {
+    val parsed = runCatching { AutoParser().parse(this).lines }.getOrDefault(emptyList())
+    if (parsed.isNotEmpty()) {
+        return parsed.mapNotNull { line ->
+            val text = when (line) {
+                is KaraokeLine -> line.syllables.joinToString(separator = "") { it.content }
+                is SyncedLine -> line.content
+                is UncheckedSyncedLine -> line.content
+                else -> null
+            }?.trim()?.takeIf(String::isNotEmpty) ?: return@mapNotNull null
+            TranslationCandidate(text = text, startMs = line.start.toLong())
+        }
+    }
+    return lineSequence()
+        .map(String::trim)
+        .filter(String::isNotEmpty)
+        .map { text -> TranslationCandidate(text = text, startMs = null) }
+        .toList()
 }
 
 private data class PersistedLyricPayload(
@@ -296,25 +437,30 @@ private fun List<MetaLyricLine>.toEnhancedLrcOrNull(): String? {
     return mapIndexedNotNull { index, line ->
         val lineStart = line.startMs ?: return@mapIndexedNotNull null
         val timedWords = line.words.mapNotNull { word -> word.toAbsoluteTiming(lineStart) }
-        if (timedWords.size != line.words.size || timedWords.isEmpty()) {
-            return@mapIndexedNotNull "${lineStart.toLrcTimestamp()}${line.text.trim()}"
-        }
-        val lineEnd = line.endMs
-            ?: timedWords.last().endMs
-            ?: getOrNull(index + 1)?.startMs
-            ?: (timedWords.last().startMs + 1)
-        buildString {
-            append(lineStart.toLrcTimestamp())
-            timedWords.forEach { word ->
+        val timeTag = lineStart.toLrcTimestamp()
+        val primaryLine = if (timedWords.size != line.words.size || timedWords.isEmpty()) {
+            "$timeTag${line.text.trim()}"
+        } else {
+            val lineEnd = line.endMs
+                ?: timedWords.last().endMs
+                ?: getOrNull(index + 1)?.startMs
+                ?: (timedWords.last().startMs + 1)
+            buildString {
+                append(timeTag)
+                timedWords.forEach { word ->
+                    append('<')
+                    append(word.startMs.toEnhancedLrcTimestamp())
+                    append('>')
+                    append(word.text)
+                }
                 append('<')
-                append(word.startMs.toEnhancedLrcTimestamp())
+                append(lineEnd.coerceAtLeast(timedWords.last().startMs + 1).toEnhancedLrcTimestamp())
                 append('>')
-                append(word.text)
             }
-            append('<')
-            append(lineEnd.coerceAtLeast(timedWords.last().startMs + 1).toEnhancedLrcTimestamp())
-            append('>')
         }
+        line.translation?.trim()?.takeIf(String::isNotEmpty)?.let { translation ->
+            "$primaryLine\n$timeTag$translation"
+        } ?: primaryLine
     }.joinToString("\n").takeIf(String::isNotBlank)
 }
 

@@ -100,6 +100,46 @@ class NowPlayingStateTest {
         assertEquals(null, state.nextArtwork)
     }
 
+    @Test
+    fun nowPlayingScreenDismissesAfterHalfScreenDrag() {
+        assertFalse(
+            shouldDismissNowPlayingScreen(
+                dragOffsetPx = 499f,
+                viewportHeightPx = 1000f,
+                velocityPxPerSecond = 899f,
+                velocityThresholdPxPerSecond = 900f,
+            ),
+        )
+        assertTrue(
+            shouldDismissNowPlayingScreen(
+                dragOffsetPx = 500f,
+                viewportHeightPx = 1000f,
+                velocityPxPerSecond = 0f,
+                velocityThresholdPxPerSecond = 900f,
+            ),
+        )
+    }
+
+    @Test
+    fun nowPlayingScreenDismissesOnlyForFastDownwardFling() {
+        assertTrue(
+            shouldDismissNowPlayingScreen(
+                dragOffsetPx = 100f,
+                viewportHeightPx = 1000f,
+                velocityPxPerSecond = 900f,
+                velocityThresholdPxPerSecond = 900f,
+            ),
+        )
+        assertFalse(
+            shouldDismissNowPlayingScreen(
+                dragOffsetPx = 100f,
+                viewportHeightPx = 1000f,
+                velocityPxPerSecond = -1200f,
+                velocityThresholdPxPerSecond = 900f,
+            ),
+        )
+    }
+
     private fun playable(
         id: Long,
         title: String,

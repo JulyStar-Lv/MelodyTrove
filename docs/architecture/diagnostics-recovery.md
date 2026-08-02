@@ -70,7 +70,8 @@ PROCESS_STARTED → PATHS_READY → DIAGNOSTICS_READY → PLATFORM_EXITS_COLLECT
 Journal updates use temporary files, flush, and atomic rename. `STARTUP_STABLE` is written only
 after the first Compose frame and a ten-second stable window. A clean shutdown records
 `SHUTDOWN_COMPLETE` and `gracefulShutdown=true`. A prior unfinished attempt without a known crash
-creates an `UNKNOWN_ABNORMAL_EXIT` warning, but a single unknown exit does not force safe mode.
+creates an `UNKNOWN_ABNORMAL_EXIT` warning, but Android user-requested exits matched to that attempt
+are excluded. A single unknown exit does not force safe mode.
 
 Automatic safe mode is selected for a pre-stable Kotlin/Rust/native fatal, database open or
 migration failure, the same fatal fingerprint twice in ten minutes or three times in 24 hours, or

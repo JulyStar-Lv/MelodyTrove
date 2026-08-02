@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -46,6 +48,7 @@ import io.github.julystar.musicapp.core.domain.model.DuplicateTrackPolicy
 import io.github.julystar.musicapp.core.domain.model.LocalMusicDirectory
 import io.github.julystar.musicapp.core.domain.model.MAX_MINIMUM_AUDIO_DURATION_MS
 import io.github.julystar.musicapp.core.domain.model.MissingFilePolicy
+import io.github.julystar.musicapp.core.domain.model.SourceAccountId
 import io.github.julystar.musicapp.core.domain.model.SourceConnectionTestStatus
 import io.github.julystar.musicapp.core.presentation.components.AppSwitch
 import io.github.julystar.musicapp.core.presentation.components.DesignButton
@@ -61,6 +64,7 @@ import io.github.julystar.musicapp.core.presentation.components.DesignTextButton
 import io.github.julystar.musicapp.core.presentation.components.DesignTextField
 import io.github.julystar.musicapp.core.presentation.theme.DesignGradients
 import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
+import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import io.github.julystar.musicapp.service.librarysync.domain.LibrarySyncFailure
 import io.github.julystar.musicapp.service.librarysync.domain.LibrarySyncStatus
 import io.github.julystar.musicapp.service.librarysync.domain.LibrarySyncTask
@@ -86,13 +90,14 @@ fun SourceSettingsSection(
     var customDurationInputSeconds by remember { mutableStateOf("") }
     var addSourceDialogOpen by remember { mutableStateOf(false) }
     var localDirectoriesDialogOpen by remember { mutableStateOf(false) }
+    var scanResultsAccountId by remember { mutableStateOf<SourceAccountId?>(null) }
 
     SettingsPageLayout(
         title = stringResource(Res.string.settings_sources_title),
         onBack = onBack,
         compactHorizontalPadding = 16.dp,
     ) {
-        UnifiedLibraryCard(state)
+        UnifiedLibraryCard(state = state, onAction = onAction)
 
         SettingsSection(title = stringResource(Res.string.settings_sources_section)) {
             state.sourceAccounts.forEach { account ->
@@ -102,7 +107,11 @@ fun SourceSettingsSection(
                     activeTask = state.scanTasks.firstOrNull { task ->
                         task.accountId == account.accountId && task.status.isActiveInSettings()
                     },
+                    latestTask = state.scanTasks.firstOrNull { task ->
+                        task.accountId == account.accountId
+                    },
                     onManageLocal = { localDirectoriesDialogOpen = true },
+                    onShowScanResults = { scanResultsAccountId = account.accountId },
                     onAction = onAction,
                 )
             }
@@ -112,8 +121,6 @@ fun SourceSettingsSection(
                 onClick = { addSourceDialogOpen = true },
             )
         }
-
-        LibraryScanStatusCard(state = state, onAction = onAction)
 
         SettingsSection(title = stringResource(Res.string.settings_automatic_scanning_section)) {
             val autoScanModes = if (state.capabilities.backgroundScanSupported) {
@@ -276,29 +283,98 @@ fun SourceSettingsSection(
         failures = state.failureDetails,
         onDismiss = { onAction(SettingsAction.DismissScanFailures) },
     )
+    val scanResultsAccount = state.sourceAccounts.firstOrNull { account ->
+        account.accountId == scanResultsAccountId
+    }
+    SourceScanResultsDialog(
+        show = scanResultsAccount != null,
+        sourceTitle = scanResultsAccount?.let { account ->
+            if (account.isLocal) {
+                stringResource(Res.string.settings_source_local)
+            } else {
+                account.title.ifBlank { account.sourceLabel }
+            }
+        }.orEmpty(),
+        task = scanResultsAccount?.let { account ->
+            state.scanTasks.firstOrNull { task -> task.accountId == account.accountId }
+        },
+        onOpenFailures = { taskId ->
+            scanResultsAccountId = null
+            onAction(SettingsAction.OpenScanFailures(taskId))
+        },
+        onDismiss = { scanResultsAccountId = null },
+    )
 }
 
 @Composable
-private fun UnifiedLibraryCard(state: SettingsUiState) {
+private fun UnifiedLibraryCard(
+    state: SettingsUiState,
+    onAction: (SettingsAction) -> Unit,
+) {
     val sourceCount = state.sourceAccounts.size
     val enabledCount = state.enabledSourceCount
     val pausedCount = sourceCount - enabledCount
-    val isUpToDate = sourceCount > 0 && pausedCount == 0
+    val activeTasks = state.scanTasks.filter { it.status.isActiveInSettings() }
+    val active = activeTasks.isNotEmpty()
+    val latestTask = state.scanTasks.firstOrNull()
+    val attentionTaskId = latestTask?.takeIf { task ->
+        task.failedCount > 0L ||
+            task.status == LibrarySyncStatus.Failed ||
+            task.status == LibrarySyncStatus.CompletedWithErrors
+    }?.id
+    val needsAttention = attentionTaskId != null
     val statusText = when {
+        active -> stringResource(Res.string.settings_library_scanning)
+        needsAttention -> stringResource(Res.string.settings_library_scan_attention)
         sourceCount == 0 -> stringResource(Res.string.settings_library_no_sources)
-        isUpToDate -> stringResource(Res.string.settings_library_up_to_date)
-        else -> stringResource(Res.string.settings_library_sources_paused, pausedCount)
+        pausedCount > 0 -> stringResource(Res.string.settings_library_sources_paused, pausedCount)
+        else -> stringResource(Res.string.settings_library_up_to_date)
     }
-    val statusColor = if (isUpToDate) {
-        DesignPalette.SupportGreen
-    } else {
-        DesignPalette.SupportYellow
+    val statusColor = when {
+        active -> MiuixTheme.colorScheme.primary
+        needsAttention -> MiuixTheme.colorScheme.error
+        sourceCount > 0 && pausedCount == 0 -> DesignPalette.SupportGreen
+        else -> DesignPalette.SupportYellow
     }
     val lastScanAt = state.sourceAccounts.mapNotNull { it.lastScanAtEpochMs }.maxOrNull()
+    val scanSummary = when {
+        active -> stringResource(
+            Res.string.settings_library_scanning_summary,
+            activeTasks.sumOf(LibrarySyncTask::scannedCount).groupedCount(),
+        )
+        latestTask == null -> stringResource(
+            Res.string.settings_library_no_scan_summary,
+            state.trackCount.groupedCount(),
+        )
+        latestTask.failedCount == 0L -> stringResource(
+            Res.string.settings_library_scan_complete_no_failures_summary,
+            latestTask.updatedAtEpochMs.relativeScanLabel(compact = false),
+            state.trackCount.groupedCount(),
+        )
+        else -> stringResource(
+            Res.string.settings_library_scan_complete_summary,
+            latestTask.updatedAtEpochMs.relativeScanLabel(compact = false),
+            state.trackCount.groupedCount(),
+            latestTask.failedCount.groupedCount(),
+        )
+    }
+    val processed = activeTasks.sumOf(LibrarySyncTask::processedCount)
+    val scanned = activeTasks.sumOf(LibrarySyncTask::scannedCount)
+    val progress = if (scanned > 0L) {
+        (processed.toFloat() / scanned.toFloat()).coerceIn(0f, 1f)
+    } else {
+        0f
+    }
+    val canScan = state.enabledSourceCount > 0 && !state.maintenanceOperationInProgress
 
     DesignCardSurface(
         cornerRadius = 28.dp,
         contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
+        backgroundColor = if (active) {
+            MiuixTheme.colorScheme.primary.copy(alpha = 0.06f)
+        } else {
+            MiuixTheme.colorScheme.surfaceContainer
+        },
         borderColor = MiuixTheme.colorScheme.primary.copy(alpha = 0.15f),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
@@ -366,6 +442,59 @@ private fun UnifiedLibraryCard(state: SettingsUiState) {
                         .padding(start = 12.dp),
                 )
             }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = scanSummary,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    style = MiuixTheme.textStyles.footnote1,
+                    lineHeight = 16.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .weight(1f)
+                        .then(
+                            if (attentionTaskId != null) {
+                                Modifier.clickable {
+                                    onAction(SettingsAction.OpenScanFailures(attentionTaskId))
+                                }
+                            } else {
+                                Modifier
+                            },
+                        ),
+                )
+                DesignButton(
+                    text = stringResource(
+                        if (active) Res.string.settings_cancel else Res.string.settings_scan_now,
+                    ),
+                    variant = if (active) {
+                        DesignButtonVariant.Secondary
+                    } else {
+                        DesignButtonVariant.Primary
+                    },
+                    enabled = active || canScan,
+                    minHeight = 40.dp,
+                    insideMargin = androidx.compose.foundation.layout.PaddingValues(
+                        horizontal = 14.dp,
+                        vertical = 8.dp,
+                    ),
+                    onClick = {
+                        onAction(
+                            if (active) SettingsAction.CancelActiveScans
+                            else SettingsAction.ScanAllSources,
+                        )
+                    },
+                )
+            }
+            if (active) {
+                DesignLinearProgressIndicator(
+                    progress = progress,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
     }
 }
@@ -428,7 +557,9 @@ private fun SourceAccountRow(
     account: SourceAccountSettingsItem,
     localDirectories: List<LocalMusicDirectory>,
     activeTask: LibrarySyncTask?,
+    latestTask: LibrarySyncTask?,
     onManageLocal: () -> Unit,
+    onShowScanResults: () -> Unit,
     onAction: (SettingsAction) -> Unit,
 ) {
     val sourceTitle = if (account.isLocal) {
@@ -454,15 +585,25 @@ private fun SourceAccountRow(
         stringResource(Res.string.settings_track_count, account.trackCount.groupedCount()),
     ).filter(String::isNotBlank).joinToString(" · ")
     val isScanning = activeTask != null || account.lastScanStatus == "RUNNING"
+    val scanNeedsAttention = latestTask?.hasError == true ||
+        account.lastScanStatus == "SYNCED_WITH_ERRORS"
+    val scanStatusLabel = when {
+        isScanning -> stringResource(Res.string.settings_source_scanning)
+        scanNeedsAttention -> stringResource(Res.string.settings_library_scan_attention)
+        account.lastScanStatus == "SYNCED" || account.lastScanAtEpochMs != null ->
+            stringResource(Res.string.settings_library_up_to_date)
+        else -> stringResource(Res.string.settings_source_never_scanned)
+    }
+    val scanStatusColor = when {
+        isScanning -> MiuixTheme.colorScheme.primary
+        scanNeedsAttention -> MiuixTheme.colorScheme.error
+        account.lastScanAtEpochMs != null -> DesignPalette.SupportGreen
+        else -> MiuixTheme.colorScheme.onSurfaceVariantSummary
+    }
     val connectionLabel = when {
         !account.enabled -> stringResource(Res.string.settings_source_disconnected)
         account.isLocal -> stringResource(Res.string.settings_source_available)
         else -> stringResource(Res.string.settings_source_connected)
-    }
-    val indexLabel = when {
-        isScanning -> stringResource(Res.string.settings_source_scanning)
-        account.trackCount > 0L -> stringResource(Res.string.settings_source_indexed)
-        else -> stringResource(Res.string.settings_source_not_indexed)
     }
     val visual = account.sourceVisual()
 
@@ -523,8 +664,9 @@ private fun SourceAccountRow(
                 )
                 SourceHealthLine(
                     connectionLabel = connectionLabel,
-                    indexLabel = indexLabel,
-                    lastScanLabel = account.lastScanAtEpochMs.relativeScanLabel(compact = true),
+                    scanStatusLabel = scanStatusLabel,
+                    scanStatusColor = scanStatusColor,
+                    lastScanLabel = account.lastScanAtEpochMs?.relativeScanLabel(compact = true),
                     connected = account.enabled,
                     scanning = isScanning,
                 )
@@ -542,6 +684,7 @@ private fun SourceAccountRow(
                 SourceActionsButton(
                     account = account,
                     sourceTitle = sourceTitle,
+                    onShowScanResults = onShowScanResults,
                     onManageLocal = onManageLocal,
                     onAction = onAction,
                 )
@@ -560,8 +703,9 @@ private fun SourceAccountRow(
 @Composable
 private fun SourceHealthLine(
     connectionLabel: String,
-    indexLabel: String,
-    lastScanLabel: String,
+    scanStatusLabel: String,
+    scanStatusColor: Color,
+    lastScanLabel: String?,
     connected: Boolean,
     scanning: Boolean,
 ) {
@@ -609,23 +753,19 @@ private fun SourceHealthLine(
             Icon(
                 painter = painterResource(Res.drawable.icon_source_refresh),
                 contentDescription = null,
-                tint = MiuixTheme.colorScheme.primary,
+                tint = scanStatusColor,
                 modifier = Modifier
                     .size(11.dp)
                     .graphicsLayer(rotationZ = rotation),
             )
         }
         Text(
-            text = indexLabel,
-            color = if (scanning) {
-                MiuixTheme.colorScheme.primary
-            } else {
-                MiuixTheme.colorScheme.onSurfaceVariantSummary
-            },
+            text = scanStatusLabel,
+            color = scanStatusColor,
             style = MiuixTheme.textStyles.footnote2,
             maxLines = 1,
         )
-        if (!scanning) {
+        if (!scanning && lastScanLabel != null) {
             Text(
                 text = "·",
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
@@ -646,6 +786,7 @@ private fun SourceHealthLine(
 private fun SourceActionsButton(
     account: SourceAccountSettingsItem,
     sourceTitle: String,
+    onShowScanResults: () -> Unit,
     onManageLocal: () -> Unit,
     onAction: (SettingsAction) -> Unit,
 ) {
@@ -653,7 +794,7 @@ private fun SourceActionsButton(
     Box {
         Box(
             modifier = Modifier
-                .size(40.dp)
+                .size(DesignTokens.adaptive.minimumTouchTarget)
                 .clip(RoundedCornerShape(999.dp))
                 .clickable { menuOpen = true },
             contentAlignment = Alignment.Center,
@@ -673,7 +814,8 @@ private fun SourceActionsButton(
             ) {
                 Column(
                     modifier = Modifier
-                        .width(224.dp)
+                        .width(IntrinsicSize.Max)
+                        .widthIn(min = 168.dp, max = 256.dp)
                         .clip(RoundedCornerShape(20.dp))
                         .background(MiuixTheme.colorScheme.surfaceContainerHighest)
                         .padding(6.dp),
@@ -716,6 +858,14 @@ private fun SourceActionsButton(
                             },
                         )
                     }
+                    SourceMenuItem(
+                        icon = Res.drawable.icon_log,
+                        label = stringResource(Res.string.settings_source_scan_results),
+                        onClick = {
+                            menuOpen = false
+                            onShowScanResults()
+                        },
+                    )
                     if (account.isWebDav || account.isSmb) {
                         Spacer(
                             modifier = Modifier
@@ -784,6 +934,121 @@ private fun SourceMenuItem(
 }
 
 @Composable
+private fun SourceScanResultsDialog(
+    show: Boolean,
+    sourceTitle: String,
+    task: LibrarySyncTask?,
+    onOpenFailures: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    DesignDialog(show = show, onDismiss = onDismiss) {
+        Column(
+            modifier = Modifier.verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(Res.string.settings_source_scan_results),
+                color = MiuixTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.title3,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                text = sourceTitle,
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                style = MiuixTheme.textStyles.body2,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (task == null) {
+                Text(
+                    text = stringResource(Res.string.settings_scan_no_history),
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    style = MiuixTheme.textStyles.body2,
+                )
+            } else {
+                StatusPill(
+                    label = task.status.localizedScanStatus(),
+                    color = task.status.scanStatusColor(),
+                )
+                Text(
+                    text = stringResource(
+                        Res.string.settings_scan_status_summary,
+                        task.folderDisplayPath,
+                        task.status.localizedScanStatus(),
+                        task.scannedCount.groupedCount(),
+                        task.addedCount.groupedCount(),
+                        task.modifiedCount.groupedCount(),
+                        task.deletedCount.groupedCount(),
+                        task.skippedCount.groupedCount(),
+                        task.metadataRequestCount.groupedCount(),
+                        task.totalElapsedMs.groupedCount(),
+                    ),
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    style = MiuixTheme.textStyles.footnote1,
+                    lineHeight = 16.sp,
+                )
+                task.errorMessage?.takeIf(String::isNotBlank)?.let { message ->
+                    Text(
+                        text = message,
+                        color = MiuixTheme.colorScheme.error,
+                        style = MiuixTheme.textStyles.footnote1,
+                        lineHeight = 16.sp,
+                    )
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                task?.takeIf { it.failedCount > 0L }?.let { failedTask ->
+                    DesignTextButton(
+                        text = stringResource(
+                            Res.string.settings_scan_failure_count,
+                            failedTask.failedCount.coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+                        ),
+                        variant = DesignTextButtonVariant.Default,
+                        size = DesignTextButtonSize.Medium,
+                        onClick = { onOpenFailures(failedTask.id) },
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                DesignTextButton(
+                    text = stringResource(Res.string.settings_close),
+                    variant = DesignTextButtonVariant.Default,
+                    size = DesignTextButtonSize.Medium,
+                    onClick = onDismiss,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LibrarySyncStatus.localizedScanStatus(): String = when (this) {
+    LibrarySyncStatus.Queued -> stringResource(Res.string.settings_scan_status_queued)
+    LibrarySyncStatus.Running -> stringResource(Res.string.settings_scan_status_running)
+    LibrarySyncStatus.Paused -> stringResource(Res.string.settings_scan_status_paused)
+    LibrarySyncStatus.Completed -> stringResource(Res.string.settings_scan_status_completed)
+    LibrarySyncStatus.CompletedWithErrors ->
+        stringResource(Res.string.settings_scan_status_completed_errors)
+    LibrarySyncStatus.Failed -> stringResource(Res.string.settings_scan_status_failed)
+    LibrarySyncStatus.Cancelled -> stringResource(Res.string.settings_scan_status_cancelled)
+    LibrarySyncStatus.Unknown -> stringResource(Res.string.settings_scan_status_unknown)
+}
+
+@Composable
+private fun LibrarySyncStatus.scanStatusColor(): Color = when (this) {
+    LibrarySyncStatus.Queued,
+    LibrarySyncStatus.Running,
+    LibrarySyncStatus.Paused -> MiuixTheme.colorScheme.primary
+    LibrarySyncStatus.Completed -> DesignPalette.SupportGreen
+    LibrarySyncStatus.CompletedWithErrors,
+    LibrarySyncStatus.Failed -> MiuixTheme.colorScheme.error
+    LibrarySyncStatus.Cancelled,
+    LibrarySyncStatus.Unknown -> MiuixTheme.colorScheme.onSurfaceVariantSummary
+}
+
+@Composable
 private fun AddSourceRow(
     enabled: Boolean,
     onClick: () -> Unit,
@@ -820,155 +1085,7 @@ private fun AddSourceRow(
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        DesignChevron(direction = DesignChevronDirection.Right)
-    }
-}
-
-@Composable
-private fun LibraryScanStatusCard(
-    state: SettingsUiState,
-    onAction: (SettingsAction) -> Unit,
-) {
-    val activeTasks = state.scanTasks.filter { it.status.isActiveInSettings() }
-    val active = activeTasks.isNotEmpty()
-    val latestTask = state.scanTasks.firstOrNull()
-    val attentionTaskId = latestTask?.takeIf {
-        it.failedCount > 0L ||
-            it.status == LibrarySyncStatus.Failed ||
-            it.status == LibrarySyncStatus.CompletedWithErrors
-    }?.id
-    val latestNeedsAttention = attentionTaskId != null
-    val title = when {
-        active -> stringResource(Res.string.settings_library_scanning)
-        latestNeedsAttention -> stringResource(Res.string.settings_library_scan_attention)
-        else -> stringResource(Res.string.settings_library_up_to_date)
-    }
-    val summary = when {
-        active -> stringResource(
-            Res.string.settings_library_scanning_summary,
-            activeTasks.sumOf(LibrarySyncTask::scannedCount).groupedCount(),
-        )
-        latestTask == null -> stringResource(
-            Res.string.settings_library_no_scan_summary,
-            state.trackCount.groupedCount(),
-        )
-        latestTask.failedCount == 0L -> stringResource(
-            Res.string.settings_library_scan_complete_no_failures_summary,
-            latestTask.updatedAtEpochMs.relativeScanLabel(compact = false),
-            state.trackCount.groupedCount(),
-        )
-        else -> stringResource(
-            Res.string.settings_library_scan_complete_summary,
-            latestTask.updatedAtEpochMs.relativeScanLabel(compact = false),
-            state.trackCount.groupedCount(),
-            latestTask.failedCount.groupedCount(),
-        )
-    }
-    val processed = activeTasks.sumOf(LibrarySyncTask::processedCount)
-    val scanned = activeTasks.sumOf(LibrarySyncTask::scannedCount)
-    val progress = if (scanned > 0L) {
-        (processed.toFloat() / scanned.toFloat()).coerceIn(0f, 1f)
-    } else {
-        0f
-    }
-    val canScan = state.enabledSourceCount > 0 && !state.maintenanceOperationInProgress
-
-    DesignCardSurface(
-        cornerRadius = 24.dp,
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-        backgroundColor = if (active) {
-            MiuixTheme.colorScheme.primary.copy(alpha = 0.06f)
-        } else {
-            MiuixTheme.colorScheme.surfaceContainer
-        },
-        borderColor = if (active) {
-            MiuixTheme.colorScheme.primary.copy(alpha = 0.25f)
-        } else {
-            MiuixTheme.colorScheme.outline
-        },
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                SettingsIconBadge(
-                    drawable = if (active) {
-                        Res.drawable.icon_source_refresh
-                    } else {
-                        Res.drawable.icon_source_circle_check
-                    },
-                    colors = if (active) {
-                        DesignGradients.PinkPurple.colors
-                    } else {
-                        DesignGradients.GreenBlue.colors
-                    },
-                )
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(3.dp),
-                ) {
-                    Text(
-                        text = title,
-                        color = MiuixTheme.colorScheme.onSurface,
-                        style = MiuixTheme.textStyles.body1,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = summary,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        style = MiuixTheme.textStyles.footnote1,
-                        lineHeight = 16.sp,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = if (attentionTaskId != null) {
-                            Modifier.clickable {
-                                onAction(SettingsAction.OpenScanFailures(attentionTaskId))
-                            }
-                        } else {
-                            Modifier
-                        },
-                    )
-                }
-                DesignButton(
-                    text = stringResource(
-                        if (active) {
-                            Res.string.settings_cancel
-                        } else {
-                            Res.string.settings_scan_now
-                        },
-                    ),
-                    variant = if (active) {
-                        DesignButtonVariant.Secondary
-                    } else {
-                        DesignButtonVariant.Primary
-                    },
-                    enabled = active || canScan,
-                    minHeight = 40.dp,
-                    insideMargin = androidx.compose.foundation.layout.PaddingValues(
-                        horizontal = 14.dp,
-                        vertical = 8.dp,
-                    ),
-                    onClick = {
-                        onAction(
-                            if (active) {
-                                SettingsAction.CancelActiveScans
-                            } else {
-                                SettingsAction.ScanAllSources
-                            },
-                        )
-                    },
-                )
-            }
-            if (active) {
-                DesignLinearProgressIndicator(
-                    progress = progress,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-        }
+        SourceTrailingChevron()
     }
 }
 
@@ -1342,6 +1459,16 @@ private fun SourcePickerRow(
                 overflow = TextOverflow.Ellipsis,
             )
         }
+        SourceTrailingChevron()
+    }
+}
+
+@Composable
+private fun SourceTrailingChevron() {
+    Box(
+        modifier = Modifier.size(DesignTokens.adaptive.minimumTouchTarget),
+        contentAlignment = Alignment.Center,
+    ) {
         DesignChevron(direction = DesignChevronDirection.Right)
     }
 }

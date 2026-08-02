@@ -54,9 +54,7 @@ class AlbumViewModel(
                     albumId = albumId,
                     title = detail.albumTitle,
                     artist = detail.albumArtist ?: "",
-                    artwork = detail.tracks.firstOrNull()?.let {
-                        Artwork.LibraryTrack(trackId = it.id)
-                    },
+                    artwork = Artwork.LibraryAlbum(albumId),
                     tracks = detail.tracks.map { track ->
                         AlbumTrackItem(
                             id = track.id,

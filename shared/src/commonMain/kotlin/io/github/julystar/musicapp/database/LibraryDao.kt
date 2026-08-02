@@ -386,6 +386,7 @@ data class PlaylistSummaryRow(
     val sortOrder: Long,
     val musicCount: Long,
     val durationMs: Long?,
+    val firstTrackId: Long?,
 )
 
 
@@ -417,7 +418,14 @@ interface PlaylistDao {
         SELECT p.id, p.title, p.artworkId, p.createdAt, p.sortOrder,
                p.coverStorageId, p.coverPath,
                COUNT(pt.trackId) AS musicCount,
-               SUM(t.durationMs) AS durationMs
+               SUM(t.durationMs) AS durationMs,
+               (
+                   SELECT first_pt.trackId
+                   FROM playlist_track first_pt
+                   WHERE first_pt.playlistId = p.id
+                   ORDER BY first_pt.sortOrder, first_pt.trackId
+                   LIMIT 1
+               ) AS firstTrackId
         FROM playlist p
         LEFT JOIN playlist_track pt ON pt.playlistId = p.id
         LEFT JOIN track t ON t.id = pt.trackId

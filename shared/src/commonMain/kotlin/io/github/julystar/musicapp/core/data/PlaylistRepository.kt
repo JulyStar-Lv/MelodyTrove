@@ -4,6 +4,7 @@ import io.github.julystar.musicapp.database.PlaylistDao
 import io.github.julystar.musicapp.database.PlaylistTrackRow as DaoPlaylistTrackRow
 import io.github.julystar.musicapp.singleton.RoomLibraryStore
 import io.github.julystar.musicapp.core.data.StorageRepositoryImpl
+import io.github.julystar.musicapp.core.domain.model.Artwork
 import io.github.julystar.musicapp.core.domain.model.DomainPlaylistTrack
 import io.github.julystar.musicapp.core.domain.model.PlaylistSummary
 import io.github.julystar.musicapp.core.toArtwork
@@ -72,7 +73,9 @@ class PlaylistRepositoryImpl(
             playlistDao.observeSummaries().collect { rows ->
                 val mapped = rows.map(roomLibraryStore::mapPlaylistSummary).toPersistentList()
                 _playlists.value = mapped
-                _playlistSummaries.value = mapped.map { it.toPlaylistSummary() }
+                _playlistSummaries.value = mapped.mapIndexed { index, playlist ->
+                    playlist.toPlaylistSummary(rows[index].firstTrackId)
+                }
             }
         }
         _scope.launch {
@@ -157,13 +160,18 @@ class PlaylistRepositoryImpl(
     }
 
     companion object {
-        internal fun PlaylistAbstract.toPlaylistSummary(): PlaylistSummary {
+        internal fun PlaylistAbstract.toPlaylistSummary(
+            firstTrackId: Long? = null,
+        ): PlaylistSummary {
             return PlaylistSummary(
                 id = meta.id.value,
                 title = meta.title,
                 musicCount = musicCount.toLong(),
                 durationMs = duration?.inWholeMilliseconds ?: 0L,
-                coverArtwork = meta.showCover?.toArtwork(),
+                coverArtwork = resolvePlaylistCoverArtwork(
+                    explicitArtwork = meta.showCover?.toArtwork(),
+                    firstTrackId = firstTrackId,
+                ),
             )
         }
     }
@@ -171,6 +179,11 @@ class PlaylistRepositoryImpl(
     suspend fun reload() {
     }
 }
+
+internal fun resolvePlaylistCoverArtwork(
+    explicitArtwork: Artwork?,
+    firstTrackId: Long?,
+): Artwork? = explicitArtwork ?: firstTrackId?.let(Artwork::LibraryTrack)
 
 internal suspend fun DaoPlaylistTrackRow.toDomainRow(
     storageLookup: LegacyStorageLookup,

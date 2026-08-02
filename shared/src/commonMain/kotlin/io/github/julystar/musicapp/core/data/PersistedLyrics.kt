@@ -29,8 +29,14 @@ internal fun LyricsEntity.toPlaybackLyrics(): Lyrics {
         .mapNotNull { line ->
             when (line) {
                 is KaraokeLine -> line.toDomainLine()
-                is SyncedLine -> LyricLine(line.start.milliseconds, line.content)
-                is UncheckedSyncedLine -> LyricLine(line.start.milliseconds, line.content)
+                is SyncedLine -> LyricLine(
+                    line.start.milliseconds,
+                    line.content.withTranslation(line.translation),
+                )
+                is UncheckedSyncedLine -> LyricLine(
+                    line.start.milliseconds,
+                    line.content.withTranslation(line.translation),
+                )
                 else -> null
             }
         }
@@ -143,7 +149,9 @@ private fun KaraokeLine.toDomainLine(): LyricLine {
     val lineStart = start.coerceAtLeast(0)
     return LyricLine(
         duration = lineStart.milliseconds,
-        text = syllables.joinToString(separator = "") { syllable -> syllable.content },
+        text = syllables
+            .joinToString(separator = "") { syllable -> syllable.content }
+            .withTranslation(translation),
         words = syllables.map { syllable ->
             LyricWord(
                 text = syllable.content,
@@ -152,4 +160,9 @@ private fun KaraokeLine.toDomainLine(): LyricLine {
             )
         }.toPersistentList(),
     )
+}
+
+private fun String.withTranslation(translation: String?): String {
+    val normalizedTranslation = translation?.trim()?.takeIf(String::isNotEmpty) ?: return this
+    return "$this\n$normalizedTranslation"
 }

@@ -9,6 +9,8 @@
     <string name="plugins_enabled">已启用</string>
     <string name="plugins_disabled">已停用</string>
     <string name="plugins_configure">配置</string>
+    <string name="plugins_remove">移除</string>
+    <string name="plugins_more_options_named">%1$s 的更多操作</string>
     <string name="plugins_uninstall">卸载</string>
     <string name="plugins_import">导入插件</string>
     <string name="plugins_choose_zip">选择 ZIP</string>

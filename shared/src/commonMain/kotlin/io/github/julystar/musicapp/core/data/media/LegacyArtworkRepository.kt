@@ -25,6 +25,7 @@ class LegacyArtworkRepository(
     private val roomLibraryStore: RoomLibraryStore,
     private val trackDao: TrackDao,
     private val metadataDao: MetadataDao,
+    private val pluginArtworkResolver: PluginArtworkResolver,
     private val fileSystem: FileSystem = FileSystem.SYSTEM,
 ) : ArtworkRepository {
     private val cache = HashMap<Artwork, ByteArray>()
@@ -49,6 +50,16 @@ class LegacyArtworkRepository(
             return bytes
         }
 
+        if (
+            (artwork is Artwork.LibraryTrack && artwork.allowPluginLookup) ||
+            artwork is Artwork.LibraryAlbum
+        ) {
+            pluginArtworkResolver.load(artwork)?.let { bytes ->
+                cache[artwork] = bytes
+                return bytes
+            }
+            return null
+        }
         if (artwork is Artwork.LibraryTrack || artwork is Artwork.LibraryCover) return null
 
         val loc = artwork.resolveLegacyStorageEntryLoc { trackId ->
@@ -89,6 +100,7 @@ internal suspend fun Artwork.resolveRoomArtworkCacheKey(
     val entity = when (this) {
         is Artwork.LibraryTrack -> findTrackArtwork(trackId)
             ?: findTrack(trackId)?.albumId?.let { albumId -> findAlbumArtwork(albumId) }
+        is Artwork.LibraryAlbum -> findAlbumArtwork(albumId)
         is Artwork.LibraryCover -> findTrackArtwork(trackId)
             ?: findTrack(trackId)?.albumId?.let { albumId -> findAlbumArtwork(albumId) }
         is Artwork.SourceMedia -> null
@@ -114,6 +126,7 @@ internal suspend fun Artwork.resolveLegacyStorageEntryLoc(
 ): StorageEntryLoc? {
     return when (this) {
         is Artwork.LibraryTrack -> resolveTrackLoc(trackId)
+        is Artwork.LibraryAlbum -> null
         is Artwork.LibraryCover -> null
         is Artwork.SourceMedia -> {
             val target = mediaId.toLegacyStorageArtworkTarget() ?: return null

@@ -170,14 +170,15 @@ class IosPlayerController internal constructor(
         playbackJob = scope.launch(mainDispatcher) {
             playerRepository.setIsLoading(true)
             try {
+                val queuedPlaylist = playerRepository.playlist.value?.takeIf { queue ->
+                    queue.abstr.meta.id == playlistId && queue.musics.any { it.meta.id == id }
+                }
                 playbackEngine.stop()
                 releasePlaybackResource()
                 playerRepository.setIsPlaying(false)
                 playerRepository.resetCurrent()
                 val music = roomLibraryStore.getMusic(id)
-                val playlist = playerRepository.playlist.value?.takeIf { queue ->
-                    queue.abstr.meta.id == playlistId && queue.musics.any { it.meta.id == id }
-                } ?: roomLibraryStore.getPlaylist(playlistId)
+                val playlist = queuedPlaylist ?: roomLibraryStore.getPlaylist(playlistId)
                 val belongsToPlaylist = playlist?.musics?.any { it.meta.id == id } == true
                 if (music == null || playlist == null || !belongsToPlaylist) {
                     return@launch

@@ -4,9 +4,21 @@ import androidx.media3.common.MediaMetadata
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 class MusicPlayerUtilTest {
+    @Test
+    fun defaultArtworkIsPublishedAsImageData() {
+        val metadata = MediaMetadata.Builder()
+            .withDefaultArtwork()
+            .build()
+
+        assertNull(metadata.artworkUri)
+        assertNotNull(metadata.artworkData)
+        assertEquals(MediaMetadata.PICTURE_TYPE_FRONT_COVER, metadata.artworkDataType)
+    }
+
     @Test
     fun artworkDataIsPublishedWithoutDroppingMetadata() {
         val artworkData = byteArrayOf(1, 2, 3)

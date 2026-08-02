@@ -5,6 +5,7 @@ import io.github.julystar.musicapp.core.data.datastore.PersistedPlaybackSession
 import io.github.julystar.musicapp.core.domain.model.Artwork
 import io.github.julystar.musicapp.core.domain.model.Lyrics
 import io.github.julystar.musicapp.core.domain.model.CurrentTrackInfo
+import io.github.julystar.musicapp.core.domain.repository.SettingsRepository
 import io.github.julystar.musicapp.feature.home.domain.HomeStatisticsRepository
 import io.github.julystar.musicapp.feature.home.domain.ListeningPlaybackTrack
 import io.github.julystar.musicapp.core.toArtwork
@@ -25,7 +26,11 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import io.github.julystar.musicapp.platform.currentTimeMillis
@@ -48,6 +53,7 @@ class PlayerRepository(
     private val metadataPrefetcher: TrackMetadataPrefetcher? = null,
     private val statisticsRepository: HomeStatisticsRepository? = null,
     private val lyricsEnricher: PlaybackLyricsEnricher? = null,
+    private val settingsRepository: SettingsRepository? = null,
 ) {
     private val queueOrderKeyManager = QueueOrderKeyManager()
     private val _music = MutableStateFlow(null as Music?)
@@ -129,6 +135,15 @@ class PlayerRepository(
         _scope.launch {
             nextMusic.collect { next -> _nextArtwork.value = next?.toPlaybackArtwork() }
         }
+        if (lyricsEnricher != null && settingsRepository != null) {
+            _scope.launch {
+                settingsRepository.settings
+                    .map { settings -> settings.lyrics.sourceMode to settings.lyrics.sourcePriority }
+                    .distinctUntilChanged()
+                    .drop(1)
+                    .collect { requeryCurrentLyricsForSourceSettings() }
+            }
+        }
         statisticsRepository?.let { repository ->
             val tracker = PlayerPlaybackStatisticsTracker(repository)
             _scope.launch {
@@ -165,6 +180,10 @@ class PlayerRepository(
         metadataJob?.cancel()
         _music.value = music
         _playlist.value = playlist
+        startMetadataJob(music)
+    }
+
+    private fun startMetadataJob(music: Music) {
         metadataJob = _scope.launch {
             publishCurrentTrackInfo(music)
             val refreshed = try {
@@ -193,6 +212,19 @@ class PlayerRepository(
             if (!enriched || _music.value?.meta?.id != music.meta.id) return@launch
             publishCurrentTrackInfo(_music.value ?: return@launch)
         }
+    }
+
+    private suspend fun requeryCurrentLyricsForSourceSettings() {
+        val currentId = _music.value?.meta?.id ?: return
+        val previousJob = metadataJob
+        previousJob?.cancelAndJoin()
+        if (metadataJob === previousJob) {
+            metadataJob = null
+        }
+        if (_music.value?.meta?.id != currentId) return
+
+        lyricsEnricher?.resetAttempt(currentId.value)
+        _music.value?.let(::startMetadataJob)
     }
 
     fun resetCurrent() {
@@ -312,6 +344,10 @@ class PlayerRepository(
         roomLibraryStore.getMusic(MusicId(trackId))?.let { music ->
             MusicAbstract(meta = music.meta, cover = music.cover)
         }
+
+    fun setPlaybackQueue(playlist: Playlist) {
+        _playlist.value = playlist
+    }
 
     fun replacePlaybackQueue(musics: List<MusicAbstract>) {
         val playlist = _playlist.value ?: return

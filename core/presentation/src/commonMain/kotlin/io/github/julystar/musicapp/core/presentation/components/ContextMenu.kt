@@ -2,31 +2,39 @@ package io.github.julystar.musicapp.core.presentation.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
+import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 data class DesignContextMenuItem(
     val label: StringResource,
+    val icon: DrawableResource,
     val onClick: () -> Unit,
     val isError: Boolean = false
 ) {
@@ -52,13 +60,22 @@ fun DesignContextMenu(
         Column(
             modifier = Modifier
                 .clip(RoundedCornerShape(DesignTokens.shapes.sm))
-                .background(MiuixTheme.colorScheme.surfaceContainer)
-                .then(if (compact) Modifier.widthIn(min = 168.dp, max = 168.dp) else Modifier.widthIn(min = 180.dp))
+                .background(MiuixTheme.colorScheme.surfaceContainerHighest)
+                .width(IntrinsicSize.Max)
+                .widthIn(
+                    min = if (compact) 144.dp else 160.dp,
+                    max = if (compact) 240.dp else 280.dp,
+                )
                 .padding(vertical = if (compact) 4.dp else 6.dp),
         ) {
             for (item in items) {
                 val label = stringResource(item.label)
-                Box(
+                val color = if (item.isError) {
+                    MiuixTheme.colorScheme.error
+                } else {
+                    MiuixTheme.colorScheme.onSurface
+                }
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(
@@ -75,17 +92,20 @@ fun DesignContextMenu(
                             horizontal = if (compact) 12.dp else 16.dp,
                             vertical = if (compact) 4.dp else 10.dp,
                         ),
+                    horizontalArrangement = Arrangement.spacedBy(if (compact) 8.dp else 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    val color = if (!item.isError) Color.Unspecified else MiuixTheme.colorScheme.error
-                    if (compact) {
-                        Text(
-                            text = label,
-                            color = color,
-                            style = MiuixTheme.textStyles.body2,
-                        )
-                    } else {
-                        Text(text = label, color = color)
-                    }
+                    Icon(
+                        painter = painterResource(item.icon),
+                        contentDescription = null,
+                        tint = color,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Text(
+                        text = label,
+                        color = color,
+                        style = if (compact) MiuixTheme.textStyles.body2 else MiuixTheme.textStyles.body1,
+                    )
                 }
             }
         }

@@ -3,9 +3,11 @@ package io.github.julystar.musicapp.feature.queue.presentation
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -18,6 +20,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -31,6 +35,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -43,6 +49,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -69,24 +76,27 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButton
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButtonColors
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButtonSize
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButtonVariant
+import io.github.julystar.musicapp.core.presentation.components.DesignDialogHost
+import io.github.julystar.musicapp.core.presentation.components.DesignDialogNavigationBarStyle
 import io.github.julystar.musicapp.core.presentation.components.DesignDialogDefaults
 import io.github.julystar.musicapp.core.presentation.components.DesignContextMenu
 import io.github.julystar.musicapp.core.presentation.components.DesignContextMenuItem
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import musicapp.core.presentation.generated.resources.Res as CoreRes
+import musicapp.core.presentation.generated.resources.icon_deleteseep
 import musicapp.core.presentation.generated.resources.icon_heart
 import musicapp.core.presentation.generated.resources.icon_heart_filled
 import musicapp.core.presentation.generated.resources.icon_mode_list
@@ -109,6 +119,7 @@ import musicapp.feature.queue.generated.resources.queue_title
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
+import kotlin.math.roundToInt
 
 private val QueueSideDialogWidth = 480.dp
 private val QueueBottomDialogMaxWidth = 680.dp
@@ -138,6 +149,15 @@ internal fun nowPlayingLyricsPanelWidth(maxWidth: androidx.compose.ui.unit.Dp): 
     (maxWidth - NowPlayingContentStartPadding - NowPlayingContentEndPadding - NowPlayingColumnsGap) *
         NowPlayingLyricsWeight + NowPlayingContentEndPadding
 
+internal fun shouldDismissQueueSheet(
+    dragOffsetPx: Float,
+    velocityPxPerSecond: Float,
+    distanceThresholdPx: Float,
+    velocityThresholdPxPerSecond: Float,
+): Boolean =
+    dragOffsetPx >= distanceThresholdPx ||
+        velocityPxPerSecond >= velocityThresholdPxPerSecond
+
 @Composable
 fun QueueDialog(
     state: QueueState,
@@ -150,11 +170,18 @@ fun QueueDialog(
     val density = LocalDensity.current
     val autoScrollEdgePx = with(density) { 48.dp.toPx() }
     val autoScrollStepPx = with(density) { 8.dp.toPx() }
+    val dismissDistancePx = with(density) { 72.dp.toPx() }
+    val dismissVelocityPxPerSecond = with(density) { 900.dp.toPx() }
     var displayItems: List<QueueItemUi> by remember { mutableStateOf(state.items) }
     var dragState by remember { mutableStateOf<QueueDragState?>(null) }
     val hasCurrentItem = state.currentIndex in state.items.indices
     var contentVisible by remember { mutableStateOf(false) }
     var dismissing by remember { mutableStateOf(false) }
+    var sheetDragOffsetPx by remember { mutableFloatStateOf(0f) }
+    var sheetDragAnimationJob by remember { mutableStateOf<Job?>(null) }
+    val sheetDraggableState = rememberDraggableState { deltaPx ->
+        sheetDragOffsetPx = (sheetDragOffsetPx + deltaPx).coerceAtLeast(0f)
+    }
 
     fun cancelDrag() {
         dragState = null
@@ -164,6 +191,7 @@ fun QueueDialog(
     fun requestDismiss() {
         if (dismissing) return
         cancelDrag()
+        sheetDragAnimationJob?.cancel()
         dismissing = true
         contentVisible = false
         coroutineScope.launch {
@@ -189,13 +217,10 @@ fun QueueDialog(
         }
     }
 
-    Dialog(
+    DesignDialogHost(
         onDismissRequest = ::requestDismiss,
-        properties = DialogProperties(
-            dismissOnBackPress = true,
-            dismissOnClickOutside = false,
-            usePlatformDefaultWidth = false,
-        ),
+        dismissOnClickOutside = false,
+        navigationBarStyle = DesignDialogNavigationBarStyle.Surface,
     ) {
         BoxWithConstraints(
             modifier = Modifier.fillMaxSize(),
@@ -243,6 +268,42 @@ fun QueueDialog(
                     .height(minOf(maxHeight * 0.76f, QueueBottomDialogMaxHeight))
             }
 
+            val sheetHandleDragModifier = if (sideDialog) {
+                Modifier
+            } else {
+                Modifier.draggable(
+                    state = sheetDraggableState,
+                    orientation = Orientation.Vertical,
+                    enabled = !dismissing,
+                    onDragStarted = {
+                        sheetDragAnimationJob?.cancel()
+                    },
+                    onDragStopped = { velocity ->
+                        if (
+                            shouldDismissQueueSheet(
+                                dragOffsetPx = sheetDragOffsetPx,
+                                velocityPxPerSecond = velocity,
+                                distanceThresholdPx = dismissDistancePx,
+                                velocityThresholdPxPerSecond = dismissVelocityPxPerSecond,
+                            )
+                        ) {
+                            requestDismiss()
+                        } else {
+                            sheetDragAnimationJob?.cancel()
+                            sheetDragAnimationJob = coroutineScope.launch {
+                                animate(
+                                    initialValue = sheetDragOffsetPx,
+                                    targetValue = 0f,
+                                    animationSpec = spring(),
+                                ) { value, _ ->
+                                    sheetDragOffsetPx = value
+                                }
+                            }
+                        }
+                    },
+                )
+            }
+
             AnimatedVisibility(
                 visible = contentVisible,
                 modifier = surfaceModifier,
@@ -272,6 +333,12 @@ fun QueueDialog(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
+                        .offset {
+                            IntOffset(
+                                x = 0,
+                                y = if (sideDialog) 0 else sheetDragOffsetPx.roundToInt(),
+                            )
+                        }
                         .then(
                             if (sideDialog) {
                                 Modifier.shadow(
@@ -288,17 +355,26 @@ fun QueueDialog(
                             awaitPointerEventScope {
                                 while (true) awaitPointerEvent()
                             }
-                        },
+                        }
+                        .navigationBarsPadding(),
                 ) {
                     if (!sideDialog) {
                         Box(
                             modifier = Modifier
-                                .align(Alignment.CenterHorizontally)
-                                .padding(top = 12.dp)
-                                .size(width = 48.dp, height = 6.dp)
-                                .clip(RoundedCornerShape(DesignTokens.shapes.full))
-                                .background(MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.30f)),
-                        )
+                                .fillMaxWidth()
+                                .height(30.dp)
+                                .then(sheetHandleDragModifier),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(width = 48.dp, height = 6.dp)
+                                    .clip(RoundedCornerShape(DesignTokens.shapes.full))
+                                    .background(
+                                        MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.30f),
+                                    ),
+                            )
+                        }
                     }
 
                     QueueHeader(
@@ -673,6 +749,7 @@ private fun QueueTrackRow(
                     items = listOf(
                         DesignContextMenuItem(
                             label = QueueRes.string.queue_remove_item,
+                            icon = CoreRes.drawable.icon_deleteseep,
                             isError = true,
                             onClick = {
                                 moreMenuExpanded = false

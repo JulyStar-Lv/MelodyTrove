@@ -26,10 +26,11 @@ fun ArtworkImage(
     artwork: Artwork?,
     contentScale: ContentScale = ContentScale.FillWidth,
     loader: ArtworkImageLoader = koinInject(),
+    fallback: @Composable () -> Unit = { DefaultArtworkImage() },
 ) {
     Box(modifier = modifier) {
         if (artwork == null) {
-            DefaultArtworkImage()
+            fallback()
             return@Box
         }
 
@@ -44,7 +45,7 @@ fun ArtworkImage(
         }
 
         if (bitmap == null) {
-            DefaultArtworkImage()
+            fallback()
         } else {
             Image(
                 modifier = Modifier

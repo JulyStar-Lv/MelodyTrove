@@ -43,6 +43,7 @@ pub(crate) fn init_infra_compat(dir: &str) -> BResult<DiagnosticsRuntimeState> {
         git_commit_sha: String::new(),
         process_name: "MelodyTrove".to_string(),
         user_forced_safe_mode: false,
+        last_user_requested_exit_at_epoch_ms: None,
     })
 }
 

@@ -14,6 +14,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.navigation.compose.currentBackStackEntryAsState
 import io.github.julystar.musicapp.core.domain.model.AppSettings
 import io.github.julystar.musicapp.core.domain.model.AppThemeMode as DomainAppThemeMode
 import io.github.julystar.musicapp.core.domain.repository.SettingsRepository
@@ -30,6 +31,7 @@ import io.github.julystar.musicapp.feature.home.presentation.LocalPreloadedHomeV
 import io.github.julystar.musicapp.core.LocalNavController
 import io.github.julystar.musicapp.core.RoutesProvider
 import io.github.julystar.musicapp.navigation.AppNavigation
+import io.github.julystar.musicapp.navigation.isImmersivePlayerRoute
 import io.github.julystar.musicapp.platform.AppLocaleEnvironment
 import io.github.julystar.musicapp.service.playback.domain.NowPlayingRepository
 import io.github.julystar.musicapp.diagnostics.DiagnosticsBootstrapState
@@ -57,6 +59,8 @@ fun Root(
     }
     RoutesProvider {
         val controller = LocalNavController.current
+        val currentBackStackEntry by controller.currentBackStackEntryAsState()
+        val useDarkSystemBars = isImmersivePlayerRoute(currentBackStackEntry?.destination?.route)
         val settingsRepository = koinInject<SettingsRepository>()
         val toastRepository = koinInject<ToastRepository>()
         val nowPlayingRepository = koinInject<NowPlayingRepository>()
@@ -97,6 +101,7 @@ fun Root(
                     artworkStatus = artworkSeed.status,
                     source = seedResolution.source,
                 ),
+                forceDarkSystemBars = useDarkSystemBars,
             ) {
                 CompositionLocalProvider(LocalPreloadedHomeViewModel provides homeViewModel) {
                     AppNavigation(navController = controller)

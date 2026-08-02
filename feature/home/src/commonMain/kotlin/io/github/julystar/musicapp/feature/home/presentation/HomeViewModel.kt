@@ -3,6 +3,7 @@ package io.github.julystar.musicapp.feature.home.presentation
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import io.github.julystar.musicapp.core.domain.model.Artwork
 import io.github.julystar.musicapp.core.domain.model.LibraryAlbumItem
 import io.github.julystar.musicapp.core.domain.model.LibraryArtistItem
 import io.github.julystar.musicapp.core.domain.model.LibraryTrackItem
@@ -95,31 +96,34 @@ private data class HomeLibraryContent(
     val favoriteTrackIds: Set<Long>,
 )
 
-private fun HistoryPlayItem.toHomeRecentTrack(liked: Boolean): HomeRecentTrack = HomeRecentTrack(
+internal fun HistoryPlayItem.toHomeRecentTrack(liked: Boolean): HomeRecentTrack = HomeRecentTrack(
     id = trackId,
     mediaId = mediaId,
     durationMs = durationMs,
     title = title,
     subtitle = artist.orEmpty(),
+    artwork = Artwork.LibraryTrack(trackId, allowPluginLookup = true),
     artworkIndex = artworkIndex,
     color = homeGradient(trackId).first(),
     liked = liked,
 )
 
-private fun LibraryTrackItem.toHomeTrack(liked: Boolean): HomeRecentTrack = HomeRecentTrack(
+internal fun LibraryTrackItem.toHomeTrack(liked: Boolean): HomeRecentTrack = HomeRecentTrack(
     id = id,
     mediaId = mediaId,
     durationMs = durationMs,
     title = title,
     subtitle = artist.orEmpty(),
+    artwork = Artwork.LibraryTrack(id, allowPluginLookup = true),
     artworkIndex = indexFor(id),
     color = homeGradient(id).first(),
     liked = liked,
 )
 
-private fun LibraryAlbumItem.toHomeAlbum(): HomeFeaturedAlbum = HomeFeaturedAlbum(
+internal fun LibraryAlbumItem.toHomeAlbum(): HomeFeaturedAlbum = HomeFeaturedAlbum(
     title = name,
     subtitle = year?.toString().orEmpty(),
+    artwork = Artwork.LibraryAlbum(id),
     artworkIndex = indexFor(id),
     colors = homeGradient(id),
 )

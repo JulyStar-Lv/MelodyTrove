@@ -686,6 +686,7 @@ mod tests {
             git_commit_sha: "abc".into(),
             process_name: "test".into(),
             user_forced_safe_mode: false,
+            last_user_requested_exit_at_epoch_ms: None,
         }
     }
 

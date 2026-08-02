@@ -85,6 +85,7 @@ class PluginProductionAssemblyTest {
             mode = PluginLookupMode.BATCH,
         )
         assertEquals(1, songs.items.size)
+        assertEquals(2, songs.queriedSourceCount)
         assertEquals("working", songs.items.single().sourceId)
         assertEquals(1, songs.failures.size)
         assertEquals("failing", songs.failures.single().sourceId)

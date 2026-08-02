@@ -27,6 +27,16 @@ class PlaybackLyricsEnricher(
     private val inFlight = mutableSetOf<Long>()
     private val attempted = mutableSetOf<Long>()
 
+    /**
+     * Lets a changed lyric-source preference retry a lookup that previously completed without
+     * finding a preferred external lyric.
+     */
+    suspend fun resetAttempt(trackId: Long) {
+        stateMutex.withLock {
+            attempted -= trackId
+        }
+    }
+
     suspend fun enrich(trackId: Long): Boolean {
         val settings = settingsRepository.settings.first().lyrics
         val candidates = metadataDao.getLyricsCandidates(trackId)
@@ -106,8 +116,8 @@ class PlaybackLyricsEnricher(
     }
 }
 
-private fun MetaSongCandidate.matchScore(query: MetaSongQuery): Int? {
-    if (title.matchKey() != query.title.matchKey()) return null
+internal fun MetaSongCandidate.matchScore(query: MetaSongQuery): Int? {
+    if (title.matchTitleKey() != query.title.matchTitleKey()) return null
 
     var score = 100
     val expectedArtist = query.artist?.matchKey().orEmpty()
@@ -143,6 +153,14 @@ private fun MetaSongCandidate.matchScore(query: MetaSongQuery): Int? {
 
 private fun String.matchKey(): String =
     lowercase().filter(Char::isLetterOrDigit)
+
+private fun String.matchTitleKey(): String =
+    replace(FEATURED_ARTIST_SUFFIX, "").matchKey()
+
+private val FEATURED_ARTIST_SUFFIX = Regex(
+    """\s*[\(\[]\s*(?:feat\.?|ft\.?)\s+.+?[\)\]]\s*$""",
+    RegexOption.IGNORE_CASE,
+)
 
 private const val PLAYBACK_LYRICS_RESULTS_PER_SOURCE = 3
 private const val MAX_PLAYBACK_LYRICS_DURATION_DIFFERENCE_MS = 10_000L

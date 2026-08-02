@@ -61,6 +61,8 @@ import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import musicapp.core.presentation.generated.resources.Res as CoreRes
+import musicapp.core.presentation.generated.resources.icon_setting
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
@@ -162,9 +164,9 @@ private fun PlaylistHeader(state: PlaylistState, onAction: (PlaylistAction) -> U
                 DesignIconButton(size = DesignIconButtonSize.Medium, variant = DesignIconButtonVariant.Default, painter = painterResource(Res.drawable.icon_vertialcal_more), onClick = { moreMenuExpanded = true })
                 Box(contentAlignment = Alignment.TopEnd, modifier = Modifier.offset(20.dp, 20.dp)) {
                     DesignContextMenu(expanded = moreMenuExpanded, onDismissRequest = { moreMenuExpanded = false }, items = listOf(
-                        DesignContextMenuItem(label = Res.string.playlist_context_menu_import, onClick = { moreMenuExpanded = false; onAction(PlaylistAction.ImportTracks) }),
-                        DesignContextMenuItem(label = Res.string.playlist_context_menu_edit, onClick = { moreMenuExpanded = false; onAction(PlaylistAction.EditPlaylist) }),
-                        DesignContextMenuItem(label = Res.string.playlist_context_menu_remove, isError = true, onClick = { moreMenuExpanded = false; onAction(PlaylistAction.OpenRemoveDialog) }),
+                        DesignContextMenuItem(label = Res.string.playlist_context_menu_import, icon = Res.drawable.icon_download, onClick = { moreMenuExpanded = false; onAction(PlaylistAction.ImportTracks) }),
+                        DesignContextMenuItem(label = Res.string.playlist_context_menu_edit, icon = CoreRes.drawable.icon_setting, onClick = { moreMenuExpanded = false; onAction(PlaylistAction.EditPlaylist) }),
+                        DesignContextMenuItem(label = Res.string.playlist_context_menu_remove, icon = Res.drawable.icon_deleteseep, isError = true, onClick = { moreMenuExpanded = false; onAction(PlaylistAction.OpenRemoveDialog) }),
                     ))
                 }
             }

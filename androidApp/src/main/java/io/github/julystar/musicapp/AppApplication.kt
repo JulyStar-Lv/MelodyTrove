@@ -7,6 +7,7 @@ import io.github.julystar.musicapp.di.initKoin
 import io.github.julystar.musicapp.diagnostics.DiagnosticsBootstrap
 import io.github.julystar.musicapp.diagnostics.RustDiagnosticsRepository
 import io.github.julystar.musicapp.diagnostics.collectAndroidHistoricalExitInfo
+import io.github.julystar.musicapp.diagnostics.lastUserRequestedProcessExitAtEpochMs
 import io.github.julystar.musicapp.diagnostics.recordKotlinUncaughtException
 import io.github.julystar.musicapp.platform.appContext
 import kotlinx.coroutines.runBlocking
@@ -24,7 +25,9 @@ class AppApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         appContext = this
-        DiagnosticsBootstrap.initialize()
+        DiagnosticsBootstrap.initialize(
+            lastUserRequestedExitAtEpochMs = lastUserRequestedProcessExitAtEpochMs(),
+        )
         installFatalHandler()
         collectAndroidHistoricalExitInfo()
         val diagnosticsState = DiagnosticsBootstrap.finishPlatformExitCollection()

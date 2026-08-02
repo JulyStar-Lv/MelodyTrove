@@ -37,6 +37,12 @@ class AndroidExitInfoCollectorTest {
     }
 
     @Test
+    fun recognizesUserRequestedExitAsIntentional() {
+        assertTrue(isUserRequestedExitReason(ApplicationExitInfo.REASON_USER_REQUESTED))
+        assertFalse(isUserRequestedExitReason(ApplicationExitInfo.REASON_CRASH))
+    }
+
+    @Test
     fun exitKeyIsStable() {
         val first = historicalExitKey(10, 20, 30, 40, "process")
         val second = historicalExitKey(10, 20, 30, 40, "process")

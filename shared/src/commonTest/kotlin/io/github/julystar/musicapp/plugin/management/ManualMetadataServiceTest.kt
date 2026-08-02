@@ -2,14 +2,51 @@ package io.github.julystar.musicapp.plugin.management
 
 import io.github.julystar.musicapp.core.data.toPlaybackLyrics
 import io.github.julystar.musicapp.plugin.runtime.PluginResultParser
+import io.github.julystar.musicapp.service.playback.presentation.nowplaying.NowPlayingTrackItem
 import io.github.julystar.musicapp.source.api.MetaLyricLine
 import io.github.julystar.musicapp.source.api.MetaLyricWord
 import io.github.julystar.musicapp.source.api.MetaLyrics
+import io.github.julystar.musicapp.source.api.MetaSongCandidate
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
 class ManualMetadataServiceTest {
+    @Test
+    fun ranksClosestManualMetadataMatchFirstAndRemovesSourceDuplicates() {
+        val exact = MetaSongCandidate(
+            id = "exact",
+            title = "兰亭序",
+            artist = "周杰伦",
+            durationMs = 253_000,
+            sourceId = "source-a",
+        )
+        val ranked = rankManualMetadataCandidates(
+            candidates = listOf(
+                MetaSongCandidate(
+                    id = "other",
+                    title = "兰亭序 (Live)",
+                    artist = "其他歌手",
+                    durationMs = 280_000,
+                    sourceId = "source-b",
+                ),
+                exact,
+                exact.copy(title = "duplicate"),
+            ),
+            track = NowPlayingTrackItem(
+                id = 1,
+                title = "兰亭序",
+                artist = "周杰伦",
+                durationMs = 254_000,
+                artwork = null,
+                mediaId = null,
+            ),
+            keyword = "兰亭序 周杰伦",
+        )
+
+        assertEquals(listOf("exact", "other"), ranked.map(MetaSongCandidate::id))
+    }
+
     @Test
     fun prefersPlainLrcReturnedByPlugin() {
         val entity = assertNotNull(
@@ -105,6 +142,54 @@ class ManualMetadataServiceTest {
         assertEquals(2, line.words.size)
         assertEquals(0, line.words[0].startOffset.inWholeMilliseconds)
         assertEquals(500, line.words[1].startOffset.inWholeMilliseconds)
+    }
+
+    @Test
+    fun structuredPluginLyricsRoundTripWithTranslation() {
+        val pluginLyrics = assertNotNull(
+            PluginResultParser().lyrics(
+                """
+                {
+                  "type": "structured",
+                  "original": [
+                    [2000, 3000, [[2000, 2500, "Hello"], [2500, 3000, " world"]]]
+                  ],
+                  "translated": [
+                    [2000, 3000, "你好世界"]
+                  ]
+                }
+                """.trimIndent(),
+            ),
+        )
+
+        val playbackLyrics = assertNotNull(
+            pluginLyrics.toEntity(trackId = 1, updatedAt = 2),
+        ).toPlaybackLyrics()
+
+        assertEquals("Hello world\n你好世界", playbackLyrics.lines.single().text)
+    }
+
+    @Test
+    fun topLevelTranslatedTrackIsAttachedToStructuredLyrics() {
+        val playbackLyrics = assertNotNull(
+            MetaLyrics(
+                lines = listOf(
+                    MetaLyricLine(
+                        text = "Hello world",
+                        startMs = 0,
+                        endMs = 1_000,
+                        words = listOf(
+                            MetaLyricWord("Hello", startMs = 0, endMs = 400),
+                            MetaLyricWord(" world", startMs = 500, endMs = 1_000),
+                        ),
+                    ),
+                ),
+                rawPlainLrc = "[00:00.00]Hello world",
+                translated = "你好世界",
+            ).toEntity(trackId = 1, updatedAt = 2),
+        ).toPlaybackLyrics()
+
+        assertEquals("Hello world\n你好世界", playbackLyrics.lines.single().text)
     }
 
     @Test

@@ -59,7 +59,10 @@ object DiagnosticsBootstrap {
     val state: DiagnosticsBootstrapState
         get() = checkNotNull(current) { "DiagnosticsBootstrap has not been initialized" }
 
-    fun initialize(userForcedSafeMode: Boolean = false): DiagnosticsBootstrapState {
+    fun initialize(
+        userForcedSafeMode: Boolean = false,
+        lastUserRequestedExitAtEpochMs: Long? = null,
+    ): DiagnosticsBootstrapState {
         current?.let { return it }
         this.userForcedSafeMode = userForcedSafeMode
         initializeDiagnosticsRuntime(
@@ -72,6 +75,7 @@ object DiagnosticsBootstrap {
                 gitCommitSha = getAppGitCommitSha(),
                 processName = getProcessName(),
                 userForcedSafeMode = userForcedSafeMode,
+                lastUserRequestedExitAtEpochMs = lastUserRequestedExitAtEpochMs,
             )
         )
         return replan()

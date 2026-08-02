@@ -1,8 +1,13 @@
 package io.github.julystar.musicapp.feature.lyrics.presentation
 
-import androidx.compose.foundation.background
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,19 +24,19 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.BlurEffect
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -57,25 +62,30 @@ import io.github.julystar.musicapp.core.presentation.components.DesignTextButton
 import io.github.julystar.musicapp.core.presentation.media.ArtworkImage
 import io.github.julystar.musicapp.core.presentation.theme.DesignFontFamilies
 import io.github.julystar.musicapp.service.playback.presentation.nowplaying.NowPlayingAction
+import io.github.julystar.musicapp.service.playback.presentation.nowplaying.ImmersivePlayerBackground
 import io.github.julystar.musicapp.service.playback.presentation.nowplaying.NowPlayingTrackItem
 import io.github.julystar.musicapp.service.playback.presentation.nowplaying.toSyncedLyrics
+import io.github.julystar.musicapp.service.playback.presentation.transition.playerArtworkSharedElement
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import musicapp.core.presentation.generated.resources.Res as CoreRes
+import musicapp.core.presentation.generated.resources.icon_deleteseep
 import musicapp.service.playback.presentation.generated.resources.Res
-import musicapp.service.playback.presentation.generated.resources.icon_back
 import musicapp.service.playback.presentation.generated.resources.icon_heart_compact
 import musicapp.service.playback.presentation.generated.resources.icon_heart_compact_filled
 import musicapp.service.playback.presentation.generated.resources.icon_vertialcal_more
 import musicapp.service.playback.presentation.generated.resources.music_lyric_remove
 import musicapp.service.playback.presentation.generated.resources.player_add_favorite
-import musicapp.service.playback.presentation.generated.resources.player_close
 import musicapp.service.playback.presentation.generated.resources.player_loading_lyrics
 import musicapp.service.playback.presentation.generated.resources.player_remove_favorite
 import musicapp.service.playback.presentation.generated.resources.player_unknown_artist
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
-private val LyricsBackground = Color(0xFF0C0A14)
+private const val LyricsDismissDistanceFraction = 0.5f
+private val LyricsDismissVelocityThreshold = 900.dp
 
 @Composable
 fun LyricsScreen(
@@ -93,48 +103,68 @@ fun LyricsScreen(
     val trackArtist = nowPlayingTrack?.artist ?: state.trackArtist
     val artwork = nowPlayingTrack?.artwork
     val bottomContentInset = LocalDesignBottomContentInset.current
+    val density = LocalDensity.current
+    val dragAnimationScope = rememberCoroutineScope()
+    var dragOffsetPx by remember { mutableFloatStateOf(0f) }
+    var dragAnimationJob by remember { mutableStateOf<Job?>(null) }
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
-            .background(LyricsBackground)
             .clipToBounds(),
     ) {
-        ArtworkImage(
-            artwork = artwork,
-            contentScale = ContentScale.Crop,
+        val viewportHeightPx = with(density) { maxHeight.toPx() }
+        val dismissVelocityPxPerSecond = with(density) { LyricsDismissVelocityThreshold.toPx() }
+        val headerDraggableState = rememberDraggableState { deltaPx ->
+            dragOffsetPx = (dragOffsetPx + deltaPx).coerceIn(0f, viewportHeightPx)
+        }
+
+        ImmersivePlayerBackground(artwork = artwork)
+
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
-                    alpha = 0.46f
-                    scaleX = 1.14f
-                    scaleY = 1.14f
-                    renderEffect = BlurEffect(88f, 88f, TileMode.Decal)
+                    translationY = dragOffsetPx
                 },
-        )
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFF151126).copy(alpha = 0.42f),
-                            LyricsBackground.copy(alpha = 0.68f),
-                            LyricsBackground.copy(alpha = 0.94f),
-                        ),
-                    ),
-                ),
-        )
-
-        Column(modifier = Modifier.fillMaxSize()) {
+        ) {
             LyricsTrackHeader(
                 track = nowPlayingTrack,
                 title = trackTitle,
                 artist = trackArtist,
                 isFavorite = isFavorite,
                 onToggleFavorite = onToggleFavorite,
-                onNavigateBack = { onAction(LyricsAction.NavigateBack) },
                 onPlayerAction = onPlayerAction,
+                modifier = Modifier.draggable(
+                    state = headerDraggableState,
+                    orientation = Orientation.Vertical,
+                    onDragStarted = {
+                        dragAnimationJob?.cancel()
+                    },
+                    onDragStopped = { velocityPxPerSecond ->
+                        if (
+                            shouldDismissLyricsScreen(
+                                dragOffsetPx = dragOffsetPx,
+                                viewportHeightPx = viewportHeightPx,
+                                velocityPxPerSecond = velocityPxPerSecond,
+                                velocityThresholdPxPerSecond = dismissVelocityPxPerSecond,
+                            )
+                        ) {
+                            onAction(LyricsAction.NavigateBack)
+                        } else {
+                            dragAnimationJob?.cancel()
+                            dragAnimationJob = dragAnimationScope.launch {
+                                animate(
+                                    initialValue = dragOffsetPx,
+                                    targetValue = 0f,
+                                    animationSpec = spring(),
+                                ) { value, _ ->
+                                    dragOffsetPx = value
+                                }
+                            }
+                        }
+                    },
+                ),
             )
 
             if (nowPlayingTrack != null) {
@@ -168,13 +198,13 @@ private fun LyricsTrackHeader(
     artist: String?,
     isFavorite: Boolean,
     onToggleFavorite: () -> Unit,
-    onNavigateBack: () -> Unit,
     onPlayerAction: (NowPlayingAction) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var moreMenuExpanded by remember { mutableStateOf(false) }
 
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .statusBarsPadding()
             .height(84.dp)
@@ -182,16 +212,9 @@ private fun LyricsTrackHeader(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        DesignIconButton(
-            size = DesignIconButtonSize.Touch,
-            variant = DesignIconButtonVariant.Default,
-            painter = painterResource(Res.drawable.icon_back),
-            contentDescription = stringResource(Res.string.player_close),
-            colors = DesignIconButtonColors(iconTint = Color.White),
-            onClick = onNavigateBack,
-        )
         Box(
             modifier = Modifier
+                .playerArtworkSharedElement()
                 .size(52.dp)
                 .clip(RoundedCornerShape(13.dp)),
         ) {
@@ -257,6 +280,7 @@ private fun LyricsTrackHeader(
                     items = listOf(
                         DesignContextMenuItem(
                             label = Res.string.music_lyric_remove,
+                            icon = CoreRes.drawable.icon_deleteseep,
                             onClick = {
                                 moreMenuExpanded = false
                                 onPlayerAction(NowPlayingAction.RemoveLyric)
@@ -274,6 +298,18 @@ private fun lyricsHeaderButtonColors(iconTint: Color = Color.White): DesignIconB
         buttonBg = Color.White.copy(alpha = 0.10f),
         iconTint = iconTint,
     )
+
+internal fun shouldDismissLyricsScreen(
+    dragOffsetPx: Float,
+    viewportHeightPx: Float,
+    velocityPxPerSecond: Float,
+    velocityThresholdPxPerSecond: Float,
+): Boolean =
+    viewportHeightPx > 0f &&
+        (
+            dragOffsetPx >= viewportHeightPx * LyricsDismissDistanceFraction ||
+                velocityPxPerSecond >= velocityThresholdPxPerSecond
+        )
 
 @Composable
 private fun NowPlayingLyricsContent(
@@ -325,7 +361,6 @@ private fun NowPlayingLyricsContent(
                 },
                 activeColor = Color.White,
                 inactiveColor = Color.White.copy(alpha = 0.62f),
-                edgeColor = LyricsBackground.copy(alpha = 0.82f),
                 activeTextStyle = TextStyle(
                     fontFamily = fontFamily,
                     fontSize = primarySize.sp,

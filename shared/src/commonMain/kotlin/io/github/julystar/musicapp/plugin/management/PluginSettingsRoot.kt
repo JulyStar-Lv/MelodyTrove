@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -72,13 +73,15 @@ import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.sp
 import io.github.julystar.musicapp.core.presentation.components.AppSwitch
 import io.github.julystar.musicapp.core.presentation.components.AppTextField
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import io.github.julystar.musicapp.core.presentation.components.DesignDialog
 import io.github.julystar.musicapp.core.presentation.components.DesignDialogDefaults
+import io.github.julystar.musicapp.core.presentation.components.DesignDialogHost
+import io.github.julystar.musicapp.core.presentation.components.DesignDialogNavigationBarStyle
+import io.github.julystar.musicapp.core.presentation.components.DesignContextMenu
+import io.github.julystar.musicapp.core.presentation.components.DesignContextMenuItem
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButton
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButtonSize
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButtonVariant
@@ -120,8 +123,12 @@ import musicapp.core.presentation.generated.resources.icon_deleteseep
 import musicapp.core.presentation.generated.resources.icon_folder
 import musicapp.core.presentation.generated.resources.icon_ok
 import musicapp.core.presentation.generated.resources.icon_refresh
-import musicapp.core.presentation.generated.resources.icon_settings_puzzle
 import musicapp.core.presentation.generated.resources.icon_settings_sliders
+import musicapp.core.presentation.generated.resources.icon_settings_puzzle
+import musicapp.core.presentation.generated.resources.icon_vertialcal_more
+import musicapp.shared.generated.resources.Res as SharedRes
+import musicapp.shared.generated.resources.plugins_configure
+import musicapp.shared.generated.resources.plugins_remove
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -459,6 +466,7 @@ private fun PluginListRow(
     onEnabledChange: (Boolean) -> Unit,
 ) {
     val enabled = plugin.enabled
+    var moreMenuExpanded by remember(plugin.id) { mutableStateOf(false) }
     Column {
         Row(
             modifier = Modifier
@@ -504,31 +512,44 @@ private fun PluginListRow(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            if (plugin.configFields.isNotEmpty()) {
-                DesignIconButton(
-                    size = DesignIconButtonSize.Touch,
-                    variant = DesignIconButtonVariant.Default,
-                    painter = painterResource(CoreRes.drawable.icon_settings_sliders),
-                    contentDescription = pluginUiText("Configure ${plugin.name}"),
-                    enabled = !busy,
-                    onClick = onConfigure,
-                )
-            }
-            Spacer(modifier = Modifier.width(2.dp))
-            DesignIconButton(
-                size = DesignIconButtonSize.Touch,
-                variant = DesignIconButtonVariant.Default,
-                painter = painterResource(CoreRes.drawable.icon_deleteseep),
-                contentDescription = pluginUiText("Uninstall ${plugin.name}"),
-                enabled = !busy,
-                onClick = onUninstall,
-            )
-            Spacer(modifier = Modifier.width(4.dp))
             AppSwitch(
                 checked = enabled,
                 onCheckedChange = onEnabledChange,
                 enabled = !busy,
             )
+            Spacer(modifier = Modifier.width(4.dp))
+            Box {
+                DesignIconButton(
+                    size = DesignIconButtonSize.Touch,
+                    variant = DesignIconButtonVariant.Default,
+                    painter = painterResource(CoreRes.drawable.icon_vertialcal_more),
+                    contentDescription = pluginUiText("More options for ${plugin.name}"),
+                    enabled = !busy,
+                    onClick = { moreMenuExpanded = true },
+                )
+                Box(
+                    contentAlignment = Alignment.TopEnd,
+                    modifier = Modifier.offset(20.dp, 20.dp),
+                ) {
+                    DesignContextMenu(
+                        expanded = moreMenuExpanded,
+                        onDismissRequest = { moreMenuExpanded = false },
+                        items = listOf(
+                            DesignContextMenuItem(
+                                label = SharedRes.string.plugins_configure,
+                                icon = CoreRes.drawable.icon_settings_sliders,
+                                onClick = onConfigure,
+                            ),
+                            DesignContextMenuItem(
+                                label = SharedRes.string.plugins_remove,
+                                icon = CoreRes.drawable.icon_deleteseep,
+                                isError = true,
+                                onClick = onUninstall,
+                            ),
+                        ),
+                    )
+                }
+            }
         }
     }
 }
@@ -789,11 +810,15 @@ private fun PluginConfigurationDialog(
         Modifier
     }
 
-    Dialog(
+    DesignDialogHost(
         onDismissRequest = {
             if (dialogVisible) onDismiss()
         },
-        properties = DialogProperties(usePlatformDefaultWidth = false),
+        navigationBarStyle = if (compact) {
+            DesignDialogNavigationBarStyle.Surface
+        } else {
+            DesignDialogNavigationBarStyle.Dimmed
+        },
     ) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -850,7 +875,10 @@ private fun PluginConfigurationDialog(
                         .clickable(
                             indication = null,
                             interactionSource = remember { MutableInteractionSource() },
-                        ) { /* consume clicks */ },
+                        ) { /* consume clicks */ }
+                        .then(
+                            if (compact) Modifier.navigationBarsPadding() else Modifier,
+                        ),
                 ) {
                     if (compact) {
                         Column(
@@ -1567,23 +1595,28 @@ private fun PluginConfigSelectRow(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(end = 8.dp),
                 )
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        painter = painterResource(CoreRes.drawable.icon_chevron_right),
-                        contentDescription = null,
-                        tint = trailingColor,
-                        modifier = Modifier
-                            .size(14.dp)
-                            .rotate(-90f),
-                    )
-                    Icon(
-                        painter = painterResource(CoreRes.drawable.icon_chevron_right),
-                        contentDescription = null,
-                        tint = trailingColor,
-                        modifier = Modifier
-                            .size(14.dp)
-                            .rotate(90f),
-                    )
+                Box(
+                    modifier = Modifier.size(DesignTokens.adaptive.minimumTouchTarget),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            painter = painterResource(CoreRes.drawable.icon_chevron_right),
+                            contentDescription = null,
+                            tint = trailingColor,
+                            modifier = Modifier
+                                .size(14.dp)
+                                .rotate(-90f),
+                        )
+                        Icon(
+                            painter = painterResource(CoreRes.drawable.icon_chevron_right),
+                            contentDescription = null,
+                            tint = trailingColor,
+                            modifier = Modifier
+                                .size(14.dp)
+                                .rotate(90f),
+                        )
+                    }
                 }
             }
 

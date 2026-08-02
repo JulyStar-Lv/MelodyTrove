@@ -39,6 +39,7 @@ import uniffi.app_backend.MusicId
 import uniffi.app_backend.PlayMode
 import uniffi.app_backend.Playlist
 import uniffi.app_backend.PlaylistId
+import kotlin.time.Duration
 
 class LegacyPlaybackController(
     private val playerRepository: PlayerRepository,
@@ -151,6 +152,18 @@ class LegacyPlaybackController(
             ?: playerRepository.playlist.value?.abstr?.meta?.id?.value
             ?: return
         val saved = playerRepository.persistedPlaybackSession()
+        val playlist = roomLibraryStore.getPlaylist(PlaylistId(playlistId))
+            ?.forPlaybackItems(items)
+            ?.takeIf { queue -> queue.musics.any { it.meta.id.value == musicId } }
+            ?: return
+        playerRepository.setPlaybackQueue(playlist)
+        val playMode = playbackModeForQueue(
+            current = playerRepository.playMode.value,
+            queueSize = playlist.musics.size,
+        )
+        if (playMode != playerRepository.playMode.value) {
+            playerRepository.setPlayMode(playMode)
+        }
         legacyController.play(MusicId(musicId), PlaylistId(playlistId))
         if (
             settings?.value?.playbackAdvanced?.resumePlaybackPosition != false &&
@@ -327,6 +340,33 @@ class LegacyPlaybackController(
         base.addAll(currentIndex + 1, requestedNext)
         playerRepository.replacePlaybackQueue(base)
     }
+}
+
+internal fun Playlist.forPlaybackItems(items: List<PlayableItem>): Playlist? {
+    val musicsById = musics.associateBy { it.meta.id.value }
+    val queue = items.mapNotNull { item ->
+        item.libraryTrackId?.let(musicsById::get)
+    }
+    if (queue.isEmpty()) return null
+    return copy(
+        abstr = abstr.copy(
+            musicCount = queue.size.toULong(),
+            duration = queue.totalDuration(),
+        ),
+        musics = queue,
+    )
+}
+
+internal fun playbackModeForQueue(current: PlayMode, queueSize: Int): PlayMode {
+    return if (current == PlayMode.SINGLE && queueSize > 1) PlayMode.LIST else current
+}
+
+private fun List<MusicAbstract>.totalDuration(): Duration? {
+    var total = Duration.ZERO
+    for (music in this) {
+        total += music.meta.duration ?: return null
+    }
+    return total
 }
 
 internal fun legacyPlaybackPosition(

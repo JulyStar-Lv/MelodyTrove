@@ -35,6 +35,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import io.github.julystar.musicapp.core.isRouteHome
+import io.github.julystar.musicapp.core.isRouteLyrics
 import io.github.julystar.musicapp.core.isRouteNowPlaying
 import io.github.julystar.musicapp.core.presentation.components.DesignGlassOverlayScene
 import io.github.julystar.musicapp.core.presentation.components.DesignStickyGlassActionBar
@@ -100,7 +101,7 @@ internal fun RootNavHost(
             navController = navController,
             startDestination = MusicGraph.Home,
             enterTransition = {
-                if (isRouteNowPlaying(targetState.destination.route)) {
+                if (isImmersivePlayerRoute(targetState.destination.route)) {
                     immediateEnterTransition(playerTransitionDurationMillis)
                 } else {
                     slideIn(
@@ -110,7 +111,7 @@ internal fun RootNavHost(
                 }
             },
             exitTransition = {
-                if (isRouteNowPlaying(targetState.destination.route)) {
+                if (isImmersivePlayerRoute(targetState.destination.route)) {
                     immediateExitTransition(playerTransitionDurationMillis)
                 } else {
                     slideOut(
@@ -120,7 +121,7 @@ internal fun RootNavHost(
                 }
             },
             popEnterTransition = {
-                if (isRouteNowPlaying(initialState.destination.route)) {
+                if (isImmersivePlayerRoute(initialState.destination.route)) {
                     immediateEnterTransition(playerTransitionDurationMillis)
                 } else {
                     slideIn(
@@ -130,7 +131,7 @@ internal fun RootNavHost(
                 }
             },
             popExitTransition = {
-                if (isRouteNowPlaying(initialState.destination.route)) {
+                if (isImmersivePlayerRoute(initialState.destination.route)) {
                     immediateExitTransition(playerTransitionDurationMillis)
                 } else {
                     slideOut(
@@ -285,7 +286,10 @@ private fun immediateExitTransition(durationMillis: Int) = fadeOut(
 )
 
 internal fun shouldShowPersistentMiniPlayer(route: String?): Boolean =
-    !isRouteHome(route) && !isRouteNowPlaying(route)
+    !isRouteHome(route) && !isImmersivePlayerRoute(route)
+
+internal fun isImmersivePlayerRoute(route: String?): Boolean =
+    isRouteNowPlaying(route) || isRouteLyrics(route)
 
 @Composable
 private fun SecondaryRootNavigationLayout(

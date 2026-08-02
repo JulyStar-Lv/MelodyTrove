@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -57,6 +58,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.julystar.musicapp.core.domain.model.Artwork
 import io.github.julystar.musicapp.core.domain.model.LibraryAlbumItem
 import io.github.julystar.musicapp.core.domain.model.LibraryArtistItem
 import io.github.julystar.musicapp.core.domain.model.LibraryTrackItem
@@ -1141,11 +1143,25 @@ private fun AlbumCard(
                 .background(libraryArtworkBrush(index)),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = album.title.take(2).uppercase(),
-                color = Color.White.copy(alpha = 0.5f),
-                style = MiuixTheme.textStyles.title1,
-                fontWeight = FontWeight.Bold,
+            ArtworkImage(
+                artwork = Artwork.LibraryAlbum(album.id),
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+                fallback = {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(libraryArtworkBrush(index)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = album.title.take(2).uppercase(),
+                            color = Color.White.copy(alpha = 0.5f),
+                            style = MiuixTheme.textStyles.title1,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                },
             )
         }
         Spacer(modifier = Modifier.height(12.dp))

@@ -21,6 +21,11 @@ fun isRouteNowPlaying(route: String?): Boolean {
     return route != null && (route == "NowPlaying" || route.endsWith(".NowPlaying"))
 }
 
+fun isRouteLyrics(route: String?): Boolean {
+    val routeName = route?.substringBefore('/') ?: return false
+    return routeName == "Lyrics" || routeName.endsWith(".Lyrics")
+}
+
 fun RouteAddDevices(id: String): MusicGraph.EditStorage {
     return MusicGraph.EditStorage(id.toLongOrNull() ?: NEW_STORAGE_ID)
 }

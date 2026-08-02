@@ -27,6 +27,7 @@ data class MetadataLookupFailure(
 data class MetadataLookupCollection<T>(
     val items: List<T>,
     val failures: List<MetadataLookupFailure> = emptyList(),
+    val queriedSourceCount: Int = 0,
 )
 
 data class MetadataLookupValue<T>(
@@ -48,9 +49,10 @@ class MetadataLookupUseCase(
         mode: PluginLookupMode,
         sourceIds: Set<String>? = null,
     ): MetadataLookupCollection<MetaSongCandidate> = withinModeTimeout(mode) {
+        val sources = selectedSources(sourceIds)
         val candidates = mutableListOf<MetaSongCandidate>()
         val failures = mutableListOf<MetadataLookupFailure>()
-        selectedSources(sourceIds).forEach { source ->
+        sources.forEach { source ->
             try {
                 val sourceCandidates = when (source) {
                     is LyricoJsMetaSource -> source.searchSongs(query, mode)
@@ -67,7 +69,11 @@ class MetadataLookupUseCase(
                 failures += error.toFailure(source.id, MetadataLookupOperation.SEARCH_SONGS)
             }
         }
-        MetadataLookupCollection(candidates, failures)
+        MetadataLookupCollection(
+            items = candidates,
+            failures = failures,
+            queriedSourceCount = sources.size,
+        )
     }
 
     suspend fun getLyrics(
@@ -123,9 +129,10 @@ class MetadataLookupUseCase(
         mode: PluginLookupMode,
         sourceIds: Set<String>? = null,
     ): MetadataLookupCollection<MetaCoverCandidate> = withinModeTimeout(mode) {
+        val sources = selectedSources(sourceIds)
         val covers = mutableListOf<MetaCoverCandidate>()
         val failures = mutableListOf<MetadataLookupFailure>()
-        selectedSources(sourceIds).forEach { source ->
+        sources.forEach { source ->
             try {
                 val sourceCovers = when (source) {
                     is LyricoJsMetaSource -> source.searchCovers(query, mode)
@@ -142,7 +149,11 @@ class MetadataLookupUseCase(
                 failures += error.toFailure(source.id, MetadataLookupOperation.SEARCH_COVERS)
             }
         }
-        MetadataLookupCollection(covers, failures)
+        MetadataLookupCollection(
+            items = covers,
+            failures = failures,
+            queriedSourceCount = sources.size,
+        )
     }
 
     private fun selectedSources(sourceIds: Set<String>?): List<MetaSource> =

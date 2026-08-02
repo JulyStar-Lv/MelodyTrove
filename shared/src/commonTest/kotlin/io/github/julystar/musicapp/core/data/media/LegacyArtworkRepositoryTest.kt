@@ -143,6 +143,21 @@ class LegacyArtworkRepositoryTest {
     }
 
     @Test
+    fun resolvesLibraryAlbumArtworkCacheKeyDirectlyFromAlbumMetadata() = runBlocking {
+        val cacheKey = Artwork.LibraryAlbum(albumId = 90).resolveRoomArtworkCacheKey(
+            findTrack = { error("Album artwork should not query tracks.") },
+            findTrackArtwork = { error("Album artwork should not query track artwork.") },
+            findAlbumArtwork = { albumId ->
+                assertEquals(90, albumId)
+                artworkEntity(trackId = null, albumId = albumId)
+            },
+        )
+
+        assertEquals("hash-album-90", cacheKey?.contentHash)
+        assertEquals("/cache/artwork/hash-album-90.jpg", cacheKey?.localPath)
+    }
+
+    @Test
     fun leavesLegacyStorageEntryCacheKeyUnsupportedUntilItIsPersisted() = runBlocking {
         val cacheKey = Artwork.LegacyStorageEntry(
             storageId = 1,

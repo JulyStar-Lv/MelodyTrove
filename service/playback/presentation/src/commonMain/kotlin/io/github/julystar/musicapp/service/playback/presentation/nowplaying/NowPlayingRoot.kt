@@ -65,6 +65,7 @@ fun NowPlayingRoot(
     AppTheme(
         darkTheme = true,
         themeMode = AppThemeMode.Dark,
+        manageSystemBars = false,
     ) {
         NowPlayingScreen(
             state = state,

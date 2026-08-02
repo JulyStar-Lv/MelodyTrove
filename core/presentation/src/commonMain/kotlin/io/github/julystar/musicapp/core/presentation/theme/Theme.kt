@@ -33,6 +33,8 @@ fun AppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     themeMode: AppThemeMode = AppThemeMode.FollowSystem,
     themeSeedState: ThemeSeedState = ThemeSeedState.Default,
+    forceDarkSystemBars: Boolean = false,
+    manageSystemBars: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     val colorSchemeMode = when (themeMode) {
@@ -63,7 +65,9 @@ fun AppTheme(
         )
     }
     val textStyles = designTextStyles()
-    SystemBarsEffect(isDarkTheme = effectiveDarkTheme)
+    if (manageSystemBars) {
+        SystemBarsEffect(isDarkTheme = effectiveDarkTheme || forceDarkSystemBars)
+    }
 
     MiuixTheme(
         controller = controller,
