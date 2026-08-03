@@ -53,6 +53,7 @@ private final class AppDelegate: NSObject, UIApplicationDelegate {
         let center = MPRemoteCommandCenter.shared()
         center.playCommand.isEnabled = true
         center.pauseCommand.isEnabled = true
+        center.stopCommand.isEnabled = true
         center.togglePlayPauseCommand.isEnabled = true
         center.nextTrackCommand.isEnabled = true
         center.previousTrackCommand.isEnabled = true
@@ -67,6 +68,10 @@ private final class AppDelegate: NSObject, UIApplicationDelegate {
         }
         register(center.pauseCommand) { _ in
             commandStatus(MainViewControllerKt.handlePlaybackPauseCommand())
+        }
+        register(center.stopCommand) { _ in
+            // Keep the current item, queue, and position so playback can resume.
+            commandStatus(MainViewControllerKt.handlePlaybackStopCommand())
         }
         register(center.togglePlayPauseCommand) { _ in
             commandStatus(MainViewControllerKt.handlePlaybackToggleCommand())
