@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -27,6 +28,8 @@ import io.github.julystar.musicapp.diagnostics.DiagnosticsBootstrapState
 import io.github.julystar.musicapp.diagnostics.RustDiagnosticsRepository
 import io.github.julystar.musicapp.core.domain.recovery.StartupMode
 import io.github.julystar.musicapp.core.domain.recovery.StartupPlan
+import io.github.julystar.musicapp.service.playback.domain.PlaybackController
+import io.github.julystar.musicapp.service.playback.domain.RepeatMode
 import io.github.julystar.musicapp.singleton.PermissionRepository
 import io.github.julystar.musicapp.singleton.PlayerControllerRepository
 import kotlinx.coroutines.launch
@@ -38,6 +41,7 @@ class MainActivity : ComponentActivity() {
     private var recoveryIncidentIds: List<String> = emptyList()
     private var repositoriesLoaded = false
     private val playerControllerRepository: PlayerControllerRepository by inject()
+    private val playbackController: PlaybackController by inject()
     private val storageRepository: StorageRepositoryImpl by inject()
     private val permissionRepository: PermissionRepository by inject()
 
@@ -130,6 +134,73 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (super.dispatchKeyEvent(event)) return true
+        if (
+            diagnosticsState?.safeMode != false ||
+            event.action != KeyEvent.ACTION_UP ||
+            event.repeatCount != 0
+        ) {
+            return false
+        }
+
+        return when {
+            event.keyCode == KeyEvent.KEYCODE_ESCAPE && event.matchesModifiers() -> {
+                onBackPressedDispatcher.onBackPressed()
+                true
+            }
+            event.keyCode == KeyEvent.KEYCODE_SPACE && event.matchesModifiers(ctrl = true) -> {
+                playbackController.togglePlayPause()
+                true
+            }
+            event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT && event.matchesModifiers(alt = true) -> {
+                playbackController.skipPrevious()
+                true
+            }
+            event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && event.matchesModifiers(alt = true) -> {
+                playbackController.skipNext()
+                true
+            }
+            event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT && event.matchesModifiers(ctrl = true) -> {
+                seekBy(-SEEK_SHORT_MS)
+                true
+            }
+            event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT && event.matchesModifiers(ctrl = true) -> {
+                seekBy(SEEK_SHORT_MS)
+                true
+            }
+            event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT &&
+                event.matchesModifiers(ctrl = true, shift = true) -> {
+                seekBy(-SEEK_LONG_MS)
+                true
+            }
+            event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT &&
+                event.matchesModifiers(ctrl = true, shift = true) -> {
+                seekBy(SEEK_LONG_MS)
+                true
+            }
+            event.keyCode == KeyEvent.KEYCODE_MOVE_HOME && event.matchesModifiers(ctrl = true) -> {
+                playbackController.seekTo(0L)
+                true
+            }
+            event.keyCode == KeyEvent.KEYCODE_S && event.matchesModifiers(ctrl = true) -> {
+                val state = playbackController.state.value
+                playbackController.setShuffle(!state.shuffleEnabled)
+                true
+            }
+            event.keyCode == KeyEvent.KEYCODE_R && event.matchesModifiers(ctrl = true) -> {
+                val nextMode = when (playbackController.state.value.repeatMode) {
+                    RepeatMode.Off -> RepeatMode.All
+                    RepeatMode.All -> RepeatMode.One
+                    RepeatMode.One -> RepeatMode.Off
+                }
+                playbackController.setRepeatMode(nextMode)
+                true
+            }
+            else -> false
+        }
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         handleOAuthRedirect(intent)
@@ -184,5 +255,27 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    private fun seekBy(deltaMs: Long) {
+        val position = playbackController.position.value
+        val maximum = position.durationMs.takeIf { it > 0L } ?: Long.MAX_VALUE
+        playbackController.seekTo((position.positionMs + deltaMs).coerceIn(0L, maximum))
+    }
+
+    private fun KeyEvent.matchesModifiers(
+        ctrl: Boolean = false,
+        alt: Boolean = false,
+        shift: Boolean = false,
+    ): Boolean {
+        return isCtrlPressed == ctrl &&
+            isAltPressed == alt &&
+            isShiftPressed == shift &&
+            !isMetaPressed
+    }
+
+    private companion object {
+        const val SEEK_SHORT_MS = 10_000L
+        const val SEEK_LONG_MS = 30_000L
     }
 }

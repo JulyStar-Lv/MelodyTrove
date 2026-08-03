@@ -1,8 +1,9 @@
 package io.github.julystar.musicapp.platform
 
 import androidx.compose.runtime.Composable
+import io.github.julystar.musicapp.core.presentation.platform.PlatformBackHandler
 
 @Composable
 actual fun BackHandler(enabled: Boolean, onBack: () -> Unit) {
-    // iOS has no hardware/system back button. Navigation gestures are owned by UIKit.
+    PlatformBackHandler(enabled = enabled, onBack = onBack)
 }
