@@ -142,6 +142,12 @@ fun handlePlaybackPauseCommand(): Boolean = withPlaybackController { controller 
     controller.pause()
 }
 
+// Keep STOP resumable across lock-screen, headset, Bluetooth, and CarPlay controls.
+// It pauses without clearing the current track, queue, or position.
+fun handlePlaybackStopCommand(): Boolean = withPlaybackController { controller ->
+    controller.pause()
+}
+
 fun handlePlaybackToggleCommand(): Boolean = withPlaybackController { controller ->
     controller.togglePlayPause()
 }
