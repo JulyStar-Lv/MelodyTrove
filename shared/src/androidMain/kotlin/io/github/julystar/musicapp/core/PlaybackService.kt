@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.content.Context
 import android.media.AudioFocusRequest
 import android.media.AudioManager
+import android.view.KeyEvent
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -164,6 +165,41 @@ class PlaybackService : MediaSessionService() {
                             .build()
                     }
                     return MediaSession.ConnectionResult.AcceptedResultBuilder(session).build()
+                }
+
+                @Suppress("DEPRECATION")
+                @OptIn(UnstableApi::class)
+                override fun onMediaButtonEvent(
+                    session: MediaSession,
+                    controllerInfo: MediaSession.ControllerInfo,
+                    intent: Intent,
+                ): Boolean {
+                    val event = intent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
+                        ?: return false
+                    if (event.action != KeyEvent.ACTION_DOWN || event.repeatCount != 0) {
+                        return false
+                    }
+                    return when (event.keyCode) {
+                        KeyEvent.KEYCODE_MEDIA_NEXT -> {
+                            playNext()
+                            true
+                        }
+                        KeyEvent.KEYCODE_MEDIA_PREVIOUS -> {
+                            playPrevious()
+                            true
+                        }
+                        KeyEvent.KEYCODE_MEDIA_FAST_FORWARD,
+                        KeyEvent.KEYCODE_MEDIA_SKIP_FORWARD -> {
+                            seekPlayerBy(MEDIA_SEEK_INTERVAL_MS)
+                            true
+                        }
+                        KeyEvent.KEYCODE_MEDIA_REWIND,
+                        KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD -> {
+                            seekPlayerBy(-MEDIA_SEEK_INTERVAL_MS)
+                            true
+                        }
+                        else -> false
+                    }
                 }
 
                 override fun onCustomCommand(
@@ -418,6 +454,14 @@ class PlaybackService : MediaSessionService() {
         }
     }
 
+    private fun seekPlayerBy(deltaMs: Long) {
+        val player = _mediaSession?.player ?: return
+        val maximum = player.duration
+            .takeIf { it != C.TIME_UNSET && it > 0L }
+            ?: Long.MAX_VALUE
+        player.seekTo((player.currentPosition + deltaMs).coerceIn(0L, maximum))
+    }
+
     @OptIn(UnstableApi::class)
     private fun buildMediaButtonPreferences(player: Player): ImmutableList<CommandButton> {
         val playbackState = playbackController.state.value
@@ -582,6 +626,7 @@ private class PlaybackAudioFocusController(
 }
 
 private const val DUCK_VOLUME = 0.2f
+private const val MEDIA_SEEK_INTERVAL_MS = 10_000L
 
 private fun mediaAudioAttributes(): AudioAttributes {
     return AudioAttributes.Builder()
