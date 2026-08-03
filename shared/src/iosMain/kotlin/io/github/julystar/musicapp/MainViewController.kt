@@ -15,8 +15,11 @@ import io.github.julystar.musicapp.core.domain.recovery.StartupMode
 import io.github.julystar.musicapp.core.domain.recovery.StartupPlan
 import io.github.julystar.musicapp.core.domain.recovery.allowsNormalApplicationInitialization
 import io.github.julystar.musicapp.core.data.StorageRepositoryImpl
+import io.github.julystar.musicapp.core.presentation.platform.dispatchPlatformBack
 import io.github.julystar.musicapp.service.download.data.scheduler.IosUrlSessionDownloadScheduler
 import io.github.julystar.musicapp.service.download.domain.DownloadTaskScheduler
+import io.github.julystar.musicapp.service.playback.domain.PlaybackController
+import io.github.julystar.musicapp.service.playback.domain.RepeatMode
 import org.koin.core.Koin
 import org.koin.core.context.stopKoin
 import platform.UIKit.UIViewController
@@ -108,7 +111,7 @@ fun MainViewController(): UIViewController {
 
 fun handleOneDriveOAuthRedirect(code: String, state: String) {
     initializeDiagnostics()
-    if (initialDiagnosticsState.safeMode) return
+    if (initialDiagnosticsState.safeMode && !applicationInitialized) return
     initializeApplication(initialDiagnosticsState.startupPlan.disabledComponents)
     applicationKoin
         ?.get<StorageRepositoryImpl>()
@@ -120,7 +123,7 @@ fun handleEventsForBackgroundURLSession(
     completionHandler: () -> Unit,
 ) {
     initializeDiagnostics()
-    if (initialDiagnosticsState.safeMode) {
+    if (initialDiagnosticsState.safeMode && !applicationInitialized) {
         completionHandler()
         return
     }
@@ -129,6 +132,71 @@ fun handleEventsForBackgroundURLSession(
         ?.get<DownloadTaskScheduler>() as? IosUrlSessionDownloadScheduler
     scheduler?.setBackgroundCompletionHandler(identifier, completionHandler)
         ?: completionHandler()
+}
+
+fun handlePlaybackPlayCommand(): Boolean = withPlaybackController { controller ->
+    controller.play()
+}
+
+fun handlePlaybackPauseCommand(): Boolean = withPlaybackController { controller ->
+    controller.pause()
+}
+
+fun handlePlaybackToggleCommand(): Boolean = withPlaybackController { controller ->
+    controller.togglePlayPause()
+}
+
+fun handlePlaybackNextCommand(): Boolean = withPlaybackController { controller ->
+    controller.skipNext()
+}
+
+fun handlePlaybackPreviousCommand(): Boolean = withPlaybackController { controller ->
+    controller.skipPrevious()
+}
+
+fun handlePlaybackSeekByCommand(deltaMs: Long): Boolean = withPlaybackController { controller ->
+    val position = controller.position.value
+    val maximum = position.durationMs.takeIf { it > 0L } ?: Long.MAX_VALUE
+    controller.seekTo((position.positionMs + deltaMs).coerceIn(0L, maximum))
+}
+
+fun handlePlaybackSeekToCommand(positionMs: Long): Boolean = withPlaybackController { controller ->
+    val maximum = controller.position.value.durationMs.takeIf { it > 0L } ?: Long.MAX_VALUE
+    controller.seekTo(positionMs.coerceIn(0L, maximum))
+}
+
+fun handlePlaybackRestartCommand(): Boolean = withPlaybackController { controller ->
+    controller.seekTo(0L)
+}
+
+fun handlePlaybackToggleShuffleCommand(): Boolean = withPlaybackController { controller ->
+    controller.setShuffle(!controller.state.value.shuffleEnabled)
+}
+
+fun handlePlaybackCycleRepeatCommand(): Boolean = withPlaybackController { controller ->
+    val nextMode = when (controller.state.value.repeatMode) {
+        RepeatMode.Off -> RepeatMode.All
+        RepeatMode.All -> RepeatMode.One
+        RepeatMode.One -> RepeatMode.Off
+    }
+    controller.setRepeatMode(nextMode)
+}
+
+fun handlePlaybackBackCommand(): Boolean = dispatchPlatformBack()
+
+private inline fun withPlaybackController(action: (PlaybackController) -> Unit): Boolean {
+    val controller = playbackControllerOrNull() ?: return false
+    action(controller)
+    return true
+}
+
+private fun playbackControllerOrNull(): PlaybackController? {
+    initializeDiagnostics()
+    if (!applicationInitialized) {
+        if (initialDiagnosticsState.safeMode) return null
+        initializeApplication(initialDiagnosticsState.startupPlan.disabledComponents)
+    }
+    return applicationKoin?.get<PlaybackController>()
 }
 
 fun shutdownApplication() {
