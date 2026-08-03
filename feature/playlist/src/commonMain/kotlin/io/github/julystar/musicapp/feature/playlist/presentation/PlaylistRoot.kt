@@ -6,6 +6,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
+import io.github.julystar.musicapp.core.domain.repository.FavoritesRepository
 import io.github.julystar.musicapp.service.playback.domain.PlayableItem
 import io.github.julystar.musicapp.service.playback.domain.PlaybackController
 import kotlinx.coroutines.launch
@@ -21,9 +22,11 @@ fun PlaylistRoot(
     editPlaylistViewModel: EditPlaylistVM = koinViewModel(),
 ) {
     val playbackController = koinInject<PlaybackController>()
+    val favoritesRepository = koinInject<FavoritesRepository>()
     val coroutineScope = rememberCoroutineScope()
     val state by playlistViewModel.state.collectAsState()
     val playerState by playbackController.state.collectAsState()
+    val favoriteTrackIds by favoritesRepository.favoriteTrackIds.collectAsState(emptySet())
 
     LaunchedEffect(playlistViewModel) {
         playlistViewModel.events.collect { event ->
@@ -36,7 +39,11 @@ fun PlaylistRoot(
     PlaylistScreen(
         state = state,
         currentPlayingTrackId = playerState.currentItem?.libraryTrackId,
+        favoriteTrackIds = favoriteTrackIds,
         scaffoldPadding = scaffoldPadding,
+        onToggleFavorite = { trackId ->
+            coroutineScope.launch { favoritesRepository.toggleFavorite(trackId) }
+        },
         onAction = { action ->
             when (action) {
                 PlaylistAction.NavigateBack -> onNavigateBack()
@@ -85,6 +92,7 @@ private fun PlaylistTrackItem.toPlayableItem(playlistId: Long): PlayableItem {
     return PlayableItem(
         mediaId = mediaId,
         title = title,
+        artist = artist?.takeIf { it.isNotBlank() },
         durationMs = durationMs,
         libraryTrackId = id,
         libraryPlaylistId = playlistId,

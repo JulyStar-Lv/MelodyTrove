@@ -1,22 +1,36 @@
 package io.github.julystar.musicapp.feature.album.presentation
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -24,113 +38,174 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import io.github.julystar.musicapp.core.domain.model.Artwork
-import io.github.julystar.musicapp.core.presentation.components.DesignCardSurface
-import io.github.julystar.musicapp.core.presentation.components.DesignDetailHeaderSurface
-import io.github.julystar.musicapp.core.presentation.components.DesignSectionHeader
+import io.github.julystar.musicapp.core.presentation.components.DesignContextMenu
+import io.github.julystar.musicapp.core.presentation.components.DesignContextMenuItem
+import io.github.julystar.musicapp.core.presentation.components.DesignIconButton
+import io.github.julystar.musicapp.core.presentation.components.DesignIconButtonColors
+import io.github.julystar.musicapp.core.presentation.components.DesignIconButtonSize
+import io.github.julystar.musicapp.core.presentation.components.DesignIconButtonVariant
 import io.github.julystar.musicapp.core.presentation.components.DesignStatusCard
-import io.github.julystar.musicapp.core.presentation.components.DesignTextButton
-import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonSize
-import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonVariant
-import io.github.julystar.musicapp.core.presentation.components.DesignTrackNumberBadge
 import io.github.julystar.musicapp.core.presentation.components.LocalDesignBottomContentInset
 import io.github.julystar.musicapp.core.presentation.media.ArtworkImage
+import io.github.julystar.musicapp.core.presentation.theme.DesignFontFamilies
+import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
+import kotlinx.coroutines.launch
+import musicapp.core.presentation.generated.resources.Res as CoreRes
+import musicapp.core.presentation.generated.resources.icon_arrow_left
+import musicapp.core.presentation.generated.resources.icon_download
+import musicapp.core.presentation.generated.resources.icon_heart
+import musicapp.core.presentation.generated.resources.icon_heart_filled
+import musicapp.core.presentation.generated.resources.icon_locate_fixed
+import musicapp.core.presentation.generated.resources.icon_more_horizontal
+import musicapp.core.presentation.generated.resources.icon_play
+import musicapp.core.presentation.generated.resources.icon_vertialcal_more
 import musicapp.feature.album.generated.resources.Res
+import musicapp.feature.album.generated.resources.album_add_favorite
+import musicapp.feature.album.generated.resources.album_back
 import musicapp.feature.album.generated.resources.album_default_title
+import musicapp.feature.album.generated.resources.album_detail_summary
 import musicapp.feature.album.generated.resources.album_download
+import musicapp.feature.album.generated.resources.album_duration_hours
+import musicapp.feature.album.generated.resources.album_duration_hours_minutes
+import musicapp.feature.album.generated.resources.album_duration_minutes
+import musicapp.feature.album.generated.resources.album_duration_minutes_seconds
+import musicapp.feature.album.generated.resources.album_duration_seconds
 import musicapp.feature.album.generated.resources.album_loading
+import musicapp.feature.album.generated.resources.album_locate_current
+import musicapp.feature.album.generated.resources.album_more_actions
 import musicapp.feature.album.generated.resources.album_no_tracks
+import musicapp.feature.album.generated.resources.album_play
 import musicapp.feature.album.generated.resources.album_play_all
+import musicapp.feature.album.generated.resources.album_remove_favorite
 import musicapp.feature.album.generated.resources.album_retry
-import musicapp.feature.album.generated.resources.album_song_count
-import musicapp.feature.album.generated.resources.album_summary
-import musicapp.feature.album.generated.resources.album_tracks
+import musicapp.feature.album.generated.resources.album_track_more_actions
 import musicapp.feature.album.generated.resources.album_unavailable
+import musicapp.feature.album.generated.resources.album_unknown_artist
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
+import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun AlbumScreen(
     state: AlbumState,
+    currentPlayingTrackId: Long?,
+    favoriteTrackIds: Set<Long>,
+    onToggleFavorite: (Long) -> Unit,
     onAction: (AlbumAction) -> Unit,
 ) {
     val spacing = DesignTokens.spacing
     val bottomContentInset = LocalDesignBottomContentInset.current
     val defaultTitle = stringResource(Res.string.album_default_title)
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val horizontalPadding = if (maxWidth < 600.dp) spacing.pageCompact else spacing.pageExpanded
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+    val compactTitleVisible by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 96
+        }
+    }
+    val currentTrackIndex = state.tracks.indexOfFirst { track -> track.id == currentPlayingTrackId }
+
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MiuixTheme.colorScheme.background),
+    ) {
+        val compact = maxWidth < 600.dp
+        val horizontalPadding = if (compact) 20.dp else 32.dp
 
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .background(MiuixTheme.colorScheme.background)
-                .padding(horizontal = horizontalPadding, vertical = 18.dp),
-            verticalArrangement = Arrangement.spacedBy(spacing.md),
+                .align(Alignment.TopCenter)
+                .widthIn(max = 960.dp)
+                .fillMaxWidth()
+                .fillMaxHeight(),
         ) {
+            AlbumTopBar(
+                title = state.title.ifBlank { defaultTitle },
+                showTitle = compactTitleVisible && !state.isLoading,
+                canPlay = state.tracks.isNotEmpty(),
+                onNavigateBack = { onAction(AlbumAction.NavigateBack) },
+                onPlayAll = { onAction(AlbumAction.PlayAll) },
+            )
+
             when {
                 state.isLoading -> DesignStatusCard(
                     title = stringResource(Res.string.album_loading),
                     message = state.title.ifBlank { defaultTitle },
                     loading = true,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = horizontalPadding, vertical = spacing.md),
                 )
+
                 state.error != null -> DesignStatusCard(
                     title = stringResource(Res.string.album_unavailable),
                     message = state.error,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = horizontalPadding, vertical = spacing.md),
                     actionText = stringResource(Res.string.album_retry),
                     onAction = { onAction(AlbumAction.Retry) },
                 )
-                state.tracks.isEmpty() -> {
-                    AlbumHeader(
-                        title = state.title.ifBlank { defaultTitle },
-                        artist = state.artist,
-                        artwork = state.artwork,
-                        trackCount = 0,
-                        totalDurationMs = 0L,
-                        onPlayAll = null,
-                    )
-                    DesignStatusCard(
-                        title = stringResource(Res.string.album_no_tracks),
-                        message = state.title.ifBlank { defaultTitle },
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-                else -> {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
-                        contentPadding = PaddingValues(bottom = spacing.xl + bottomContentInset),
-                    ) {
-                        item {
-                            AlbumHeader(
-                                title = state.title,
-                                artist = state.artist,
-                                artwork = state.artwork,
-                                trackCount = state.tracks.size,
-                                totalDurationMs = state.tracks.sumOf { it.durationMs ?: 0L },
-                                onPlayAll = { onAction(AlbumAction.PlayAll) },
+
+                else -> LazyColumn(
+                    state = listState,
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(
+                        start = horizontalPadding,
+                        end = horizontalPadding,
+                        bottom = spacing.lg + bottomContentInset,
+                    ),
+                ) {
+                    item(key = "album-hero") {
+                        AlbumHero(
+                            state = state,
+                            compact = compact,
+                        )
+                    }
+                    stickyHeader(key = "album-actions") {
+                        AlbumActionBar(
+                            canPlay = state.tracks.isNotEmpty(),
+                            canLocate = currentTrackIndex >= 0,
+                            onPlayAll = { onAction(AlbumAction.PlayAll) },
+                            onLocateCurrent = {
+                                if (currentTrackIndex >= 0) {
+                                    coroutineScope.launch {
+                                        listState.animateScrollToItem(currentTrackIndex + AlbumTrackListStartIndex)
+                                    }
+                                }
+                            },
+                        )
+                    }
+                    if (state.tracks.isEmpty()) {
+                        item(key = "album-empty") {
+                            DesignStatusCard(
+                                title = stringResource(Res.string.album_no_tracks),
+                                message = state.title.ifBlank { defaultTitle },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 260.dp)
+                                    .padding(top = spacing.sm),
                             )
                         }
-                        item {
-                            DesignSectionHeader(
-                                title = stringResource(Res.string.album_tracks),
-                                metadata = stringResource(Res.string.album_song_count, state.tracks.size),
-                                titleWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(top = 6.dp),
-                            )
-                        }
-                        itemsIndexed(state.tracks) { _, track ->
+                    } else {
+                        itemsIndexed(
+                            items = state.tracks,
+                            key = { index, track -> "album-track-${track.id}-$index" },
+                        ) { index, track ->
                             AlbumTrackRow(
                                 track = track,
+                                trackNumber = index + 1,
+                                favorite = track.id in favoriteTrackIds,
                                 onPlay = { onAction(AlbumAction.PlayTrack(track.id)) },
-                                onDownload = {
-                                    if (track.canDownload) {
-                                        onAction(AlbumAction.DownloadTrack(track))
-                                    }
-                                },
+                                onToggleFavorite = { onToggleFavorite(track.id) },
+                                onDownload = { onAction(AlbumAction.DownloadTrack(track)) },
                             )
                         }
                     }
@@ -140,144 +215,372 @@ fun AlbumScreen(
     }
 }
 
-@Composable
-private fun AlbumHeader(
-    title: String,
-    artist: String,
-    artwork: Artwork?,
-    trackCount: Int,
-    totalDurationMs: Long,
-    onPlayAll: (() -> Unit)?,
-) {
-    val shapes = DesignTokens.shapes
+private const val AlbumTrackListStartIndex = 2
 
-    DesignDetailHeaderSurface {
-        Box(
+@Composable
+private fun AlbumTopBar(
+    title: String,
+    showTitle: Boolean,
+    canPlay: Boolean,
+    onNavigateBack: () -> Unit,
+    onPlayAll: () -> Unit,
+) {
+    var moreMenuExpanded by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .background(MiuixTheme.colorScheme.background.copy(alpha = 0.96f)),
+    ) {
+        DesignIconButton(
+            size = DesignIconButtonSize.Touch,
+            variant = DesignIconButtonVariant.Default,
+            painter = painterResource(CoreRes.drawable.icon_arrow_left),
+            contentDescription = stringResource(Res.string.album_back),
+            onClick = onNavigateBack,
             modifier = Modifier
-                .size(220.dp)
-                .clip(RoundedCornerShape(shapes.lg))
-                .background(MiuixTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)),
-        ) {
-            ArtworkImage(artwork = artwork, modifier = Modifier.fillMaxSize())
-        }
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
+                .align(Alignment.CenterStart)
+                .padding(start = 4.dp),
+        )
+        if (showTitle) {
             Text(
                 text = title,
-                style = MiuixTheme.textStyles.title2,
+                color = MiuixTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.body1.copy(fontSize = 16.sp, lineHeight = 20.sp),
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(horizontal = 64.dp),
+            )
+        }
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 4.dp),
+        ) {
+            DesignIconButton(
+                size = DesignIconButtonSize.Touch,
+                variant = DesignIconButtonVariant.Default,
+                painter = painterResource(CoreRes.drawable.icon_more_horizontal),
+                contentDescription = stringResource(Res.string.album_more_actions),
+                enabled = canPlay,
+                onClick = { moreMenuExpanded = true },
+            )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = 14.dp, y = 36.dp),
+            ) {
+                DesignContextMenu(
+                    expanded = moreMenuExpanded,
+                    onDismissRequest = { moreMenuExpanded = false },
+                    compact = true,
+                    items = listOf(
+                        DesignContextMenuItem(
+                            label = Res.string.album_play_all,
+                            icon = CoreRes.drawable.icon_play,
+                            onClick = onPlayAll,
+                        ),
+                    ),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AlbumHero(
+    state: AlbumState,
+    compact: Boolean,
+) {
+    val artworkSize = if (compact) 112.dp else 220.dp
+    val artworkRadius = if (compact) 18.dp else 24.dp
+    val titleSize = if (compact) 24.sp else 36.sp
+    val titleLineHeight = if (compact) 29.sp else 42.sp
+    val metadata = listOfNotNull(
+        state.artist.takeIf { it.isNotBlank() },
+        state.year?.toString(),
+        state.genre?.takeIf { it.isNotBlank() },
+    ).joinToString(" · ")
+    val totalDurationMs = state.tracks.sumOf { track -> track.durationMs ?: 0L }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = if (compact) 14.dp else 20.dp, bottom = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(if (compact) 16.dp else 28.dp),
+        verticalAlignment = if (compact) Alignment.CenterVertically else Alignment.Bottom,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(artworkSize)
+                .clip(RoundedCornerShape(artworkRadius))
+                .background(MiuixTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)),
+        ) {
+            ArtworkImage(artwork = state.artwork, modifier = Modifier.fillMaxSize())
+        }
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(bottom = if (compact) 0.dp else 4.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 5.dp else 8.dp),
+        ) {
+            Text(
+                text = state.title,
+                style = MiuixTheme.textStyles.title2.copy(
+                    fontSize = titleSize,
+                    lineHeight = titleLineHeight,
+                ),
                 color = MiuixTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.widthIn(max = 620.dp),
             )
-            if (artist.isNotBlank()) {
+            if (metadata.isNotBlank()) {
                 Text(
-                    text = artist,
-                    style = MiuixTheme.textStyles.body1,
+                    text = metadata,
+                    style = MiuixTheme.textStyles.footnote1.copy(
+                        fontSize = if (compact) 12.sp else 14.sp,
+                        lineHeight = if (compact) 16.sp else 20.sp,
+                    ),
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.widthIn(max = 560.dp),
                 )
             }
             Text(
-                text = albumSummary(trackCount = trackCount, totalDurationMs = totalDurationMs),
-                style = MiuixTheme.textStyles.footnote1,
+                text = stringResource(
+                    Res.string.album_detail_summary,
+                    state.tracks.size,
+                    albumDurationLabel(totalDurationMs),
+                ),
+                style = MiuixTheme.textStyles.footnote1.copy(fontSize = 12.sp, lineHeight = 16.sp),
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                textAlign = TextAlign.Center,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        onPlayAll?.let {
-            DesignTextButton(
+    }
+}
+
+@Composable
+private fun AlbumActionBar(
+    canPlay: Boolean,
+    canLocate: Boolean,
+    onPlayAll: () -> Unit,
+    onLocateCurrent: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(58.dp)
+            .background(MiuixTheme.colorScheme.background.copy(alpha = 0.96f)),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(
+            modifier = Modifier
+                .height(44.dp)
+                .clip(CircleShape)
+                .clickable(enabled = canPlay, onClick = onPlayAll)
+                .padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painter = painterResource(CoreRes.drawable.icon_play),
+                contentDescription = null,
+                tint = DesignPalette.Primary.copy(alpha = if (canPlay) 1f else 0.35f),
+                modifier = Modifier.size(16.dp),
+            )
+            Text(
                 text = stringResource(Res.string.album_play_all),
-                variant = DesignTextButtonVariant.PrimaryFilled,
-                size = DesignTextButtonSize.Medium,
-                onClick = it,
+                color = DesignPalette.Primary.copy(alpha = if (canPlay) 1f else 0.35f),
+                style = MiuixTheme.textStyles.body2.copy(fontSize = 14.sp, lineHeight = 18.sp),
+                fontWeight = FontWeight.SemiBold,
             )
         }
+        Box(modifier = Modifier.weight(1f))
+        DesignIconButton(
+            size = DesignIconButtonSize.Touch,
+            variant = DesignIconButtonVariant.Surface,
+            painter = painterResource(CoreRes.drawable.icon_locate_fixed),
+            contentDescription = stringResource(Res.string.album_locate_current),
+            colors = DesignIconButtonColors(iconTint = DesignPalette.Primary),
+            enabled = canLocate,
+            onClick = onLocateCurrent,
+        )
     }
 }
 
 @Composable
 private fun AlbumTrackRow(
     track: AlbumTrackItem,
+    trackNumber: Int,
+    favorite: Boolean,
     onPlay: () -> Unit,
+    onToggleFavorite: () -> Unit,
     onDownload: () -> Unit,
 ) {
-    val trackLabel = track.trackLabel()
-
-    DesignCardSurface(
-        modifier = Modifier.heightIn(min = 58.dp),
-        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
-        onClick = onPlay,
+    var moreMenuExpanded by remember(track.id) { mutableStateOf(false) }
+    val artist = track.artist?.takeIf { it.isNotBlank() }
+        ?: stringResource(Res.string.album_unknown_artist)
+    val subtitle = listOfNotNull(
+        artist,
+        track.albumTitle.takeIf { it.isNotBlank() },
+    ).joinToString(" · ")
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .background(MiuixTheme.colorScheme.background)
+            .clickable(onClick = onPlay),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 0.dp, end = 0.dp, top = 7.dp, bottom = 7.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            DesignTrackNumberBadge(label = trackLabel)
+            Box(
+                modifier = Modifier.width(40.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = track.trackLabel(trackNumber),
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    style = MiuixTheme.textStyles.footnote1.copy(
+                        fontFamily = DesignFontFamilies.Mono,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp,
+                    ),
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                )
+            }
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
                     text = track.title,
-                    style = MiuixTheme.textStyles.body1,
                     color = MiuixTheme.colorScheme.onSurface,
+                    style = MiuixTheme.textStyles.body1.copy(fontSize = 14.sp, lineHeight = 18.sp),
+                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                track.durationMs?.let {
-                    Text(
-                        text = durationLabel(it),
-                        style = MiuixTheme.textStyles.footnote1,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        maxLines = 1,
+                Text(
+                    text = subtitle,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    style = MiuixTheme.textStyles.footnote1.copy(fontSize = 12.sp, lineHeight = 16.sp),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .clickable(onClick = onToggleFavorite),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(
+                        if (favorite) CoreRes.drawable.icon_heart_filled else CoreRes.drawable.icon_heart,
+                    ),
+                    contentDescription = stringResource(
+                        if (favorite) Res.string.album_remove_favorite else Res.string.album_add_favorite,
+                        track.title,
+                    ),
+                    tint = if (favorite) DesignPalette.Primary else MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    modifier = Modifier.size(17.dp),
+                )
+            }
+            Box {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .clickable { moreMenuExpanded = true },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(CoreRes.drawable.icon_vertialcal_more),
+                        contentDescription = stringResource(Res.string.album_track_more_actions, track.title),
+                        tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = 12.dp, y = 28.dp),
+                ) {
+                    DesignContextMenu(
+                        expanded = moreMenuExpanded,
+                        onDismissRequest = { moreMenuExpanded = false },
+                        compact = true,
+                        items = buildList {
+                            add(
+                                DesignContextMenuItem(
+                                    label = Res.string.album_play,
+                                    icon = CoreRes.drawable.icon_play,
+                                    onClick = onPlay,
+                                ),
+                            )
+                            if (track.canDownload) {
+                                add(
+                                    DesignContextMenuItem(
+                                        label = Res.string.album_download,
+                                        icon = CoreRes.drawable.icon_download,
+                                        onClick = onDownload,
+                                    ),
+                                )
+                            }
+                        },
                     )
                 }
             }
-            if (track.canDownload) {
-                DesignTextButton(
-                    text = stringResource(Res.string.album_download),
-                    variant = DesignTextButtonVariant.Default,
-                    size = DesignTextButtonSize.Small,
-                    onClick = onDownload,
-                )
-            }
         }
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(MiuixTheme.colorScheme.outline.copy(alpha = 0.30f)),
+        )
     }
 }
 
-private fun AlbumTrackItem.trackLabel(): String = buildString {
+private fun AlbumTrackItem.trackLabel(fallbackNumber: Int): String = buildString {
     if (discNumber != null && discNumber > 1) {
         append("$discNumber.")
     }
-    if (trackNumber != null) {
-        if (isNotEmpty()) append("-")
-        append("$trackNumber")
-    }
+    append(trackNumber ?: fallbackNumber)
 }
 
 @Composable
-private fun albumSummary(trackCount: Int, totalDurationMs: Long): String {
-    return if (totalDurationMs > 0) {
-        stringResource(Res.string.album_summary, trackCount, durationLabel(totalDurationMs))
-    } else {
-        stringResource(Res.string.album_song_count, trackCount)
+private fun albumDurationLabel(durationMs: Long): String {
+    val totalSeconds = (durationMs / 1_000).coerceAtLeast(0)
+    val hours = totalSeconds / 3_600
+    val minutes = totalSeconds / 60 % 60
+    val seconds = totalSeconds % 60
+    return when {
+        hours > 0 && minutes > 0 -> stringResource(
+            Res.string.album_duration_hours_minutes,
+            hours,
+            minutes,
+        )
+        hours > 0 -> stringResource(Res.string.album_duration_hours, hours)
+        minutes > 0 && seconds > 0 -> stringResource(
+            Res.string.album_duration_minutes_seconds,
+            minutes,
+            seconds,
+        )
+        minutes > 0 -> stringResource(Res.string.album_duration_minutes, minutes)
+        else -> stringResource(Res.string.album_duration_seconds, seconds)
     }
-}
-
-private fun durationLabel(durationMs: Long): String {
-    val h = durationMs / 1000 / 60 / 60
-    val m = durationMs / 1000 / 60 % 60
-    val s = durationMs / 1000 % 60
-    return "${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}"
 }

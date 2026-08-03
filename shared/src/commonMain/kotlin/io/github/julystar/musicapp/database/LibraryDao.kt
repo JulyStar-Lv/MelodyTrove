@@ -405,6 +405,8 @@ data class PlaylistTrackRow(
     val trackId: Long,
     val sortOrder: Long,
     val title: String,
+    val artist: String?,
+    val albumName: String?,
     val durationMs: Long?,
     val sourceItemId: Long?,
     val sourceAccountId: Long?,
@@ -437,12 +439,14 @@ interface PlaylistDao {
 
     @Query(
         """
-        SELECT pt.playlistId, pt.trackId, pt.sortOrder, t.title, t.durationMs,
+        SELECT pt.playlistId, pt.trackId, pt.sortOrder, t.title, t.artist,
+               a.name AS albumName, t.durationMs,
                item.id AS sourceItemId,
                item.sourceAccountId AS sourceAccountId,
                COALESCE(item.displayPath, item.canonicalPath) AS sourcePath
         FROM playlist_track pt
         JOIN track t ON t.id = pt.trackId
+        LEFT JOIN album a ON a.id = t.albumId
         LEFT JOIN track_source_ref ref ON ref.trackId = t.id AND ref.isPreferred = 1 AND ref.isAvailable = 1
         LEFT JOIN source_item item ON item.id = ref.sourceItemId AND item.isDeleted = 0
         WHERE pt.playlistId = :playlistId

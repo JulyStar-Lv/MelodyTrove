@@ -191,6 +191,8 @@ internal suspend fun DaoPlaylistTrackRow.toDomainRow(
     return DomainPlaylistTrack(
         trackId = trackId,
         title = title,
+        artist = artist,
+        albumName = albumName,
         durationMs = durationMs,
         sortOrder = sortOrder,
         sourceStorageId = sourceAccountId,
