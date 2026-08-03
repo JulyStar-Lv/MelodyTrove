@@ -4,4 +4,6 @@ data class DomainAlbumDetail(
     val albumTitle: String,
     val albumArtist: String?,
     val tracks: List<DomainTrackBrowserItem>,
+    val year: Int? = null,
+    val genre: String? = null,
 )

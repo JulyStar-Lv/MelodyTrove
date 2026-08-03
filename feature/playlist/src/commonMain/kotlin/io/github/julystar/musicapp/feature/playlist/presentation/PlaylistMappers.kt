@@ -11,6 +11,7 @@ fun PlaylistSummary.toPlaylistHeaderState(
         playlistId = id,
         title = title,
         cover = coverArtwork,
+        durationMs = durationMs,
         durationLabel = formatDuration(durationMs.milliseconds),
     )
 }
@@ -19,6 +20,8 @@ fun DomainPlaylistTrack.toPlaylistTrackItem(): PlaylistTrackItem {
     return PlaylistTrackItem(
         id = trackId,
         title = title,
+        artist = artist,
+        albumName = albumName,
         durationMs = durationMs,
         sortOrder = sortOrder,
         mediaId = mediaId,

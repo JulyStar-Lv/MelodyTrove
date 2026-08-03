@@ -13,6 +13,7 @@ data class PlaylistState(
     val playlistId: Long = 0,
     val title: String = "",
     val cover: Artwork? = null,
+    val durationMs: Long = 0,
     val durationLabel: String = formatDuration(null as Duration?),
     val isRemoveDialogOpen: Boolean = false,
     val tracks: ImmutableList<PlaylistTrackItem> = persistentListOf(),
@@ -22,6 +23,8 @@ data class PlaylistState(
 data class PlaylistTrackItem(
     val id: Long,
     val title: String,
+    val artist: String? = null,
+    val albumName: String? = null,
     val durationMs: Long?,
     val sortOrder: Long,
     val mediaId: MediaId?,

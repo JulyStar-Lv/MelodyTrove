@@ -54,11 +54,15 @@ class AlbumViewModel(
                     albumId = albumId,
                     title = detail.albumTitle,
                     artist = detail.albumArtist ?: "",
+                    year = detail.year,
+                    genre = detail.genre,
                     artwork = Artwork.LibraryAlbum(albumId),
                     tracks = detail.tracks.map { track ->
                         AlbumTrackItem(
                             id = track.id,
                             title = track.title,
+                            artist = track.artist,
+                            albumTitle = detail.albumTitle,
                             trackNumber = track.trackNumber,
                             discNumber = track.discNumber,
                             durationMs = track.durationMs,

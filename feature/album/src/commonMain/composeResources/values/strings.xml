@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="album_default_title">Album</string>
+    <string name="album_back">Back</string>
     <string name="album_loading">Loading album</string>
     <string name="album_unavailable">Album unavailable</string>
     <string name="album_retry">Retry</string>
@@ -9,5 +10,18 @@
     <string name="album_song_count">%1$d songs</string>
     <string name="album_summary">%1$d songs, %2$s</string>
     <string name="album_play_all">Play All</string>
+    <string name="album_play">Play</string>
     <string name="album_download">Download</string>
+    <string name="album_more_actions">More album actions</string>
+    <string name="album_locate_current">Locate current song</string>
+    <string name="album_add_favorite">Add %1$s to favorites</string>
+    <string name="album_remove_favorite">Remove %1$s from favorites</string>
+    <string name="album_track_more_actions">More actions for %1$s</string>
+    <string name="album_unknown_artist">Unknown Artist</string>
+    <string name="album_detail_summary">%1$d tracks · %2$s</string>
+    <string name="album_duration_hours_minutes">%1$dh %2$dm</string>
+    <string name="album_duration_hours">%1$dh</string>
+    <string name="album_duration_minutes_seconds">%1$dm %2$ds</string>
+    <string name="album_duration_minutes">%1$dm</string>
+    <string name="album_duration_seconds">%1$ds</string>
 </resources>

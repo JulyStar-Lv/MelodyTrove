@@ -1,248 +1,756 @@
 package io.github.julystar.musicapp.feature.playlist.presentation
 
-import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import io.github.julystar.musicapp.core.presentation.components.BottomBarSpacer
 import io.github.julystar.musicapp.core.presentation.components.ConfirmDialog
 import io.github.julystar.musicapp.core.presentation.components.DesignCardSurface
-import io.github.julystar.musicapp.core.presentation.components.DesignDetailHeaderSurface
-import io.github.julystar.musicapp.core.presentation.components.DesignSectionHeader
+import io.github.julystar.musicapp.core.presentation.components.DesignCheckbox
 import io.github.julystar.musicapp.core.presentation.components.DesignContextMenu
 import io.github.julystar.musicapp.core.presentation.components.DesignContextMenuItem
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButton
+import io.github.julystar.musicapp.core.presentation.components.DesignIconButtonColors
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButtonSize
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButtonVariant
-import io.github.julystar.musicapp.core.presentation.components.DesignTrackNumberBadge
-import io.github.julystar.musicapp.core.presentation.components.DesignTextButton
-import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonSize
-import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonVariant
-import io.github.julystar.musicapp.core.presentation.components.customAnchoredDraggable
-import io.github.julystar.musicapp.core.presentation.components.rememberCustomAnchoredDraggableState
 import io.github.julystar.musicapp.core.presentation.media.ArtworkImage
+import io.github.julystar.musicapp.core.presentation.theme.DesignFontFamilies
 import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
-import org.jetbrains.compose.resources.painterResource
-import org.jetbrains.compose.resources.stringResource
+import kotlinx.coroutines.launch
 import musicapp.core.presentation.generated.resources.Res as CoreRes
+import musicapp.core.presentation.generated.resources.cover_default_playlist_image
+import musicapp.core.presentation.generated.resources.icon_arrow_left
+import musicapp.core.presentation.generated.resources.icon_deleteseep
+import musicapp.core.presentation.generated.resources.icon_download
+import musicapp.core.presentation.generated.resources.icon_drag
+import musicapp.core.presentation.generated.resources.icon_heart
+import musicapp.core.presentation.generated.resources.icon_heart_filled
+import musicapp.core.presentation.generated.resources.icon_locate_fixed
+import musicapp.core.presentation.generated.resources.icon_more_horizontal
+import musicapp.core.presentation.generated.resources.icon_ok
+import musicapp.core.presentation.generated.resources.icon_pencil
+import musicapp.core.presentation.generated.resources.icon_play
 import musicapp.core.presentation.generated.resources.icon_setting
-import sh.calvin.reorderable.ReorderableCollectionItemScope
-import sh.calvin.reorderable.ReorderableItem
-import sh.calvin.reorderable.rememberReorderableLazyListState
+import musicapp.core.presentation.generated.resources.icon_vertialcal_more
 import musicapp.feature.playlist.generated.resources.Res
-import musicapp.feature.playlist.generated.resources.cover_default_playlist_image
-import musicapp.feature.playlist.generated.resources.icon_back
-import musicapp.feature.playlist.generated.resources.icon_deleteseep
-import musicapp.feature.playlist.generated.resources.icon_download
-import musicapp.feature.playlist.generated.resources.icon_vertialcal_more
+import musicapp.feature.playlist.generated.resources.playlist_add_favorite
+import musicapp.feature.playlist.generated.resources.playlist_back
 import musicapp.feature.playlist.generated.resources.playlist_context_menu_edit
 import musicapp.feature.playlist.generated.resources.playlist_context_menu_import
 import musicapp.feature.playlist.generated.resources.playlist_context_menu_remove
+import musicapp.feature.playlist.generated.resources.playlist_default_title
+import musicapp.feature.playlist.generated.resources.playlist_deselect_all
+import musicapp.feature.playlist.generated.resources.playlist_detail_summary
+import musicapp.feature.playlist.generated.resources.playlist_download
+import musicapp.feature.playlist.generated.resources.playlist_duration_hours
+import musicapp.feature.playlist.generated.resources.playlist_duration_hours_minutes
+import musicapp.feature.playlist.generated.resources.playlist_duration_minutes
+import musicapp.feature.playlist.generated.resources.playlist_duration_minutes_seconds
+import musicapp.feature.playlist.generated.resources.playlist_duration_seconds
+import musicapp.feature.playlist.generated.resources.playlist_edit_tracks
 import musicapp.feature.playlist.generated.resources.playlist_empty_list
-import musicapp.feature.playlist.generated.resources.playlist_list_count_suffix
-import musicapp.feature.playlist.generated.resources.playlist_list_count_suffixes
+import musicapp.feature.playlist.generated.resources.playlist_finish_editing
+import musicapp.feature.playlist.generated.resources.playlist_locate_current
+import musicapp.feature.playlist.generated.resources.playlist_play_all
 import musicapp.feature.playlist.generated.resources.playlist_remove_dialog_text
+import musicapp.feature.playlist.generated.resources.playlist_remove_favorite
+import musicapp.feature.playlist.generated.resources.playlist_select_all
+import musicapp.feature.playlist.generated.resources.playlist_track_more_actions
+import musicapp.feature.playlist.generated.resources.playlist_unknown_artist
+import org.jetbrains.compose.resources.painterResource
+import org.jetbrains.compose.resources.stringResource
+import sh.calvin.reorderable.ReorderableCollectionItemScope
+import sh.calvin.reorderable.ReorderableItem
+import sh.calvin.reorderable.rememberReorderableLazyListState
+import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 private const val TrackListStartIndex = 2
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PlaylistScreen(
     state: PlaylistState,
     currentPlayingTrackId: Long?,
+    favoriteTrackIds: Set<Long>,
     scaffoldPadding: PaddingValues,
+    onToggleFavorite: (Long) -> Unit,
     onAction: (PlaylistAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Box(modifier = modifier.fillMaxSize().background(MiuixTheme.colorScheme.background)) {
-        PlaylistContent(state = state, currentPlayingTrackId = currentPlayingTrackId, scaffoldPadding = scaffoldPadding, onAction = onAction)
+    var editing by remember(state.playlistId) { mutableStateOf(false) }
+    var selectedTrackIds by remember(state.playlistId) { mutableStateOf(emptySet<Long>()) }
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+    val compactTitleVisible by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 96
+        }
+    }
+    val currentTrackIndex = state.tracks.indexOfFirst { track -> track.id == currentPlayingTrackId }
+    val allSelected = state.tracks.isNotEmpty() && state.tracks.all { track -> track.id in selectedTrackIds }
+    val reorderableLazyListState = rememberReorderableLazyListState(lazyListState = listState) { from, to ->
+        val fromIndex = from.index - TrackListStartIndex
+        val toIndex = to.index - TrackListStartIndex
+        if (fromIndex in state.tracks.indices && toIndex in state.tracks.indices) {
+            onAction(PlaylistAction.MoveTrack(fromIndex = fromIndex, toIndex = toIndex))
+        }
+    }
+
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MiuixTheme.colorScheme.background),
+    ) {
+        val compact = maxWidth < 600.dp
+        val horizontalPadding = if (compact) 20.dp else 32.dp
+
+        Column(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .widthIn(max = 960.dp)
+                .fillMaxWidth()
+                .fillMaxHeight(),
+        ) {
+            PlaylistTopBar(
+                state = state,
+                showTitle = compactTitleVisible,
+                onAction = onAction,
+            )
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                state = listState,
+                contentPadding = PaddingValues(
+                    start = horizontalPadding,
+                    end = horizontalPadding,
+                ),
+            ) {
+                item(key = "playlist-hero") {
+                    PlaylistHero(state = state, compact = compact)
+                }
+                stickyHeader(key = "playlist-actions") {
+                    PlaylistActionBar(
+                        editing = editing,
+                        allSelected = allSelected,
+                        selectedCount = selectedTrackIds.size,
+                        canPlay = state.tracks.isNotEmpty(),
+                        canLocate = currentTrackIndex >= 0,
+                        onPlayAll = { onAction(PlaylistAction.PlayAll) },
+                        onLocateCurrent = {
+                            if (currentTrackIndex >= 0) {
+                                coroutineScope.launch {
+                                    listState.animateScrollToItem(currentTrackIndex + TrackListStartIndex)
+                                }
+                            }
+                        },
+                        onToggleEditing = {
+                            editing = !editing
+                            selectedTrackIds = emptySet()
+                        },
+                        onToggleSelectAll = {
+                            selectedTrackIds = if (allSelected) {
+                                emptySet()
+                            } else {
+                                state.tracks.mapTo(mutableSetOf()) { track -> track.id }
+                            }
+                        },
+                    )
+                }
+                if (state.tracks.isEmpty()) {
+                    item(key = "playlist-empty") {
+                        EmptyPlaylist(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 280.dp)
+                                .padding(top = 12.dp),
+                        )
+                    }
+                } else {
+                    items(
+                        count = state.tracks.size,
+                        key = { index -> state.tracks[index].lazyListKey(index) },
+                    ) { index ->
+                        val item = state.tracks[index]
+                        if (editing) {
+                            ReorderableItem(
+                                reorderableLazyListState,
+                                key = item.lazyListKey(index),
+                            ) { _ ->
+                                PlaylistEditingTrackRow(
+                                    item = item,
+                                    selected = item.id in selectedTrackIds,
+                                    onSelectedChange = { selected ->
+                                        selectedTrackIds = if (selected) {
+                                            selectedTrackIds + item.id
+                                        } else {
+                                            selectedTrackIds - item.id
+                                        }
+                                    },
+                                )
+                            }
+                        } else {
+                            PlaylistTrackRow(
+                                item = item,
+                                trackNumber = index + 1,
+                                favorite = item.id in favoriteTrackIds,
+                                onPlay = { onAction(PlaylistAction.PlayTrack(item.id)) },
+                                onToggleFavorite = { onToggleFavorite(item.id) },
+                                onDownload = { onAction(PlaylistAction.DownloadTrack(item)) },
+                                onRemove = { onAction(PlaylistAction.RemoveTrack(item.id)) },
+                            )
+                        }
+                    }
+                }
+                item(key = "playlist-bottom-space") {
+                    BottomBarSpacer(showMiniPlayer = true, scaffoldPadding = scaffoldPadding)
+                }
+            }
+        }
     }
     RemovePlaylistDialog(state = state, onAction = onAction)
 }
 
 @Composable
-private fun PlaylistContent(
+private fun PlaylistTopBar(
     state: PlaylistState,
-    currentPlayingTrackId: Long?,
-    scaffoldPadding: PaddingValues,
+    showTitle: Boolean,
     onAction: (PlaylistAction) -> Unit,
 ) {
-    var swipingTrackId by remember { mutableStateOf<Long?>(null) }
-    val spacing = DesignTokens.spacing
-    val lazyListState = rememberLazyListState()
-    val reorderableLazyListState = rememberReorderableLazyListState(lazyListState = lazyListState) { from, to ->
-        onAction(PlaylistAction.MoveTrack(fromIndex = from.index - TrackListStartIndex, toIndex = to.index - TrackListStartIndex))
-    }
+    var moreMenuExpanded by remember { mutableStateOf(false) }
+    val title = state.title.ifBlank { stringResource(Res.string.playlist_default_title) }
 
-    BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-        val horizontalPadding = if (maxWidth < 600.dp) spacing.pageCompact else spacing.pageExpanded
-
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            state = lazyListState,
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            contentPadding = PaddingValues(horizontal = horizontalPadding, vertical = 18.dp),
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .background(MiuixTheme.colorScheme.background.copy(alpha = 0.96f)),
+    ) {
+        DesignIconButton(
+            size = DesignIconButtonSize.Touch,
+            variant = DesignIconButtonVariant.Default,
+            painter = painterResource(CoreRes.drawable.icon_arrow_left),
+            contentDescription = stringResource(Res.string.playlist_back),
+            onClick = { onAction(PlaylistAction.NavigateBack) },
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = 4.dp),
+        )
+        if (showTitle) {
+            Text(
+                text = title,
+                color = MiuixTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.body1.copy(fontSize = 16.sp, lineHeight = 20.sp),
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(horizontal = 64.dp),
+            )
+        }
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 4.dp),
         ) {
-            item { PlaylistHeader(state = state, onAction = onAction) }
-            if (state.tracks.isEmpty()) {
-                item { EmptyPlaylist(modifier = Modifier.heightIn(min = 280.dp)) }
-            } else {
-                item {
-                    DesignSectionHeader(title = "Tracks", metadata = "${state.tracks.size} ${playlistCountLabel(state.tracks.size)}", titleWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
-                }
-                items(state.tracks.size, key = { state.tracks[it].lazyListKey(it) }) {
-                    val item = state.tracks[it]
-                    val playing = item.id == currentPlayingTrackId
-                    val itemKey = item.lazyListKey(it)
-                    ReorderableItem(reorderableLazyListState, key = itemKey) { _ ->
-                        PlaylistItem(item = item, index = it, playing = playing, currentSwipingTrackId = swipingTrackId, onSwipe = { swipingTrackId = item.id }, onAction = { action ->
-                            if (action is PlaylistAction.RemoveTrack && swipingTrackId == item.id) swipingTrackId = null
-                            onAction(action)
-                        })
-                    }
-                }
+            DesignIconButton(
+                size = DesignIconButtonSize.Touch,
+                variant = DesignIconButtonVariant.Default,
+                painter = painterResource(CoreRes.drawable.icon_more_horizontal),
+                contentDescription = stringResource(Res.string.playlist_track_more_actions, title),
+                onClick = { moreMenuExpanded = true },
+            )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = 14.dp, y = 36.dp),
+            ) {
+                DesignContextMenu(
+                    expanded = moreMenuExpanded,
+                    onDismissRequest = { moreMenuExpanded = false },
+                    compact = true,
+                    items = listOf(
+                        DesignContextMenuItem(
+                            label = Res.string.playlist_context_menu_import,
+                            icon = CoreRes.drawable.icon_download,
+                            onClick = { onAction(PlaylistAction.ImportTracks) },
+                        ),
+                        DesignContextMenuItem(
+                            label = Res.string.playlist_context_menu_edit,
+                            icon = CoreRes.drawable.icon_setting,
+                            onClick = { onAction(PlaylistAction.EditPlaylist) },
+                        ),
+                        DesignContextMenuItem(
+                            label = Res.string.playlist_context_menu_remove,
+                            icon = CoreRes.drawable.icon_deleteseep,
+                            isError = true,
+                            onClick = { onAction(PlaylistAction.OpenRemoveDialog) },
+                        ),
+                    ),
+                )
             }
-            item { BottomBarSpacer(showMiniPlayer = true, scaffoldPadding = scaffoldPadding) }
         }
     }
 }
 
 @Composable
-private fun RemovePlaylistDialog(state: PlaylistState, onAction: (PlaylistAction) -> Unit) {
-    ConfirmDialog(open = state.isRemoveDialogOpen, onConfirm = { onAction(PlaylistAction.ConfirmRemovePlaylist) }, onCancel = { onAction(PlaylistAction.CloseRemoveDialog) }) {
+private fun PlaylistHero(
+    state: PlaylistState,
+    compact: Boolean,
+) {
+    val artworkSize = if (compact) 112.dp else 220.dp
+    val artworkRadius = if (compact) 18.dp else 24.dp
+    val titleSize = if (compact) 24.sp else 36.sp
+    val titleLineHeight = if (compact) 29.sp else 42.sp
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = if (compact) 14.dp else 20.dp, bottom = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(if (compact) 16.dp else 28.dp),
+        verticalAlignment = if (compact) Alignment.CenterVertically else Alignment.Bottom,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(artworkSize)
+                .clip(RoundedCornerShape(artworkRadius))
+                .background(MiuixTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f)),
+        ) {
+            if (state.cover == null) {
+                Image(
+                    modifier = Modifier.fillMaxSize(),
+                    painter = painterResource(CoreRes.drawable.cover_default_playlist_image),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                )
+            } else {
+                ArtworkImage(modifier = Modifier.fillMaxSize(), artwork = state.cover)
+            }
+        }
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(bottom = if (compact) 0.dp else 4.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 7.dp else 10.dp),
+        ) {
+            Text(
+                text = state.title.ifBlank { stringResource(Res.string.playlist_default_title) },
+                style = MiuixTheme.textStyles.title2.copy(
+                    fontSize = titleSize,
+                    lineHeight = titleLineHeight,
+                ),
+                color = MiuixTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = stringResource(
+                    Res.string.playlist_detail_summary,
+                    state.tracks.size,
+                    playlistDurationLabel(state.durationMs),
+                ),
+                style = MiuixTheme.textStyles.footnote1.copy(fontSize = 12.sp, lineHeight = 16.sp),
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlaylistActionBar(
+    editing: Boolean,
+    allSelected: Boolean,
+    selectedCount: Int,
+    canPlay: Boolean,
+    canLocate: Boolean,
+    onPlayAll: () -> Unit,
+    onLocateCurrent: () -> Unit,
+    onToggleEditing: () -> Unit,
+    onToggleSelectAll: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(58.dp)
+            .background(MiuixTheme.colorScheme.background.copy(alpha = 0.96f)),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (editing) {
+            DesignCheckbox(
+                checked = allSelected,
+                onCheckedChange = { onToggleSelectAll() },
+            )
+            Text(
+                text = buildString {
+                    append(
+                        stringResource(
+                            if (allSelected) Res.string.playlist_deselect_all else Res.string.playlist_select_all,
+                        ),
+                    )
+                    if (selectedCount > 0) append(" ($selectedCount)")
+                },
+                color = MiuixTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.body2.copy(fontSize = 14.sp, lineHeight = 18.sp),
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+            )
+        } else {
+            Row(
+                modifier = Modifier
+                    .height(44.dp)
+                    .clip(CircleShape)
+                    .clickable(enabled = canPlay, onClick = onPlayAll)
+                    .padding(horizontal = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    painter = painterResource(CoreRes.drawable.icon_play),
+                    contentDescription = null,
+                    tint = DesignPalette.Primary.copy(alpha = if (canPlay) 1f else 0.35f),
+                    modifier = Modifier.size(16.dp),
+                )
+                Text(
+                    text = stringResource(Res.string.playlist_play_all),
+                    color = DesignPalette.Primary.copy(alpha = if (canPlay) 1f else 0.35f),
+                    style = MiuixTheme.textStyles.body2.copy(fontSize = 14.sp, lineHeight = 18.sp),
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        }
+        Box(modifier = Modifier.weight(1f))
+        DesignIconButton(
+            size = DesignIconButtonSize.Touch,
+            variant = DesignIconButtonVariant.Surface,
+            painter = painterResource(CoreRes.drawable.icon_locate_fixed),
+            contentDescription = stringResource(Res.string.playlist_locate_current),
+            colors = DesignIconButtonColors(iconTint = DesignPalette.Primary),
+            enabled = canLocate,
+            onClick = onLocateCurrent,
+        )
+        Box(modifier = Modifier.width(4.dp))
+        DesignIconButton(
+            size = DesignIconButtonSize.Touch,
+            variant = if (editing) DesignIconButtonVariant.Primary else DesignIconButtonVariant.Surface,
+            painter = painterResource(
+                if (editing) CoreRes.drawable.icon_ok else CoreRes.drawable.icon_pencil,
+            ),
+            contentDescription = stringResource(
+                if (editing) Res.string.playlist_finish_editing else Res.string.playlist_edit_tracks,
+            ),
+            colors = if (editing) null else DesignIconButtonColors(iconTint = DesignPalette.Primary),
+            onClick = onToggleEditing,
+        )
+    }
+}
+
+@Composable
+private fun PlaylistTrackRow(
+    item: PlaylistTrackItem,
+    trackNumber: Int,
+    favorite: Boolean,
+    onPlay: () -> Unit,
+    onToggleFavorite: () -> Unit,
+    onDownload: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    var moreMenuExpanded by remember(item.id, item.sortOrder) { mutableStateOf(false) }
+    val subtitle = item.trackSubtitle()
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .background(MiuixTheme.colorScheme.background)
+            .clickable(onClick = onPlay),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier.width(40.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = trackNumber.toString(),
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    style = MiuixTheme.textStyles.footnote1.copy(
+                        fontFamily = DesignFontFamilies.Mono,
+                        fontSize = 12.sp,
+                        lineHeight = 16.sp,
+                    ),
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                )
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = item.title,
+                    color = MiuixTheme.colorScheme.onSurface,
+                    style = MiuixTheme.textStyles.body1.copy(fontSize = 14.sp, lineHeight = 18.sp),
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = subtitle,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    style = MiuixTheme.textStyles.footnote1.copy(fontSize = 12.sp, lineHeight = 16.sp),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .clickable(onClick = onToggleFavorite),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(
+                        if (favorite) CoreRes.drawable.icon_heart_filled else CoreRes.drawable.icon_heart,
+                    ),
+                    contentDescription = stringResource(
+                        if (favorite) Res.string.playlist_remove_favorite else Res.string.playlist_add_favorite,
+                        item.title,
+                    ),
+                    tint = if (favorite) DesignPalette.Primary else MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    modifier = Modifier.size(17.dp),
+                )
+            }
+            Box {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .clickable { moreMenuExpanded = true },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(CoreRes.drawable.icon_vertialcal_more),
+                        contentDescription = stringResource(Res.string.playlist_track_more_actions, item.title),
+                        tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = 12.dp, y = 28.dp),
+                ) {
+                    DesignContextMenu(
+                        expanded = moreMenuExpanded,
+                        onDismissRequest = { moreMenuExpanded = false },
+                        compact = true,
+                        items = buildList {
+                            if (item.mediaId != null) {
+                                add(
+                                    DesignContextMenuItem(
+                                        label = Res.string.playlist_download,
+                                        icon = CoreRes.drawable.icon_download,
+                                        onClick = onDownload,
+                                    ),
+                                )
+                            }
+                            add(
+                                DesignContextMenuItem(
+                                    label = Res.string.playlist_context_menu_remove,
+                                    icon = CoreRes.drawable.icon_deleteseep,
+                                    isError = true,
+                                    onClick = onRemove,
+                                ),
+                            )
+                        },
+                    )
+                }
+            }
+        }
+        PlaylistRowDivider(modifier = Modifier.align(Alignment.BottomCenter))
+    }
+}
+
+@Composable
+private fun ReorderableCollectionItemScope.PlaylistEditingTrackRow(
+    item: PlaylistTrackItem,
+    selected: Boolean,
+    onSelectedChange: (Boolean) -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .background(MiuixTheme.colorScheme.background),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            DesignCheckbox(
+                checked = selected,
+                onCheckedChange = onSelectedChange,
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = item.title,
+                    color = MiuixTheme.colorScheme.onSurface,
+                    style = MiuixTheme.textStyles.body1.copy(fontSize = 14.sp, lineHeight = 18.sp),
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = item.trackSubtitle(),
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    style = MiuixTheme.textStyles.footnote1.copy(fontSize = 12.sp, lineHeight = 16.sp),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .draggableHandle(),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(CoreRes.drawable.icon_drag),
+                    contentDescription = stringResource(Res.string.playlist_edit_tracks),
+                    tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        }
+        PlaylistRowDivider(modifier = Modifier.align(Alignment.BottomCenter))
+    }
+}
+
+@Composable
+private fun PlaylistRowDivider(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(1.dp)
+            .background(MiuixTheme.colorScheme.outline.copy(alpha = 0.30f)),
+    )
+}
+
+@Composable
+private fun RemovePlaylistDialog(
+    state: PlaylistState,
+    onAction: (PlaylistAction) -> Unit,
+) {
+    ConfirmDialog(
+        open = state.isRemoveDialogOpen,
+        onConfirm = { onAction(PlaylistAction.ConfirmRemovePlaylist) },
+        onCancel = { onAction(PlaylistAction.CloseRemoveDialog) },
+    ) {
         Text(text = "${stringResource(Res.string.playlist_remove_dialog_text)} \"${state.title}\"")
     }
 }
 
 @Composable
-private fun PlaylistHeader(state: PlaylistState, onAction: (PlaylistAction) -> Unit) {
-    var moreMenuExpanded by remember { mutableStateOf(false) }
-    val shapes = DesignTokens.shapes
-
-    DesignDetailHeaderSurface(contentPadding = PaddingValues(16.dp), surfaceAlpha = 0.94f, horizontalAlignment = Alignment.Start, verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Row(horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-            DesignIconButton(size = DesignIconButtonSize.Medium, variant = DesignIconButtonVariant.Default, painter = painterResource(Res.drawable.icon_back), onClick = { onAction(PlaylistAction.NavigateBack) })
-            Box {
-                DesignIconButton(size = DesignIconButtonSize.Medium, variant = DesignIconButtonVariant.Default, painter = painterResource(Res.drawable.icon_vertialcal_more), onClick = { moreMenuExpanded = true })
-                Box(contentAlignment = Alignment.TopEnd, modifier = Modifier.offset(20.dp, 20.dp)) {
-                    DesignContextMenu(expanded = moreMenuExpanded, onDismissRequest = { moreMenuExpanded = false }, items = listOf(
-                        DesignContextMenuItem(label = Res.string.playlist_context_menu_import, icon = Res.drawable.icon_download, onClick = { moreMenuExpanded = false; onAction(PlaylistAction.ImportTracks) }),
-                        DesignContextMenuItem(label = Res.string.playlist_context_menu_edit, icon = CoreRes.drawable.icon_setting, onClick = { moreMenuExpanded = false; onAction(PlaylistAction.EditPlaylist) }),
-                        DesignContextMenuItem(label = Res.string.playlist_context_menu_remove, icon = Res.drawable.icon_deleteseep, isError = true, onClick = { moreMenuExpanded = false; onAction(PlaylistAction.OpenRemoveDialog) }),
-                    ))
-                }
-            }
-        }
-        Box(modifier = Modifier.size(220.dp).align(Alignment.CenterHorizontally).clip(RoundedCornerShape(shapes.lg)).background(MiuixTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))) {
-            if (state.cover == null) {
-                Image(modifier = Modifier.fillMaxSize(), painter = painterResource(Res.drawable.cover_default_playlist_image), contentDescription = null, contentScale = ContentScale.Crop)
-            } else {
-                ArtworkImage(modifier = Modifier.fillMaxSize(), artwork = state.cover)
-            }
-        }
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.align(Alignment.CenterHorizontally)) {
-            Text(text = state.title.ifBlank { "Playlist" }, style = MiuixTheme.textStyles.title2, color = MiuixTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center, overflow = TextOverflow.Ellipsis, maxLines = 2, modifier = Modifier.widthIn(max = 620.dp))
-            Text(text = "${state.tracks.size} ${playlistCountLabel(state.tracks.size)}, ${state.durationLabel}", color = MiuixTheme.colorScheme.onSurfaceVariantSummary, style = MiuixTheme.textStyles.footnote1, textAlign = TextAlign.Center, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        Row(modifier = Modifier.align(Alignment.CenterHorizontally), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            DesignTextButton(text = "Play All", variant = DesignTextButtonVariant.PrimaryFilled, size = DesignTextButtonSize.Medium, enabled = !state.tracks.isEmpty(), onClick = { onAction(PlaylistAction.PlayAll) })
-            DesignTextButton(text = "Import", variant = DesignTextButtonVariant.Default, size = DesignTextButtonSize.Medium, onClick = { onAction(PlaylistAction.ImportTracks) })
-            DesignTextButton(text = "Edit", variant = DesignTextButtonVariant.Default, size = DesignTextButtonSize.Medium, onClick = { onAction(PlaylistAction.EditPlaylist) })
-        }
-    }
-}
-
-@Composable
 private fun EmptyPlaylist(modifier: Modifier = Modifier) {
-    DesignCardSurface(modifier = modifier, cornerRadius = DesignTokens.shapes.lg, contentPadding = PaddingValues(24.dp)) {
+    DesignCardSurface(
+        modifier = modifier,
+        cornerRadius = DesignTokens.shapes.lg,
+        contentPadding = PaddingValues(24.dp),
+    ) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(text = stringResource(Res.string.playlist_empty_list), color = MiuixTheme.colorScheme.onSurfaceVariantSummary, style = MiuixTheme.textStyles.body1, textAlign = TextAlign.Center)
+            Text(
+                text = stringResource(Res.string.playlist_empty_list),
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                style = MiuixTheme.textStyles.body1,
+                textAlign = TextAlign.Center,
+            )
         }
     }
 }
 
 @Composable
-private fun ReorderableCollectionItemScope.PlaylistItem(
-    item: PlaylistTrackItem, index: Int, playing: Boolean, currentSwipingTrackId: Long?, onSwipe: () -> Unit, onAction: (PlaylistAction) -> Unit,
-) {
-    val density = LocalDensity.current
-    val panelWidthDp = 48.dp
-    val rowShape = RoundedCornerShape(DesignTokens.shapes.lg)
-    val anchoredDraggableState = with(density) {
-        rememberCustomAnchoredDraggableState(initialValue = 0f, anchors = mapOf(0.dp.toPx() to "START", -(panelWidthDp * 2 + 8.dp).toPx() to "END"), animationSpec = tween(200))
-    }
-    val textColor = if (playing) DesignPalette.Primary else MiuixTheme.colorScheme.onSurface
-    val rowBackground = if (playing) MiuixTheme.colorScheme.tertiaryContainer.copy(alpha = 0.58f) else MiuixTheme.colorScheme.surfaceContainer
-    val borderColor = if (playing) DesignPalette.Primary.copy(alpha = 0.34f) else MiuixTheme.colorScheme.outline
-    LaunchedEffect(currentSwipingTrackId) { if (currentSwipingTrackId != item.id) anchoredDraggableState.animateTo(0f) }
-    Box(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.offset(x = with(density) { anchoredDraggableState.value.toDp() }).clip(rowShape).background(rowBackground).border(1.dp, borderColor, rowShape)
-                .customAnchoredDraggable(state = anchoredDraggableState, orientation = Orientation.Horizontal, onDragStarted = { onSwipe() })
-                .clickable { onAction(PlaylistAction.PlayTrack(item.id)); onSwipe() }
-                .padding(horizontal = 14.dp, vertical = 12.dp).heightIn(min = 64.dp).fillMaxWidth(),
-        ) {
-            DesignTrackNumberBadge(label = (index + 1).toString().padStart(2, '0'), active = playing, modifier = Modifier.draggableHandle())
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                if (playing) { Text(text = "Now Playing", color = DesignPalette.Primary, style = MiuixTheme.textStyles.footnote1, fontWeight = FontWeight.Bold, maxLines = 1) }
-                Text(text = item.title, color = textColor, style = MiuixTheme.textStyles.body1, fontWeight = if (playing) FontWeight.Bold else FontWeight.Normal, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            Text(text = item.durationLabel, color = MiuixTheme.colorScheme.onSurfaceVariantSummary, maxLines = 1, modifier = Modifier.wrapContentWidth(), style = MiuixTheme.textStyles.footnote1)
-        }
-        Box(modifier = Modifier.clipToBounds().fillMaxSize().align(alignment = Alignment.CenterEnd)) {
-            Row(modifier = Modifier.offset(x = panelWidthDp + with(density) { anchoredDraggableState.value.toDp() }).fillMaxSize(), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
-                Box(modifier = Modifier.width(8.dp))
-                DesignIconButton(size = DesignIconButtonSize.Medium, variant = DesignIconButtonVariant.Default, painter = painterResource(Res.drawable.icon_download), onClick = { onAction(PlaylistAction.DownloadTrack(item)) })
-                Box(modifier = Modifier.width(8.dp))
-                DesignIconButton(size = DesignIconButtonSize.Medium, variant = DesignIconButtonVariant.ErrorFilled, painter = painterResource(Res.drawable.icon_deleteseep), onClick = { onAction(PlaylistAction.RemoveTrack(item.id)) })
-            }
-        }
-    }
+private fun PlaylistTrackItem.trackSubtitle(): String {
+    val artistLabel = artist?.takeIf { it.isNotBlank() }
+        ?: stringResource(Res.string.playlist_unknown_artist)
+    return listOfNotNull(
+        artistLabel,
+        albumName?.takeIf { it.isNotBlank() },
+    ).joinToString(" · ")
 }
-
-internal fun PlaylistTrackItem.lazyListKey(index: Int): String = "playlist-track-$sortOrder-$index-$id"
 
 @Composable
-private fun playlistCountLabel(count: Int): String {
-    val countSuffixStringRes = if (count <= 1) Res.string.playlist_list_count_suffix else Res.string.playlist_list_count_suffixes
-    return stringResource(countSuffixStringRes)
+private fun playlistDurationLabel(durationMs: Long): String {
+    val totalSeconds = (durationMs / 1_000).coerceAtLeast(0)
+    val hours = totalSeconds / 3_600
+    val minutes = totalSeconds / 60 % 60
+    val seconds = totalSeconds % 60
+    return when {
+        hours > 0 && minutes > 0 -> stringResource(
+            Res.string.playlist_duration_hours_minutes,
+            hours,
+            minutes,
+        )
+        hours > 0 -> stringResource(Res.string.playlist_duration_hours, hours)
+        minutes > 0 && seconds > 0 -> stringResource(
+            Res.string.playlist_duration_minutes_seconds,
+            minutes,
+            seconds,
+        )
+        minutes > 0 -> stringResource(Res.string.playlist_duration_minutes, minutes)
+        else -> stringResource(Res.string.playlist_duration_seconds, seconds)
+    }
 }
+
+internal fun PlaylistTrackItem.lazyListKey(index: Int): String =
+    "playlist-track-$sortOrder-$index-$id"
