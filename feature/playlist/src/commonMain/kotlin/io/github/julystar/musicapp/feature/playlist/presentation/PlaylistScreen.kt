@@ -116,6 +116,7 @@ fun PlaylistScreen(
     scaffoldPadding: PaddingValues,
     onToggleFavorite: (Long) -> Unit,
     onAction: (PlaylistAction) -> Unit,
+    editable: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     var editing by remember(state.playlistId) { mutableStateOf(false) }
@@ -155,6 +156,7 @@ fun PlaylistScreen(
             PlaylistTopBar(
                 state = state,
                 showTitle = compactTitleVisible,
+                editable = editable,
                 onAction = onAction,
             )
             LazyColumn(
@@ -175,6 +177,7 @@ fun PlaylistScreen(
                         selectedCount = selectedTrackIds.size,
                         canPlay = state.tracks.isNotEmpty(),
                         canLocate = currentTrackIndex >= 0,
+                        editable = editable,
                         onPlayAll = { onAction(PlaylistAction.PlayAll) },
                         onLocateCurrent = {
                             if (currentTrackIndex >= 0) {
@@ -237,6 +240,7 @@ fun PlaylistScreen(
                                 onToggleFavorite = { onToggleFavorite(item.id) },
                                 onDownload = { onAction(PlaylistAction.DownloadTrack(item)) },
                                 onRemove = { onAction(PlaylistAction.RemoveTrack(item.id)) },
+                                removable = editable,
                             )
                         }
                     }
@@ -247,13 +251,16 @@ fun PlaylistScreen(
             }
         }
     }
-    RemovePlaylistDialog(state = state, onAction = onAction)
+    if (editable) {
+        RemovePlaylistDialog(state = state, onAction = onAction)
+    }
 }
 
 @Composable
 private fun PlaylistTopBar(
     state: PlaylistState,
     showTitle: Boolean,
+    editable: Boolean,
     onAction: (PlaylistAction) -> Unit,
 ) {
     var moreMenuExpanded by remember { mutableStateOf(false) }
@@ -288,46 +295,48 @@ private fun PlaylistTopBar(
                     .padding(horizontal = 64.dp),
             )
         }
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .padding(end = 4.dp),
-        ) {
-            DesignIconButton(
-                size = DesignIconButtonSize.Touch,
-                variant = DesignIconButtonVariant.Default,
-                painter = painterResource(CoreRes.drawable.icon_more_horizontal),
-                contentDescription = stringResource(Res.string.playlist_track_more_actions, title),
-                onClick = { moreMenuExpanded = true },
-            )
+        if (editable) {
             Box(
                 modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .offset(x = 14.dp, y = 36.dp),
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 4.dp),
             ) {
-                DesignContextMenu(
-                    expanded = moreMenuExpanded,
-                    onDismissRequest = { moreMenuExpanded = false },
-                    compact = true,
-                    items = listOf(
-                        DesignContextMenuItem(
-                            label = Res.string.playlist_context_menu_import,
-                            icon = CoreRes.drawable.icon_download,
-                            onClick = { onAction(PlaylistAction.ImportTracks) },
-                        ),
-                        DesignContextMenuItem(
-                            label = Res.string.playlist_context_menu_edit,
-                            icon = CoreRes.drawable.icon_setting,
-                            onClick = { onAction(PlaylistAction.EditPlaylist) },
-                        ),
-                        DesignContextMenuItem(
-                            label = Res.string.playlist_context_menu_remove,
-                            icon = CoreRes.drawable.icon_deleteseep,
-                            isError = true,
-                            onClick = { onAction(PlaylistAction.OpenRemoveDialog) },
-                        ),
-                    ),
+                DesignIconButton(
+                    size = DesignIconButtonSize.Touch,
+                    variant = DesignIconButtonVariant.Default,
+                    painter = painterResource(CoreRes.drawable.icon_more_horizontal),
+                    contentDescription = stringResource(Res.string.playlist_track_more_actions, title),
+                    onClick = { moreMenuExpanded = true },
                 )
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = 14.dp, y = 36.dp),
+                ) {
+                    DesignContextMenu(
+                        expanded = moreMenuExpanded,
+                        onDismissRequest = { moreMenuExpanded = false },
+                        compact = true,
+                        items = listOf(
+                            DesignContextMenuItem(
+                                label = Res.string.playlist_context_menu_import,
+                                icon = CoreRes.drawable.icon_download,
+                                onClick = { onAction(PlaylistAction.ImportTracks) },
+                            ),
+                            DesignContextMenuItem(
+                                label = Res.string.playlist_context_menu_edit,
+                                icon = CoreRes.drawable.icon_setting,
+                                onClick = { onAction(PlaylistAction.EditPlaylist) },
+                            ),
+                            DesignContextMenuItem(
+                                label = Res.string.playlist_context_menu_remove,
+                                icon = CoreRes.drawable.icon_deleteseep,
+                                isError = true,
+                                onClick = { onAction(PlaylistAction.OpenRemoveDialog) },
+                            ),
+                        ),
+                    )
+                }
             }
         }
     }
@@ -406,6 +415,7 @@ private fun PlaylistActionBar(
     selectedCount: Int,
     canPlay: Boolean,
     canLocate: Boolean,
+    editable: Boolean,
     onPlayAll: () -> Unit,
     onLocateCurrent: () -> Unit,
     onToggleEditing: () -> Unit,
@@ -471,19 +481,21 @@ private fun PlaylistActionBar(
             enabled = canLocate,
             onClick = onLocateCurrent,
         )
-        Box(modifier = Modifier.width(4.dp))
-        DesignIconButton(
-            size = DesignIconButtonSize.Touch,
-            variant = if (editing) DesignIconButtonVariant.Primary else DesignIconButtonVariant.Surface,
-            painter = painterResource(
-                if (editing) CoreRes.drawable.icon_ok else CoreRes.drawable.icon_pencil,
-            ),
-            contentDescription = stringResource(
-                if (editing) Res.string.playlist_finish_editing else Res.string.playlist_edit_tracks,
-            ),
-            colors = if (editing) null else DesignIconButtonColors(iconTint = DesignPalette.Primary),
-            onClick = onToggleEditing,
-        )
+        if (editable) {
+            Box(modifier = Modifier.width(4.dp))
+            DesignIconButton(
+                size = DesignIconButtonSize.Touch,
+                variant = if (editing) DesignIconButtonVariant.Primary else DesignIconButtonVariant.Surface,
+                painter = painterResource(
+                    if (editing) CoreRes.drawable.icon_ok else CoreRes.drawable.icon_pencil,
+                ),
+                contentDescription = stringResource(
+                    if (editing) Res.string.playlist_finish_editing else Res.string.playlist_edit_tracks,
+                ),
+                colors = if (editing) null else DesignIconButtonColors(iconTint = DesignPalette.Primary),
+                onClick = onToggleEditing,
+            )
+        }
     }
 }
 
@@ -496,6 +508,7 @@ private fun PlaylistTrackRow(
     onToggleFavorite: () -> Unit,
     onDownload: () -> Unit,
     onRemove: () -> Unit,
+    removable: Boolean,
 ) {
     var moreMenuExpanded by remember(item.id, item.sortOrder) { mutableStateOf(false) }
     val subtitle = item.trackSubtitle()
@@ -567,50 +580,54 @@ private fun PlaylistTrackRow(
                     modifier = Modifier.size(17.dp),
                 )
             }
-            Box {
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .clickable { moreMenuExpanded = true },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        painter = painterResource(CoreRes.drawable.icon_vertialcal_more),
-                        contentDescription = stringResource(Res.string.playlist_track_more_actions, item.title),
-                        tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .offset(x = 12.dp, y = 28.dp),
-                ) {
-                    DesignContextMenu(
-                        expanded = moreMenuExpanded,
-                        onDismissRequest = { moreMenuExpanded = false },
-                        compact = true,
-                        items = buildList {
-                            if (item.mediaId != null) {
-                                add(
-                                    DesignContextMenuItem(
-                                        label = Res.string.playlist_download,
-                                        icon = CoreRes.drawable.icon_download,
-                                        onClick = onDownload,
-                                    ),
-                                )
-                            }
-                            add(
-                                DesignContextMenuItem(
-                                    label = Res.string.playlist_context_menu_remove,
-                                    icon = CoreRes.drawable.icon_deleteseep,
-                                    isError = true,
-                                    onClick = onRemove,
-                                ),
-                            )
-                        },
-                    )
+            if (item.mediaId != null || removable) {
+                Box {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .clickable { moreMenuExpanded = true },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            painter = painterResource(CoreRes.drawable.icon_vertialcal_more),
+                            contentDescription = stringResource(Res.string.playlist_track_more_actions, item.title),
+                            tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = 12.dp, y = 28.dp),
+                    ) {
+                        DesignContextMenu(
+                            expanded = moreMenuExpanded,
+                            onDismissRequest = { moreMenuExpanded = false },
+                            compact = true,
+                            items = buildList {
+                                if (item.mediaId != null) {
+                                    add(
+                                        DesignContextMenuItem(
+                                            label = Res.string.playlist_download,
+                                            icon = CoreRes.drawable.icon_download,
+                                            onClick = onDownload,
+                                        ),
+                                    )
+                                }
+                                if (removable) {
+                                    add(
+                                        DesignContextMenuItem(
+                                            label = Res.string.playlist_context_menu_remove,
+                                            icon = CoreRes.drawable.icon_deleteseep,
+                                            isError = true,
+                                            onClick = onRemove,
+                                        ),
+                                    )
+                                }
+                            },
+                        )
+                    }
                 }
             }
         }

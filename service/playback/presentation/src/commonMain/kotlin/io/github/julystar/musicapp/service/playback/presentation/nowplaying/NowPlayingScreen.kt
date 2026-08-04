@@ -478,6 +478,7 @@ private fun CoverImage(
                 modifier = Modifier.fillMaxSize(),
                 artwork = artwork,
                 contentScale = ContentScale.Crop,
+                smoothTransition = true,
             )
         }
     }
@@ -1564,6 +1565,7 @@ fun ImmersivePlayerBackground(artwork: Artwork?) {
                 .blur(54.dp),
             artwork = artwork,
             contentScale = ContentScale.Crop,
+            smoothTransition = true,
         )
         Box(
             modifier = Modifier

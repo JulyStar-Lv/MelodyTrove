@@ -325,7 +325,6 @@ class DesktopPlayerController(
         playbackEngine.stop()
         releasePlaybackResource()
         playerRepository.setIsPlaying(false)
-        playerRepository.resetCurrent()
     }
 
     private suspend fun configureAudioProcessing(trackId: Long) {

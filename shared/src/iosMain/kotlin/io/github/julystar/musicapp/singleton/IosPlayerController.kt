@@ -176,11 +176,11 @@ class IosPlayerController internal constructor(
                 playbackEngine.stop()
                 releasePlaybackResource()
                 playerRepository.setIsPlaying(false)
-                playerRepository.resetCurrent()
                 val music = roomLibraryStore.getMusic(id)
                 val playlist = queuedPlaylist ?: roomLibraryStore.getPlaylist(playlistId)
                 val belongsToPlaylist = playlist?.musics?.any { it.meta.id == id } == true
                 if (music == null || playlist == null || !belongsToPlaylist) {
+                    playerRepository.resetCurrent()
                     return@launch
                 }
 

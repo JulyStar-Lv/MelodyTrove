@@ -49,6 +49,7 @@ import io.github.julystar.musicapp.source.api.SourceListResult
 import io.github.julystar.musicapp.source.api.SourcePlaybackFailureReason
 import io.github.julystar.musicapp.source.api.SourcePlaybackResult
 import io.github.julystar.musicapp.source.storage.LegacyStorageLookup
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -153,6 +154,25 @@ class DesktopPlayerControllerTest {
 
         awaitUntil { !harness.playerRepository.playing.value }
         assertEquals(TRACK_ID, harness.playerRepository.music.value?.meta?.id?.value)
+    }
+
+    @Test
+    fun currentTrackRemainsVisibleWhileNextTrackIsLoading() = withHarness(
+        sourceResult = SourcePlaybackResult.Success(TEST_RESOURCE),
+        engine = RecordingDesktopPlaybackEngine(PlaybackEngineLoadResult.Ready),
+    ) { harness ->
+        harness.controller.play(MusicId(TRACK_ID), PlaylistId(PLAYLIST_ID))
+        awaitUntil { harness.playerRepository.music.value?.meta?.id?.value == TRACK_ID }
+        val resolveGate = CompletableDeferred<Unit>()
+        harness.source.resolveGate = resolveGate
+
+        harness.controller.play(MusicId(SECOND_TRACK_ID), PlaylistId(PLAYLIST_ID))
+        awaitUntil { harness.playerRepository.loading.value && harness.source.resolveCalls == 2 }
+
+        assertEquals(TRACK_ID, harness.playerRepository.music.value?.meta?.id?.value)
+
+        resolveGate.complete(Unit)
+        awaitUntil { harness.playerRepository.music.value?.meta?.id?.value == SECOND_TRACK_ID }
     }
 
     @Test
@@ -584,6 +604,7 @@ private class RecordingMusicSource(
     val resolvedUris = mutableListOf<String>()
     var resolveCalls = 0
         private set
+    var resolveGate: CompletableDeferred<Unit>? = null
 
     override suspend fun authenticate(configuration: SourceConfiguration): SourceAuthResult {
         return SourceAuthResult.Failure(SourceAuthFailureReason.UnsupportedConfiguration)
@@ -598,6 +619,7 @@ private class RecordingMusicSource(
 
     override suspend fun resolvePlayback(mediaId: MediaId): SourcePlaybackResult {
         resolveCalls += 1
+        resolveGate?.await()
         val uri = (result as? SourcePlaybackResult.Success)?.resource?.uri
         if (uri != null) {
             resolvedUris += uri

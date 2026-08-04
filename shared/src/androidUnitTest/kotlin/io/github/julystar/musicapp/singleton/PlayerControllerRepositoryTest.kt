@@ -27,6 +27,7 @@ import io.github.julystar.musicapp.source.api.SourceListResult
 import io.github.julystar.musicapp.source.api.SourcePlaybackFailureReason
 import io.github.julystar.musicapp.source.api.SourcePlaybackResult
 import io.github.julystar.musicapp.source.storage.LegacyStorageLookup
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -128,7 +129,7 @@ class PlayerControllerRepositoryTest {
     }
 
     @Test
-    fun preparedPlaybackQueueSurvivesTrackLoadingReset() = withHarness(
+    fun preparedPlaybackQueueSurvivesTrackLoading() = withHarness(
         sourceResult = SourcePlaybackResult.Success(TEST_RESOURCE),
         engine = RecordingAndroidPlaybackEngine(PlaybackEngineLoadResult.Ready),
     ) { harness ->
@@ -148,6 +149,31 @@ class PlayerControllerRepositoryTest {
 
         awaitUntil { harness.playerState.playing.value }
         assertEquals("Daily Picks", harness.playerState.playlist.value?.abstr?.meta?.title)
+    }
+
+    @Test
+    fun currentTrackRemainsVisibleWhileNextTrackIsLoading() = withHarness(
+        sourceResult = SourcePlaybackResult.Success(TEST_RESOURCE),
+        engine = RecordingAndroidPlaybackEngine(PlaybackEngineLoadResult.Ready),
+    ) { harness ->
+        val queue = playlist(
+            id = PLAYLIST_ID,
+            musics = listOf(musicAbstract(id = TRACK_ID, title = TRACK_TITLE)),
+        )
+        harness.playerState.setCurrent(
+            music = music(id = PREVIOUS_TRACK_ID, title = "Previous"),
+            playlist = queue,
+        )
+        val resolveGate = CompletableDeferred<Unit>()
+        harness.source.resolveGate = resolveGate
+
+        harness.controller.play(MusicId(TRACK_ID), PlaylistId(PLAYLIST_ID))
+        awaitUntil { harness.playerState.loading.value && harness.source.resolveCalls == 1 }
+
+        assertEquals(PREVIOUS_TRACK_ID, harness.playerState.music.value?.meta?.id?.value)
+
+        resolveGate.complete(Unit)
+        awaitUntil { harness.playerState.music.value?.meta?.id?.value == TRACK_ID }
     }
 
     private fun withHarness(
@@ -423,6 +449,7 @@ private class RecordingMusicSource(
     val resolvedUris = mutableListOf<String>()
     var resolveCalls = 0
         private set
+    var resolveGate: CompletableDeferred<Unit>? = null
 
     override suspend fun authenticate(configuration: SourceConfiguration): SourceAuthResult {
         return SourceAuthResult.Failure(SourceAuthFailureReason.UnsupportedConfiguration)
@@ -437,6 +464,7 @@ private class RecordingMusicSource(
 
     override suspend fun resolvePlayback(mediaId: MediaId): SourcePlaybackResult {
         resolveCalls += 1
+        resolveGate?.await()
         val uri = (result as? SourcePlaybackResult.Success)?.resource?.uri
         if (uri != null) {
             resolvedUris += uri
@@ -516,6 +544,7 @@ private object EmptyTrackSourceRefDao : TrackSourceRefDao {
 }
 
 private const val STORAGE_ID = 2L
+private const val PREVIOUS_TRACK_ID = 6L
 private const val TRACK_ID = 7L
 private const val TRACK_TITLE = "Moon"
 private const val TRACK_PATH = "/Music/Moon.flac"

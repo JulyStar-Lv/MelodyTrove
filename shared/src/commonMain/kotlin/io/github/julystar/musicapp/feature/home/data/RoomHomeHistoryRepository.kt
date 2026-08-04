@@ -7,6 +7,7 @@ import io.github.julystar.musicapp.database.TrackEntity
 import io.github.julystar.musicapp.feature.home.domain.HistoryPlayItem
 import io.github.julystar.musicapp.feature.home.domain.HomeHistoryRepository
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.mapLatest
@@ -18,6 +19,7 @@ class RoomHomeHistoryRepository(
     scope: CoroutineScope,
 ) : HomeHistoryRepository {
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     override val recentPlays: StateFlow<List<HistoryPlayItem>> =
         libraryRepository.tracks
             .mapLatest { tracks ->

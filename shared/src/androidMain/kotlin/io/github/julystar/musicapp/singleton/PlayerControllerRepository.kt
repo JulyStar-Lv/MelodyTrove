@@ -245,6 +245,7 @@ class PlayerControllerRepository internal constructor(
                     playlist == null ||
                     playlist.musics.none { playlistMusic -> playlistMusic.meta.id == id }
                 ) {
+                    playerState.resetCurrent()
                     return@launch
                 }
 
@@ -312,7 +313,6 @@ class PlayerControllerRepository internal constructor(
         engine.stop()
         releasePlaybackResource()
         playerState.setIsPlaying(false)
-        playerState.resetCurrent()
     }
 
     private suspend fun releasePlaybackResource() {

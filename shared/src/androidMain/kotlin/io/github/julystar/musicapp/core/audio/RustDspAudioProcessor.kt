@@ -51,6 +51,7 @@ internal class RustDspAudioProcessor(
         return inputAudioFormat
     }
 
+    @Suppress("OVERRIDE_DEPRECATION")
     override fun onFlush() {
         val result = RustDspNative.nativeConfigureFormat(
             nativeHandle,
