@@ -35,6 +35,9 @@ sealed interface MusicGraph {
     data class Playlist(val id: Long) : MusicGraph
 
     @Serializable
+    data object Favorites : MusicGraph
+
+    @Serializable
     data class Lyrics(val id: Long) : MusicGraph
 
     @Serializable

@@ -35,6 +35,7 @@ internal fun HomeTabContent(
     onNavigateToAlbum: (Long) -> Unit,
     onNavigateToArtist: (Long) -> Unit,
     onNavigateToPlaylist: (Long) -> Unit,
+    onNavigateToFavorites: () -> Unit,
     onNavigateToPlaylists: () -> Unit,
     stickyHeaderStateSink: DesignStickyHeaderStateSink? = null,
 ) {
@@ -70,6 +71,7 @@ internal fun HomeTabContent(
                     onNavigateToAlbum = onNavigateToAlbum,
                     onNavigateToArtist = onNavigateToArtist,
                     onNavigateToPlaylist = onNavigateToPlaylist,
+                    onNavigateToFavorites = onNavigateToFavorites,
                     onNavigateToPlaylists = onNavigateToPlaylists,
                 )
                 HomeTab.SETTINGS -> SettingsTabGraph(

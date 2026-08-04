@@ -103,6 +103,7 @@ fun LibraryDesignScreen(
     onNavigateToAlbum: (Long) -> Unit = {},
     onNavigateToArtist: (Long) -> Unit = {},
     onNavigateToPlaylist: (Long) -> Unit = {},
+    onNavigateToFavorites: () -> Unit = {},
     onNavigateToPlaylists: () -> Unit = {},
     onAction: (LibraryAction) -> Unit,
 ) {
@@ -150,6 +151,7 @@ fun LibraryDesignScreen(
                         onNavigateToAlbum = onNavigateToAlbum,
                         onNavigateToArtist = onNavigateToArtist,
                         onNavigateToPlaylist = onNavigateToPlaylist,
+                        onNavigateToFavorites = onNavigateToFavorites,
                         onNavigateToPlaylists = onNavigateToPlaylists,
                         onAction = onAction,
                         onSelectCategory = { selectedCategory = it },
@@ -197,6 +199,7 @@ fun LibraryDesignScreen(
                     onNavigateToAlbum = onNavigateToAlbum,
                     onNavigateToArtist = onNavigateToArtist,
                     onNavigateToPlaylist = onNavigateToPlaylist,
+                    onNavigateToFavorites = onNavigateToFavorites,
                     onNavigateToPlaylists = onNavigateToPlaylists,
                     onAction = onAction,
                     onSelectCategory = { selectedCategory = it },
@@ -392,6 +395,7 @@ private fun LibraryContent(
     onNavigateToAlbum: (Long) -> Unit,
     onNavigateToArtist: (Long) -> Unit,
     onNavigateToPlaylist: (Long) -> Unit,
+    onNavigateToFavorites: () -> Unit,
     onNavigateToPlaylists: () -> Unit,
     onAction: (LibraryAction) -> Unit,
     onSelectCategory: (LibraryDesignCategory) -> Unit,
@@ -450,6 +454,7 @@ private fun LibraryContent(
                 onNavigateToAlbum = onNavigateToAlbum,
                 onNavigateToArtist = onNavigateToArtist,
                 onNavigateToPlaylist = onNavigateToPlaylist,
+                onNavigateToFavorites = onNavigateToFavorites,
                 onNavigateToPlaylists = onNavigateToPlaylists,
                 onAction = onAction,
                 onSelectCategory = onSelectCategory,
@@ -478,6 +483,7 @@ private fun LazyListScope.LibraryCategoryItems(
     onNavigateToAlbum: (Long) -> Unit,
     onNavigateToArtist: (Long) -> Unit,
     onNavigateToPlaylist: (Long) -> Unit,
+    onNavigateToFavorites: () -> Unit,
     onNavigateToPlaylists: () -> Unit,
     onAction: (LibraryAction) -> Unit,
     onSelectCategory: (LibraryDesignCategory) -> Unit,
@@ -664,7 +670,7 @@ private fun LazyListScope.LibraryCategoryItems(
                 playlists = playlists.toLibraryPlaylistRows(favoriteTracks),
                 onOpenPlaylist = { playlist ->
                     if (playlist.key == FavoritesPlaylistKey) {
-                        onSelectCategory(LibraryDesignCategory.Favorites)
+                        onNavigateToFavorites()
                     } else {
                         playlist.summary?.let { onNavigateToPlaylist(it.id) }
                             ?: onNavigateToPlaylists()

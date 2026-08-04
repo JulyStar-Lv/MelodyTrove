@@ -45,6 +45,7 @@ class RootNavHostTest {
             "io.github.julystar.musicapp.MusicGraph.Album",
             "io.github.julystar.musicapp.MusicGraph.Artist",
             "io.github.julystar.musicapp.MusicGraph.Playlist",
+            "io.github.julystar.musicapp.MusicGraph.Favorites",
             "io.github.julystar.musicapp.MusicGraph.Playlists",
             "io.github.julystar.musicapp.MusicGraph.EditStorage",
             "io.github.julystar.musicapp.MusicGraph.Import",

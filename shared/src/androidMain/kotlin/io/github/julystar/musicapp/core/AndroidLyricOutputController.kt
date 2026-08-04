@@ -19,6 +19,7 @@ import io.github.julystar.musicapp.core.domain.model.LyricLine
 import io.github.julystar.musicapp.core.domain.model.LyricFontChoice
 import io.github.julystar.musicapp.core.domain.model.Lyrics
 import io.github.julystar.musicapp.core.domain.model.SecondaryLyricContent
+import io.github.julystar.musicapp.core.domain.model.filteredForDisplay
 import io.github.julystar.musicapp.core.domain.repository.SettingsRepository
 import io.github.julystar.musicapp.service.playback.data.PlayerRepository
 import io.github.julystar.musicapp.singleton.RoomLibraryStore
@@ -47,6 +48,7 @@ internal class AndroidLyricOutputController(
     private val playerProvider: () -> Player?,
 ) {
     private var settings = AppSettings.Default
+    private var sourceLyrics = Lyrics()
     private var lyrics = Lyrics()
     private var currentTrackId: Long? = null
     private var currentTitle = ""
@@ -68,9 +70,10 @@ internal class AndroidLyricOutputController(
                 currentArtist = trackId?.let { roomLibraryStore.getTrackPrimaryArtist(it) }.orEmpty()
                 if (trackId != currentTrackId) {
                     currentTrackId = trackId
-                    currentLineIndex = -1
-                    lyrics = trackId?.let { roomLibraryStore.getPlaybackLyrics(it) } ?: Lyrics()
+                    sourceLyrics = trackId?.let { roomLibraryStore.getPlaybackLyrics(it) } ?: Lyrics()
                 }
+                lyrics = sourceLyrics.filteredForDisplay(appSettings.lyrics)
+                currentLineIndex = -1
                 configureProviders()
                 publishWholeSong()
                 updateOverlay(null)

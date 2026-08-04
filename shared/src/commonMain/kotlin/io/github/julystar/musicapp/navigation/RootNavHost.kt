@@ -58,6 +58,7 @@ import io.github.julystar.musicapp.feature.lyrics.presentation.navigation.lyrics
 import io.github.julystar.musicapp.feature.playlist.presentation.CreatePlaylistRoot
 import io.github.julystar.musicapp.feature.playlist.presentation.CreatePlaylistVM
 import io.github.julystar.musicapp.feature.playlist.presentation.EditPlaylistRoot
+import io.github.julystar.musicapp.feature.playlist.presentation.FavoritesPlaylistRoot
 import io.github.julystar.musicapp.feature.playlist.presentation.PlaylistRoot
 import io.github.julystar.musicapp.feature.playlist.presentation.PlaylistsListRoot
 import io.github.julystar.musicapp.feature.queue.presentation.QueueRoot
@@ -186,6 +187,12 @@ internal fun RootNavHost(
                 onNavigateToCoverImport = {
                     navController.navigate(MusicGraph.Import(RouteImportType.EditPlaylistCover))
                 },
+            )
+        }
+        composable<MusicGraph.Favorites> {
+            FavoritesPlaylistRoot(
+                scaffoldPadding = scaffoldPadding,
+                onNavigateBack = { navController.popBackStack() },
             )
         }
         browseGraph(

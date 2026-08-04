@@ -17,6 +17,7 @@
     <string name="playlist_context_menu_edit">Edit</string>
     <string name="playlist_context_menu_remove">Remove</string>
     <string name="playlist_default_title">Playlist</string>
+    <string name="playlist_favorites_title">My Favorites</string>
     <string name="playlist_back">Back</string>
     <string name="playlist_play_all">Play All</string>
     <string name="playlist_download">Download</string>

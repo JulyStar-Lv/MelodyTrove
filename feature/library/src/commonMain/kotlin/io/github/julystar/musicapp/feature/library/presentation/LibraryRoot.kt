@@ -19,6 +19,7 @@ fun LibraryRoot(
     onNavigateToAlbum: (Long) -> Unit = {},
     onNavigateToArtist: (Long) -> Unit = {},
     onNavigateToPlaylist: (Long) -> Unit = {},
+    onNavigateToFavorites: () -> Unit = {},
     onNavigateToPlaylists: () -> Unit = {},
     viewModel: LibraryVM = koinViewModel(),
 ) {
@@ -42,6 +43,7 @@ fun LibraryRoot(
         onNavigateToAlbum = onNavigateToAlbum,
         onNavigateToArtist = onNavigateToArtist,
         onNavigateToPlaylist = onNavigateToPlaylist,
+        onNavigateToFavorites = onNavigateToFavorites,
         onNavigateToPlaylists = onNavigateToPlaylists,
         onAction = { action ->
             when (action) {

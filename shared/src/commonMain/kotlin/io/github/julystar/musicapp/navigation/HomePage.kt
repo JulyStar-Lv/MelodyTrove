@@ -78,6 +78,9 @@ fun HomePage(
     val onNavigateToPlaylist = { id: Long ->
         globalNavController.navigate(MusicGraph.Playlist(id))
     }
+    val onNavigateToFavorites = {
+        globalNavController.navigate(MusicGraph.Favorites)
+    }
     val onNavigateToPlaylists = {
         globalNavController.navigate(MusicGraph.Playlists)
     }
@@ -138,6 +141,7 @@ fun HomePage(
                 onNavigateToAlbum = onNavigateToAlbum,
                 onNavigateToArtist = onNavigateToArtist,
                 onNavigateToPlaylist = onNavigateToPlaylist,
+                onNavigateToFavorites = onNavigateToFavorites,
                 onNavigateToPlaylists = onNavigateToPlaylists,
                 stickyHeaderStateSink = stickyHeaderSink,
             )
