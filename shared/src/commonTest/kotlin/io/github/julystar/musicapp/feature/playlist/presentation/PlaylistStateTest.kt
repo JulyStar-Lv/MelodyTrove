@@ -34,6 +34,7 @@ class PlaylistStateTest {
 
         assertEquals(42, state.playlistId)
         assertEquals("Road Trip", state.title)
+        assertEquals(65_000, state.durationMs)
         assertEquals("00:01:05", state.durationLabel)
         assertEquals(true, state.isRemoveDialogOpen)
         assertSame(current.tracks, state.tracks)
@@ -50,6 +51,8 @@ class PlaylistStateTest {
             trackId = 9,
             sortOrder = 2,
             title = "Downloadable",
+            artist = "Artist",
+            albumName = "Album",
             durationMs = 123_000,
             sourceStorageId = 5,
             sourcePath = "/Music/Downloadable.flac",
@@ -58,6 +61,8 @@ class PlaylistStateTest {
 
         assertEquals(9, item.id)
         assertEquals("Downloadable", item.title)
+        assertEquals("Artist", item.artist)
+        assertEquals("Album", item.albumName)
         assertEquals("00:02:03", item.durationLabel)
         assertEquals(BuiltInSourceIds.WebDav, item.mediaId?.sourceId)
         assertEquals(

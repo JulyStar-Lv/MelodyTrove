@@ -15,10 +15,16 @@ class AlbumDetailRepositoryImpl(
         val album = metadataDao.getAlbum(albumId)
         val tracks = trackDao.findByAlbumId(albumId)
         val artist = metadataDao.artistNamesForAlbum(albumId).joinToString(", ")
+        val genre = tracks.firstOrNull()
+            ?.let { track -> metadataDao.genreNamesForTrack(track.id).firstOrNull() }
 
         return DomainAlbumDetail(
             albumTitle = album?.name ?: "Unknown Album",
-            albumArtist = artist.ifBlank { album?.name },
+            albumArtist = artist.ifBlank {
+                tracks.firstOrNull { track -> !track.artist.isNullOrBlank() }?.artist
+            },
+            year = album?.year,
+            genre = genre,
             tracks = tracks.map { track ->
                 DomainTrackBrowserItem(
                     id = track.id,
