@@ -3,6 +3,7 @@ package io.github.julystar.musicapp.service.playback.data
 import io.github.julystar.musicapp.core.domain.model.AppSettings
 import io.github.julystar.musicapp.core.domain.model.LyricFontChoice
 import io.github.julystar.musicapp.core.domain.model.Lyrics
+import io.github.julystar.musicapp.core.domain.model.filteredForDisplay
 import io.github.julystar.musicapp.core.domain.repository.SettingsRepository
 import io.github.julystar.musicapp.singleton.DesktopPlaybackEngine
 import io.github.julystar.musicapp.singleton.RoomLibraryStore
@@ -41,7 +42,10 @@ class DesktopFloatingLyricsController(
                     appSettings to music?.meta?.id?.value
                 }.collectLatest { (appSettings, trackId) ->
                     settings = appSettings
-                    lyrics = trackId?.let { roomLibraryStore.getPlaybackLyrics(it) } ?: Lyrics()
+                    lyrics = trackId
+                        ?.let { roomLibraryStore.getPlaybackLyrics(it) }
+                        ?.filteredForDisplay(appSettings.lyrics)
+                        ?: Lyrics()
                     currentLine = -1
                     refreshFont(label?.text.orEmpty())
                     if (appSettings.lyricOutput.floatingLyricsEnabled) showWindow() else hideWindow()
