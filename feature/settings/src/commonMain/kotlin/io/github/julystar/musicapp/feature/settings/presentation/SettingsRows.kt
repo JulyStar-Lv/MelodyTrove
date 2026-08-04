@@ -56,6 +56,7 @@ import io.github.julystar.musicapp.core.presentation.components.AppTextField
 import io.github.julystar.musicapp.core.presentation.components.DesignChevron
 import io.github.julystar.musicapp.core.presentation.components.DesignChevronDirection
 import io.github.julystar.musicapp.core.presentation.components.DesignDialog
+import io.github.julystar.musicapp.core.presentation.components.DesignListDivider
 import io.github.julystar.musicapp.core.presentation.components.DesignPreferenceRow
 import io.github.julystar.musicapp.core.presentation.components.DesignSettingsGroup
 import io.github.julystar.musicapp.core.presentation.components.DesignSlider
@@ -305,12 +306,7 @@ internal fun SettingsSliderRow(
             )
         }
         if (showDivider) {
-            Spacer(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.05f)),
-            )
+            DesignListDivider()
         }
     }
 }
@@ -669,12 +665,7 @@ internal fun SettingsSelectRow(
             }
             }
         }
-        Spacer(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.05f)),
-        )
+        DesignListDivider()
     }
 }
 

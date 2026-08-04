@@ -64,10 +64,12 @@ import io.github.julystar.musicapp.core.domain.model.LibraryArtistItem
 import io.github.julystar.musicapp.core.domain.model.LibraryTrackItem
 import io.github.julystar.musicapp.core.domain.model.PlaylistSummary
 import io.github.julystar.musicapp.core.presentation.components.DesignCardSurface
+import io.github.julystar.musicapp.core.presentation.components.DesignListDivider
 import io.github.julystar.musicapp.core.presentation.components.DesignPageHeader
 import io.github.julystar.musicapp.core.presentation.components.DesignGlassScene
 import io.github.julystar.musicapp.core.presentation.components.LocalDesignBottomContentInset
 import io.github.julystar.musicapp.core.presentation.components.DesignStickyGlassActionBar
+import io.github.julystar.musicapp.core.presentation.components.designListDivider
 import io.github.julystar.musicapp.core.presentation.media.ArtworkImage
 import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
@@ -962,8 +964,6 @@ private fun LibrarySongRow(
     onToggleFavorite: () -> Unit,
     onMore: () -> Unit,
 ) {
-    val dividerColor = MiuixTheme.colorScheme.outline.copy(alpha = 0.05f)
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -972,14 +972,7 @@ private fun LibrarySongRow(
                 if (playing) MiuixTheme.colorScheme.primary.copy(alpha = 0.10f)
                 else Color.Transparent,
             )
-            .drawBehind {
-                drawLine(
-                    color = dividerColor,
-                    start = Offset(0f, size.height),
-                    end = Offset(size.width, size.height),
-                    strokeWidth = 1.dp.toPx(),
-                )
-            }
+            .designListDivider()
             .padding(end = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -1486,12 +1479,7 @@ private fun PlaylistListView(
                 Spacer(modifier = Modifier.width(8.dp))
             }
             if (index < playlists.lastIndex) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(MiuixTheme.colorScheme.outline.copy(alpha = 0.3f)),
-                )
+                DesignListDivider()
             }
         }
     }

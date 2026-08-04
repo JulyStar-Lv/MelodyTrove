@@ -89,6 +89,7 @@ import io.github.julystar.musicapp.core.presentation.components.DesignDialogNavi
 import io.github.julystar.musicapp.core.presentation.components.DesignDialogDefaults
 import io.github.julystar.musicapp.core.presentation.components.DesignContextMenu
 import io.github.julystar.musicapp.core.presentation.components.DesignContextMenuItem
+import io.github.julystar.musicapp.core.presentation.components.designListDivider
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -596,7 +597,6 @@ private fun QueueTrackRow(
     var moreMenuExpanded by remember { mutableStateOf(false) }
     val contentColor = if (active) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurface
     val secondaryColor = if (active) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurfaceVariantSummary
-    val dividerColor = MiuixTheme.colorScheme.outline.copy(alpha = 0.05f)
     val rowShape = RoundedCornerShape(12.dp)
     val rowBackground = if (isDragged) {
         MiuixTheme.colorScheme.surfaceContainerHigh
@@ -618,14 +618,7 @@ private fun QueueTrackRow(
             .fillMaxWidth()
             .height(56.dp)
             .background(color = rowBackground, shape = rowShape)
-            .drawBehind {
-                drawLine(
-                    color = dividerColor,
-                    start = Offset(0f, size.height),
-                    end = Offset(size.width, size.height),
-                    strokeWidth = 1.dp.toPx(),
-                )
-            }
+            .designListDivider()
             .padding(end = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
