@@ -87,6 +87,9 @@ import io.github.julystar.musicapp.core.presentation.components.DesignIconButton
 import io.github.julystar.musicapp.core.presentation.components.DesignDialogHost
 import io.github.julystar.musicapp.core.presentation.components.DesignDialogNavigationBarStyle
 import io.github.julystar.musicapp.core.presentation.components.DesignDialogDefaults
+import io.github.julystar.musicapp.core.presentation.components.DesignContextMenu
+import io.github.julystar.musicapp.core.presentation.components.DesignContextMenuItem
+import io.github.julystar.musicapp.core.presentation.components.designListDivider
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -95,16 +98,23 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import musicapp.core.presentation.generated.resources.Res as CoreRes
 import musicapp.core.presentation.generated.resources.icon_deleteseep
+import musicapp.core.presentation.generated.resources.icon_heart
+import musicapp.core.presentation.generated.resources.icon_heart_filled
 import musicapp.core.presentation.generated.resources.icon_mode_list
+import musicapp.core.presentation.generated.resources.icon_settings_list_music
+import musicapp.core.presentation.generated.resources.icon_vertialcal_more
 import musicapp.feature.queue.generated.resources.Res as QueueRes
 import musicapp.feature.queue.generated.resources.icon_locate
 import musicapp.feature.queue.generated.resources.icon_queue_trash
+import musicapp.feature.queue.generated.resources.queue_add_favorite
 import musicapp.feature.queue.generated.resources.queue_clear
 import musicapp.feature.queue.generated.resources.queue_empty
 import musicapp.feature.queue.generated.resources.queue_locate_current
+import musicapp.feature.queue.generated.resources.queue_more_actions
 import musicapp.feature.queue.generated.resources.queue_move_down
 import musicapp.feature.queue.generated.resources.queue_move_up
 import musicapp.feature.queue.generated.resources.queue_reorder_item
+import musicapp.feature.queue.generated.resources.queue_remove_favorite
 import musicapp.feature.queue.generated.resources.queue_remove_item
 import musicapp.feature.queue.generated.resources.queue_title
 import top.yukonga.miuix.kmp.basic.Icon
@@ -407,6 +417,11 @@ fun QueueDialog(
                                         it.originalIndex == item.index
                                     }?.offsetY ?: 0f,
                                     onClick = { onAction(QueueAction.PlayItem(item.index)) },
+                                    onToggleFavorite = {
+                                        item.trackId?.let { trackId ->
+                                            onAction(QueueAction.ToggleFavorite(trackId))
+                                        }
+                                    },
                                     onRemove = {
                                         cancelDrag()
                                         onAction(QueueAction.RemoveItem(item.index))
@@ -517,6 +532,20 @@ private fun QueueHeader(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MiuixTheme.colorScheme.primary.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(CoreRes.drawable.icon_settings_list_music),
+                    contentDescription = null,
+                    tint = MiuixTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
             Text(
                 text = stringResource(QueueRes.string.queue_title, itemCount),
                 modifier = Modifier.weight(1f),
@@ -556,6 +585,7 @@ private fun QueueTrackRow(
     isDragged: Boolean,
     dragOffsetY: Float,
     onClick: () -> Unit,
+    onToggleFavorite: () -> Unit,
     onRemove: () -> Unit,
     onMoveUp: (() -> Unit)?,
     onMoveDown: (() -> Unit)?,
@@ -564,9 +594,9 @@ private fun QueueTrackRow(
     onDragEnd: () -> Unit,
     onDragCancel: () -> Unit,
 ) {
+    var moreMenuExpanded by remember { mutableStateOf(false) }
     val contentColor = if (active) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurface
     val secondaryColor = if (active) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurfaceVariantSummary
-    val dividerColor = MiuixTheme.colorScheme.outline.copy(alpha = 0.05f)
     val rowShape = RoundedCornerShape(12.dp)
     val rowBackground = if (isDragged) {
         MiuixTheme.colorScheme.surfaceContainerHigh
@@ -588,14 +618,7 @@ private fun QueueTrackRow(
             .fillMaxWidth()
             .height(56.dp)
             .background(color = rowBackground, shape = rowShape)
-            .drawBehind {
-                drawLine(
-                    color = dividerColor,
-                    start = Offset(0f, size.height),
-                    end = Offset(size.width, size.height),
-                    strokeWidth = 1.dp.toPx(),
-                )
-            }
+            .designListDivider()
             .padding(end = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -656,7 +679,7 @@ private fun QueueTrackRow(
             }
         }
         Row(
-            modifier = Modifier.width(72.dp),
+            modifier = Modifier.width(104.dp),
             horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -664,14 +687,69 @@ private fun QueueTrackRow(
                 modifier = Modifier
                     .size(32.dp)
                     .clip(CircleShape)
-                    .clickable(enabled = interactionsEnabled, onClick = onRemove),
+                    .clickable(
+                        enabled = interactionsEnabled && item.trackId != null,
+                        onClick = onToggleFavorite,
+                    ),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    painter = painterResource(CoreRes.drawable.icon_deleteseep),
-                    contentDescription = stringResource(QueueRes.string.queue_remove_item),
-                    tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    painter = painterResource(
+                        if (item.isFavorite) {
+                            CoreRes.drawable.icon_heart_filled
+                        } else {
+                            CoreRes.drawable.icon_heart
+                        },
+                    ),
+                    contentDescription = stringResource(
+                        if (item.isFavorite) {
+                            QueueRes.string.queue_remove_favorite
+                        } else {
+                            QueueRes.string.queue_add_favorite
+                        },
+                        item.title,
+                    ),
+                    tint = if (item.isFavorite) {
+                        MiuixTheme.colorScheme.primary
+                    } else {
+                        MiuixTheme.colorScheme.onSurfaceVariantSummary
+                    },
                     modifier = Modifier.size(16.dp),
+                )
+            }
+            Box {
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .clickable(enabled = interactionsEnabled) { moreMenuExpanded = true },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(CoreRes.drawable.icon_vertialcal_more),
+                        contentDescription = stringResource(
+                            QueueRes.string.queue_more_actions,
+                            item.title,
+                        ),
+                        tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+                DesignContextMenu(
+                    expanded = moreMenuExpanded,
+                    onDismissRequest = { moreMenuExpanded = false },
+                    compact = true,
+                    items = listOf(
+                        DesignContextMenuItem(
+                            label = QueueRes.string.queue_remove_item,
+                            icon = CoreRes.drawable.icon_deleteseep,
+                            isError = true,
+                            onClick = {
+                                moreMenuExpanded = false
+                                onRemove()
+                            },
+                        ),
+                    ),
                 )
             }
             QueueDragHandle(

@@ -58,6 +58,7 @@ import io.github.julystar.musicapp.core.presentation.components.DesignChevron
 import io.github.julystar.musicapp.core.presentation.components.DesignChevronDirection
 import io.github.julystar.musicapp.core.presentation.components.DesignDialog
 import io.github.julystar.musicapp.core.presentation.components.DesignLinearProgressIndicator
+import io.github.julystar.musicapp.core.presentation.components.DesignListDivider
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButton
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonSize
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonVariant
@@ -690,13 +691,7 @@ private fun SourceAccountRow(
                 )
             }
         }
-        Spacer(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 68.dp)
-                .height(1.dp)
-                .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.45f)),
-        )
+        DesignListDivider()
     }
 }
 
@@ -867,12 +862,7 @@ private fun SourceActionsButton(
                         },
                     )
                     if (account.isWebDav || account.isSmb) {
-                        Spacer(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(1.dp)
-                                .background(MiuixTheme.colorScheme.dividerLine),
-                        )
+                        DesignListDivider()
                         SourceMenuItem(
                             icon = Res.drawable.icon_source_trash,
                             label = stringResource(Res.string.settings_source_delete_action),
@@ -1122,11 +1112,11 @@ private fun LocalDirectoriesDialog(
             directories.forEachIndexed { index, directory ->
                 LocalDirectoryRow(directory = directory, onRemove = { onRemove(directory) })
                 if (index != directories.lastIndex) {
-                    SourceRowDivider()
+                    DesignListDivider()
                 }
             }
             if (directories.isNotEmpty()) {
-                SourceRowDivider()
+                DesignListDivider()
             }
             SourcePickerRow(
                 icon = Res.drawable.icon_source_plus,
@@ -1203,17 +1193,6 @@ private fun LocalDirectoryRow(
             )
         }
     }
-}
-
-@Composable
-private fun SourceRowDivider() {
-    Spacer(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 68.dp)
-            .height(1.dp)
-            .background(MiuixTheme.colorScheme.dividerLine),
-    )
 }
 
 @Composable
@@ -1301,7 +1280,7 @@ private fun AddSourceDialog(
             )
             if (deviceNetworkExpanded) {
                 if (canAddLocal) {
-                    SourceRowDivider()
+                    DesignListDivider()
                     SourcePickerRow(
                         icon = Res.drawable.icon_source_hard_drive,
                         colors = DesignGradients.PinkOrange.colors,
@@ -1311,7 +1290,7 @@ private fun AddSourceDialog(
                     )
                 }
                 if (canAddWebDav) {
-                    SourceRowDivider()
+                    DesignListDivider()
                     SourcePickerRow(
                         icon = Res.drawable.icon_source_server,
                         colors = DesignGradients.BluePurple.colors,
@@ -1321,7 +1300,7 @@ private fun AddSourceDialog(
                     )
                 }
                 if (canAddSmb) {
-                    SourceRowDivider()
+                    DesignListDivider()
                     SourcePickerRow(
                         icon = Res.drawable.icon_source_database,
                         colors = DesignGradients.OrangeYellow.colors,

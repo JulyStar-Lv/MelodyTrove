@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.content.Context
 import android.media.AudioFocusRequest
 import android.media.AudioManager
+import android.view.KeyEvent
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -164,6 +165,49 @@ class PlaybackService : MediaSessionService() {
                             .build()
                     }
                     return MediaSession.ConnectionResult.AcceptedResultBuilder(session).build()
+                }
+
+                @Suppress("DEPRECATION")
+                @OptIn(UnstableApi::class)
+                override fun onMediaButtonEvent(
+                    session: MediaSession,
+                    controllerInfo: MediaSession.ControllerInfo,
+                    intent: Intent,
+                ): Boolean {
+                    val event = intent.getParcelableExtra<KeyEvent>(Intent.EXTRA_KEY_EVENT)
+                        ?: return false
+                    if (!event.keyCode.isHandledPlaybackMediaKey()) return false
+
+                    // Once a media key is claimed, consume its entire key sequence. Returning
+                    // false for ACTION_UP or long-press repeats would let Media3 run its default
+                    // player action after the app already handled ACTION_DOWN.
+                    if (event.action != KeyEvent.ACTION_DOWN || event.repeatCount != 0) {
+                        return true
+                    }
+
+                    when (event.keyCode) {
+                        KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+                        KeyEvent.KEYCODE_HEADSETHOOK -> playbackController.togglePlayPause()
+
+                        KeyEvent.KEYCODE_MEDIA_PLAY -> playbackController.play()
+
+                        // Treat STOP as a resumable pause. The app queue and current position are
+                        // intentionally preserved for Bluetooth, headset, and car controls.
+                        KeyEvent.KEYCODE_MEDIA_PAUSE,
+                        KeyEvent.KEYCODE_MEDIA_STOP -> playbackController.pause()
+
+                        KeyEvent.KEYCODE_MEDIA_NEXT -> playbackController.skipNext()
+                        KeyEvent.KEYCODE_MEDIA_PREVIOUS -> playbackController.skipPrevious()
+
+                        KeyEvent.KEYCODE_MEDIA_FAST_FORWARD,
+                        KeyEvent.KEYCODE_MEDIA_SKIP_FORWARD ->
+                            seekPlaybackBy(MEDIA_SEEK_INTERVAL_MS)
+
+                        KeyEvent.KEYCODE_MEDIA_REWIND,
+                        KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD ->
+                            seekPlaybackBy(-MEDIA_SEEK_INTERVAL_MS)
+                    }
+                    return true
                 }
 
                 override fun onCustomCommand(
@@ -418,6 +462,12 @@ class PlaybackService : MediaSessionService() {
         }
     }
 
+    private fun seekPlaybackBy(deltaMs: Long) {
+        val position = playbackController.position.value
+        val maximum = position.durationMs.takeIf { it > 0L } ?: Long.MAX_VALUE
+        playbackController.seekTo((position.positionMs + deltaMs).coerceIn(0L, maximum))
+    }
+
     @OptIn(UnstableApi::class)
     private fun buildMediaButtonPreferences(player: Player): ImmutableList<CommandButton> {
         val playbackState = playbackController.state.value
@@ -582,6 +632,24 @@ private class PlaybackAudioFocusController(
 }
 
 private const val DUCK_VOLUME = 0.2f
+private const val MEDIA_SEEK_INTERVAL_MS = 10_000L
+
+private fun Int.isHandledPlaybackMediaKey(): Boolean {
+    return when (this) {
+        KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+        KeyEvent.KEYCODE_HEADSETHOOK,
+        KeyEvent.KEYCODE_MEDIA_PLAY,
+        KeyEvent.KEYCODE_MEDIA_PAUSE,
+        KeyEvent.KEYCODE_MEDIA_NEXT,
+        KeyEvent.KEYCODE_MEDIA_PREVIOUS,
+        KeyEvent.KEYCODE_MEDIA_STOP,
+        KeyEvent.KEYCODE_MEDIA_FAST_FORWARD,
+        KeyEvent.KEYCODE_MEDIA_REWIND,
+        KeyEvent.KEYCODE_MEDIA_SKIP_FORWARD,
+        KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD -> true
+        else -> false
+    }
+}
 
 private fun mediaAudioAttributes(): AudioAttributes {
     return AudioAttributes.Builder()

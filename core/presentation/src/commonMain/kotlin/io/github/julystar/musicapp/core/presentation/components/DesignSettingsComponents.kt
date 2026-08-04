@@ -138,13 +138,7 @@ fun DesignPreferenceRow(
             }
         }
         if (showDivider) {
-            Spacer(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = if (leading != null) 66.dp else 16.dp)
-                    .height(1.dp)
-                    .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.05f)),
-            )
+            DesignListDivider()
         }
     }
 }

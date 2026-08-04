@@ -27,6 +27,7 @@ import io.github.julystar.musicapp.core.domain.recovery.allowsNormalApplicationI
 import io.github.julystar.musicapp.core.domain.model.AppSettings
 import io.github.julystar.musicapp.core.domain.repository.SettingsRepository
 import io.github.julystar.musicapp.service.playback.domain.PlaybackController
+import io.github.julystar.musicapp.service.playback.domain.RepeatMode
 import io.github.vinceglb.filekit.FileKit
 import kotlinx.coroutines.runBlocking
 import androidx.compose.ui.res.painterResource
@@ -51,8 +52,21 @@ private const val MaxWindowWidth = 1200
 private const val MaxWindowHeight = 800
 private const val WindowWidthRatio = 0.70
 private const val WindowHeightRatio = 0.72
+private const val SeekStepMs = 10_000L
+private const val LargeSeekStepMs = 30_000L
 private val IntegratedTitleBarInset = 28.dp
 private val IsMacOs = System.getProperty("os.name").startsWith("Mac", ignoreCase = true)
+
+private const val PlayPauseAction = "musicapp.playPause"
+private const val PreviousAction = "musicapp.previous"
+private const val NextAction = "musicapp.next"
+private const val SeekBackwardAction = "musicapp.seekBackward"
+private const val SeekForwardAction = "musicapp.seekForward"
+private const val SeekBackwardLargeAction = "musicapp.seekBackwardLarge"
+private const val SeekForwardLargeAction = "musicapp.seekForwardLarge"
+private const val RestartTrackAction = "musicapp.restartTrack"
+private const val ToggleShuffleAction = "musicapp.toggleShuffle"
+private const val CycleRepeatAction = "musicapp.cycleRepeat"
 
 @OptIn(ExperimentalComposeUiApi::class)
 fun main() {
@@ -196,9 +210,22 @@ private fun installDesktopFatalHandler() {
 }
 
 private val playbackShortcutBindings = listOf(
-    KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, InputEvent.CTRL_DOWN_MASK) to "musicapp.playPause",
-    KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, InputEvent.ALT_DOWN_MASK) to "musicapp.previous",
-    KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, InputEvent.ALT_DOWN_MASK) to "musicapp.next",
+    KeyStroke.getKeyStroke(KeyEvent.VK_SPACE, InputEvent.CTRL_DOWN_MASK) to PlayPauseAction,
+    KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, InputEvent.ALT_DOWN_MASK) to PreviousAction,
+    KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, InputEvent.ALT_DOWN_MASK) to NextAction,
+    KeyStroke.getKeyStroke(KeyEvent.VK_LEFT, InputEvent.CTRL_DOWN_MASK) to SeekBackwardAction,
+    KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT, InputEvent.CTRL_DOWN_MASK) to SeekForwardAction,
+    KeyStroke.getKeyStroke(
+        KeyEvent.VK_LEFT,
+        InputEvent.CTRL_DOWN_MASK or InputEvent.SHIFT_DOWN_MASK,
+    ) to SeekBackwardLargeAction,
+    KeyStroke.getKeyStroke(
+        KeyEvent.VK_RIGHT,
+        InputEvent.CTRL_DOWN_MASK or InputEvent.SHIFT_DOWN_MASK,
+    ) to SeekForwardLargeAction,
+    KeyStroke.getKeyStroke(KeyEvent.VK_HOME, InputEvent.CTRL_DOWN_MASK) to RestartTrackAction,
+    KeyStroke.getKeyStroke(KeyEvent.VK_S, InputEvent.CTRL_DOWN_MASK) to ToggleShuffleAction,
+    KeyStroke.getKeyStroke(KeyEvent.VK_R, InputEvent.CTRL_DOWN_MASK) to CycleRepeatAction,
 )
 
 private fun installPlaybackShortcuts(
@@ -208,14 +235,37 @@ private fun installPlaybackShortcuts(
     val inputMap = rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
     val actionMap = rootPane.actionMap
     playbackShortcutBindings.forEach { (keyStroke, actionKey) -> inputMap.put(keyStroke, actionKey) }
-    actionMap.put("musicapp.playPause", object : AbstractAction() {
+    actionMap.put(PlayPauseAction, object : AbstractAction() {
         override fun actionPerformed(event: ActionEvent?) = playbackController.togglePlayPause()
     })
-    actionMap.put("musicapp.previous", object : AbstractAction() {
+    actionMap.put(PreviousAction, object : AbstractAction() {
         override fun actionPerformed(event: ActionEvent?) = playbackController.skipPrevious()
     })
-    actionMap.put("musicapp.next", object : AbstractAction() {
+    actionMap.put(NextAction, object : AbstractAction() {
         override fun actionPerformed(event: ActionEvent?) = playbackController.skipNext()
+    })
+    actionMap.put(SeekBackwardAction, object : AbstractAction() {
+        override fun actionPerformed(event: ActionEvent?) = playbackController.seekBy(-SeekStepMs)
+    })
+    actionMap.put(SeekForwardAction, object : AbstractAction() {
+        override fun actionPerformed(event: ActionEvent?) = playbackController.seekBy(SeekStepMs)
+    })
+    actionMap.put(SeekBackwardLargeAction, object : AbstractAction() {
+        override fun actionPerformed(event: ActionEvent?) = playbackController.seekBy(-LargeSeekStepMs)
+    })
+    actionMap.put(SeekForwardLargeAction, object : AbstractAction() {
+        override fun actionPerformed(event: ActionEvent?) = playbackController.seekBy(LargeSeekStepMs)
+    })
+    actionMap.put(RestartTrackAction, object : AbstractAction() {
+        override fun actionPerformed(event: ActionEvent?) = playbackController.restartCurrentTrack()
+    })
+    actionMap.put(ToggleShuffleAction, object : AbstractAction() {
+        override fun actionPerformed(event: ActionEvent?) {
+            playbackController.setShuffle(!playbackController.state.value.shuffleEnabled)
+        }
+    })
+    actionMap.put(CycleRepeatAction, object : AbstractAction() {
+        override fun actionPerformed(event: ActionEvent?) = playbackController.cycleRepeatMode()
     })
 }
 
@@ -226,6 +276,31 @@ private fun removePlaybackShortcuts(rootPane: JComponent) {
         inputMap.remove(keyStroke)
         actionMap.remove(actionKey)
     }
+}
+
+private fun PlaybackController.seekBy(deltaMs: Long) {
+    if (state.value.currentItem == null) return
+    val playbackPosition = position.value
+    if (playbackPosition.durationMs <= 0L) return
+    seekTo(
+        (playbackPosition.positionMs + deltaMs)
+            .coerceIn(0L, playbackPosition.durationMs),
+    )
+}
+
+private fun PlaybackController.restartCurrentTrack() {
+    if (state.value.currentItem != null) {
+        seekTo(0L)
+    }
+}
+
+private fun PlaybackController.cycleRepeatMode() {
+    val nextMode = when (state.value.repeatMode) {
+        RepeatMode.Off -> RepeatMode.All
+        RepeatMode.All -> RepeatMode.One
+        RepeatMode.One -> RepeatMode.Off
+    }
+    setRepeatMode(nextMode)
 }
 
 private fun calculateInitialWindowSize(): DpSize {

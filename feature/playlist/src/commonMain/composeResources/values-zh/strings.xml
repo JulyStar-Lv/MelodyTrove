@@ -17,7 +17,6 @@
     <string name="playlist_context_menu_edit">编辑</string>
     <string name="playlist_context_menu_remove">移除</string>
     <string name="playlist_default_title">播放列表</string>
-    <string name="playlist_favorites_title">我的收藏</string>
     <string name="playlist_back">返回</string>
     <string name="playlist_play_all">播放全部</string>
     <string name="playlist_download">下载</string>

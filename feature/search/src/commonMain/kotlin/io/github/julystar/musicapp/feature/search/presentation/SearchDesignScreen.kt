@@ -52,6 +52,7 @@ import io.github.julystar.musicapp.core.presentation.components.DesignGlassScene
 import io.github.julystar.musicapp.core.presentation.components.LocalDesignBottomContentInset
 import io.github.julystar.musicapp.core.presentation.components.DesignSearchBar
 import io.github.julystar.musicapp.core.presentation.components.DesignStickyGlassActionBar
+import io.github.julystar.musicapp.core.presentation.components.designListDivider
 import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignFontFamilies
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
@@ -418,14 +419,6 @@ private fun SearchTrendingSection(
                 track = track,
                 onClick = { onSelect(track.title) },
             )
-            if (index < designTrendingTracks.lastIndex) {
-                Spacer(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(MiuixTheme.colorScheme.dividerLine),
-                )
-            }
         }
     }
 }
@@ -439,6 +432,7 @@ private fun SearchTrendingRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .designListDivider()
             .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 8.dp, vertical = 10.dp),
@@ -541,6 +535,7 @@ private fun SearchResultRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .designListDivider()
             .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onOpen)
             .padding(horizontal = 12.dp, vertical = 9.dp),
@@ -619,6 +614,7 @@ private fun SearchAlbumResultRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .designListDivider()
             .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 9.dp),
@@ -681,6 +677,7 @@ private fun SearchArtistResultRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .designListDivider()
             .clip(RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 9.dp),
