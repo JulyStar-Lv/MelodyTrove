@@ -46,6 +46,7 @@ import io.github.julystar.musicapp.core.presentation.components.DesignIconButton
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButtonColors
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButtonSize
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButtonVariant
+import io.github.julystar.musicapp.core.presentation.components.DesignListDivider
 import io.github.julystar.musicapp.core.presentation.components.DesignStatusCard
 import io.github.julystar.musicapp.core.presentation.components.LocalDesignBottomContentInset
 import io.github.julystar.musicapp.core.presentation.media.ArtworkImage
@@ -545,13 +546,7 @@ private fun AlbumTrackRow(
                 }
             }
         }
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(MiuixTheme.colorScheme.outline.copy(alpha = 0.30f)),
-        )
+        DesignListDivider(modifier = Modifier.align(Alignment.BottomCenter))
     }
 }
 

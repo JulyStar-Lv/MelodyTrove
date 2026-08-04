@@ -86,6 +86,7 @@ import io.github.julystar.musicapp.core.presentation.components.DesignIconButton
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButtonSize
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButtonVariant
 import io.github.julystar.musicapp.core.presentation.components.DesignLoadingIndicator
+import io.github.julystar.musicapp.core.presentation.components.DesignListDivider
 import io.github.julystar.musicapp.core.presentation.components.LocalDesignBottomContentInset
 import io.github.julystar.musicapp.core.presentation.components.DesignPreferenceRow
 import io.github.julystar.musicapp.core.presentation.components.DesignSettingsGroup
@@ -1405,13 +1406,7 @@ private fun PermissionToggleRow(
             )
         }
         if (showDivider) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp)
-                    .height(1.dp)
-                    .background(MiuixTheme.colorScheme.outline.copy(alpha = 0.06f)),
-            )
+            DesignListDivider()
         }
     }
 }
@@ -1477,13 +1472,7 @@ private fun PluginConfigFieldCardRow(
                     )
                 }
                 if (showDivider) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 16.dp)
-                            .height(1.dp)
-                            .background(MiuixTheme.colorScheme.outline.copy(alpha = 0.06f)),
-                    )
+                    DesignListDivider()
                 }
             }
         }
@@ -1707,13 +1696,7 @@ private fun PluginConfigSelectRow(
             }
         }
         if (showDivider) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp)
-                    .height(1.dp)
-                    .background(MiuixTheme.colorScheme.outline.copy(alpha = 0.06f)),
-            )
+            DesignListDivider()
         }
     }
 }

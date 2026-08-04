@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.julystar.musicapp.core.presentation.components.DesignSearchBar
 import io.github.julystar.musicapp.core.presentation.components.DesignGlassScene
+import io.github.julystar.musicapp.core.presentation.components.DesignListDivider
 import io.github.julystar.musicapp.core.presentation.components.LocalDesignBottomContentInset
 import io.github.julystar.musicapp.core.presentation.components.DesignSettingsGroup
 import io.github.julystar.musicapp.core.presentation.components.DesignStickyGlassActionBar
@@ -433,12 +434,6 @@ private fun SettingsNavRow(
         )
     }
     if (showDivider) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 70.dp, end = 16.dp)
-                .height(1.dp)
-                .background(MiuixTheme.colorScheme.dividerLine.copy(alpha = 0.05f)),
-        )
+        DesignListDivider()
     }
 }

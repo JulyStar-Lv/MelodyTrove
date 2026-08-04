@@ -50,6 +50,7 @@ import io.github.julystar.musicapp.core.presentation.components.DesignIconButton
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButtonColors
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButtonSize
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButtonVariant
+import io.github.julystar.musicapp.core.presentation.components.DesignListDivider
 import io.github.julystar.musicapp.core.presentation.media.ArtworkImage
 import io.github.julystar.musicapp.core.presentation.theme.DesignFontFamilies
 import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
@@ -613,7 +614,7 @@ private fun PlaylistTrackRow(
                 }
             }
         }
-        PlaylistRowDivider(modifier = Modifier.align(Alignment.BottomCenter))
+        DesignListDivider(modifier = Modifier.align(Alignment.BottomCenter))
     }
 }
 
@@ -673,18 +674,8 @@ private fun ReorderableCollectionItemScope.PlaylistEditingTrackRow(
                 )
             }
         }
-        PlaylistRowDivider(modifier = Modifier.align(Alignment.BottomCenter))
+        DesignListDivider(modifier = Modifier.align(Alignment.BottomCenter))
     }
-}
-
-@Composable
-private fun PlaylistRowDivider(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(1.dp)
-            .background(MiuixTheme.colorScheme.outline.copy(alpha = 0.30f)),
-    )
 }
 
 @Composable
