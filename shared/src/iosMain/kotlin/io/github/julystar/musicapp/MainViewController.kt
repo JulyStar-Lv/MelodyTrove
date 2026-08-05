@@ -1,37 +1,49 @@
 package io.github.julystar.musicapp
 
-import androidx.compose.ui.window.ComposeUIViewController
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.window.ComposeUIViewController
+import io.github.julystar.musicapp.core.data.StorageRepositoryImpl
+import io.github.julystar.musicapp.core.domain.recovery.StartupMode
+import io.github.julystar.musicapp.core.domain.recovery.StartupPlan
+import io.github.julystar.musicapp.core.domain.recovery.allowsNormalApplicationInitialization
+import io.github.julystar.musicapp.core.domain.repository.ArtworkRepository
+import io.github.julystar.musicapp.core.presentation.platform.dispatchPlatformBack
 import io.github.julystar.musicapp.di.AppInitializer
 import io.github.julystar.musicapp.di.initKoin
 import io.github.julystar.musicapp.diagnostics.DiagnosticsBootstrap
 import io.github.julystar.musicapp.diagnostics.DiagnosticsBootstrapState
 import io.github.julystar.musicapp.diagnostics.RustDiagnosticsRepository
 import io.github.julystar.musicapp.diagnostics.recordKotlinUncaughtException
-import io.github.julystar.musicapp.core.domain.recovery.StartupMode
-import io.github.julystar.musicapp.core.domain.recovery.StartupPlan
-import io.github.julystar.musicapp.core.domain.recovery.allowsNormalApplicationInitialization
-import io.github.julystar.musicapp.core.data.StorageRepositoryImpl
-import io.github.julystar.musicapp.core.presentation.platform.dispatchPlatformBack
 import io.github.julystar.musicapp.service.download.data.scheduler.IosUrlSessionDownloadScheduler
 import io.github.julystar.musicapp.service.download.domain.DownloadTaskScheduler
+import io.github.julystar.musicapp.service.playback.data.PlayerController as LegacyPlayerController
+import io.github.julystar.musicapp.service.playback.data.PlayerRepository
+import io.github.julystar.musicapp.service.playback.data.toPlaybackArtwork
+import io.github.julystar.musicapp.service.playback.domain.PlayableItem
 import io.github.julystar.musicapp.service.playback.domain.PlaybackController
+import io.github.julystar.musicapp.service.playback.domain.PlaybackStatus
 import io.github.julystar.musicapp.service.playback.domain.RepeatMode
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import org.koin.core.Koin
 import org.koin.core.context.stopKoin
 import platform.UIKit.UIViewController
 import kotlin.native.getUnhandledExceptionHook
 import kotlin.native.setUnhandledExceptionHook
-import kotlinx.coroutines.runBlocking
 
 private var applicationInitialized = false
 private var applicationKoin: Koin? = null
 private var diagnosticsInitialized = false
 private lateinit var initialDiagnosticsState: DiagnosticsBootstrapState
 private var initialRecoveryIncidentIds: List<String> = emptyList()
+private val iosMediaBridgeScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+private var resumeAfterAudioInterruption = false
 
 @OptIn(kotlin.experimental.ExperimentalNativeApi::class)
 private fun initializeDiagnostics() {
@@ -134,6 +146,67 @@ fun handleEventsForBackgroundURLSession(
         ?: completionHandler()
 }
 
+data class IosNowPlayingSnapshot(
+    val mediaId: String,
+    val title: String,
+    val artist: String?,
+    val album: String?,
+    val durationMs: Long,
+    val positionMs: Long,
+    val isPlaying: Boolean,
+    val queueIndex: Int,
+    val queueCount: Int,
+)
+
+fun currentNowPlayingSnapshot(): IosNowPlayingSnapshot? {
+    val controller = playbackControllerOrNull() ?: return null
+    val item = controller.state.value.currentItem ?: return null
+    val legacyController = applicationKoin?.get<LegacyPlayerController>()
+    val position = controller.position.value
+    val queue = controller.queue.value
+    return IosNowPlayingSnapshot(
+        mediaId = item.nowPlayingMediaId(),
+        title = item.title,
+        artist = item.artist,
+        album = item.album,
+        durationMs = (legacyController?.getDuration() ?: position.durationMs).coerceAtLeast(0L),
+        positionMs = (legacyController?.getCurrentPosition() ?: position.positionMs).coerceAtLeast(0L),
+        isPlaying = controller.state.value.status == PlaybackStatus.Playing,
+        queueIndex = queue.currentIndex,
+        queueCount = queue.items.size,
+    )
+}
+
+fun loadNowPlayingArtworkBase64(
+    mediaId: String,
+    completion: (String?) -> Unit,
+) {
+    val controller = playbackControllerOrNull()
+    val item = controller?.state?.value?.currentItem
+    if (item == null || item.nowPlayingMediaId() != mediaId) {
+        completion(null)
+        return
+    }
+    val koin = applicationKoin
+    val music = koin?.get<PlayerRepository>()?.music?.value
+    if (music == null || music.meta.id.value != item.libraryTrackId) {
+        completion(null)
+        return
+    }
+    val artworkRepository = koin.get<ArtworkRepository>()
+    iosMediaBridgeScope.launch {
+        val encoded = runCatching {
+            artworkRepository.load(music.toPlaybackArtwork())?.encodeBase64()
+        }.getOrNull()
+        val currentId = playbackControllerOrNull()
+            ?.state
+            ?.value
+            ?.currentItem
+            ?.nowPlayingMediaId()
+        completion(encoded.takeIf { currentId == mediaId })
+    }
+}
+
 fun handlePlaybackPlayCommand(): Boolean = withPlaybackController { controller ->
     controller.play()
 }
@@ -161,13 +234,17 @@ fun handlePlaybackPreviousCommand(): Boolean = withPlaybackController { controll
 }
 
 fun handlePlaybackSeekByCommand(deltaMs: Long): Boolean = withPlaybackController { controller ->
-    val position = controller.position.value
-    val maximum = position.durationMs.takeIf { it > 0L } ?: Long.MAX_VALUE
-    controller.seekTo((position.positionMs + deltaMs).coerceIn(0L, maximum))
+    val legacyController = applicationKoin?.get<LegacyPlayerController>()
+    val position = legacyController?.getCurrentPosition() ?: controller.position.value.positionMs
+    val duration = legacyController?.getDuration() ?: controller.position.value.durationMs
+    val maximum = duration.takeIf { it > 0L } ?: Long.MAX_VALUE
+    controller.seekTo((position + deltaMs).coerceIn(0L, maximum))
 }
 
 fun handlePlaybackSeekToCommand(positionMs: Long): Boolean = withPlaybackController { controller ->
-    val maximum = controller.position.value.durationMs.takeIf { it > 0L } ?: Long.MAX_VALUE
+    val duration = applicationKoin?.get<LegacyPlayerController>()?.getDuration()
+        ?: controller.position.value.durationMs
+    val maximum = duration.takeIf { it > 0L } ?: Long.MAX_VALUE
     controller.seekTo(positionMs.coerceIn(0L, maximum))
 }
 
@@ -188,6 +265,27 @@ fun handlePlaybackCycleRepeatCommand(): Boolean = withPlaybackController { contr
     controller.setRepeatMode(nextMode)
 }
 
+fun handleAudioSessionInterruptionBegan(): Boolean {
+    val controller = playbackControllerOrNull() ?: return false
+    resumeAfterAudioInterruption = controller.state.value.status == PlaybackStatus.Playing
+    if (resumeAfterAudioInterruption) controller.pause()
+    return true
+}
+
+fun handleAudioSessionInterruptionEnded(shouldResume: Boolean): Boolean {
+    val controller = playbackControllerOrNull() ?: return false
+    val resume = resumeAfterAudioInterruption && shouldResume
+    resumeAfterAudioInterruption = false
+    if (resume) controller.play()
+    return true
+}
+
+fun handleAudioRouteDisconnected(): Boolean = withPlaybackController { controller ->
+    if (controller.state.value.status == PlaybackStatus.Playing) {
+        controller.pause()
+    }
+}
+
 fun handlePlaybackBackCommand(): Boolean = dispatchPlatformBack()
 
 private inline fun withPlaybackController(action: (PlaybackController) -> Unit): Boolean {
@@ -205,7 +303,43 @@ private fun playbackControllerOrNull(): PlaybackController? {
     return applicationKoin?.get<PlaybackController>()
 }
 
+private fun PlayableItem.nowPlayingMediaId(): String {
+    return libraryTrackId?.let { "library:$it" }
+        ?: mediaId?.toString()
+        ?: title
+}
+
+private fun ByteArray.encodeBase64(): String {
+    if (isEmpty()) return ""
+    val result = StringBuilder(((size + 2) / 3) * 4)
+    var index = 0
+    while (index < size) {
+        val first = this[index++].toInt() and 0xff
+        val second = if (index < size) this[index++].toInt() and 0xff else -1
+        val third = if (index < size) this[index++].toInt() and 0xff else -1
+
+        result.append(BASE64_ALPHABET[first ushr 2])
+        result.append(
+            BASE64_ALPHABET[
+                ((first and 0x03) shl 4) or if (second >= 0) second ushr 4 else 0
+            ]
+        )
+        result.append(
+            if (second >= 0) {
+                BASE64_ALPHABET[
+                    ((second and 0x0f) shl 2) or if (third >= 0) third ushr 6 else 0
+                ]
+            } else {
+                '='
+            }
+        )
+        result.append(if (third >= 0) BASE64_ALPHABET[third and 0x3f] else '=')
+    }
+    return result.toString()
+}
+
 fun shutdownApplication() {
+    resumeAfterAudioInterruption = false
     if (applicationInitialized) {
         stopKoin()
         applicationKoin = null
@@ -217,3 +351,6 @@ fun shutdownApplication() {
         initialRecoveryIncidentIds = emptyList()
     }
 }
+
+private const val BASE64_ALPHABET =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
