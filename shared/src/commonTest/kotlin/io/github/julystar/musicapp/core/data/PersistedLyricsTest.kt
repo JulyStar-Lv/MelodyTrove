@@ -61,6 +61,30 @@ class PersistedLyricsTest {
     }
 
     @Test
+    fun restoresPluginEnhancedLrcWithoutLeakingWordTags() {
+        val entity = LyricsEntity(
+            trackId = 1,
+            format = "LRC",
+            language = null,
+            synchronized = true,
+            content = """
+                [01:13.54]<01:13.547>不<01:13.747>公<01:14.037>击<01:14.217>退<01:15.087>
+                [01:54.40]<01:54.401>扮<01:54.601>弱<01:54.600>柳<01:55.000>争<01:55.310>取
+            """.trimIndent(),
+            sourcePath = "external:plugin",
+            updatedAt = 2,
+            sourceKind = "ExternalWordTimed",
+        )
+
+        val lines = entity.toPlaybackLyrics().lines
+
+        assertEquals("不公击退", lines[0].text)
+        assertEquals(4, lines[0].words.size)
+        assertEquals("扮弱柳争取", lines[1].text)
+        assertEquals(5, lines[1].words.size)
+    }
+
+    @Test
     fun onlyRequestsPluginWhenExternalQualityPrecedesPlainFallback() {
         val embeddedPlain = listOf(lyricEntity("EmbeddedPlain", 1))
 

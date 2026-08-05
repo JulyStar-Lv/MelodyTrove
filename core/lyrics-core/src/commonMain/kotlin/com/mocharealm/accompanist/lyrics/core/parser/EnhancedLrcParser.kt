@@ -240,7 +240,7 @@ object EnhancedLrcParser : ILyricsParser {
         if (this.isEmpty()) return emptyList()
         val list = mutableListOf<KaraokeSyllable>()
         for (i in 0 until this.size - 1) {
-            list.add(this[i].copy(end = this[i + 1].start))
+            list.add(this[i].copy(end = maxOf(this[i].start, this[i + 1].start)))
         }
         val last = this.last()
         if (last.content.isNotEmpty()) {
