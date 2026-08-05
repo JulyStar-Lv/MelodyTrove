@@ -185,27 +185,40 @@ class PlaybackService : MediaSessionService() {
                         return true
                     }
 
+                    val player = session.player
+                    AppLogger.info(
+                        DiagnosticLogCategory.Playback,
+                        "PlaybackService",
+                        "Media button received: ${KeyEvent.keyCodeToString(event.keyCode)} " +
+                            "from ${controllerInfo.packageName}",
+                    )
+
+                    // The callback runs inside PlaybackService, so control the session player
+                    // directly. Routing these commands through the Activity-owned MediaController
+                    // makes them no-op as soon as MainActivity reaches onStop().
                     when (event.keyCode) {
                         KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
-                        KeyEvent.KEYCODE_HEADSETHOOK -> playbackController.togglePlayPause()
+                        KeyEvent.KEYCODE_HEADSETHOOK -> {
+                            if (player.playWhenReady) player.pause() else player.play()
+                        }
 
-                        KeyEvent.KEYCODE_MEDIA_PLAY -> playbackController.play()
+                        KeyEvent.KEYCODE_MEDIA_PLAY -> player.play()
 
                         // Treat STOP as a resumable pause. The app queue and current position are
                         // intentionally preserved for Bluetooth, headset, and car controls.
                         KeyEvent.KEYCODE_MEDIA_PAUSE,
-                        KeyEvent.KEYCODE_MEDIA_STOP -> playbackController.pause()
+                        KeyEvent.KEYCODE_MEDIA_STOP -> player.pause()
 
-                        KeyEvent.KEYCODE_MEDIA_NEXT -> playbackController.skipNext()
-                        KeyEvent.KEYCODE_MEDIA_PREVIOUS -> playbackController.skipPrevious()
+                        KeyEvent.KEYCODE_MEDIA_NEXT -> playNext()
+                        KeyEvent.KEYCODE_MEDIA_PREVIOUS -> playPrevious()
 
                         KeyEvent.KEYCODE_MEDIA_FAST_FORWARD,
                         KeyEvent.KEYCODE_MEDIA_SKIP_FORWARD ->
-                            seekPlaybackBy(MEDIA_SEEK_INTERVAL_MS)
+                            seekPlayerBy(player, MEDIA_SEEK_INTERVAL_MS)
 
                         KeyEvent.KEYCODE_MEDIA_REWIND,
                         KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD ->
-                            seekPlaybackBy(-MEDIA_SEEK_INTERVAL_MS)
+                            seekPlayerBy(player, -MEDIA_SEEK_INTERVAL_MS)
                     }
                     return true
                 }
@@ -342,10 +355,6 @@ class PlaybackService : MediaSessionService() {
         }
     }
 
-    override fun onTaskRemoved(rootIntent: Intent?) {
-        stopSelf()
-    }
-
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
         return _mediaSession
     }
@@ -462,10 +471,11 @@ class PlaybackService : MediaSessionService() {
         }
     }
 
-    private fun seekPlaybackBy(deltaMs: Long) {
-        val position = playbackController.position.value
-        val maximum = position.durationMs.takeIf { it > 0L } ?: Long.MAX_VALUE
-        playbackController.seekTo((position.positionMs + deltaMs).coerceIn(0L, maximum))
+    private fun seekPlayerBy(player: Player, deltaMs: Long) {
+        val maximum = player.duration
+            .takeIf { it != C.TIME_UNSET && it > 0L }
+            ?: Long.MAX_VALUE
+        player.seekTo((player.currentPosition + deltaMs).coerceIn(0L, maximum))
     }
 
     @OptIn(UnstableApi::class)
