@@ -341,7 +341,7 @@ private fun UnifiedLibraryCard(
     val scanSummary = when {
         active -> stringResource(
             Res.string.settings_library_scanning_summary,
-            activeTasks.sumOf(LibrarySyncTask::scannedCount).groupedCount(),
+            activeTasks.sumOf(LibrarySyncTask::processedCount).groupedCount(),
         )
         latestTask == null -> stringResource(
             Res.string.settings_library_no_scan_summary,

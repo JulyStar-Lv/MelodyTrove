@@ -346,6 +346,13 @@ class RemoteLibraryImportCoordinator(
                 .map { it.toStorageEntry(storageId) }
                 .filter { it.isAllowedByScanRules(request.selectedFolderCanonicalPath, request.scanRules) }
                 .toList()
+            currentJob = currentJob.copy(
+                scannedCount = currentJob.scannedCount + entries.size,
+                discoveredMusicCount = currentJob.discoveredMusicCount + entries.size,
+                updatedAt = currentTimeMillis(),
+            )
+            syncDao.upsertJob(currentJob)
+
             entries.chunked(importBatchSize).forEach { batch ->
                 operation.throwIfStopRequested()
                 val batchResult = importBatch(
@@ -615,6 +622,13 @@ class RemoteLibraryImportCoordinator(
                 .filterNot(movedSourceIds::contains)
                 .distinct()
                 .toList()
+            currentJob = currentJob.copy(
+                scannedCount = currentJob.scannedCount + liveEntries.size + deletedPaths.size,
+                discoveredMusicCount = currentJob.discoveredMusicCount + liveEntries.size + deletedPaths.size,
+                updatedAt = currentTimeMillis(),
+            )
+            syncDao.upsertJob(currentJob)
+
             currentJob = applyWebDavDeletions(
                 execution = execution,
                 currentJob = currentJob,
@@ -672,7 +686,7 @@ class RemoteLibraryImportCoordinator(
         if (deletionEventCount == 0) return currentJob
         val now = currentTimeMillis()
         val updatedJob = currentJob.copy(
-            scannedCount = currentJob.scannedCount + deletionEventCount,
+            scannedCount = currentJob.scannedCount,
             skippedCount = currentJob.skippedCount +
                 (deletionEventCount - deletedSourceIds.size).coerceAtLeast(0),
             checkpoint = checkpoint ?: currentJob.checkpoint,
@@ -782,6 +796,13 @@ class RemoteLibraryImportCoordinator(
                     entries = scanBatch.entries,
                 )
                 if (entries.isNotEmpty()) {
+                    currentJob = currentJob.copy(
+                        scannedCount = currentJob.scannedCount + entries.size,
+                        discoveredMusicCount = currentJob.discoveredMusicCount + entries.size,
+                        updatedAt = currentTimeMillis(),
+                    )
+                    syncDao.upsertJob(currentJob)
+
                     val snapshotPlan = planCompleteSnapshotBatch(
                         entries = entries,
                         existingByPath = signaturesByPath,
@@ -793,7 +814,6 @@ class RemoteLibraryImportCoordinator(
                         execution = execution,
                         currentJob = currentJob,
                         entries = snapshotPlan.entriesToImport,
-                        scannedEntryCount = entries.size,
                         additionalSkippedCount = snapshotPlan.unchangedCount,
                         progressCheckpoint = entries.last().path,
                     )
@@ -913,7 +933,15 @@ class RemoteLibraryImportCoordinator(
             .toMap()
         val missingCandidateIds = signatures.mapTo(mutableSetOf()) { it.id }
         var changedCount = 0L
+
         var job = currentJob
+        job = job.copy(
+            scannedCount = musicEntries.size.toLong(),
+            discoveredMusicCount = musicEntries.size.toLong(),
+            updatedAt = currentTimeMillis(),
+        )
+        syncDao.upsertJob(job)
+
         musicEntries.chunked(request.importBatchSize).forEach { batch ->
             operation.throwIfStopRequested()
             val snapshotPlan = planCompleteSnapshotBatch(
@@ -927,7 +955,6 @@ class RemoteLibraryImportCoordinator(
                 execution = execution,
                 currentJob = job,
                 entries = snapshotPlan.entriesToImport,
-                scannedEntryCount = batch.size,
                 additionalSkippedCount = snapshotPlan.unchangedCount,
                 progressCheckpoint = batch.last().path,
             )
@@ -956,7 +983,6 @@ class RemoteLibraryImportCoordinator(
         execution: ImportExecution,
         currentJob: ImportJobEntity,
         entries: List<StorageEntry>,
-        scannedEntryCount: Int = entries.size,
         additionalSkippedCount: Int = 0,
         progressCheckpoint: String? = entries.lastOrNull()?.path,
         movedExistingByPath: Map<String, SourceItemEntity> = emptyMap(),
@@ -1202,8 +1228,7 @@ class RemoteLibraryImportCoordinator(
                     now = now,
                 )
                 updatedJob = currentJob.copy(
-                    scannedCount = currentJob.scannedCount +
-                        scannedEntryCount,
+                    scannedCount = currentJob.scannedCount,
                     importedCount = currentJob.importedCount + tracks.size,
                     skippedCount = currentJob.skippedCount + plan.metadataSkippedCount +
                         shortSkippedCount + additionalSkippedCount,
@@ -1216,7 +1241,7 @@ class RemoteLibraryImportCoordinator(
                         .saturatedAdd(batchMetadataElapsedMs),
                     artworkCachedBytes = currentJob.artworkCachedBytes
                         .saturatedAdd(batchArtworkCachedBytes),
-                    discoveredMusicCount = currentJob.discoveredMusicCount + scannedEntryCount,
+                    discoveredMusicCount = currentJob.discoveredMusicCount,
                     unchangedCount = currentJob.unchangedCount + plan.unchangedCount +
                         additionalSkippedCount,
                     addedCount = currentJob.addedCount + plan.addedCount,

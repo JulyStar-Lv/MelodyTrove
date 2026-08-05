@@ -1,6 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
+import DragIndicatorRoundedIcon from "@mui/icons-material/DragIndicatorRounded";
+import VerticalAlignTopRoundedIcon from "@mui/icons-material/VerticalAlignTopRounded";
 import { motion, AnimatePresence, Reorder, useDragControls, useReducedMotion } from "motion/react";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
@@ -1060,7 +1062,7 @@ function AddSourcePickerDialog({ open, onClose, onWebDav, onSmb }: {
       window.cancelAnimationFrame(focusFrame);
       window.removeEventListener("keydown",handleKeyDown);
     };
-  },[open,onClose]);
+  },[open]);
 
   if (!open) return null;
 
@@ -4397,6 +4399,20 @@ type SettingsGroup = "personalization"|"playback"|"library-data"|"app-info";
 type SettingsActionState = "idle"|"confirm"|"busy"|"success"|"error";
 type LibraryScanState = "idle"|"scanning"|"complete";
 type ThemeMode = "system"|"light"|"dark";
+type LyricSourcePriorityItem = {
+  id:string;
+  label:string;
+  category:"Embedded"|"External";
+};
+
+const INITIAL_LYRIC_SOURCE_PRIORITY: LyricSourcePriorityItem[] = [
+  {id:"embedded-ttml",label:"Embedded TTML",category:"Embedded"},
+  {id:"embedded-word-timed",label:"Embedded word-timed",category:"Embedded"},
+  {id:"embedded-plain",label:"Embedded LRC / plain",category:"Embedded"},
+  {id:"external-ttml",label:"External TTML",category:"External"},
+  {id:"external-word-timed",label:"External word-timed",category:"External"},
+  {id:"external-plain",label:"External LRC / plain",category:"External"},
+];
 
 const SETTINGS_SUB_LABELS: Record<SettingsSub,string> = {
   appearance:"Appearance & language",
@@ -4914,6 +4930,107 @@ function MetadataPluginRemovalDialog({ plugin, onClose, onConfirm }: {
   );
 }
 
+function LyricSourcePriorityRow({ source, index, onMoveToTop }: {
+  source:LyricSourcePriorityItem;
+  index:number;
+  onMoveToTop:()=>void;
+}) {
+  const dragControls = useDragControls();
+  const isFirst = index===0;
+
+  return (
+    <Reorder.Item as="li" value={source} dragListener={false} dragControls={dragControls}
+      data-testid={`lyrics-priority-row-${source.id}`}
+      whileDrag={{scale:1.012}} transition={{type:"spring",stiffness:430,damping:34}}
+      className="relative flex min-h-[66px] items-center gap-3 bg-popover px-4 after:absolute after:inset-x-5 after:bottom-0 after:h-px after:bg-border/60 last:after:hidden sm:min-h-[76px] sm:px-5">
+      <span aria-hidden="true" className="flex w-10 shrink-0 items-center justify-center">
+        <span className="font-mono text-xs tabular-nums text-muted-foreground">{index+1}</span>
+      </span>
+      <span className="min-w-0 flex-1 truncate text-[14px] font-medium text-foreground sm:text-[15px]">{source.label}</span>
+      {isFirst?(
+        <span aria-hidden="true" className="h-10 w-10 shrink-0"/>
+      ):(
+        <button type="button" onPointerDown={preventMouseFocus} onClick={onMoveToTop}
+          data-testid={`lyrics-priority-top-${source.id}`}
+          aria-label={`Move ${source.label} to top`} title="Move to top"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-secondary outline-none focus-visible:ring-2 focus-visible:ring-secondary/40">
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-secondary/[0.08] transition-colors hover:bg-secondary/[0.15]">
+            <VerticalAlignTopRoundedIcon sx={{fontSize:20}} aria-hidden="true"/>
+          </span>
+        </button>
+      )}
+      <button type="button" aria-label={`Drag ${source.label} to reorder`} title="Drag to reorder"
+        data-testid={`lyrics-priority-drag-${source.id}`}
+        onPointerDown={event=>dragControls.start(event)}
+        className="flex h-10 w-10 shrink-0 touch-none cursor-grab items-center justify-center rounded-full text-muted-foreground outline-none active:cursor-grabbing focus-visible:ring-2 focus-visible:ring-secondary/40">
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-secondary/[0.06] transition-colors hover:bg-secondary/[0.12] hover:text-foreground">
+          <DragIndicatorRoundedIcon sx={{fontSize:22}} aria-hidden="true"/>
+        </span>
+      </button>
+    </Reorder.Item>
+  );
+}
+
+function LyricsPriorityDialog({ open, isDark, sources, onReorder, onMoveToTop, onClose }: {
+  open:boolean;
+  isDark:boolean;
+  sources:LyricSourcePriorityItem[];
+  onReorder:(sources:LyricSourcePriorityItem[])=>void;
+  onMoveToTop:(id:string)=>void;
+  onClose:()=>void;
+}) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(()=>{
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    const focusFrame = window.requestAnimationFrame(()=>dialogRef.current?.focus());
+    const handleKeyDown = (event:KeyboardEvent) => event.key==="Escape"&&onClose();
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown",handleKeyDown);
+    return ()=>{
+      document.body.style.overflow = previousOverflow;
+      window.cancelAnimationFrame(focusFrame);
+      window.removeEventListener("keydown",handleKeyDown);
+    };
+  },[open,onClose]);
+
+  if (!open) return null;
+
+  return createPortal(
+    <motion.div className={cn(
+      "fixed inset-0 z-[200] flex items-end justify-center bg-black/45 backdrop-blur-sm sm:items-center sm:p-4",
+      isDark&&"dark",
+    )} initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:0.16}}
+      onMouseDown={event=>event.target===event.currentTarget&&onClose()}>
+      <motion.div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="lyrics-priority-title"
+        data-testid="lyrics-priority-dialog"
+        aria-describedby="lyrics-priority-description" tabIndex={-1}
+        initial={{opacity:0,y:32,scale:0.99}} animate={{opacity:1,y:0,scale:1}} exit={{opacity:0,y:24,scale:0.99}}
+        transition={{type:"spring",stiffness:420,damping:34}}
+        className="flex max-h-[calc(100vh-72px)] w-full flex-col overflow-hidden rounded-t-[30px] border border-border bg-popover pb-[max(18px,env(safe-area-inset-bottom))] shadow-2xl outline-none sm:max-w-[560px] sm:rounded-[30px] sm:pb-0">
+        <div className="relative shrink-0 px-5 pb-4 pt-3 sm:px-6 sm:pt-5">
+          <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-muted-foreground/35 sm:hidden" aria-hidden="true"/>
+          <h2 id="lyrics-priority-title" className="text-[22px] font-bold tracking-[-0.02em] text-foreground sm:text-[24px]">Set source priority</h2>
+          <p id="lyrics-priority-description" className="mt-1 text-[12px] leading-[18px] text-muted-foreground">Drag to reorder, or move any source directly to the top.</p>
+          <button type="button" onClick={onClose} aria-label="Close source priority"
+            className="absolute right-4 top-4 hidden h-9 w-9 items-center justify-center rounded-full text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary/40 sm:flex">
+            <X className="h-4 w-4"/>
+          </button>
+        </div>
+        <Reorder.Group as="ol" axis="y" values={sources} onReorder={onReorder}
+          className="min-h-0 overflow-y-auto border-t border-border/60 bg-popover">
+          {sources.map((source,index)=>(
+            <LyricSourcePriorityRow key={source.id} source={source} index={index}
+              onMoveToTop={()=>onMoveToTop(source.id)}/>
+          ))}
+        </Reorder.Group>
+      </motion.div>
+    </motion.div>,
+    document.body,
+  );
+}
+
 function SettingsPage({ sub, onSubChange, themeMode, isDark, onThemeModeChange }: {
   sub:SettingsSub|null;
   onSubChange:(sub:SettingsSub|null)=>void;
@@ -4954,6 +5071,9 @@ function SettingsPage({ sub, onSubChange, themeMode, isDark, onThemeModeChange }
   const [audioEffects, setAudioEffects] = useState(false);
   const [lyricsAlignment, setLyricsAlignment] = useState("center");
   const [lyricsSource, setLyricsSource] = useState("auto");
+  const [lyricsPriorityOpen, setLyricsPriorityOpen] = useState(false);
+  const [lyricSourcePriority, setLyricSourcePriority] = useState<LyricSourcePriorityItem[]>(INITIAL_LYRIC_SOURCE_PRIORITY);
+  const [ignoreLyricHeaderTags, setIgnoreLyricHeaderTags] = useState(true);
   const [lyricsSize, setLyricsSize] = useState(34);
   const [showTranslation, setShowTranslation] = useState(true);
   const [lyricsBlur, setLyricsBlur] = useState(true);
@@ -5159,6 +5279,15 @@ function SettingsPage({ sub, onSubChange, themeMode, isDark, onThemeModeChange }
     setEditingPluginId(null);
     setPendingPluginRemovalId(plugin.id);
   }
+
+  function moveLyricSourceToTop(id:string) {
+    setLyricSourcePriority(current=>{
+      const selected = current.find(source=>source.id===id);
+      return selected?[selected,...current.filter(source=>source.id!==id)]:current;
+    });
+  }
+
+  const closeLyricsPriority = useCallback(()=>setLyricsPriorityOpen(false),[]);
 
   function confirmPluginRemoval() {
     if (!pendingPluginRemovalId) return;
@@ -5451,9 +5580,22 @@ function SettingsPage({ sub, onSubChange, themeMode, isDark, onThemeModeChange }
     if (id==="lyrics") return (
       <div className="pb-8">
         <SettingsCard title="Lyrics source">
-          <SelectRow label="Source mode" value={lyricsSource} onChange={setLyricsSource}
+          <SelectRow label="Source mode"
+            subtitle={lyricsSource==="auto"
+              ?"Use the first available source in priority order"
+              :lyricsSource==="embedded"
+                ?"Only use lyrics stored inside the audio file"
+                :"Only use sidecar or provider lyrics"}
+            value={lyricsSource} onChange={setLyricsSource}
             options={[{v:"auto",l:"Automatic"},{v:"embedded",l:"Embedded only"},{v:"external",l:"External only"}]}/>
-          <ValueRow label="Source priority" value="TTML first" subtitle="Embedded TTML, embedded LRC, external TTML, external LRC" onClick={()=>{}}/>
+          <ValueRow label="Source priority" value={`${lyricSourcePriority[0].label} first`}
+            subtitle={`${lyricSourcePriority.length} sources · Drag to reorder or move to top`}
+            onClick={()=>setLyricsPriorityOpen(true)}/>
+        </SettingsCard>
+        <SettingsCard title="Lyric cleanup">
+          <SwitchRow label="Ignore lyric header tags" subtitle="Hide artist, album, offset, and provider metadata tags"
+            checked={ignoreLyricHeaderTags} onChange={setIgnoreLyricHeaderTags}/>
+          <ValueRow label="Lyric line blacklist" value="0 blocked" onClick={()=>{}}/>
         </SettingsCard>
         <SettingsCard title="Lyrics style">
           <SelectRow label="Alignment" value={lyricsAlignment} onChange={setLyricsAlignment}
@@ -5761,6 +5903,8 @@ function SettingsPage({ sub, onSubChange, themeMode, isDark, onThemeModeChange }
         <SmbSourceDialog open={smbSourceOpen||editingSmbSource!==null} source={editingSmbSource} existingNames={sources.map(source=>source.name)} onClose={closeSmbSource} onSave={saveSmbSource} onDelete={deleteSmbSource}/>
         <MetadataPluginDialog plugin={editingPlugin} isDark={isDark} onClose={()=>setEditingPluginId(null)} onChange={updateMetadataPlugin}/>
         <MetadataPluginRemovalDialog plugin={pendingPluginRemoval} onClose={()=>setPendingPluginRemovalId(null)} onConfirm={confirmPluginRemoval}/>
+        <LyricsPriorityDialog open={lyricsPriorityOpen} isDark={isDark} sources={lyricSourcePriority}
+          onReorder={setLyricSourcePriority} onMoveToTop={moveLyricSourceToTop} onClose={closeLyricsPriority}/>
         <ThemeColorPickerDialog open={themeColorPickerOpen} savedColor={manualThemeColor} customColors={customThemeColors} onClose={()=>setThemeColorPickerOpen(false)} onApply={color=>{setManualThemeColor(color);setThemeColorPickerOpen(false);}} onCustomColorsChange={setCustomThemeColors}/>
       </>
     );
@@ -5784,6 +5928,8 @@ function SettingsPage({ sub, onSubChange, themeMode, isDark, onThemeModeChange }
       <SmbSourceDialog open={smbSourceOpen||editingSmbSource!==null} source={editingSmbSource} existingNames={sources.map(source=>source.name)} onClose={closeSmbSource} onSave={saveSmbSource} onDelete={deleteSmbSource}/>
       <MetadataPluginDialog plugin={editingPlugin} isDark={isDark} onClose={()=>setEditingPluginId(null)} onChange={updateMetadataPlugin}/>
       <MetadataPluginRemovalDialog plugin={pendingPluginRemoval} onClose={()=>setPendingPluginRemovalId(null)} onConfirm={confirmPluginRemoval}/>
+      <LyricsPriorityDialog open={lyricsPriorityOpen} isDark={isDark} sources={lyricSourcePriority}
+        onReorder={setLyricSourcePriority} onMoveToTop={moveLyricSourceToTop} onClose={closeLyricsPriority}/>
       <ThemeColorPickerDialog open={themeColorPickerOpen} savedColor={manualThemeColor} customColors={customThemeColors} onClose={()=>setThemeColorPickerOpen(false)} onApply={color=>{setManualThemeColor(color);setThemeColorPickerOpen(false);}} onCustomColorsChange={setCustomThemeColors}/>
     </>
   );

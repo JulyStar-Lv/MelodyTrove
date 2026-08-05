@@ -758,3 +758,107 @@ final result: passed
 - `git diff --check`
 
 Final result: passed
+
+---
+
+## Lyrics source priority editor — 2026-08-05
+
+### Evidence
+
+- Confirmed source: `/Users/shine/.codex/generated_images/019fcd67-32cb-79f1-8e7c-6675a0b1fbc7/exec-1c98a625-487a-4754-aebe-291efda9a92f.png`.
+- Design implementation: `Design/exports/lyrics-source/lyrics-source-priority-mobile.png`.
+- Same-viewport comparison: `Design/exports/lyrics-source/lyrics-source-priority-qa-comparison.png` (confirmed source left, Design implementation right).
+- Viewport: 390 × 844 CSS pixels, light theme, mobile Lyrics settings with the source-priority sheet open.
+
+### Visual and interaction checks
+
+- [x] Existing source-mode row remains in place and the priority summary reflects the first source.
+- [x] Six embedded/external sources preserve the approved category order and visual grouping.
+- [x] Every row has a dedicated six-dot drag target; dragging the final source across multiple rows updates the order.
+- [x] Non-first rows use the approved move-to-top icon; activating it immediately updates both the sheet and settings summary.
+- [x] Current-first status, numbered circles, category pills, inset dividers, dimmed backdrop, and mobile bottom-sheet geometry match the confirmed hierarchy.
+- [x] Escape closes the dialog, focus enters the dialog on open, and control labels expose source-specific actions.
+- [x] No runtime warning or error was reported during browser verification.
+
+### Iteration history
+
+- Initial implementation used 76 px mobile rows and oversized visual controls, making the sheet about 60 px taller than the confirmed source (P2).
+- Final implementation uses 66 px mobile rows, compact visual circles inside 40 px interaction targets, and inset row dividers. The sheet top and six-row rhythm now align with the confirmed source.
+- P3 adaptation: copy remains English to match the existing adaptive `Design` prototype; the confirmed Chinese mockup supplies hierarchy and geometry rather than a locale change.
+
+### Engineering verification
+
+- `pnpm --dir Design build`: passed; only the existing Vite chunk-size advisory remains.
+- `git diff --check`: passed.
+
+Final result: passed
+
+---
+
+## Lyrics source category-label placement — 2026-08-05
+
+### Evidence
+
+- Source visual truth: the confirmed source at `/Users/shine/.codex/generated_images/019fcd67-32cb-79f1-8e7c-6675a0b1fbc7/exec-1c98a625-487a-4754-aebe-291efda9a92f.png`, amended by the user instruction to place Embedded/External tags after each source title.
+- Implementation screenshot: `Design/exports/lyrics-source/lyrics-source-priority-mobile.png`.
+- Full-view comparison: `Design/exports/lyrics-source/lyrics-source-priority-qa-comparison.png` (source left, amended implementation right).
+- Viewport and normalization: source 853 × 1844 px normalized to 390 × 844 px; implementation 390 × 844 px at device scale 1; light theme with the source-priority sheet open.
+- Focused-region comparison was not required because all six title/tag pairs and both action icons are legible at full-view size.
+
+### Fidelity checks
+
+- Fonts and typography: source titles retain the existing 14 px mobile hierarchy; category tags remain secondary at 9 px and follow the title inline.
+- Spacing and layout rhythm: row height, numbering, inset dividers, drawer geometry, and action alignment are unchanged.
+- Colors and visual tokens: Embedded continues to use the pink semantic token and External the purple token.
+- Image and icon fidelity: no raster assets changed; the approved move-to-top and six-dot drag icons remain intact.
+- Copy and content: all six source titles remain fully visible at 390 px, with the requested category label immediately afterward.
+
+### Comparison history
+
+- First amended pass placed the label after the title but truncated the two longest Embedded titles at mobile width (P2).
+- Final pass tightened only the inline title/tag spacing and mobile action margins. All six titles now render without truncation; the source order, move-to-top action, drag target, and current-first state still work.
+- Intentional P3 difference from the original visual: category tags now follow source titles, as explicitly requested.
+
+### Verification
+
+- Move-to-top behavior and priority summary synchronization: passed.
+- Browser console warnings/errors: none.
+- `pnpm --dir Design build`: passed; only the existing Vite chunk-size advisory remains.
+- `git diff --check`: passed.
+
+Final result: passed
+
+---
+
+## Lyrics source plain-number alignment — 2026-08-05
+
+### Evidence
+
+- Source visual truth: current playlist numbering captured at `Design/exports/lyrics-source/playlist-number-reference.png`, plus the user instruction to remove Current first and the redundant Embedded/External tags.
+- Implementation screenshot: `Design/exports/lyrics-source/lyrics-source-priority-mobile.png`.
+- Full-view comparison: `Design/exports/lyrics-source/lyrics-source-priority-qa-comparison.png` (playlist reference left, source-priority implementation right).
+- Capture normalization: both screenshots are 558 × 862 px from a 558 × 862 CSS viewport; browser `devicePixelRatio` is 2 and the browser capture is normalized to one image pixel per CSS pixel.
+- State: light theme; playlist reference shows numbered tracks, implementation shows the source-priority bottom sheet in its default order.
+- A separate focused crop was unnecessary because all reference and implementation numbers are clearly legible in the full-view comparison.
+
+### Fidelity checks
+
+- Fonts and typography: priority numbers now reuse the playlist's monospaced 12 px, tabular, muted treatment; source titles remain the existing 14 px hierarchy.
+- Spacing and layout rhythm: the number column keeps the playlist's centered 40 px track; a silent first-row action spacer keeps every drag handle aligned after removing Current first.
+- Colors and visual tokens: numbered circles and their first-row accent were removed; numbers now use the shared muted-foreground token.
+- Image and icon fidelity: no raster assets changed; move-to-top and six-dot drag icons remain the approved library icons.
+- Copy and content: Current first and all Embedded/External category tags are absent; the six source titles remain complete and unambiguous.
+
+### Findings and history
+
+- No P0/P1/P2 differences remain in the requested number treatment or label removal.
+- Intentional change from earlier iterations: source type is communicated only by the source title, eliminating duplicated category copy.
+
+### Verification
+
+- Move-to-top action, restored default order, and priority numbering refresh: passed.
+- Browser console warnings/errors: none.
+- `pnpm --dir Design build`: passed; only the existing Vite chunk-size advisory remains.
+- `git diff --check`: passed.
+
+Final result: passed

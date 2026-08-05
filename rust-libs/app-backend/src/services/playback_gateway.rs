@@ -90,12 +90,22 @@ impl PlaybackSession {
             self.source.active.store(false, Ordering::Release);
             let _ = shutdown.send(());
             let source = self.source.clone();
-            std::mem::drop(async_runtime::tokio_runtime().spawn(async move {
-                source.prune_persistent_cache();
-                if source.backend.release(source.path.clone()).await.is_err() {
-                    tracing::debug!("failed to release playback source reader");
-                }
-            }));
+            std::mem::drop(
+                std::thread::Builder::new()
+                    .name("playback-cleanup".into())
+                    .spawn(move || {
+                        let rt = tokio::runtime::Builder::new_current_thread()
+                            .enable_io()
+                            .build()
+                            .expect("playback cleanup runtime");
+                        rt.block_on(async move {
+                            source.prune_persistent_cache();
+                            if source.backend.release(source.path.clone()).await.is_err() {
+                                tracing::debug!("failed to release playback source reader");
+                            }
+                        });
+                    }),
+            );
         }
     }
 }
@@ -481,47 +491,55 @@ async fn start_playback_gateway_internal(
     let server_source = source.clone();
     let (ready_tx, ready_rx) = oneshot::channel();
     let (shutdown_tx, shutdown_rx) = oneshot::channel();
-    async_runtime::tokio_runtime().spawn(async move {
-        let listener = match TcpListener::bind(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 0)).and_then(
-            |listener| {
-                listener.set_nonblocking(true)?;
-                Ok(listener)
-            },
-        ) {
-            Ok(listener) => listener,
-            Err(error) => {
-                let _ = ready_tx.send(Err(error.to_string()));
-                return;
-            }
-        };
-        let address = match listener.local_addr() {
-            Ok(address) => address,
-            Err(error) => {
-                let _ = ready_tx.send(Err(error.to_string()));
-                return;
-            }
-        };
-        let router = Router::new()
-            .route("/media/:token/:file_name", get(get_media).head(head_media))
-            .with_state(server_source);
-        let server = match axum::Server::from_tcp(listener) {
-            Ok(server) => server,
-            Err(error) => {
-                let _ = ready_tx.send(Err(error.to_string()));
-                return;
-            }
-        }
-        .serve(router.into_make_service())
-        .with_graceful_shutdown(async move {
-            let _ = shutdown_rx.await;
-        });
-        if ready_tx.send(Ok(address.port())).is_err() {
-            return;
-        }
-        if let Err(error) = server.await {
-            tracing::error!("playback gateway failed: {error}");
-        }
-    });
+    std::thread::Builder::new()
+        .name("playback-gateway".into())
+        .spawn(move || {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("playback gateway runtime");
+            rt.block_on(async move {
+                let listener = match TcpListener::bind(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 0))
+                    .and_then(|listener| {
+                        listener.set_nonblocking(true)?;
+                        Ok(listener)
+                    }) {
+                    Ok(listener) => listener,
+                    Err(error) => {
+                        let _ = ready_tx.send(Err(error.to_string()));
+                        return;
+                    }
+                };
+                let address = match listener.local_addr() {
+                    Ok(address) => address,
+                    Err(error) => {
+                        let _ = ready_tx.send(Err(error.to_string()));
+                        return;
+                    }
+                };
+                let router = Router::new()
+                    .route("/media/:token/:file_name", get(get_media).head(head_media))
+                    .with_state(server_source);
+                let server = match axum::Server::from_tcp(listener) {
+                    Ok(server) => server,
+                    Err(error) => {
+                        let _ = ready_tx.send(Err(error.to_string()));
+                        return;
+                    }
+                }
+                .serve(router.into_make_service())
+                .with_graceful_shutdown(async move {
+                    let _ = shutdown_rx.await;
+                });
+                if ready_tx.send(Ok(address.port())).is_err() {
+                    return;
+                }
+                if let Err(error) = server.await {
+                    tracing::error!("playback gateway failed: {error}");
+                }
+            });
+        })
+        .expect("playback gateway thread");
     let port = ready_rx
         .await
         .map_err(|error| BError::CustomError {
@@ -636,50 +654,57 @@ impl StorageBackend for DirectHttpPlaybackBackend {
         let client = self.client.clone();
         let headers = self.headers.clone();
         Box::pin(async move {
-            let response = client
-                .get(uri)
-                .headers(headers)
-                .header(
-                    reqwest::header::RANGE,
-                    format!("bytes={}-{}", range.start, range.end_inclusive),
-                )
-                .send()
-                .await?;
-            if response.status() != reqwest::StatusCode::PARTIAL_CONTENT {
-                if response.status().is_success() {
-                    return Err(StorageBackendError::RangeNotSupported {
-                        status: response.status().as_u16(),
-                    });
-                }
-                return Err(response.error_for_status().unwrap_err().into());
-            }
-            let content_range = response
-                .headers()
-                .get(reqwest::header::CONTENT_RANGE)
-                .and_then(|value| value.to_str().ok())
-                .map(str::to_owned)
-                .ok_or_else(|| StorageBackendError::InvalidContentRange("missing".to_string()))?;
-            let (start, end_inclusive, total_size) = parse_origin_content_range(&content_range)?;
-            if start != range.start || end_inclusive != range.end_inclusive {
-                return Err(StorageBackendError::InvalidContentRange(content_range));
-            }
-            let content_type = response
-                .headers()
-                .get(reqwest::header::CONTENT_TYPE)
-                .and_then(|value| value.to_str().ok())
-                .map(str::to_owned);
-            let bytes = response.bytes().await?;
-            if bytes.len() as u64 != range.len() {
-                return Err(StorageBackendError::InvalidContentRange(format!(
-                    "{content_range}; body length {}",
-                    bytes.len()
-                )));
-            }
-            Ok(RangeResponse {
-                bytes,
-                total_size,
-                content_type,
-            })
+            async_runtime::tokio_runtime()
+                .spawn(async move {
+                    let response = client
+                        .get(uri)
+                        .headers(headers)
+                        .header(
+                            reqwest::header::RANGE,
+                            format!("bytes={}-{}", range.start, range.end_inclusive),
+                        )
+                        .send()
+                        .await?;
+                    if response.status() != reqwest::StatusCode::PARTIAL_CONTENT {
+                        if response.status().is_success() {
+                            return Err(StorageBackendError::RangeNotSupported {
+                                status: response.status().as_u16(),
+                            });
+                        }
+                        return Err(response.error_for_status().unwrap_err().into());
+                    }
+                    let content_range = response
+                        .headers()
+                        .get(reqwest::header::CONTENT_RANGE)
+                        .and_then(|value| value.to_str().ok())
+                        .map(str::to_owned)
+                        .ok_or_else(|| {
+                            StorageBackendError::InvalidContentRange("missing".to_string())
+                        })?;
+                    let (start, end_inclusive, total_size) =
+                        parse_origin_content_range(&content_range)?;
+                    if start != range.start || end_inclusive != range.end_inclusive {
+                        return Err(StorageBackendError::InvalidContentRange(content_range));
+                    }
+                    let content_type = response
+                        .headers()
+                        .get(reqwest::header::CONTENT_TYPE)
+                        .and_then(|value| value.to_str().ok())
+                        .map(str::to_owned);
+                    let bytes = response.bytes().await?;
+                    if bytes.len() as u64 != range.len() {
+                        return Err(StorageBackendError::InvalidContentRange(format!(
+                            "{content_range}; body length {}",
+                            bytes.len()
+                        )));
+                    }
+                    Ok(RangeResponse {
+                        bytes,
+                        total_size,
+                        content_type,
+                    })
+                })
+                .await?
         })
     }
 }
@@ -901,9 +926,40 @@ fn is_generic_content_type(value: &str) -> bool {
 mod tests {
     use super::*;
     use futures_util::future::BoxFuture;
+    use std::{
+        future::Future,
+        sync::Arc,
+        task::{Context, Poll, Wake, Waker},
+        thread,
+        time::Duration,
+    };
     use storage_backend::{
         Entry, LocalBackend, RangeResponse, StorageBackendError, StorageBackendResult, StreamFile,
     };
+
+    struct ThreadWaker(thread::Thread);
+
+    impl Wake for ThreadWaker {
+        fn wake(self: Arc<Self>) {
+            self.0.unpark();
+        }
+
+        fn wake_by_ref(self: &Arc<Self>) {
+            self.0.unpark();
+        }
+    }
+
+    fn block_on_without_tokio_runtime<F: Future>(future: F) -> F::Output {
+        let mut future = std::pin::pin!(future);
+        let waker = Waker::from(Arc::new(ThreadWaker(thread::current())));
+        let mut context = Context::from_waker(&waker);
+        loop {
+            match future.as_mut().poll(&mut context) {
+                Poll::Ready(output) => return output,
+                Poll::Pending => thread::park_timeout(Duration::from_secs(1)),
+            }
+        }
+    }
 
     #[derive(Default)]
     struct SizeChangingBackend {
@@ -1003,6 +1059,38 @@ mod tests {
         assert_eq!(resolve_range(Some("bytes=-10"), 100), Ok((90, 99, true)));
         assert!(resolve_range(Some("bytes=100-"), 100).is_err());
         assert!(resolve_range(Some("bytes=1-2,4-5"), 100).is_err());
+    }
+
+    #[test]
+    fn creates_http_cache_gateway_without_caller_tokio_reactor() {
+        let root = std::env::temp_dir().join(format!("musicapp-no-reactor-{}", random_token()));
+        let source_path = root.join("source.flac");
+        fs::create_dir_all(&root).unwrap();
+        fs::write(&source_path, b"0123456789").unwrap();
+        let origin = block_on_without_tokio_runtime(start_playback_gateway(
+            Arc::new(LocalBackend::new()),
+            source_path.to_string_lossy().into_owned(),
+        ))
+        .unwrap();
+        let options = PlaybackCacheOptions {
+            directory: root.join("cache").to_string_lossy().into_owned(),
+            key: "no-reactor".to_string(),
+            extension: "flac".to_string(),
+            write_enabled: true,
+            max_bytes: 1_024,
+        };
+
+        let cached = block_on_without_tokio_runtime(start_http_playback_cache_gateway(
+            origin.url(),
+            HashMap::new(),
+            options,
+        ))
+        .unwrap();
+
+        assert!(cached.url().ends_with("/stream.flac"));
+        cached.shutdown();
+        origin.shutdown();
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[tokio::test]

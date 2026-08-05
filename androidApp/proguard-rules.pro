@@ -22,6 +22,15 @@
 
 -keep class uniffi.** { *; }
 -keep class com.sun.jna.** { *; }
+
+# Keep JNI native method classes used by Rust DSP and native bridges
+-keep class io.github.julystar.musicapp.core.audio.RustDspNative { *; }
+-keepclassmembers class io.github.julystar.musicapp.core.audio.RustDspNative {
+    native <methods>;
+}
+
+# Preserve JNA and UniFFI native method signatures
+-keepattributes Signature,InnerClasses,EnclosingMethod
 -dontwarn java.awt.Component
 -dontwarn java.awt.GraphicsEnvironment
 -dontwarn java.awt.HeadlessException
