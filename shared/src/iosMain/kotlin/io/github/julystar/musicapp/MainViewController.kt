@@ -188,7 +188,11 @@ fun loadNowPlayingArtworkBase64(
         return
     }
     val koin = applicationKoin
-    val music = koin?.get<PlayerRepository>()?.music?.value
+    if (koin == null) {
+        completion(null)
+        return
+    }
+    val music = koin.get<PlayerRepository>().music.value
     if (music == null || music.meta.id.value != item.libraryTrackId) {
         completion(null)
         return
