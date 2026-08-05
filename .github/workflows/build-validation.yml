@@ -133,7 +133,9 @@ jobs:
       - name: Compile iOS source adapter
         run: ./gradlew --no-daemon --stacktrace :source:smb:compileKotlinIosSimulatorArm64
       - name: Build iOS simulator application
+        shell: bash
         run: |
+          set +e
           xcodebuild \
             -project iosApp/App.xcodeproj \
             -scheme App \
@@ -141,7 +143,25 @@ jobs:
             -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' \
             CODE_SIGNING_ALLOWED=NO \
-            build
+            build > xcodebuild.log 2>&1
+          status=$?
+          if [ "$status" -ne 0 ]; then
+            echo '::group::Xcode compiler errors'
+            grep -nE '(^|: )(error:|fatal error:)|BUILD FAILED|SwiftCompile|CompileSwift' xcodebuild.log | tail -250 || true
+            echo '::endgroup::'
+            echo '::group::Xcode log tail'
+            tail -250 xcodebuild.log
+            echo '::endgroup::'
+          fi
+          exit "$status"
+      - name: Upload Xcode build log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: melodytrove-ios-xcode-log-${{ github.run_number }}
+          path: xcodebuild.log
+          if-no-files-found: error
+          retention-days: 7
 
   desktop:
     name: Desktop and Kotlin tests
