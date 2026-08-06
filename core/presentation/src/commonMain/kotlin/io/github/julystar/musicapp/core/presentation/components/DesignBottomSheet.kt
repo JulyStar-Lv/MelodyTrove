@@ -1,7 +1,12 @@
 package io.github.julystar.musicapp.core.presentation.components
 
 import androidx.compose.runtime.Composable
-import top.yukonga.miuix.kmp.window.WindowBottomSheet
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import top.yukonga.miuix.kmp.basic.Text
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun DesignBottomSheet(
@@ -10,13 +15,20 @@ fun DesignBottomSheet(
     onDismissRequest: () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    WindowBottomSheet(
+    DesignDialog(
         show = show,
-        title = title,
-        onDismissRequest = onDismissRequest,
-        content = {
-            DesignDialogSystemBarsEffect(DesignDialogNavigationBarStyle.Surface)
-            content()
-        },
-    )
+        onDismiss = onDismissRequest,
+    ) {
+        if (!title.isNullOrBlank()) {
+            Text(
+                text = title,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                color = MiuixTheme.colorScheme.onSurface,
+                style = MiuixTheme.textStyles.title3,
+            )
+        }
+        content()
+    }
 }

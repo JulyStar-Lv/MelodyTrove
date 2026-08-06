@@ -1,6 +1,7 @@
 package io.github.julystar.musicapp.plugin.management
 
 import androidx.compose.ui.unit.dp
+import io.github.julystar.musicapp.core.presentation.components.shouldDismissBottomSheet
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
@@ -44,7 +45,7 @@ class PluginConfigurationDialogTest {
     @Test
     fun dismissesCompactSheetAfterEnoughDistanceOrVelocity() {
         assertFalse(
-            shouldDismissPluginConfigurationSheet(
+            shouldDismissBottomSheet(
                 dragOffsetPx = 71f,
                 velocityPxPerSecond = 899f,
                 distanceThresholdPx = 72f,
@@ -52,7 +53,7 @@ class PluginConfigurationDialogTest {
             ),
         )
         assertTrue(
-            shouldDismissPluginConfigurationSheet(
+            shouldDismissBottomSheet(
                 dragOffsetPx = 72f,
                 velocityPxPerSecond = 0f,
                 distanceThresholdPx = 72f,
@@ -60,7 +61,7 @@ class PluginConfigurationDialogTest {
             ),
         )
         assertTrue(
-            shouldDismissPluginConfigurationSheet(
+            shouldDismissBottomSheet(
                 dragOffsetPx = 12f,
                 velocityPxPerSecond = 900f,
                 distanceThresholdPx = 72f,

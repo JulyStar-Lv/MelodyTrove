@@ -507,7 +507,14 @@
     <string name="settings_lyrics_priority_external_ttml">外部 TTML</string>
     <string name="settings_lyrics_priority_external_word_timed">外部逐字歌词</string>
     <string name="settings_lyrics_priority_external_plain">外部 LRC/普通歌词</string>
-    <string name="settings_lyrics_priority_value">优先级 %1$d · 点击移至首位</string>
+    <string name="settings_lyrics_priority">来源优先级</string>
+    <string name="settings_lyrics_priority_summary">共 %1$d 个来源 · 拖动排序或快速置顶</string>
+    <string name="settings_lyrics_priority_title">设置来源优先级</string>
+    <string name="settings_lyrics_priority_description">拖动调整顺序，或将任意来源直接置顶。</string>
+    <string name="settings_lyrics_priority_move_to_top">将%1$s置顶</string>
+    <string name="settings_lyrics_priority_drag">拖动%1$s调整顺序</string>
+    <string name="settings_lyrics_priority_move_up">上移</string>
+    <string name="settings_lyrics_priority_move_down">下移</string>
     <string name="settings_lyrics_ignore_headers">忽略歌词头标签</string>
     <string name="settings_lyrics_ignore_headers_summary">隐藏歌手、专辑、偏移量和提供方等元数据标签</string>
     <string name="settings_lyrics_blacklist">歌词行黑名单</string>

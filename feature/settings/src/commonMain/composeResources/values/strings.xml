@@ -507,7 +507,14 @@
     <string name="settings_lyrics_priority_external_ttml">External TTML</string>
     <string name="settings_lyrics_priority_external_word_timed">External word-timed lyrics</string>
     <string name="settings_lyrics_priority_external_plain">External LRC/plain lyrics</string>
-    <string name="settings_lyrics_priority_value">Priority %1$d · tap to move to first</string>
+    <string name="settings_lyrics_priority">Source priority</string>
+    <string name="settings_lyrics_priority_summary">%1$d sources · Drag to reorder or move to top</string>
+    <string name="settings_lyrics_priority_title">Set source priority</string>
+    <string name="settings_lyrics_priority_description">Drag to reorder, or move any source directly to the top.</string>
+    <string name="settings_lyrics_priority_move_to_top">Move %1$s to top</string>
+    <string name="settings_lyrics_priority_drag">Drag %1$s to reorder</string>
+    <string name="settings_lyrics_priority_move_up">Move up</string>
+    <string name="settings_lyrics_priority_move_down">Move down</string>
     <string name="settings_lyrics_ignore_headers">Ignore lyric header tags</string>
     <string name="settings_lyrics_ignore_headers_summary">Hide metadata tags such as artist, album, offset, and provider</string>
     <string name="settings_lyrics_blacklist">Line blacklist</string>

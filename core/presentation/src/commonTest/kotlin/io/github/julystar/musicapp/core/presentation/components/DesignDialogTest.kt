@@ -33,4 +33,35 @@ class DesignDialogTest {
         assertEquals(false, DesignDialogDefaults.isCompactWindow(600.dp))
         assertEquals(false, DesignDialogDefaults.isCompactWindow(Dp.Unspecified))
     }
+
+    @Test
+    fun `bottom sheet dismisses after enough downward distance or velocity`() {
+        assertEquals(
+            false,
+            shouldDismissBottomSheet(
+                dragOffsetPx = 71f,
+                velocityPxPerSecond = 899f,
+                distanceThresholdPx = 72f,
+                velocityThresholdPxPerSecond = 900f,
+            ),
+        )
+        assertEquals(
+            true,
+            shouldDismissBottomSheet(
+                dragOffsetPx = 72f,
+                velocityPxPerSecond = 0f,
+                distanceThresholdPx = 72f,
+                velocityThresholdPxPerSecond = 900f,
+            ),
+        )
+        assertEquals(
+            true,
+            shouldDismissBottomSheet(
+                dragOffsetPx = 12f,
+                velocityPxPerSecond = 900f,
+                distanceThresholdPx = 72f,
+                velocityThresholdPxPerSecond = 900f,
+            ),
+        )
+    }
 }

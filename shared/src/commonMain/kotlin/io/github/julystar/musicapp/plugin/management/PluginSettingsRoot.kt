@@ -77,6 +77,8 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import io.github.julystar.musicapp.core.presentation.components.DesignDialog
+import io.github.julystar.musicapp.core.presentation.components.DesignBottomSheetDefaults
+import io.github.julystar.musicapp.core.presentation.components.DesignBottomSheetHandle
 import io.github.julystar.musicapp.core.presentation.components.DesignDialogDefaults
 import io.github.julystar.musicapp.core.presentation.components.DesignDialogHost
 import io.github.julystar.musicapp.core.presentation.components.DesignDialogNavigationBarStyle
@@ -95,6 +97,7 @@ import io.github.julystar.musicapp.core.presentation.components.DesignTextButton
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonSize
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonVariant
 import io.github.julystar.musicapp.core.presentation.components.resolveDialogMaxHeight
+import io.github.julystar.musicapp.core.presentation.components.shouldDismissBottomSheet
 import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import androidx.compose.ui.graphics.Color
@@ -762,8 +765,8 @@ private fun PluginConfigurationDialog(
         Modifier.padding(24.dp)
     }
     val density = LocalDensity.current
-    val dismissDistancePx = with(density) { 72.dp.toPx() }
-    val dismissVelocityPxPerSecond = with(density) { 900.dp.toPx() }
+    val dismissDistancePx = with(density) { DesignBottomSheetDefaults.dismissDistance.toPx() }
+    val dismissVelocityPxPerSecond = with(density) { DesignBottomSheetDefaults.dismissVelocity.toPx() }
     val dragAnimationScope = rememberCoroutineScope()
     var sheetDragOffsetPx by remember { mutableFloatStateOf(0f) }
     var dragAnimationJob by remember { mutableStateOf<Job?>(null) }
@@ -785,7 +788,7 @@ private fun PluginConfigurationDialog(
             },
             onDragStopped = { velocity ->
                 if (
-                    shouldDismissPluginConfigurationSheet(
+                    shouldDismissBottomSheet(
                         dragOffsetPx = sheetDragOffsetPx,
                         velocityPxPerSecond = velocity,
                         distanceThresholdPx = dismissDistancePx,
@@ -845,8 +848,16 @@ private fun PluginConfigurationDialog(
             AnimatedVisibility(
                 visible = dialogVisible,
                 modifier = Modifier.align(verticalAlign),
-                enter = DesignDialogDefaults.surfaceEnterTransition(),
-                exit = DesignDialogDefaults.surfaceExitTransition(),
+                enter = if (compact) {
+                    DesignBottomSheetDefaults.surfaceEnterTransition()
+                } else {
+                    DesignDialogDefaults.surfaceEnterTransition()
+                },
+                exit = if (compact) {
+                    DesignBottomSheetDefaults.surfaceExitTransition()
+                } else {
+                    DesignDialogDefaults.surfaceExitTransition()
+                },
             ) {
                 Column(
                     modifier = Modifier
@@ -886,19 +897,11 @@ private fun PluginConfigurationDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .then(compactHeaderDragModifier)
-                                .padding(start = 20.dp, top = 10.dp, end = 20.dp),
+                                .padding(horizontal = 20.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(6.dp),
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .width(40.dp)
-                                    .height(6.dp)
-                                    .clip(RoundedCornerShape(3.dp))
-                                    .background(
-                                        MiuixTheme.colorScheme.outline.copy(alpha = 0.30f),
-                                    ),
-                            )
+                            DesignBottomSheetHandle()
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -1718,15 +1721,6 @@ internal fun shouldPlacePluginConfigMenuAbove(
 ): Boolean =
     anchorTop > windowHeight / 2 ||
         anchorBottom + 8.dp + menuHeight > windowHeight - 16.dp
-
-internal fun shouldDismissPluginConfigurationSheet(
-    dragOffsetPx: Float,
-    velocityPxPerSecond: Float,
-    distanceThresholdPx: Float,
-    velocityThresholdPxPerSecond: Float,
-): Boolean =
-    dragOffsetPx >= distanceThresholdPx ||
-        velocityPxPerSecond >= velocityThresholdPxPerSecond
 
 internal fun isPluginConfigFieldVisible(
     field: ManifestConfigField,

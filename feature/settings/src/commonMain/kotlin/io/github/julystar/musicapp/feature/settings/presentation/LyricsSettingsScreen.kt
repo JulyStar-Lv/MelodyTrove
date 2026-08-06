@@ -32,6 +32,7 @@ internal fun LyricsSettingsScreen(
     val lyrics = state.settings.lyrics
     val output = state.settings.lyricOutput
     val capabilities = state.capabilities
+    var editingSourcePriority by remember { mutableStateOf(false) }
     var editingBlacklist by remember { mutableStateOf(false) }
     var blacklistInput by remember(lyrics.lineBlacklist) {
         mutableStateOf(lyrics.lineBlacklist.joinToString("\n"))
@@ -57,19 +58,10 @@ internal fun LyricsSettingsScreen(
                 optionLabel = { mode -> stringResource(mode.titleResource()) },
                 onSelect = { onAction(SettingsAction.SetLyricSourceMode(it)) },
             )
-            lyrics.sourcePriority.forEachIndexed { index, kind ->
-                SettingsInfoRow(
-                    title = stringResource(kind.titleResource()),
-                    value = stringResource(Res.string.settings_lyrics_priority_value, index + 1),
-                    onClick = {
-                        onAction(
-                            SettingsAction.SetLyricSourcePriority(
-                                lyrics.sourcePriority.promote(kind)
-                            )
-                        )
-                    },
-                )
-            }
+            LyricSourcePrioritySettingsRow(
+                priority = lyrics.sourcePriority,
+                onClick = { editingSourcePriority = true },
+            )
             SettingsSwitchRow(
                 title = stringResource(Res.string.settings_lyrics_ignore_headers),
                 summary = stringResource(Res.string.settings_lyrics_ignore_headers_summary),
@@ -327,6 +319,15 @@ internal fun LyricsSettingsScreen(
         }
     }
 
+    LyricSourcePriorityDialog(
+        show = editingSourcePriority,
+        priority = lyrics.sourcePriority,
+        onPriorityChange = { priority ->
+            onAction(SettingsAction.SetLyricSourcePriority(priority))
+        },
+        onDismiss = { editingSourcePriority = false },
+    )
+
     SettingsInputDialog(
         show = editingBlacklist,
         title = stringResource(Res.string.settings_lyrics_blacklist),
@@ -382,9 +383,6 @@ private fun PlatformLyricOutputRows(
     }
 }
 
-private fun List<LyricSourceKind>.promote(kind: LyricSourceKind): List<LyricSourceKind> =
-    listOf(kind) + filterNot { it == kind }
-
 private fun LyricSourceMode.titleResource() = when (this) {
     LyricSourceMode.Auto -> Res.string.settings_lyrics_source_auto
     LyricSourceMode.Embedded -> Res.string.settings_lyrics_source_embedded
@@ -397,7 +395,7 @@ private fun LyricSourceMode.summaryResource() = when (this) {
     LyricSourceMode.External -> Res.string.settings_lyrics_source_external_summary
 }
 
-private fun LyricSourceKind.titleResource() = when (this) {
+internal fun LyricSourceKind.titleResource() = when (this) {
     LyricSourceKind.EmbeddedTtml -> Res.string.settings_lyrics_priority_embedded_ttml
     LyricSourceKind.EmbeddedWordTimed -> Res.string.settings_lyrics_priority_embedded_word_timed
     LyricSourceKind.EmbeddedPlain -> Res.string.settings_lyrics_priority_embedded_plain

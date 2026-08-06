@@ -12,9 +12,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
@@ -87,7 +85,10 @@ import io.github.julystar.musicapp.core.presentation.components.DesignIconButton
 import io.github.julystar.musicapp.core.presentation.components.DesignDialogHost
 import io.github.julystar.musicapp.core.presentation.components.DesignDialogNavigationBarStyle
 import io.github.julystar.musicapp.core.presentation.components.DesignDialogDefaults
+import io.github.julystar.musicapp.core.presentation.components.DesignBottomSheetDefaults
+import io.github.julystar.musicapp.core.presentation.components.DesignBottomSheetHandle
 import io.github.julystar.musicapp.core.presentation.components.designListDivider
+import io.github.julystar.musicapp.core.presentation.components.shouldDismissBottomSheet
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -123,8 +124,8 @@ private val NowPlayingContentStartPadding = 34.dp
 private val NowPlayingContentEndPadding = 28.dp
 private val NowPlayingColumnsGap = 34.dp
 private const val NowPlayingLyricsWeight = 0.54f
-private const val QueueEnterDurationMillis = 240
-private const val QueueExitDurationMillis = 180
+private const val QueueSideDialogEnterDurationMillis = 240
+private const val QueueSideDialogExitDurationMillis = 180
 private const val QueueDragAutoScrollIntervalMillis = 16L
 
 /** Matches the maintained Design player breakpoints for the queue surface. */
@@ -141,15 +142,6 @@ internal fun nowPlayingLyricsPanelWidth(maxWidth: androidx.compose.ui.unit.Dp): 
     (maxWidth - NowPlayingContentStartPadding - NowPlayingContentEndPadding - NowPlayingColumnsGap) *
         NowPlayingLyricsWeight + NowPlayingContentEndPadding
 
-internal fun shouldDismissQueueSheet(
-    dragOffsetPx: Float,
-    velocityPxPerSecond: Float,
-    distanceThresholdPx: Float,
-    velocityThresholdPxPerSecond: Float,
-): Boolean =
-    dragOffsetPx >= distanceThresholdPx ||
-        velocityPxPerSecond >= velocityThresholdPxPerSecond
-
 @Composable
 fun QueueDialog(
     state: QueueState,
@@ -162,8 +154,8 @@ fun QueueDialog(
     val density = LocalDensity.current
     val autoScrollEdgePx = with(density) { 48.dp.toPx() }
     val autoScrollStepPx = with(density) { 8.dp.toPx() }
-    val dismissDistancePx = with(density) { 72.dp.toPx() }
-    val dismissVelocityPxPerSecond = with(density) { 900.dp.toPx() }
+    val dismissDistancePx = with(density) { DesignBottomSheetDefaults.dismissDistance.toPx() }
+    val dismissVelocityPxPerSecond = with(density) { DesignBottomSheetDefaults.dismissVelocity.toPx() }
     var displayItems: List<QueueItemUi> by remember { mutableStateOf(state.items) }
     var dragState by remember { mutableStateOf<QueueDragState?>(null) }
     val hasCurrentItem = state.currentIndex in state.items.indices
@@ -187,7 +179,7 @@ fun QueueDialog(
         dismissing = true
         contentVisible = false
         coroutineScope.launch {
-            delay(QueueExitDurationMillis.toLong())
+            delay(DesignBottomSheetDefaults.exitDurationMillis.toLong())
             onDismiss()
         }
     }
@@ -219,8 +211,8 @@ fun QueueDialog(
         ) {
             AnimatedVisibility(
                 visible = contentVisible,
-                enter = fadeIn(tween(QueueEnterDurationMillis)),
-                exit = fadeOut(tween(QueueExitDurationMillis)),
+                enter = fadeIn(tween(DesignBottomSheetDefaults.enterDurationMillis)),
+                exit = fadeOut(tween(DesignBottomSheetDefaults.exitDurationMillis)),
             ) {
                 Box(
                     modifier = Modifier
@@ -272,7 +264,7 @@ fun QueueDialog(
                     },
                     onDragStopped = { velocity ->
                         if (
-                            shouldDismissQueueSheet(
+                            shouldDismissBottomSheet(
                                 dragOffsetPx = sheetDragOffsetPx,
                                 velocityPxPerSecond = velocity,
                                 distanceThresholdPx = dismissDistancePx,
@@ -302,24 +294,24 @@ fun QueueDialog(
                 enter = if (sideDialog) {
                     slideInHorizontally(
                         initialOffsetX = { it },
-                        animationSpec = tween(QueueEnterDurationMillis, easing = FastOutSlowInEasing),
-                    ) + fadeIn(tween(QueueEnterDurationMillis))
+                        animationSpec = tween(
+                            QueueSideDialogEnterDurationMillis,
+                            easing = FastOutSlowInEasing,
+                        ),
+                    ) + fadeIn(tween(QueueSideDialogEnterDurationMillis))
                 } else {
-                    slideInVertically(
-                        initialOffsetY = { it },
-                        animationSpec = tween(QueueEnterDurationMillis, easing = FastOutSlowInEasing),
-                    ) + fadeIn(tween(QueueEnterDurationMillis))
+                    DesignBottomSheetDefaults.surfaceEnterTransition()
                 },
                 exit = if (sideDialog) {
                     slideOutHorizontally(
                         targetOffsetX = { it },
-                        animationSpec = tween(QueueExitDurationMillis, easing = FastOutSlowInEasing),
-                    ) + fadeOut(tween(QueueExitDurationMillis))
+                        animationSpec = tween(
+                            QueueSideDialogExitDurationMillis,
+                            easing = FastOutSlowInEasing,
+                        ),
+                    ) + fadeOut(tween(QueueSideDialogExitDurationMillis))
                 } else {
-                    slideOutVertically(
-                        targetOffsetY = { it },
-                        animationSpec = tween(QueueExitDurationMillis, easing = FastOutSlowInEasing),
-                    ) + fadeOut(tween(QueueExitDurationMillis))
+                    DesignBottomSheetDefaults.surfaceExitTransition()
                 },
             ) {
                 Column(
@@ -351,22 +343,7 @@ fun QueueDialog(
                         .navigationBarsPadding(),
                 ) {
                     if (!sideDialog) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(30.dp)
-                                .then(sheetHandleDragModifier),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(width = 48.dp, height = 6.dp)
-                                    .clip(RoundedCornerShape(DesignTokens.shapes.full))
-                                    .background(
-                                        MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.30f),
-                                    ),
-                            )
-                        }
+                        DesignBottomSheetHandle(sheetHandleDragModifier)
                     }
 
                     QueueHeader(

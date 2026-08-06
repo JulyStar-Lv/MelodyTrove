@@ -7,6 +7,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 import androidx.compose.ui.unit.dp
+import io.github.julystar.musicapp.core.presentation.components.shouldDismissBottomSheet
 
 class QueueStateTest {
 
@@ -98,7 +99,7 @@ class QueueStateTest {
     @Test
     fun `bottom queue sheet dismisses after enough downward distance or velocity`() {
         assertFalse(
-            shouldDismissQueueSheet(
+            shouldDismissBottomSheet(
                 dragOffsetPx = 71f,
                 velocityPxPerSecond = 899f,
                 distanceThresholdPx = 72f,
@@ -106,7 +107,7 @@ class QueueStateTest {
             ),
         )
         assertTrue(
-            shouldDismissQueueSheet(
+            shouldDismissBottomSheet(
                 dragOffsetPx = 72f,
                 velocityPxPerSecond = 0f,
                 distanceThresholdPx = 72f,
@@ -114,7 +115,7 @@ class QueueStateTest {
             ),
         )
         assertTrue(
-            shouldDismissQueueSheet(
+            shouldDismissBottomSheet(
                 dragOffsetPx = 12f,
                 velocityPxPerSecond = 900f,
                 distanceThresholdPx = 72f,

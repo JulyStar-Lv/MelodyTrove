@@ -12,9 +12,13 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.animate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,13 +26,21 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,9 +48,12 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import kotlin.math.roundToInt
 
@@ -97,6 +112,78 @@ object DesignDialogDefaults {
         )
 }
 
+object DesignBottomSheetDefaults {
+    val handleWidth = 40.dp
+    val handleHeight = 6.dp
+    val handleAreaHeight = 30.dp
+    val dismissDistance = 72.dp
+    val dismissVelocity = 900.dp
+    const val enterDurationMillis = 260
+    const val exitDurationMillis = 180
+
+    fun surfaceEnterTransition(): EnterTransition =
+        slideInVertically(
+            initialOffsetY = { it },
+            animationSpec = tween(
+                durationMillis = enterDurationMillis,
+                easing = FastOutSlowInEasing,
+            ),
+        ) + fadeIn(
+            animationSpec = tween(
+                durationMillis = 220,
+                easing = LinearOutSlowInEasing,
+            ),
+        )
+
+    fun surfaceExitTransition(): ExitTransition =
+        slideOutVertically(
+            targetOffsetY = { it },
+            animationSpec = tween(
+                durationMillis = exitDurationMillis,
+                easing = FastOutLinearInEasing,
+            ),
+        ) + fadeOut(
+            animationSpec = tween(
+                durationMillis = 160,
+                easing = FastOutLinearInEasing,
+            ),
+        )
+}
+
+fun shouldDismissBottomSheet(
+    dragOffsetPx: Float,
+    velocityPxPerSecond: Float,
+    distanceThresholdPx: Float,
+    velocityThresholdPxPerSecond: Float,
+): Boolean =
+    dragOffsetPx >= distanceThresholdPx ||
+        velocityPxPerSecond >= velocityThresholdPxPerSecond
+
+@Composable
+fun DesignBottomSheetHandle(
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(DesignBottomSheetDefaults.handleAreaHeight),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .widthIn(
+                    min = DesignBottomSheetDefaults.handleWidth,
+                    max = DesignBottomSheetDefaults.handleWidth,
+                )
+                .height(DesignBottomSheetDefaults.handleHeight)
+                .clip(RoundedCornerShape(DesignTokens.shapes.full))
+                .background(
+                    MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.35f),
+                ),
+        )
+    }
+}
+
 fun resolveDialogMaxHeight(requestedMaxHeight: Dp?, viewportHeight: Dp): Dp {
     val maxHeight = minOf(
         requestedMaxHeight ?: DesignDialogDefaults.maxHeight,
@@ -138,9 +225,57 @@ fun DesignDialog(
     val alignment = if (compact) Alignment.BottomCenter else Alignment.Center
     val resolvedMaxHeight = resolveDialogMaxHeight(maxHeight, viewportSize.height)
     val contentPadding = if (compact) {
-        PaddingValues(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 24.dp)
+        PaddingValues(start = 20.dp, end = 20.dp, bottom = 24.dp)
     } else {
         PaddingValues(20.dp)
+    }
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val coroutineScope = rememberCoroutineScope()
+    var sheetDragOffsetPx by remember { mutableFloatStateOf(0f) }
+    var dragAnimationJob by remember { mutableStateOf<Job?>(null) }
+    val sheetDraggableState = rememberDraggableState { deltaPx ->
+        sheetDragOffsetPx = (sheetDragOffsetPx + deltaPx).coerceAtLeast(0f)
+    }
+
+    LaunchedEffect(show) {
+        if (show) sheetDragOffsetPx = 0f
+    }
+
+    val sheetHandleModifier = if (compact) {
+        Modifier.draggable(
+            state = sheetDraggableState,
+            orientation = Orientation.Vertical,
+            enabled = show,
+            onDragStarted = { dragAnimationJob?.cancel() },
+            onDragStopped = { velocity ->
+                if (
+                    shouldDismissBottomSheet(
+                        dragOffsetPx = sheetDragOffsetPx,
+                        velocityPxPerSecond = velocity,
+                        distanceThresholdPx = with(density) {
+                            DesignBottomSheetDefaults.dismissDistance.toPx()
+                        },
+                        velocityThresholdPxPerSecond = with(density) {
+                            DesignBottomSheetDefaults.dismissVelocity.toPx()
+                        },
+                    )
+                ) {
+                    onDismiss()
+                } else {
+                    dragAnimationJob?.cancel()
+                    dragAnimationJob = coroutineScope.launch {
+                        animate(
+                            initialValue = sheetDragOffsetPx,
+                            targetValue = 0f,
+                        ) { value, _ ->
+                            sheetDragOffsetPx = value
+                        }
+                    }
+                }
+            },
+        )
+    } else {
+        Modifier
     }
 
     DesignDialogHost(
@@ -175,8 +310,16 @@ fun DesignDialog(
             AnimatedVisibility(
                 visible = show,
                 modifier = Modifier.align(alignment),
-                enter = DesignDialogDefaults.surfaceEnterTransition(),
-                exit = DesignDialogDefaults.surfaceExitTransition(),
+                enter = if (compact) {
+                    DesignBottomSheetDefaults.surfaceEnterTransition()
+                } else {
+                    DesignDialogDefaults.surfaceEnterTransition()
+                },
+                exit = if (compact) {
+                    DesignBottomSheetDefaults.surfaceExitTransition()
+                } else {
+                    DesignDialogDefaults.surfaceExitTransition()
+                },
             ) {
                 Column(
                     modifier = (if (compact) {
@@ -186,6 +329,12 @@ fun DesignDialog(
                     })
                         .heightIn(max = resolvedMaxHeight)
                         .then(modifier)
+                        .offset {
+                            IntOffset(
+                                x = 0,
+                                y = if (compact) sheetDragOffsetPx.roundToInt() else 0,
+                            )
+                        }
                         .shadow(DesignTokens.elevation.overlay, shape)
                         .clip(shape)
                         .background(MiuixTheme.colorScheme.surfaceContainer)
@@ -198,8 +347,10 @@ fun DesignDialog(
                             if (compact) Modifier.navigationBarsPadding() else Modifier,
                         )
                         .padding(contentPadding),
-                    content = content,
-                )
+                ) {
+                    if (compact) DesignBottomSheetHandle(sheetHandleModifier)
+                    content()
+                }
             }
         }
     }
