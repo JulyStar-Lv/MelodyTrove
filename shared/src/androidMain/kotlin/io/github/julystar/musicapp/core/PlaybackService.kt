@@ -1,16 +1,18 @@
 package io.github.julystar.musicapp.core
 
 import android.app.PendingIntent
-import android.content.Intent
-import android.os.Bundle
 import android.content.Context
+import android.content.Intent
 import android.media.AudioFocusRequest
 import android.media.AudioManager
+import android.os.Bundle
 import android.view.KeyEvent
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.C.WAKE_MODE_NETWORK
+import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.Player.COMMAND_PLAY_PAUSE
 import androidx.media3.common.util.UnstableApi
@@ -23,50 +25,45 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
-import io.github.julystar.musicapp.shared.R
+import com.google.common.collect.ImmutableList
+import com.google.common.util.concurrent.Futures
+import com.google.common.util.concurrent.ListenableFuture
+import io.github.julystar.musicapp.core.audio.RustDspAudioProcessor
+import io.github.julystar.musicapp.core.audio.TideTunesRenderersFactory
 import io.github.julystar.musicapp.core.domain.model.AppSettings
 import io.github.julystar.musicapp.core.domain.model.AudioFocusMode
+import io.github.julystar.musicapp.core.domain.model.DiagnosticLogCategory
 import io.github.julystar.musicapp.core.domain.model.ReplayGainMode
 import io.github.julystar.musicapp.core.domain.repository.ArtworkRepository
 import io.github.julystar.musicapp.core.domain.repository.FavoritesRepository
+import io.github.julystar.musicapp.core.domain.repository.NetworkStatusProvider
 import io.github.julystar.musicapp.core.domain.repository.SettingsRepository
-import io.github.julystar.musicapp.core.audio.RustDspAudioProcessor
-import io.github.julystar.musicapp.core.audio.TideTunesRenderersFactory
-import com.google.common.util.concurrent.Futures
-import com.google.common.collect.ImmutableList
-import com.google.common.util.concurrent.ListenableFuture
+import io.github.julystar.musicapp.diagnostics.AppLogger
+import io.github.julystar.musicapp.service.playback.data.PlaybackResourceResolver
 import io.github.julystar.musicapp.service.playback.data.PlayerRepository
 import io.github.julystar.musicapp.service.playback.data.toPlaybackArtwork
 import io.github.julystar.musicapp.service.playback.domain.PlaybackController
 import io.github.julystar.musicapp.service.playback.domain.RepeatMode
+import io.github.julystar.musicapp.shared.R
 import io.github.julystar.musicapp.singleton.RoomLibraryStore
-import io.github.julystar.musicapp.service.playback.data.PlaybackResourceResolver
-import io.github.julystar.musicapp.source.api.PlaybackResource
-import io.github.julystar.musicapp.source.api.SourcePlaybackResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import uniffi.app_backend.Playlist
-import io.github.julystar.musicapp.singleton.Bridge
 import org.koin.android.ext.android.inject
 import uniffi.app_backend.MusicAbstract
-import io.github.julystar.musicapp.core.domain.model.DiagnosticLogCategory
-import io.github.julystar.musicapp.diagnostics.AppLogger
+import uniffi.app_backend.MusicId
+import uniffi.app_backend.Playlist
 import kotlin.math.log10
 import kotlin.math.min
 
-
-const val PLAYER_TO_PREV_COMMAND = "PLAYER_TO_PREV_COMMAND";
-const val PLAYER_TO_NEXT_COMMAND = "PLAYER_TO_NEXT_COMMAND";
-const val PLAYER_TOGGLE_FAVORITE_COMMAND = "PLAYER_TOGGLE_FAVORITE_COMMAND";
-const val PLAYER_CYCLE_PLAYBACK_MODE_COMMAND = "PLAYER_CYCLE_PLAYBACK_MODE_COMMAND";
-
-
+const val PLAYER_TO_PREV_COMMAND = "PLAYER_TO_PREV_COMMAND"
+const val PLAYER_TO_NEXT_COMMAND = "PLAYER_TO_NEXT_COMMAND"
+const val PLAYER_TOGGLE_FAVORITE_COMMAND = "PLAYER_TOGGLE_FAVORITE_COMMAND"
+const val PLAYER_CYCLE_PLAYBACK_MODE_COMMAND = "PLAYER_CYCLE_PLAYBACK_MODE_COMMAND"
 
 class PlaybackService : MediaSessionService() {
     private val playerRepository: PlayerRepository by inject()
@@ -74,12 +71,11 @@ class PlaybackService : MediaSessionService() {
     private val artworkRepository: ArtworkRepository by inject()
     private val favoritesRepository: FavoritesRepository by inject()
     private val settingsRepository: SettingsRepository by inject()
-    private val bridge: Bridge by inject()
+    private val networkStatusProvider: NetworkStatusProvider by inject()
     private val roomLibraryStore: RoomLibraryStore by inject()
     private val playbackResourceResolver: PlaybackResourceResolver by inject()
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
     private var _mediaSession: MediaSession? = null
-    private var playbackResource: PlaybackResource? = null
     private var audioFocusController: PlaybackAudioFocusController? = null
     private var lyricOutputController: AndroidLyricOutputController? = null
     private var dspAudioProcessor: RustDspAudioProcessor? = null
@@ -109,13 +105,24 @@ class PlaybackService : MediaSessionService() {
         val intent = Intent(this, Class.forName("io.github.julystar.musicapp.MainActivity")).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK
         }
-        val pendingIntent = PendingIntent.getActivity(this, 0, intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        val pendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
 
         val dspProcessor = RustDspAudioProcessor().also {
             it.updateSettings(AppSettings.Default.audioEffects)
             dspAudioProcessor = it
         }
+        val resolvingDataSourceFactory = AndroidPlaybackDataSourceFactory(
+            upstreamFactory = DefaultDataSource.Factory(context),
+            roomLibraryStore = roomLibraryStore,
+            playbackResourceResolver = playbackResourceResolver,
+            settingsRepository = settingsRepository,
+            networkStatusProvider = networkStatusProvider,
+        )
         val player = ExoPlayer.Builder(
             context,
             TideTunesRenderersFactory(context, dspProcessor),
@@ -126,7 +133,7 @@ class PlaybackService : MediaSessionService() {
             )
             .setHandleAudioBecomingNoisy(AppSettings.Default.pauseOnDisconnect)
             .setWakeMode(WAKE_MODE_NETWORK)
-            .setMediaSourceFactory(ProgressiveMediaSource.Factory(DefaultDataSource.Factory(context)))
+            .setMediaSourceFactory(ProgressiveMediaSource.Factory(resolvingDataSourceFactory))
             .build()
         audioFocusController = PlaybackAudioFocusController(this, player).apply {
             updateMode(AppSettings.Default.audioFocusMode)
@@ -137,7 +144,7 @@ class PlaybackService : MediaSessionService() {
                 @OptIn(UnstableApi::class)
                 override fun onConnect(
                     session: MediaSession,
-                    controller: MediaSession.ControllerInfo
+                    controller: MediaSession.ControllerInfo,
                 ): MediaSession.ConnectionResult {
                     if (session.isMediaNotificationController(controller)) {
                         val sessionCommands =
@@ -157,7 +164,6 @@ class PlaybackService : MediaSessionService() {
                                 .remove(Player.COMMAND_SEEK_FORWARD)
                                 .remove(Player.COMMAND_SEEK_TO_DEFAULT_POSITION)
                                 .build()
-                        // Media button preferences and commands configure the notification session.
                         return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
                             .setMediaButtonPreferences(buildMediaButtonPreferences(session.player))
                             .setAvailablePlayerCommands(playerCommands)
@@ -178,14 +184,11 @@ class PlaybackService : MediaSessionService() {
                         ?: return false
                     if (!event.keyCode.isHandledPlaybackMediaKey()) return false
 
-                    // Once a media key is claimed, consume its entire key sequence. Returning
-                    // false for ACTION_UP or long-press repeats would let Media3 run its default
-                    // player action after the app already handled ACTION_DOWN.
                     if (event.action != KeyEvent.ACTION_DOWN || event.repeatCount != 0) {
                         return true
                     }
 
-                    val player = session.player
+                    val sessionPlayer = session.player
                     AppLogger.info(
                         DiagnosticLogCategory.Playback,
                         "PlaybackService",
@@ -193,32 +196,27 @@ class PlaybackService : MediaSessionService() {
                             "from ${controllerInfo.packageName}",
                     )
 
-                    // The callback runs inside PlaybackService, so control the session player
-                    // directly. Routing these commands through the Activity-owned MediaController
-                    // makes them no-op as soon as MainActivity reaches onStop().
                     when (event.keyCode) {
                         KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
                         KeyEvent.KEYCODE_HEADSETHOOK -> {
-                            if (player.playWhenReady) player.pause() else player.play()
+                            if (sessionPlayer.playWhenReady) sessionPlayer.pause() else sessionPlayer.play()
                         }
 
-                        KeyEvent.KEYCODE_MEDIA_PLAY -> player.play()
+                        KeyEvent.KEYCODE_MEDIA_PLAY -> sessionPlayer.play()
 
-                        // Treat STOP as a resumable pause. The app queue and current position are
-                        // intentionally preserved for Bluetooth, headset, and car controls.
                         KeyEvent.KEYCODE_MEDIA_PAUSE,
-                        KeyEvent.KEYCODE_MEDIA_STOP -> player.pause()
+                        KeyEvent.KEYCODE_MEDIA_STOP -> sessionPlayer.pause()
 
                         KeyEvent.KEYCODE_MEDIA_NEXT -> playNext()
                         KeyEvent.KEYCODE_MEDIA_PREVIOUS -> playPrevious()
 
                         KeyEvent.KEYCODE_MEDIA_FAST_FORWARD,
                         KeyEvent.KEYCODE_MEDIA_SKIP_FORWARD ->
-                            seekPlayerBy(player, MEDIA_SEEK_INTERVAL_MS)
+                            seekPlayerBy(sessionPlayer, MEDIA_SEEK_INTERVAL_MS)
 
                         KeyEvent.KEYCODE_MEDIA_REWIND,
                         KeyEvent.KEYCODE_MEDIA_SKIP_BACKWARD ->
-                            seekPlayerBy(player, -MEDIA_SEEK_INTERVAL_MS)
+                            seekPlayerBy(sessionPlayer, -MEDIA_SEEK_INTERVAL_MS)
                     }
                     return true
                 }
@@ -227,7 +225,7 @@ class PlaybackService : MediaSessionService() {
                     session: MediaSession,
                     controller: MediaSession.ControllerInfo,
                     customCommand: SessionCommand,
-                    args: Bundle
+                    args: Bundle,
                 ): ListenableFuture<SessionResult> {
                     return when (customCommand.customAction) {
                         PLAYER_TO_PREV_COMMAND -> {
@@ -269,6 +267,22 @@ class PlaybackService : MediaSessionService() {
                 if (playWhenReady) audioFocusController?.requestFocus()
             }
 
+            override fun onPlayerError(error: PlaybackException) {
+                playerRepository.setIsLoading(false)
+                playerRepository.setIsPlaying(false)
+                AppLogger.error(
+                    DiagnosticLogCategory.Playback,
+                    "PlaybackService",
+                    "Media3 playback failed for mediaId=${player.currentMediaItem?.mediaId.orEmpty()}",
+                    error.toString(),
+                )
+            }
+
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                val trackId = mediaItem?.mediaId?.toLongOrNull() ?: return
+                syncApplicationStateFromMedia3(player, trackId)
+            }
+
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_ENDED) {
                     playerRepository.setIsPlaying(false)
@@ -284,7 +298,7 @@ class PlaybackService : MediaSessionService() {
             override fun onPositionDiscontinuity(
                 oldPosition: Player.PositionInfo,
                 newPosition: Player.PositionInfo,
-                reason: Int
+                reason: Int,
             ) {
                 playerRepository.notifyDurationChanged()
                 dspAudioProcessor?.resetDspState()
@@ -313,17 +327,22 @@ class PlaybackService : MediaSessionService() {
         }
 
         serviceScope.launch(Dispatchers.Main) {
-            playbackController.state.collect {
+            playbackController.state.collect { state ->
+                player.repeatMode = if (state.repeatMode == RepeatMode.One) {
+                    Player.REPEAT_MODE_ONE
+                } else {
+                    Player.REPEAT_MODE_OFF
+                }
                 updateMediaButtonPreferences()
             }
         }
 
         serviceScope.launch(Dispatchers.Main) {
             playerRepository.pauseRequest.collect {
-                val player = _mediaSession?.player ?: return@collect
+                val sessionPlayer = _mediaSession?.player ?: return@collect
 
-                if (player.isCommandAvailable(COMMAND_PLAY_PAUSE)) {
-                    player.pause()
+                if (sessionPlayer.isCommandAvailable(COMMAND_PLAY_PAUSE)) {
+                    sessionPlayer.pause()
                 } else {
                     AppLogger.warn(
                         DiagnosticLogCategory.Playback,
@@ -362,9 +381,6 @@ class PlaybackService : MediaSessionService() {
     override fun onDestroy() {
         super.onDestroy()
         _mediaSession?.player?.stop()
-        runBlocking {
-            releasePlaybackResource()
-        }
         _mediaSession?.player?.release()
         dspAudioProcessor?.close()
         dspAudioProcessor = null
@@ -377,42 +393,76 @@ class PlaybackService : MediaSessionService() {
         serviceScope.cancel()
     }
 
-
     fun play(musicAbstract: MusicAbstract, playlist: Playlist) {
         val player = _mediaSession?.player ?: return
-
         serviceScope.launch {
-            releasePlaybackResource()
             val music = roomLibraryStore.getMusic(musicAbstract.meta.id) ?: return@launch
-            val resource = when (val result = playbackResourceResolver.resolve(music)) {
-                is SourcePlaybackResult.Success -> result.resource
-                is SourcePlaybackResult.Failure -> {
-                    AppLogger.error(
-                        DiagnosticLogCategory.Playback,
-                        "PlaybackService",
-                        "Playback resource resolution failed",
-                        result.reason.toString(),
-                    )
-                    playerRepository.resetCurrent()
-                    return@launch
-                }
-            }
-            playbackResource = resource
+            val window = buildAndroidMediaQueueWindow(
+                playlist = playlist,
+                currentTrackId = music.meta.id.value,
+            ) ?: return@launch
+
             playerRepository.setCurrent(music, playlist)
             updateAudioDsp(currentSettings, music.meta.id.value)
-            playUtil(
-                cx = BuildMediaContext(bridge = bridge, scope = serviceScope),
-                music = music,
-                player = player as ExoPlayer,
-                playbackUri = resource.uri,
-            )
+            player.setMediaItems(window.mediaItems, window.currentIndex, 0L)
+            player.prepare()
+            player.play()
         }
     }
 
-    private suspend fun releasePlaybackResource() {
-        val resource = playbackResource ?: return
-        playbackResource = null
-        playbackResourceResolver.release(resource)
+    private fun syncApplicationStateFromMedia3(player: Player, trackId: Long) {
+        serviceScope.launch {
+            val playlist = playerRepository.playlist.value ?: return@launch
+            if (playlist.musics.none { music -> music.meta.id.value == trackId }) return@launch
+            val music = roomLibraryStore.getMusic(MusicId(trackId)) ?: return@launch
+            if (playerRepository.music.value?.meta?.id?.value != trackId) {
+                playerRepository.setCurrent(music, playlist)
+            }
+            updateAudioDsp(currentSettings, trackId)
+            playerRepository.notifyDurationChanged()
+            recenterMedia3QueueIfNeeded(player, playlist, trackId)
+        }
+    }
+
+    private fun recenterMedia3QueueIfNeeded(
+        player: Player,
+        playlist: Playlist,
+        trackId: Long,
+    ) {
+        val localIndex = player.currentMediaItemIndex
+        val localCount = player.mediaItemCount
+        if (localIndex < 0 || localCount <= 0) return
+        val globalIndex = playlist.musics.indexOfFirst { music -> music.meta.id.value == trackId }
+        if (globalIndex < 0) return
+
+        val hasMoreBefore = globalIndex > 0
+        val hasMoreAfter = globalIndex < playlist.musics.lastIndex
+        val nearStart = localIndex <= MEDIA_QUEUE_RECENTER_THRESHOLD && hasMoreBefore
+        val nearEnd = localIndex >= localCount - 1 - MEDIA_QUEUE_RECENTER_THRESHOLD && hasMoreAfter
+        if (!nearStart && !nearEnd) return
+
+        val window = buildAndroidMediaQueueWindow(
+            playlist = playlist,
+            currentTrackId = trackId,
+        ) ?: return
+        if (
+            window.mediaItems.size == localCount &&
+            window.currentIndex == localIndex &&
+            window.mediaItems.firstOrNull()?.mediaId == player.getMediaItemAt(0).mediaId
+        ) {
+            return
+        }
+
+        val positionMs = player.currentPosition.coerceAtLeast(0L)
+        val shouldPlay = player.playWhenReady
+        player.setMediaItems(window.mediaItems, window.currentIndex, positionMs)
+        player.prepare()
+        if (shouldPlay) player.play() else player.pause()
+        AppLogger.info(
+            DiagnosticLogCategory.Playback,
+            "PlaybackService",
+            "Recentered Media3 queue at globalIndex=$globalIndex size=${window.mediaItems.size}",
+        )
     }
 
     private suspend fun updateAudioDsp(
@@ -448,26 +498,26 @@ class PlaybackService : MediaSessionService() {
     }
 
     private fun playOnComplete() {
-        val m = playerRepository.onCompleteMusic.value
-        val p = playerRepository.playlist.value
-        if (m != null && p != null) {
-            play(m, p)
+        val music = playerRepository.onCompleteMusic.value
+        val playlist = playerRepository.playlist.value
+        if (music != null && playlist != null) {
+            play(music, playlist)
         }
     }
 
     private fun playNext() {
-        val m = playerRepository.nextMusic.value
-        val p = playerRepository.playlist.value
-        if (m != null && p != null) {
-            play(m, p)
+        val music = playerRepository.nextMusic.value
+        val playlist = playerRepository.playlist.value
+        if (music != null && playlist != null) {
+            play(music, playlist)
         }
     }
 
     private fun playPrevious() {
-        val m = playerRepository.previousMusic.value
-        val p = playerRepository.playlist.value
-        if (m != null && p != null) {
-            play(m, p)
+        val music = playerRepository.previousMusic.value
+        val playlist = playerRepository.playlist.value
+        if (music != null && playlist != null) {
+            play(music, playlist)
         }
     }
 
@@ -643,6 +693,7 @@ private class PlaybackAudioFocusController(
 
 private const val DUCK_VOLUME = 0.2f
 private const val MEDIA_SEEK_INTERVAL_MS = 10_000L
+private const val MEDIA_QUEUE_RECENTER_THRESHOLD = 10
 
 private fun Int.isHandledPlaybackMediaKey(): Boolean {
     return when (this) {
