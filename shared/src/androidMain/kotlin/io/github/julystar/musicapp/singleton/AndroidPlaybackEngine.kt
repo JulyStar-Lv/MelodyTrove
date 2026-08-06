@@ -2,10 +2,13 @@ package io.github.julystar.musicapp.singleton
 
 import android.os.Handler
 import android.os.Looper
+import androidx.media3.common.Player
+import androidx.media3.common.Player.COMMAND_CHANGE_MEDIA_ITEMS
 import androidx.media3.common.Player.COMMAND_PLAY_PAUSE
 import androidx.media3.common.Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM
 import androidx.media3.common.Player.COMMAND_STOP
 import androidx.media3.session.MediaController
+import io.github.julystar.musicapp.core.buildAndroidMediaQueueWindow
 import io.github.julystar.musicapp.core.playUtil
 import io.github.julystar.musicapp.core.domain.model.DiagnosticLogCategory
 import io.github.julystar.musicapp.diagnostics.AppLogger
@@ -16,10 +19,23 @@ import io.github.julystar.musicapp.service.playback.domain.PlaybackEngineLoadRes
 import io.github.julystar.musicapp.service.playback.domain.PlaybackEngineUnsupportedReason
 import io.github.julystar.musicapp.service.playback.domain.PlaybackPosition
 import kotlinx.coroutines.CoroutineScope
+import uniffi.app_backend.Playlist
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.atomic.AtomicReference
 
-internal interface AndroidPlaybackEngine : PlaybackEngine
+internal data class AndroidPlaybackQueueLoadRequest(
+    val playlist: Playlist,
+    val currentTrackId: Long,
+    val startPositionMs: Long = 0L,
+)
+
+internal interface AndroidPlaybackEngine : PlaybackEngine {
+    fun loadQueue(request: AndroidPlaybackQueueLoadRequest): PlaybackEngineLoadResult {
+        return PlaybackEngineLoadResult.Unsupported(
+            PlaybackEngineUnsupportedReason.MissingPlatformEngine
+        )
+    }
+}
 
 internal class MediaControllerAndroidPlaybackEngine(
     private val mediaController: MediaController,
@@ -41,6 +57,31 @@ internal class MediaControllerAndroidPlaybackEngine(
                 player = mediaController,
                 playbackUri = resource.uri,
             )
+            PlaybackEngineLoadResult.Ready
+        }
+    }
+
+    override fun loadQueue(request: AndroidPlaybackQueueLoadRequest): PlaybackEngineLoadResult {
+        return runOnApplicationThread {
+            if (!mediaController.isCommandAvailable(COMMAND_CHANGE_MEDIA_ITEMS)) {
+                return@runOnApplicationThread PlaybackEngineLoadResult.Unsupported(
+                    PlaybackEngineUnsupportedReason.MissingPlatformEngine
+                )
+            }
+            val window = buildAndroidMediaQueueWindow(
+                playlist = request.playlist,
+                currentTrackId = request.currentTrackId,
+            ) ?: return@runOnApplicationThread PlaybackEngineLoadResult.Failure(
+                PlaybackEngineFailureReason.EngineError
+            )
+
+            mediaController.setMediaItems(
+                window.mediaItems,
+                window.currentIndex,
+                request.startPositionMs.coerceAtLeast(0L),
+            )
+            mediaController.prepare()
+            mediaController.play()
             PlaybackEngineLoadResult.Ready
         }
     }
