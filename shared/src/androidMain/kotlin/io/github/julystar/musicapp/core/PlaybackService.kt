@@ -21,8 +21,11 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
+import androidx.media3.session.LibraryResult
+import androidx.media3.session.MediaLibraryService
+import androidx.media3.session.MediaLibraryService.LibraryParams
+import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaSession
-import androidx.media3.session.MediaSessionService
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
 import com.google.common.collect.ImmutableList
@@ -65,7 +68,7 @@ const val PLAYER_TO_NEXT_COMMAND = "PLAYER_TO_NEXT_COMMAND"
 const val PLAYER_TOGGLE_FAVORITE_COMMAND = "PLAYER_TOGGLE_FAVORITE_COMMAND"
 const val PLAYER_CYCLE_PLAYBACK_MODE_COMMAND = "PLAYER_CYCLE_PLAYBACK_MODE_COMMAND"
 
-class PlaybackService : MediaSessionService() {
+class PlaybackService : MediaLibraryService() {
     private val playerRepository: PlayerRepository by inject()
     private val playbackController: PlaybackController by inject()
     private val artworkRepository: ArtworkRepository by inject()
@@ -75,7 +78,7 @@ class PlaybackService : MediaSessionService() {
     private val roomLibraryStore: RoomLibraryStore by inject()
     private val playbackResourceResolver: PlaybackResourceResolver by inject()
     private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
-    private var _mediaSession: MediaSession? = null
+    private var _mediaSession: MediaLibrarySession? = null
     private var audioFocusController: PlaybackAudioFocusController? = null
     private var lyricOutputController: AndroidLyricOutputController? = null
     private var dspAudioProcessor: RustDspAudioProcessor? = null
@@ -135,12 +138,18 @@ class PlaybackService : MediaSessionService() {
             .setWakeMode(WAKE_MODE_NETWORK)
             .setMediaSourceFactory(ProgressiveMediaSource.Factory(resolvingDataSourceFactory))
             .build()
+        val sessionPlayer = MelodyTroveSessionPlayer(
+            player = player,
+            onNextBoundary = ::playNext,
+            onPreviousBoundary = ::playPrevious,
+        )
         audioFocusController = PlaybackAudioFocusController(this, player).apply {
             updateMode(AppSettings.Default.audioFocusMode)
         }
-        _mediaSession = MediaSession.Builder(this, player)
-            .setSessionActivity(pendingIntent)
-            .setCallback(object : MediaSession.Callback {
+        _mediaSession = MediaLibrarySession.Builder(
+            this,
+            sessionPlayer,
+            object : MediaLibrarySession.Callback {
                 @OptIn(UnstableApi::class)
                 override fun onConnect(
                     session: MediaSession,
@@ -207,8 +216,8 @@ class PlaybackService : MediaSessionService() {
                         KeyEvent.KEYCODE_MEDIA_PAUSE,
                         KeyEvent.KEYCODE_MEDIA_STOP -> sessionPlayer.pause()
 
-                        KeyEvent.KEYCODE_MEDIA_NEXT -> playNext()
-                        KeyEvent.KEYCODE_MEDIA_PREVIOUS -> playPrevious()
+                        KeyEvent.KEYCODE_MEDIA_NEXT -> sessionPlayer.seekToNextMediaItem()
+                        KeyEvent.KEYCODE_MEDIA_PREVIOUS -> sessionPlayer.seekToPreviousMediaItem()
 
                         KeyEvent.KEYCODE_MEDIA_FAST_FORWARD,
                         KeyEvent.KEYCODE_MEDIA_SKIP_FORWARD ->
@@ -229,11 +238,11 @@ class PlaybackService : MediaSessionService() {
                 ): ListenableFuture<SessionResult> {
                     return when (customCommand.customAction) {
                         PLAYER_TO_PREV_COMMAND -> {
-                            playPrevious()
+                            session.player.seekToPreviousMediaItem()
                             Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
                         }
                         PLAYER_TO_NEXT_COMMAND -> {
-                            playNext()
+                            session.player.seekToNextMediaItem()
                             Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
                         }
                         PLAYER_TOGGLE_FAVORITE_COMMAND -> {
@@ -247,7 +256,89 @@ class PlaybackService : MediaSessionService() {
                         else -> super.onCustomCommand(session, controller, customCommand, args)
                     }
                 }
-            })
+
+                override fun onAddMediaItems(
+                    mediaSession: MediaSession,
+                    controller: MediaSession.ControllerInfo,
+                    mediaItems: List<MediaItem>,
+                ): ListenableFuture<List<MediaItem>> {
+                    val playlist = playerRepository.playlist.value
+                    val hydrated = mediaItems.mapNotNull { item ->
+                        item.takeIf { it.localConfiguration != null }
+                            ?: androidCurrentQueueItem(playlist, item.mediaId)
+                    }
+                    return Futures.immediateFuture(hydrated)
+                }
+
+                override fun onGetLibraryRoot(
+                    session: MediaLibrarySession,
+                    browser: MediaSession.ControllerInfo,
+                    params: LibraryParams?,
+                ): ListenableFuture<LibraryResult<MediaItem>> {
+                    val appName = applicationInfo.loadLabel(packageManager).toString()
+                    return Futures.immediateFuture(
+                        LibraryResult.ofItem(androidLibraryRoot(appName), params)
+                    )
+                }
+
+                override fun onGetItem(
+                    session: MediaLibrarySession,
+                    browser: MediaSession.ControllerInfo,
+                    mediaId: String,
+                ): ListenableFuture<LibraryResult<MediaItem>> {
+                    val playlist = playerRepository.playlist.value
+                    val item = when (mediaId) {
+                        ANDROID_LIBRARY_ROOT_ID -> {
+                            val appName = applicationInfo.loadLabel(packageManager).toString()
+                            androidLibraryRoot(appName)
+                        }
+                        ANDROID_LIBRARY_CURRENT_QUEUE_ID -> androidCurrentQueueFolder(playlist)
+                        else -> androidCurrentQueueItem(playlist, mediaId)
+                    }
+                    return Futures.immediateFuture(
+                        if (item != null) {
+                            LibraryResult.ofItem(item, null)
+                        } else {
+                            LibraryResult.ofError(LibraryResult.RESULT_ERROR_BAD_VALUE)
+                        }
+                    )
+                }
+
+                override fun onGetChildren(
+                    session: MediaLibrarySession,
+                    browser: MediaSession.ControllerInfo,
+                    parentId: String,
+                    page: Int,
+                    pageSize: Int,
+                    params: LibraryParams?,
+                ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+                    val playlist = playerRepository.playlist.value
+                    val children = when (parentId) {
+                        ANDROID_LIBRARY_ROOT_ID -> listOf(androidCurrentQueueFolder(playlist))
+                        ANDROID_LIBRARY_CURRENT_QUEUE_ID ->
+                            androidCurrentQueueItems(playlist, page, pageSize)
+                        else -> {
+                            return Futures.immediateFuture(
+                                LibraryResult.ofError(LibraryResult.RESULT_ERROR_BAD_VALUE)
+                            )
+                        }
+                    }
+                    return Futures.immediateFuture(
+                        LibraryResult.ofItemList(children, params)
+                    )
+                }
+
+                override fun onSubscribe(
+                    session: MediaLibrarySession,
+                    browser: MediaSession.ControllerInfo,
+                    parentId: String,
+                    params: LibraryParams?,
+                ): ListenableFuture<LibraryResult<Void>> {
+                    return Futures.immediateFuture(LibraryResult.ofVoid(params))
+                }
+            },
+        )
+            .setSessionActivity(pendingIntent)
             .build()
         lyricOutputController = AndroidLyricOutputController(
             context = this,
@@ -338,6 +429,21 @@ class PlaybackService : MediaSessionService() {
         }
 
         serviceScope.launch(Dispatchers.Main) {
+            playerRepository.playlist.collect { playlist ->
+                _mediaSession?.notifyChildrenChanged(
+                    ANDROID_LIBRARY_ROOT_ID,
+                    1,
+                    null,
+                )
+                _mediaSession?.notifyChildrenChanged(
+                    ANDROID_LIBRARY_CURRENT_QUEUE_ID,
+                    playlist?.musics?.size ?: 0,
+                    null,
+                )
+            }
+        }
+
+        serviceScope.launch(Dispatchers.Main) {
             playerRepository.pauseRequest.collect {
                 val sessionPlayer = _mediaSession?.player ?: return@collect
 
@@ -374,7 +480,7 @@ class PlaybackService : MediaSessionService() {
         }
     }
 
-    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? {
+    override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? {
         return _mediaSession
     }
 
