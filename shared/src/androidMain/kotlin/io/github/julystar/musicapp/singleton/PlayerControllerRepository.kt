@@ -7,6 +7,7 @@ import io.github.julystar.musicapp.service.playback.data.PlayerRepository
 import io.github.julystar.musicapp.service.playback.domain.SleepModeState
 import io.github.julystar.musicapp.core.data.ToastRepositoryImpl
 
+import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
@@ -15,6 +16,7 @@ import io.github.julystar.musicapp.service.playback.data.PlaybackPreparationResu
 import io.github.julystar.musicapp.service.playback.data.preparePlayback
 import io.github.julystar.musicapp.core.domain.repository.SettingsRepository
 import io.github.julystar.musicapp.core.domain.repository.NetworkStatusProvider
+import io.github.julystar.musicapp.service.playback.domain.PlaybackEngineLoadResult
 import io.github.julystar.musicapp.source.api.PlaybackResource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -181,10 +183,32 @@ class PlayerControllerRepository internal constructor(
         mediaController.addListener(object : Player.Listener {
             override fun onPlayerError(error: PlaybackException) {
                 super.onPlayerError(error)
-
+                val trackId = mediaController.currentMediaItem?.mediaId?.toLongOrNull()
+                val playlistId = _playlist.value?.abstr?.meta?.id
+                if (trackId != null && playlistId != null) {
+                    pendingNetworkRecovery = MusicId(trackId) to playlistId
+                }
+                playerState.setIsLoading(false)
+                playerState.setIsPlaying(false)
                 _scope.launch {
                     toastRepository.emitToast(error.toString())
                 }
+            }
+
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                playerState.setIsPlaying(isPlaying)
+            }
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                playerState.setIsLoading(playbackState == Player.STATE_BUFFERING)
+                if (playbackState == Player.STATE_READY) {
+                    playerState.notifyDurationChanged()
+                }
+            }
+
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                val trackId = mediaItem?.mediaId?.toLongOrNull() ?: return
+                syncCurrentMediaItem(trackId)
             }
         })
         _scope.launch {
@@ -250,21 +274,42 @@ class PlayerControllerRepository internal constructor(
                 }
 
                 when (
-                    val preparation = preparePlayback(
-                        music = music,
-                        playlistId = playlist.abstr.meta.id.value,
-                        playbackResourceResolver = playbackResourceResolver,
-                        playbackEngine = engine,
-                        settingsRepository = settingsRepository,
-                        networkStatusProvider = networkStatusProvider,
+                    val queueLoad = engine.loadQueue(
+                        AndroidPlaybackQueueLoadRequest(
+                            playlist = playlist,
+                            currentTrackId = id.value,
+                        )
                     )
                 ) {
-                    is PlaybackPreparationResult.Ready -> {
-                        playbackResource = preparation.resource
+                    PlaybackEngineLoadResult.Ready -> {
+                        playbackResource = null
                         pendingNetworkRecovery = null
                     }
-                    PlaybackPreparationResult.NetworkBlocked,
-                    PlaybackPreparationResult.Failed -> {
+                    is PlaybackEngineLoadResult.Unsupported -> {
+                        when (
+                            val preparation = preparePlayback(
+                                music = music,
+                                playlistId = playlist.abstr.meta.id.value,
+                                playbackResourceResolver = playbackResourceResolver,
+                                playbackEngine = engine,
+                                settingsRepository = settingsRepository,
+                                networkStatusProvider = networkStatusProvider,
+                            )
+                        ) {
+                            is PlaybackPreparationResult.Ready -> {
+                                playbackResource = preparation.resource
+                                pendingNetworkRecovery = null
+                            }
+                            PlaybackPreparationResult.NetworkBlocked,
+                            PlaybackPreparationResult.Failed -> {
+                                pendingNetworkRecovery = id to playlistId
+                                toastRepository.emitToast("Unable to open audio stream")
+                                playerState.resetCurrent()
+                                return@launch
+                            }
+                        }
+                    }
+                    is PlaybackEngineLoadResult.Failure -> {
                         pendingNetworkRecovery = id to playlistId
                         toastRepository.emitToast("Unable to open audio stream")
                         playerState.resetCurrent()
@@ -326,6 +371,18 @@ class PlayerControllerRepository internal constructor(
         playbackResource = null
         _scope.launch {
             playbackResourceResolver.release(resource)
+        }
+    }
+
+    private fun syncCurrentMediaItem(trackId: Long) {
+        _scope.launch(mainDispatcher) {
+            val playlist = _playlist.value ?: return@launch
+            if (playlist.musics.none { music -> music.meta.id.value == trackId }) return@launch
+            val music = playbackLibrary.getMusic(MusicId(trackId)) ?: return@launch
+            releasePlaybackResource()
+            playerState.setCurrent(music, playlist)
+            playerState.setIsPlaying(_mediaController?.isPlaying == true)
+            playerState.notifyDurationChanged()
         }
     }
 

@@ -307,7 +307,9 @@ private final class AppDelegate: NSObject, UIApplicationDelegate {
                 object: session,
                 queue: .main
             ) { [weak self] notification in
-                self?.handleAudioSessionInterruption(notification)
+                Task { @MainActor [weak self] in
+                    self?.handleAudioSessionInterruption(notification)
+                }
             }
         )
         audioSessionObservers.append(
@@ -316,7 +318,9 @@ private final class AppDelegate: NSObject, UIApplicationDelegate {
                 object: session,
                 queue: .main
             ) { [weak self] notification in
-                self?.handleAudioRouteChange(notification)
+                Task { @MainActor [weak self] in
+                    self?.handleAudioRouteChange(notification)
+                }
             }
         )
         audioSessionObservers.append(
@@ -325,8 +329,10 @@ private final class AppDelegate: NSObject, UIApplicationDelegate {
                 object: session,
                 queue: .main
             ) { [weak self] _ in
-                self?.configureAudioSession()
-                self?.nowPlaying.sync()
+                Task { @MainActor [weak self] in
+                    self?.configureAudioSession()
+                    self?.nowPlaying.sync()
+                }
             }
         )
     }
