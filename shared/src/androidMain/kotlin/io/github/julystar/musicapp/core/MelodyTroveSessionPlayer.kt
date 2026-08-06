@@ -6,46 +6,36 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 
 /**
- * Gives every Media3 controller the same queue semantics as MelodyTrove's in-app controls.
+ * Gives every Media3 controller the same command semantics as MelodyTrove's in-app controls.
  *
- * The native queue handles adjacent items directly. Boundary callbacks bridge back to the full
- * application queue when the bounded Media3 window cannot satisfy a command. STOP remains a
- * resumable pause, matching the explicit headset/Bluetooth key behavior.
+ * Automatic transitions still use the native Media3 timeline. Explicit next/previous commands are
+ * delegated to the application controller so true-random shuffle, requested-next ordering, repeat
+ * policy, and queue-boundary behavior remain identical across the UI, headset, Bluetooth, Wear OS,
+ * and Android Auto. STOP remains a resumable pause for external controllers.
  */
 @OptIn(UnstableApi::class)
 internal class MelodyTroveSessionPlayer(
     player: Player,
-    private val onNextBoundary: () -> Unit,
-    private val onPreviousBoundary: () -> Unit,
+    private val onNextCommand: () -> Unit,
+    private val onPreviousCommand: () -> Unit,
 ) : ForwardingPlayer(player) {
     override fun stop() {
         pause()
     }
 
     override fun seekToNextMediaItem() {
-        seekAdjacentOrBoundary(offset = 1, onBoundary = onNextBoundary)
+        onNextCommand()
     }
 
     override fun seekToNext() {
-        seekAdjacentOrBoundary(offset = 1, onBoundary = onNextBoundary)
+        onNextCommand()
     }
 
     override fun seekToPreviousMediaItem() {
-        seekAdjacentOrBoundary(offset = -1, onBoundary = onPreviousBoundary)
+        onPreviousCommand()
     }
 
     override fun seekToPrevious() {
-        seekAdjacentOrBoundary(offset = -1, onBoundary = onPreviousBoundary)
-    }
-
-    private fun seekAdjacentOrBoundary(offset: Int, onBoundary: () -> Unit) {
-        val index = currentMediaItemIndex
-        val target = index + offset
-        if (mediaItemCount > 0 && index in 0 until mediaItemCount && target in 0 until mediaItemCount) {
-            seekToDefaultPosition(target)
-            play()
-        } else {
-            onBoundary()
-        }
+        onPreviousCommand()
     }
 }
