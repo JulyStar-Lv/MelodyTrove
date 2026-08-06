@@ -7,7 +7,6 @@ import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.TransferListener
 import io.github.julystar.musicapp.core.domain.model.AppSettings
-import io.github.julystar.musicapp.core.domain.model.NetworkStatus
 import io.github.julystar.musicapp.core.domain.repository.NetworkStatusProvider
 import io.github.julystar.musicapp.core.domain.repository.SettingsRepository
 import io.github.julystar.musicapp.service.playback.data.PlaybackResourceResolver
@@ -164,12 +163,12 @@ private class AndroidPlaybackDataSource(
         val network = networkStatusProvider.status.value
         if (!network.isOnline || (network.isMetered && !settings.allowMeteredNetworkUsage)) {
             playbackResourceResolver.release(resource)
-            throw IOException(
-                when (network) {
-                    NetworkStatus.Offline -> "Network is offline"
-                    else -> "Playback is blocked by the metered-network setting"
-                }
-            )
+            val message = if (!network.isOnline) {
+                "Network is offline"
+            } else {
+                "Playback is blocked by the metered-network setting"
+            }
+            throw IOException(message)
         }
     }
 
