@@ -176,6 +176,30 @@ class PlayerControllerRepositoryTest {
         awaitUntil { harness.playerState.music.value?.meta?.id?.value == TRACK_ID }
     }
 
+    @Test
+    fun nativeQueueTransitionDoesNotStopTheActivePlayer() = withHarness(
+        sourceResult = SourcePlaybackResult.Success(TEST_RESOURCE),
+        engine = RecordingAndroidPlaybackEngine(
+            loadResult = PlaybackEngineLoadResult.Ready,
+            queueLoadResult = PlaybackEngineLoadResult.Ready,
+        ),
+    ) { harness ->
+        harness.playerState.setCurrent(
+            music = music(id = PREVIOUS_TRACK_ID, title = "Previous"),
+            playlist = playlist(
+                id = PLAYLIST_ID,
+                musics = listOf(musicAbstract(id = TRACK_ID, title = TRACK_TITLE)),
+            ),
+        )
+
+        harness.controller.play(MusicId(TRACK_ID), PlaylistId(PLAYLIST_ID))
+
+        awaitUntil { harness.playerState.music.value?.meta?.id?.value == TRACK_ID }
+
+        assertEquals(0, harness.engine.stopCalls)
+        assertEquals(1, harness.engine.queueLoadCalls)
+    }
+
     private fun withHarness(
         sourceResult: SourcePlaybackResult,
         engine: RecordingAndroidPlaybackEngine,
@@ -392,6 +416,7 @@ private class FakeAndroidPlaybackLibrary(
 
 private class RecordingAndroidPlaybackEngine(
     private val loadResult: PlaybackEngineLoadResult,
+    private val queueLoadResult: PlaybackEngineLoadResult = PlaybackEngineLoadResult.Unsupported(),
 ) : AndroidPlaybackEngine {
     val loadedRequests = mutableListOf<PlaybackEngineLoadRequest>()
     val seekCalls = mutableListOf<Long>()
@@ -403,10 +428,17 @@ private class RecordingAndroidPlaybackEngine(
         private set
     var releaseCalls = 0
         private set
+    var queueLoadCalls = 0
+        private set
 
     override fun load(request: PlaybackEngineLoadRequest): PlaybackEngineLoadResult {
         loadedRequests += request
         return loadResult
+    }
+
+    override fun loadQueue(request: AndroidPlaybackQueueLoadRequest): PlaybackEngineLoadResult {
+        queueLoadCalls += 1
+        return queueLoadResult
     }
 
     override fun play() {

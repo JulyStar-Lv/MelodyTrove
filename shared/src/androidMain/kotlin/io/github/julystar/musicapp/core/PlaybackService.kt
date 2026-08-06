@@ -530,6 +530,7 @@ class PlaybackService : MediaLibraryService() {
             val playlist = playerRepository.playlist.value ?: return@launch
             if (playlist.musics.none { music -> music.meta.id.value == trackId }) return@launch
             val music = roomLibraryStore.getMusic(MusicId(trackId)) ?: return@launch
+            if (player.currentMediaItem?.mediaId != trackId.toString()) return@launch
             if (playerRepository.music.value?.meta?.id?.value != trackId) {
                 playerRepository.setCurrent(music, playlist)
             }

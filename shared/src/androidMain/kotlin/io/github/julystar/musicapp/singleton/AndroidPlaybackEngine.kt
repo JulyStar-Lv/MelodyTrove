@@ -6,6 +6,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.Player.COMMAND_CHANGE_MEDIA_ITEMS
 import androidx.media3.common.Player.COMMAND_PLAY_PAUSE
 import androidx.media3.common.Player.COMMAND_SEEK_IN_CURRENT_MEDIA_ITEM
+import androidx.media3.common.Player.COMMAND_SEEK_TO_MEDIA_ITEM
 import androidx.media3.common.Player.COMMAND_STOP
 import androidx.media3.session.MediaController
 import io.github.julystar.musicapp.core.buildAndroidMediaQueueWindow
@@ -63,6 +64,18 @@ internal class MediaControllerAndroidPlaybackEngine(
 
     override fun loadQueue(request: AndroidPlaybackQueueLoadRequest): PlaybackEngineLoadResult {
         return runOnApplicationThread {
+            val existingIndex = (0 until mediaController.mediaItemCount).firstOrNull { index ->
+                mediaController.getMediaItemAt(index).mediaId == request.currentTrackId.toString()
+            }
+            if (
+                existingIndex != null &&
+                mediaController.isCommandAvailable(COMMAND_SEEK_TO_MEDIA_ITEM)
+            ) {
+                mediaController.seekTo(existingIndex, request.startPositionMs.coerceAtLeast(0L))
+                mediaController.play()
+                return@runOnApplicationThread PlaybackEngineLoadResult.Ready
+            }
+
             if (!mediaController.isCommandAvailable(COMMAND_CHANGE_MEDIA_ITEMS)) {
                 return@runOnApplicationThread PlaybackEngineLoadResult.Unsupported(
                     PlaybackEngineUnsupportedReason.MissingPlatformEngine

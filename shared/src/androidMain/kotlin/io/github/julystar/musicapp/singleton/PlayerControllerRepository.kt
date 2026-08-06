@@ -260,7 +260,6 @@ class PlayerControllerRepository internal constructor(
                 val queuedPlaylist = _playlist.value?.takeIf { queue ->
                     queue.abstr.meta.id == playlistId && queue.musics.any { it.meta.id == id }
                 }
-                stopForPlayback(engine)
 
                 val music = playbackLibrary.getMusic(id)
                 val playlist = queuedPlaylist ?: playbackLibrary.getPlaylist(playlistId)
@@ -272,6 +271,7 @@ class PlayerControllerRepository internal constructor(
                     playerState.resetCurrent()
                     return@launch
                 }
+                releasePlaybackResource()
 
                 when (
                     val queueLoad = engine.loadQueue(
@@ -354,12 +354,6 @@ class PlayerControllerRepository internal constructor(
         playerState.resetCurrent()
     }
 
-    private suspend fun stopForPlayback(engine: AndroidPlaybackEngine) {
-        engine.stop()
-        releasePlaybackResource()
-        playerState.setIsPlaying(false)
-    }
-
     private suspend fun releasePlaybackResource() {
         val resource = playbackResource ?: return
         playbackResource = null
@@ -379,6 +373,7 @@ class PlayerControllerRepository internal constructor(
             val playlist = _playlist.value ?: return@launch
             if (playlist.musics.none { music -> music.meta.id.value == trackId }) return@launch
             val music = playbackLibrary.getMusic(MusicId(trackId)) ?: return@launch
+            if (_mediaController?.currentMediaItem?.mediaId != trackId.toString()) return@launch
             releasePlaybackResource()
             playerState.setCurrent(music, playlist)
             playerState.setIsPlaying(_mediaController?.isPlaying == true)
