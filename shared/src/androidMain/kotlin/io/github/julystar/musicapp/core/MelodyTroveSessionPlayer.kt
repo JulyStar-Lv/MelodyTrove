@@ -16,26 +16,26 @@ import androidx.media3.common.util.UnstableApi
 @OptIn(UnstableApi::class)
 internal class MelodyTroveSessionPlayer(
     player: Player,
-    private val onNextCommand: () -> Unit,
-    private val onPreviousCommand: () -> Unit,
+    private val onNextBoundary: () -> Unit,
+    private val onPreviousBoundary: () -> Unit,
 ) : ForwardingPlayer(player) {
     override fun stop() {
         pause()
     }
 
     override fun seekToNextMediaItem() {
-        onNextCommand()
+        onNextBoundary()
     }
 
     override fun seekToNext() {
-        onNextCommand()
+        onNextBoundary()
     }
 
     override fun seekToPreviousMediaItem() {
-        onPreviousCommand()
+        onPreviousBoundary()
     }
 
     override fun seekToPrevious() {
-        onPreviousCommand()
+        onPreviousBoundary()
     }
 }
