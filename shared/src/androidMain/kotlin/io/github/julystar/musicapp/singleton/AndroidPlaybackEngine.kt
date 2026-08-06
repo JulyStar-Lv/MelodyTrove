@@ -117,7 +117,12 @@ internal class MediaControllerAndroidPlaybackEngine(
     override fun stop() {
         runOnApplicationThread {
             if (mediaController.isCommandAvailable(COMMAND_STOP)) {
+                // The session wrapper intentionally maps controller STOP to a resumable pause.
+                // Internal app stop is destructive, so clear the timeline after issuing STOP.
                 mediaController.stop()
+                if (mediaController.isCommandAvailable(COMMAND_CHANGE_MEDIA_ITEMS)) {
+                    mediaController.clearMediaItems()
+                }
             } else {
                 AppLogger.warn(
                     DiagnosticLogCategory.Playback,
