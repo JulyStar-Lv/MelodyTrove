@@ -440,6 +440,15 @@ class PlaybackService : MediaLibraryService() {
                     playlist?.musics?.size ?: 0,
                     null,
                 )
+
+                val currentTrackId = playerRepository.music.value?.meta?.id?.value
+                if (
+                    playlist != null &&
+                    currentTrackId != null &&
+                    player.currentMediaItem?.mediaId == currentTrackId.toString()
+                ) {
+                    synchronizeMedia3QueueWithPlaylist(player, playlist, currentTrackId)
+                }
             }
         }
 
@@ -571,6 +580,35 @@ class PlaybackService : MediaLibraryService() {
         )
     }
 
+    private fun synchronizeMedia3QueueWithPlaylist(
+        player: Player,
+        playlist: Playlist,
+        trackId: Long,
+    ) {
+        val window = buildAndroidMediaQueueWindow(
+            playlist = playlist,
+            currentTrackId = trackId,
+        ) ?: return
+        val alreadyMatches =
+            player.mediaItemCount == window.mediaItems.size &&
+                player.currentMediaItemIndex == window.currentIndex &&
+                window.mediaItems.indices.all { index ->
+                    player.getMediaItemAt(index).mediaId == window.mediaItems[index].mediaId
+                }
+        if (alreadyMatches) return
+
+        val positionMs = player.currentPosition.coerceAtLeast(0L)
+        val shouldPlay = player.playWhenReady
+        player.setMediaItems(window.mediaItems, window.currentIndex, positionMs)
+        player.prepare()
+        if (shouldPlay) player.play() else player.pause()
+        AppLogger.info(
+            DiagnosticLogCategory.Playback,
+            "PlaybackService",
+            "Synchronized Media3 queue after application queue change size=${window.mediaItems.size}",
+        )
+    }
+
     private suspend fun updateAudioDsp(
         settings: AppSettings,
         trackId: Long? = playerRepository.music.value?.meta?.id?.value,
@@ -612,19 +650,11 @@ class PlaybackService : MediaLibraryService() {
     }
 
     private fun playNext() {
-        val music = playerRepository.nextMusic.value
-        val playlist = playerRepository.playlist.value
-        if (music != null && playlist != null) {
-            play(music, playlist)
-        }
+        playbackController.skipNext()
     }
 
     private fun playPrevious() {
-        val music = playerRepository.previousMusic.value
-        val playlist = playerRepository.playlist.value
-        if (music != null && playlist != null) {
-            play(music, playlist)
-        }
+        playbackController.skipPrevious()
     }
 
     private fun seekPlayerBy(player: Player, deltaMs: Long) {
