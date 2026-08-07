@@ -117,14 +117,18 @@ fun LyricsView(
         (currentIndex - contextLinesBeforeActive.coerceAtLeast(0)).coerceAtLeast(0)
     }
     var displayedIndex by remember(lyrics.lines) { mutableIntStateOf(-1) }
-    val perspectiveCameraDistance = with(LocalDensity.current) { 18.dp.toPx() }
+    val density = LocalDensity.current
+    val perspectiveCameraDistance = with(density) { 18.dp.toPx() }
+    val scrollTopInsetPx = with(density) {
+        if (contextLinesBeforeActive > 0) 12.dp.roundToPx() else 0
+    }
 
-    LaunchedEffect(currentIndex, scrollTargetIndex, lyrics.lines.size) {
+    LaunchedEffect(currentIndex, scrollTargetIndex, scrollTopInsetPx, lyrics.lines.size) {
         if (lyrics.lines.isNotEmpty()) {
             if (shouldSnapLyricsScroll(displayedIndex, currentIndex)) {
-                listState.scrollToItem(scrollTargetIndex)
+                listState.scrollToItem(scrollTargetIndex, scrollOffset = -scrollTopInsetPx)
             } else {
-                listState.animateScrollToItem(scrollTargetIndex)
+                listState.animateScrollToItem(scrollTargetIndex, scrollOffset = -scrollTopInsetPx)
             }
             displayedIndex = currentIndex
         }
