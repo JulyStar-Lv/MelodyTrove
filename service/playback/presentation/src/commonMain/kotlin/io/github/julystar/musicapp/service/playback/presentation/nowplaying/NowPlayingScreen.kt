@@ -663,6 +663,7 @@ private fun CompactTransportPanel(
                 onAction(if (controls.isPlaying) NowPlayingAction.Pause else NowPlayingAction.Resume)
             },
             iconOffsetX = if (controls.isPlaying) 0.dp else 3.dp,
+            showShadow = !dense,
             modifier = Modifier.weight(1f),
         )
         CompactTransportButton(
@@ -699,6 +700,7 @@ private fun CompactTransportButton(
     background: Color = Color.Transparent,
     enabled: Boolean = true,
     iconOffsetX: Dp = 0.dp,
+    showShadow: Boolean = true,
 ) {
     Box(
         modifier = modifier.fillMaxHeight(),
@@ -709,7 +711,7 @@ private fun CompactTransportButton(
                 .sizeIn(maxWidth = buttonSize, maxHeight = buttonSize)
                 .aspectRatio(1f)
                 .then(
-                    if (background.alpha > 0f) {
+                    if (showShadow && background.alpha > 0f) {
                         Modifier.shadow(
                             elevation = 12.dp,
                             shape = CircleShape,
