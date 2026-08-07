@@ -1369,6 +1369,7 @@ private fun CompactLandscapeNowPlayingLayout(
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
                                 .fillMaxWidth()
+                                .background(Color(0xFF08060E))
                                 .onSizeChanged { controlsHeightPx = it.height },
                         ) {
                             Box(modifier = Modifier.offset(y = (-8).dp)) {
