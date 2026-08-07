@@ -34,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -43,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.RoundRect
@@ -51,10 +53,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -96,8 +99,8 @@ import io.github.julystar.musicapp.service.playback.presentation.transition.play
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlin.time.Duration.Companion.milliseconds
 import kotlin.math.abs
+import kotlin.time.Duration.Companion.milliseconds
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -155,27 +158,6 @@ private val DesktopPlayerBreakpoint = 860.dp
 private const val NowPlayingDismissDistanceFraction = 0.5f
 private val NowPlayingDismissVelocityThreshold = 900.dp
 private const val LandscapeControlsAutoHideDelayMs = 5_000L
-
-@Composable
-private fun KeepLayoutVisibility(
-    visible: Boolean,
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit,
-) {
-    Layout(
-        content = content,
-        modifier = modifier,
-    ) { measurables, constraints ->
-        val placeable = measurables.singleOrNull()?.measure(constraints)
-        val width = placeable?.width ?: constraints.minWidth
-        val height = placeable?.height ?: constraints.minHeight
-        layout(width, height) {
-            if (visible) {
-                placeable?.placeRelative(0, 0)
-            }
-        }
-    }
-}
 
 @Composable
 private fun NowPlayingDismissGestureArea(
@@ -1107,7 +1089,6 @@ private fun CompactLyricsSurface(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
             .then(
                 if (onSurfaceClick != null) Modifier.clickable(onClick = onSurfaceClick) else Modifier,
             ),
@@ -1287,6 +1268,7 @@ private fun CompactLandscapeNowPlayingLayout(
 ) {
     val track = state.currentTrack
     var controlsVisible by remember { mutableStateOf(true) }
+    var controlsHeightPx by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(state.controls.isPlaying, controlsVisible) {
         if (state.controls.isPlaying && controlsVisible) {
@@ -1367,13 +1349,27 @@ private fun CompactLandscapeNowPlayingLayout(
                         dense = true,
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(top = 8.dp, bottom = 12.dp),
+                            .padding(top = 8.dp, bottom = 12.dp)
+                            .drawWithContent {
+                                val drawLyrics = { drawContent() }
+                                if (controlsVisible && controlsHeightPx > 0) {
+                                    val controlsTop = (
+                                        size.height - controlsHeightPx.toFloat() - 8.dp.toPx()
+                                    ).coerceAtLeast(0f)
+                                    clipRect(bottom = controlsTop) {
+                                        drawLyrics()
+                                    }
+                                } else {
+                                    drawLyrics()
+                                }
+                            },
                     )
                     if (controlsVisible) {
                         Column(
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
-                                .fillMaxWidth(),
+                                .fillMaxWidth()
+                                .onSizeChanged { controlsHeightPx = it.height },
                         ) {
                             Box(modifier = Modifier.offset(y = (-8).dp)) {
                                 progressContent(track?.durationMs)
