@@ -1509,6 +1509,13 @@ fun NowPlayingScreen(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .statusBarsPadding()
+                        .then(
+                            if (maxWidth >= 640.dp && maxWidth > maxHeight && maxHeight < 520.dp) {
+                                Modifier.width(160.dp)
+                            } else {
+                                Modifier.fillMaxWidth()
+                            },
+                        )
                         .draggable(
                             state = indicatorDraggableState,
                             orientation = Orientation.Vertical,
