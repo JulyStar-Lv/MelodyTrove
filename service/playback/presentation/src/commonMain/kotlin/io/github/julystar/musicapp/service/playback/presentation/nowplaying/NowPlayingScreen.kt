@@ -54,6 +54,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -154,6 +155,27 @@ private val DesktopPlayerBreakpoint = 860.dp
 private const val NowPlayingDismissDistanceFraction = 0.5f
 private val NowPlayingDismissVelocityThreshold = 900.dp
 private const val LandscapeControlsAutoHideDelayMs = 5_000L
+
+@Composable
+private fun KeepLayoutVisibility(
+    visible: Boolean,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    Layout(
+        content = content,
+        modifier = modifier,
+    ) { measurables, constraints ->
+        val placeable = measurables.singleOrNull()?.measure(constraints)
+        val width = placeable?.width ?: constraints.minWidth
+        val height = placeable?.height ?: constraints.minHeight
+        layout(width, height) {
+            if (visible) {
+                placeable?.placeRelative(0, 0)
+            }
+        }
+    }
+}
 
 @Composable
 private fun NowPlayingDismissGestureArea(
@@ -771,7 +793,6 @@ private fun DesktopNowPlayingLayout(
             .padding(start = 34.dp, end = 28.dp, bottom = 26.dp),
         horizontalArrangement = Arrangement.spacedBy(34.dp),
     ) {
-        // Left: artwork + metadata + progress + transport
         Column(
             modifier = Modifier
                 .weight(0.46f)
@@ -814,7 +835,6 @@ private fun DesktopNowPlayingLayout(
             Spacer(modifier = Modifier.height(12.dp))
         }
 
-        // Right: lyrics
         LyricsSurface(
             track = track,
             lyricDisplaySettings = lyricDisplaySettings,
@@ -1375,20 +1395,22 @@ private fun CompactLandscapeNowPlayingLayout(
                     dense = true,
                     modifier = Modifier
                         .weight(1f)
-                        .padding(
-                            top = 8.dp,
-                            bottom = if (controlsVisible) 12.dp else 0.dp,
-                        ),
+                        .padding(top = 8.dp, bottom = 12.dp),
                 )
-                if (controlsVisible) {
-                    Box(modifier = Modifier.offset(y = (-8).dp)) {
-                        progressContent(track?.durationMs)
+                KeepLayoutVisibility(
+                    visible = controlsVisible,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Box(modifier = Modifier.offset(y = (-8).dp)) {
+                            progressContent(track?.durationMs)
+                        }
+                        CompactTransportPanel(
+                            nowPlayingState = state,
+                            onAction = onAction,
+                            dense = true,
+                        )
                     }
-                    CompactTransportPanel(
-                        nowPlayingState = state,
-                        onAction = onAction,
-                        dense = true,
-                    )
                 }
             }
         }
