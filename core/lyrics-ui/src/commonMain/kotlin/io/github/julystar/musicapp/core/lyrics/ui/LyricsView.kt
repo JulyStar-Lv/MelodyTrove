@@ -101,6 +101,7 @@ fun LyricsView(
     verticalContentPaddingFraction: Float = 0.34f,
     lineHorizontalPadding: Dp = 20.dp,
     lineVerticalPadding: Dp = 6.dp,
+    contextLinesBeforeActive: Int = 0,
 ) {
     val listState = rememberLazyListState()
     val renderPositionProvider = rememberInterpolatedPlaybackPositionProvider(
@@ -112,15 +113,18 @@ fun LyricsView(
             .coerceAtLeast(0)
             .coerceAtMost((lyrics.lines.size - 1).coerceAtLeast(0))
     }
+    val scrollTargetIndex = remember(currentIndex, contextLinesBeforeActive) {
+        (currentIndex - contextLinesBeforeActive.coerceAtLeast(0)).coerceAtLeast(0)
+    }
     var displayedIndex by remember(lyrics.lines) { mutableIntStateOf(-1) }
     val perspectiveCameraDistance = with(LocalDensity.current) { 18.dp.toPx() }
 
-    LaunchedEffect(currentIndex, lyrics.lines.size) {
+    LaunchedEffect(currentIndex, scrollTargetIndex, lyrics.lines.size) {
         if (lyrics.lines.isNotEmpty()) {
             if (shouldSnapLyricsScroll(displayedIndex, currentIndex)) {
-                listState.scrollToItem(currentIndex)
+                listState.scrollToItem(scrollTargetIndex)
             } else {
-                listState.animateScrollToItem(currentIndex)
+                listState.animateScrollToItem(scrollTargetIndex)
             }
             displayedIndex = currentIndex
         }
