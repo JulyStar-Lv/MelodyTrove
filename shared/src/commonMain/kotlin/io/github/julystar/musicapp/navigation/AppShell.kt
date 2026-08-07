@@ -12,18 +12,23 @@ import top.yukonga.miuix.kmp.basic.Scaffold
 
 @Composable
 internal fun AppShell(
+    immersiveContent: Boolean = false,
     content: @Composable (PaddingValues) -> Unit,
 ) {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
     ) { scaffoldPadding ->
         Box(
-            modifier = Modifier
-                .padding(
-                    start = scaffoldPadding.calculateLeftPadding(LayoutDirection.Ltr),
-                    end = scaffoldPadding.calculateRightPadding(LayoutDirection.Ltr),
-                )
-                .fillMaxSize(),
+            modifier = if (immersiveContent) {
+                Modifier.fillMaxSize()
+            } else {
+                Modifier
+                    .padding(
+                        start = scaffoldPadding.calculateLeftPadding(LayoutDirection.Ltr),
+                        end = scaffoldPadding.calculateRightPadding(LayoutDirection.Ltr),
+                    )
+                    .fillMaxSize()
+            },
         ) {
             content(scaffoldPadding)
             ToastFrame()
