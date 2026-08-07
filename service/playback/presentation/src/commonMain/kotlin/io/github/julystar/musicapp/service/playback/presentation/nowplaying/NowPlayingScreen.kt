@@ -188,8 +188,6 @@ private fun NowPlayingDismissGestureArea(
     )
 }
 
-// ── Player Header ──
-
 @Composable
 private fun MusicPlayerHeader(
     onAction: (NowPlayingAction) -> Unit,
@@ -332,8 +330,6 @@ private fun NowPlayingMoreButton(
     }
 }
 
-// ── Progress Slider ──
-
 @Composable
 private fun MusicSlider(
     currentDuration: String,
@@ -402,13 +398,7 @@ private fun MusicSlider(
             horizontalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(
-                    top = if (immersive) {
-                        if (compact) 2.dp else 4.dp
-                    } else {
-                        0.dp
-                    },
-                ),
+                .padding(top = if (immersive) if (compact) 2.dp else 4.dp else 0.dp),
         ) {
             val durationStyle = if (immersive) {
                 TextStyle(
@@ -437,8 +427,6 @@ private fun MusicSlider(
         }
     }
 }
-
-// ── Cover Image ──
 
 @Composable
 private fun CoverImage(
@@ -543,8 +531,6 @@ private data class PlayerArtworkShape(
 }
 
 private val CompactArtworkTransitionSize = 44.dp
-
-// ── Track Information ──
 
 @Composable
 private fun TrackInformation(
@@ -724,13 +710,13 @@ private fun CompactTransportButton(
     painter: DrawableResource,
     contentDescription: String,
     tint: Color,
-    buttonSize: androidx.compose.ui.unit.Dp,
-    iconSize: androidx.compose.ui.unit.Dp,
+    buttonSize: Dp,
+    iconSize: Dp,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     background: Color = Color.Transparent,
     enabled: Boolean = true,
-    iconOffsetX: androidx.compose.ui.unit.Dp = 0.dp,
+    iconOffsetX: Dp = 0.dp,
 ) {
     Box(
         modifier = modifier.fillMaxHeight(),
@@ -769,8 +755,6 @@ private fun CompactTransportButton(
         }
     }
 }
-
-// ── Desktop Layout ──
 
 @Composable
 private fun DesktopNowPlayingLayout(
@@ -848,8 +832,6 @@ private fun DesktopNowPlayingLayout(
     }
 }
 
-// ── Lyrics Surface ──
-
 @Composable
 private fun LyricsSurface(
     track: NowPlayingTrackItem?,
@@ -887,8 +869,7 @@ private fun LyricsSurface(
     val lyricFontWeight = FontWeight(lyricDisplaySettings.font.weight.coerceIn(100, 900))
 
     Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(14.dp)),
+        modifier = modifier.clip(RoundedCornerShape(14.dp)),
         contentAlignment = Alignment.Center,
     ) {
         when {
@@ -998,8 +979,6 @@ private fun Char.isCjkCharacter(): Boolean = code in 0x2E80..0x9FFF ||
     code in 0xAC00..0xD7AF ||
     code in 0xF900..0xFAFF
 
-// ── Compact (Mobile) Layout ──
-
 @Composable
 private fun CompactArtworkArea(
     artwork: Artwork?,
@@ -1073,14 +1052,10 @@ private fun TrackRow(
         ) {
             Icon(
                 painter = painterResource(
-                    if (liked) {
-                        Res.drawable.icon_heart_compact_filled
-                    } else {
-                        Res.drawable.icon_heart_compact
-                    },
+                    if (liked) Res.drawable.icon_heart_compact_filled else Res.drawable.icon_heart_compact,
                 ),
                 contentDescription = stringResource(
-                    if (liked) Res.string.player_remove_favorite else Res.string.player_add_favorite
+                    if (liked) Res.string.player_remove_favorite else Res.string.player_add_favorite,
                 ),
                 tint = if (liked) MiuixTheme.colorScheme.primary else Color.White.copy(alpha = 0.72f),
                 modifier = Modifier.size(if (dense) 20.dp else 24.dp),
@@ -1122,11 +1097,7 @@ private fun CompactLyricsSurface(
     }
     val lyricFontFamily = if (lyricDisplaySettings.font.applyToLyricsPage) {
         val containsCjk = lyricLines.any { line -> line.text.any(Char::isCjkCharacter) }
-        val choice = if (containsCjk) {
-            lyricDisplaySettings.font.cjkFont
-        } else {
-            lyricDisplaySettings.font.westernFont
-        }
+        val choice = if (containsCjk) lyricDisplaySettings.font.cjkFont else lyricDisplaySettings.font.westernFont
         choice.toFontFamily()
     } else {
         FontFamily.Default
@@ -1138,11 +1109,7 @@ private fun CompactLyricsSurface(
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .then(
-                if (onSurfaceClick != null) {
-                    Modifier.clickable(onClick = onSurfaceClick)
-                } else {
-                    Modifier
-                },
+                if (onSurfaceClick != null) Modifier.clickable(onClick = onSurfaceClick) else Modifier,
             ),
         contentAlignment = Alignment.TopStart,
     ) {
@@ -1385,31 +1352,38 @@ private fun CompactLandscapeNowPlayingLayout(
                     dense = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                CompactLyricsSurface(
-                    track = track,
-                    lyricDisplaySettings = lyricDisplaySettings,
-                    currentPositionMs = currentPositionMs,
-                    isPlaying = state.controls.isPlaying && !isSeeking,
-                    onLineClick = toggleControls,
-                    onSurfaceClick = toggleControls,
-                    dense = true,
+                Box(
                     modifier = Modifier
                         .weight(1f)
-                        .padding(top = 8.dp, bottom = 12.dp),
-                )
-                KeepLayoutVisibility(
-                    visible = controlsVisible,
-                    modifier = Modifier.fillMaxWidth(),
+                        .fillMaxWidth(),
                 ) {
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        Box(modifier = Modifier.offset(y = (-8).dp)) {
-                            progressContent(track?.durationMs)
+                    CompactLyricsSurface(
+                        track = track,
+                        lyricDisplaySettings = lyricDisplaySettings,
+                        currentPositionMs = currentPositionMs,
+                        isPlaying = state.controls.isPlaying && !isSeeking,
+                        onLineClick = toggleControls,
+                        onSurfaceClick = toggleControls,
+                        dense = true,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(top = 8.dp, bottom = 12.dp),
+                    )
+                    if (controlsVisible) {
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .fillMaxWidth(),
+                        ) {
+                            Box(modifier = Modifier.offset(y = (-8).dp)) {
+                                progressContent(track?.durationMs)
+                            }
+                            CompactTransportPanel(
+                                nowPlayingState = state,
+                                onAction = onAction,
+                                dense = true,
+                            )
                         }
-                        CompactTransportPanel(
-                            nowPlayingState = state,
-                            onAction = onAction,
-                            dense = true,
-                        )
                     }
                 }
             }
@@ -1460,8 +1434,6 @@ private fun CompactNowPlayingLayout(
     }
 }
 
-// ── Main Screen ──
-
 @Composable
 fun NowPlayingScreen(
     state: NowPlayingState,
@@ -1498,8 +1470,7 @@ fun NowPlayingScreen(
                 },
         ) {
             val viewportHeightPx = with(density) { maxHeight.toPx() }
-            val dismissVelocityPxPerSecond =
-                with(density) { NowPlayingDismissVelocityThreshold.toPx() }
+            val dismissVelocityPxPerSecond = with(density) { NowPlayingDismissVelocityThreshold.toPx() }
             val indicatorDraggableState = rememberDraggableState { deltaPx ->
                 dragOffsetPx = (dragOffsetPx + deltaPx).coerceIn(0f, viewportHeightPx)
             }
@@ -1639,8 +1610,6 @@ fun ImmersivePlayerBackground(artwork: Artwork?) {
     }
 }
 
-// ── Progress Panel ──
-
 @Composable
 fun NowPlayingProgressPanel(
     progressState: NowPlayingProgressState,
@@ -1667,8 +1636,6 @@ fun NowPlayingProgressPanel(
         immersive = immersive,
     )
 }
-
-// ── Formatting ──
 
 private fun formatPlayerDuration(duration: kotlin.time.Duration): String {
     val totalSeconds = duration.inWholeSeconds.coerceAtLeast(0)
