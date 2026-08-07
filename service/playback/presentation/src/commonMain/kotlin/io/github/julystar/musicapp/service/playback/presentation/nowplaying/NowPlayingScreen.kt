@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -92,6 +93,7 @@ import io.github.julystar.musicapp.core.utils.toMusicDurationMs
 import io.github.julystar.musicapp.service.playback.domain.RepeatMode
 import io.github.julystar.musicapp.service.playback.presentation.transition.playerArtworkSharedElement
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.math.abs
@@ -151,6 +153,7 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 private val DesktopPlayerBreakpoint = 860.dp
 private const val NowPlayingDismissDistanceFraction = 0.5f
 private val NowPlayingDismissVelocityThreshold = 900.dp
+private const val LandscapeControlsAutoHideDelayMs = 5_000L
 
 @Composable
 private fun NowPlayingDismissGestureArea(
@@ -1078,9 +1081,10 @@ private fun CompactLyricsSurface(
     lyricDisplaySettings: LyricDisplaySettings,
     currentPositionMs: Long,
     isPlaying: Boolean,
-    onOpenLyrics: () -> Unit,
+    onLineClick: () -> Unit,
     modifier: Modifier = Modifier,
     dense: Boolean = false,
+    onSurfaceClick: (() -> Unit)? = null,
 ) {
     val loadState = track?.lyrics?.loadState ?: LyricsLoadState.Loading
     val lyricLines = track?.lyrics?.lines.orEmpty()
@@ -1112,7 +1116,14 @@ private fun CompactLyricsSurface(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp)),
+            .clip(RoundedCornerShape(16.dp))
+            .then(
+                if (onSurfaceClick != null) {
+                    Modifier.clickable(onClick = onSurfaceClick)
+                } else {
+                    Modifier
+                },
+            ),
         contentAlignment = Alignment.TopStart,
     ) {
         when {
@@ -1138,7 +1149,7 @@ private fun CompactLyricsSurface(
                     lyrics = syncedLyrics,
                     currentPositionMs = currentPositionMs.coerceIn(0, Int.MAX_VALUE.toLong()).toInt(),
                     isPlaying = isPlaying,
-                    onLineClick = { onOpenLyrics() },
+                    onLineClick = { onLineClick() },
                     activeColor = Color.White,
                     inactiveColor = Color.White.copy(alpha = 0.42f),
                     activeTextStyle = TextStyle(
@@ -1250,7 +1261,7 @@ private fun CompactClassicNowPlayingLayout(
                 lyricDisplaySettings = lyricDisplaySettings,
                 currentPositionMs = currentPositionMs,
                 isPlaying = state.controls.isPlaying && !isSeeking,
-                onOpenLyrics = { onAction(NowPlayingAction.OpenLyrics) },
+                onLineClick = { onAction(NowPlayingAction.OpenLyrics) },
                 modifier = Modifier
                     .weight(1f)
                     .padding(top = 12.dp, bottom = 16.dp),
@@ -1288,6 +1299,18 @@ private fun CompactLandscapeNowPlayingLayout(
     onAction: (NowPlayingAction) -> Unit,
 ) {
     val track = state.currentTrack
+    var controlsVisible by remember { mutableStateOf(true) }
+
+    LaunchedEffect(state.controls.isPlaying, controlsVisible) {
+        if (state.controls.isPlaying && controlsVisible) {
+            delay(LandscapeControlsAutoHideDelayMs)
+            controlsVisible = false
+        }
+    }
+
+    val toggleControls = {
+        controlsVisible = !controlsVisible
+    }
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
         val artworkColumnWidth = maxOf(maxWidth * 0.47f, 413.dp).coerceAtMost(maxWidth * 0.56f)
@@ -1347,20 +1370,26 @@ private fun CompactLandscapeNowPlayingLayout(
                     lyricDisplaySettings = lyricDisplaySettings,
                     currentPositionMs = currentPositionMs,
                     isPlaying = state.controls.isPlaying && !isSeeking,
-                    onOpenLyrics = { onAction(NowPlayingAction.OpenLyrics) },
+                    onLineClick = toggleControls,
+                    onSurfaceClick = toggleControls,
                     dense = true,
                     modifier = Modifier
                         .weight(1f)
-                        .padding(top = 8.dp, bottom = 12.dp),
+                        .padding(
+                            top = 8.dp,
+                            bottom = if (controlsVisible) 12.dp else 0.dp,
+                        ),
                 )
-                Box(modifier = Modifier.offset(y = (-8).dp)) {
-                    progressContent(track?.durationMs)
+                if (controlsVisible) {
+                    Box(modifier = Modifier.offset(y = (-8).dp)) {
+                        progressContent(track?.durationMs)
+                    }
+                    CompactTransportPanel(
+                        nowPlayingState = state,
+                        onAction = onAction,
+                        dense = true,
+                    )
                 }
-                CompactTransportPanel(
-                    nowPlayingState = state,
-                    onAction = onAction,
-                    dense = true,
-                )
             }
         }
     }
@@ -1583,7 +1612,6 @@ fun ImmersivePlayerBackground(artwork: Artwork?) {
                             1f to Color(0xFF08060E).copy(alpha = 0.72f),
                         ),
                     ),
-                ),
         )
     }
 }
