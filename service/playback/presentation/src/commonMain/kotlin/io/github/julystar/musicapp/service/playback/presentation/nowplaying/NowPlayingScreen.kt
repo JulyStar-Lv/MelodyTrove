@@ -1612,6 +1612,7 @@ fun ImmersivePlayerBackground(artwork: Artwork?) {
                             1f to Color(0xFF08060E).copy(alpha = 0.72f),
                         ),
                     ),
+                ),
         )
     }
 }
