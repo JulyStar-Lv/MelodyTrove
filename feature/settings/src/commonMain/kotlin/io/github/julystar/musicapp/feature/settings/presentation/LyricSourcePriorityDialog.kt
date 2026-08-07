@@ -42,7 +42,6 @@ import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -52,15 +51,15 @@ import io.github.julystar.musicapp.core.domain.model.LyricSourceKind
 import io.github.julystar.musicapp.core.presentation.components.DesignDialog
 import io.github.julystar.musicapp.core.presentation.components.DesignDialogDefaults
 import io.github.julystar.musicapp.core.presentation.components.DesignChevron
-import io.github.julystar.musicapp.core.presentation.components.DesignListDivider
 import io.github.julystar.musicapp.core.presentation.components.DesignPreferenceRow
+import io.github.julystar.musicapp.core.presentation.components.designListDivider
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import musicapp.core.presentation.generated.resources.Res as CoreRes
-import musicapp.core.presentation.generated.resources.icon_drag
+import musicapp.core.presentation.generated.resources.icon_mode_list
 import musicapp.feature.settings.generated.resources.Res
 import musicapp.feature.settings.generated.resources.icon_close
 import musicapp.feature.settings.generated.resources.icon_move_to_top
@@ -74,7 +73,7 @@ import musicapp.feature.settings.generated.resources.settings_lyrics_priority_mo
 import musicapp.feature.settings.generated.resources.settings_lyrics_priority_summary
 import musicapp.feature.settings.generated.resources.settings_lyrics_priority_title
 
-private val PriorityRowHeight = 66.dp
+private val PriorityRowHeight = 56.dp
 
 private data class LyricPriorityDragState(
     val source: LyricSourceKind,
@@ -247,7 +246,6 @@ internal fun LyricSourcePriorityDialog(
                         },
                     )
                 }
-                if (index < displayedPriority.lastIndex) DesignListDivider()
             }
         }
     }
@@ -268,7 +266,7 @@ private fun LyricSourcePriorityRow(
     onDragEnd: () -> Unit,
 ) {
     val sourceTitle = stringResource(source.titleResource())
-    val rowShape = RoundedCornerShape(8.dp)
+    val rowShape = RoundedCornerShape(12.dp)
     Row(
         modifier = Modifier
             .zIndex(if (isDragged) 1f else 0f)
@@ -289,7 +287,8 @@ private fun LyricSourcePriorityRow(
                 },
                 shape = rowShape,
             )
-            .padding(horizontal = 4.dp),
+            .designListDivider()
+            .padding(end = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(
@@ -300,7 +299,6 @@ private fun LyricSourcePriorityRow(
                 text = (index + 1).toString(),
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 style = MiuixTheme.textStyles.footnote2.copy(
-                    fontFamily = FontFamily.Monospace,
                     fontSize = 12.sp,
                     lineHeight = 16.sp,
                 ),
@@ -322,27 +320,18 @@ private fun LyricSourcePriorityRow(
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
                     .clickable(enabled = interactionsEnabled, onClick = onMoveToTop),
                 contentAlignment = Alignment.Center,
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MiuixTheme.colorScheme.primary.copy(alpha = 0.08f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        painter = painterResource(Res.drawable.icon_move_to_top),
-                        contentDescription = stringResource(
-                            Res.string.settings_lyrics_priority_move_to_top,
-                            sourceTitle,
-                        ),
-                        tint = MiuixTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp),
-                    )
-                }
+                Icon(
+                    painter = painterResource(Res.drawable.icon_move_to_top),
+                    contentDescription = stringResource(
+                        Res.string.settings_lyrics_priority_move_to_top,
+                        sourceTitle,
+                    ),
+                    tint = MiuixTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp),
+                )
             }
         }
         LyricPriorityDragHandle(
@@ -396,7 +385,7 @@ private fun LyricPriorityDragHandle(
                 contentDescription = reorderLabel
                 customActions = accessibilityActions
             }
-            .pointerInput(enabled, sourceTitle) {
+            .pointerInput(enabled) {
                 if (!enabled) return@pointerInput
                 detectDragGestures(
                     orientationLock = Orientation.Vertical,
@@ -412,24 +401,16 @@ private fun LyricPriorityDragHandle(
             },
         contentAlignment = Alignment.Center,
     ) {
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(MiuixTheme.colorScheme.onSurface.copy(alpha = 0.04f)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(CoreRes.drawable.icon_drag),
-                contentDescription = null,
-                tint = if (isDragged) {
-                    MiuixTheme.colorScheme.primary
-                } else {
-                    MiuixTheme.colorScheme.onSurfaceVariantSummary
-                },
-                modifier = Modifier.size(20.dp),
-            )
-        }
+        Icon(
+            painter = painterResource(CoreRes.drawable.icon_mode_list),
+            contentDescription = null,
+            tint = if (isDragged) {
+                MiuixTheme.colorScheme.primary
+            } else {
+                MiuixTheme.colorScheme.onSurfaceVariantSummary
+            },
+            modifier = Modifier.size(18.dp),
+        )
     }
 }
 
