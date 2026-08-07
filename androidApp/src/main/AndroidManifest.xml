@@ -35,7 +35,7 @@
             android:name="com.google.android.gms.car.application"
             android:resource="@xml/automotive_app_desc" />
         <receiver
-            android:name="androidx.media3.session.MediaButtonReceiver"
+            android:name=".BackgroundMediaButtonReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_BUTTON" />
