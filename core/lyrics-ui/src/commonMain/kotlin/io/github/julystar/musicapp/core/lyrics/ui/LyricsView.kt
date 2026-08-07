@@ -101,7 +101,7 @@ fun LyricsView(
     verticalContentPaddingFraction: Float = 0.34f,
     lineHorizontalPadding: Dp = 20.dp,
     lineVerticalPadding: Dp = 6.dp,
-    contextLinesBeforeActive: Int = 0,
+    contextLinesBeforeActive: Int = if (lineHorizontalPadding == 0.dp) 1 else 0,
 ) {
     val listState = rememberLazyListState()
     val renderPositionProvider = rememberInterpolatedPlaybackPositionProvider(
