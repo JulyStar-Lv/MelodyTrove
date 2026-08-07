@@ -117,18 +117,14 @@ fun LyricsView(
         (currentIndex - contextLinesBeforeActive.coerceAtLeast(0)).coerceAtLeast(0)
     }
     var displayedIndex by remember(lyrics.lines) { mutableIntStateOf(-1) }
-    val density = LocalDensity.current
-    val perspectiveCameraDistance = with(density) { 18.dp.toPx() }
-    val scrollTopInsetPx = with(density) {
-        if (contextLinesBeforeActive > 0) 12.dp.roundToPx() else 0
-    }
+    val perspectiveCameraDistance = with(LocalDensity.current) { 18.dp.toPx() }
 
-    LaunchedEffect(currentIndex, scrollTargetIndex, scrollTopInsetPx, lyrics.lines.size) {
+    LaunchedEffect(currentIndex, scrollTargetIndex, lyrics.lines.size) {
         if (lyrics.lines.isNotEmpty()) {
             if (shouldSnapLyricsScroll(displayedIndex, currentIndex)) {
-                listState.scrollToItem(scrollTargetIndex, scrollOffset = -scrollTopInsetPx)
+                listState.scrollToItem(scrollTargetIndex)
             } else {
-                listState.animateScrollToItem(scrollTargetIndex, scrollOffset = -scrollTopInsetPx)
+                listState.animateScrollToItem(scrollTargetIndex)
             }
             displayedIndex = currentIndex
         }
@@ -187,6 +183,7 @@ fun LyricsView(
                     tapToSeekEnabled = tapToSeekEnabled,
                     horizontalPadding = lineHorizontalPadding,
                     verticalPadding = lineVerticalPadding,
+                    topInset = if (contextLinesBeforeActive > 0 && index == scrollTargetIndex) 12.dp else 0.dp,
                     onClick = { onLineClick(line) },
                 )
             }
@@ -229,6 +226,7 @@ private fun LyricLineItem(
     tapToSeekEnabled: Boolean,
     horizontalPadding: Dp,
     verticalPadding: Dp,
+    topInset: Dp,
     onClick: () -> Unit,
 ) {
     val scale by animateFloatAsState(
@@ -269,7 +267,8 @@ private fun LyricLineItem(
                 }
             }
             .then(if (tapToSeekEnabled) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(horizontal = horizontalPadding, vertical = verticalPadding),
+            .padding(horizontal = horizontalPadding)
+            .padding(top = verticalPadding + topInset, bottom = verticalPadding),
     ) {
         KaraokeText(
             line = line,
