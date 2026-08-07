@@ -936,7 +936,7 @@ private fun LyricsSurface(
                     useBlurEffect = lyricDisplaySettings.blurEffectEnabled,
                     perspectiveEffectEnabled = lyricDisplaySettings.perspectiveEffectEnabled,
                     perspectiveAngleDegrees = lyricDisplaySettings.perspectiveAngleDegrees.toFloat(),
-                    tapToSeekEnabled = lyricDisplaySettings.tapToSeekEnabled,
+                    tapToSeekEnabled = lyricDisplaySettings.tapProgressToSeekEnabled,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -1371,7 +1371,6 @@ private fun CompactLandscapeNowPlayingLayout(
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
                                 .fillMaxWidth()
-                                .background(Color(0xFF08060E))
                                 .onSizeChanged { controlsHeightPx = it.height },
                         ) {
                             Box(modifier = Modifier.offset(y = (-8).dp)) {
@@ -1651,6 +1650,6 @@ private fun formatPlayerDuration(duration: kotlin.time.Duration): String {
     return if (hours > 0) {
         "$hours:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
     } else {
-        "$minutes:${seconds.toString().padStart(2, '0')}"
+        "$minutes:${seconds.toString().padStart(2, '0')}:$seconds"
     }
 }
