@@ -105,16 +105,21 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun setupMediaController() {
+        if (mediaControllerAttached || mediaControllerSetupInFlight) return
+        mediaControllerSetupInFlight = true
         val factory = MediaController.Builder(
-            this,
-            SessionToken(this, ComponentName(this, PlaybackService::class.java))
+            applicationContext,
+            SessionToken(applicationContext, ComponentName(applicationContext, PlaybackService::class.java))
         ).buildAsync()
         factory.addListener(
             {
-                if (factory.isDone) {
+                runCatching {
+                    if (!factory.isDone) return@runCatching
                     val controller = factory.get()
                     playerControllerRepository.setupMediaController(controller)
+                    mediaControllerAttached = true
                 }
+                mediaControllerSetupInFlight = false
             },
             MoreExecutors.directExecutor()
         )
@@ -122,9 +127,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
-        if (diagnosticsState?.safeMode == false) {
-            playerControllerRepository.destroyMediaController()
-        }
+        // Playback is process-scoped. Keep the MediaController attached while the Activity is
+        // backgrounded so PlaybackController commands remain available to the MediaSession service.
     }
 
     override fun onDestroy() {
@@ -275,6 +279,12 @@ class MainActivity : ComponentActivity() {
     }
 
     private companion object {
+        @Volatile
+        var mediaControllerAttached = false
+
+        @Volatile
+        var mediaControllerSetupInFlight = false
+
         const val SEEK_SHORT_MS = 10_000L
         const val SEEK_LONG_MS = 30_000L
     }
