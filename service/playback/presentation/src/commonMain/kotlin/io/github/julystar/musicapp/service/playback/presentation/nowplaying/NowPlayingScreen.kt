@@ -936,7 +936,7 @@ private fun LyricsSurface(
                     useBlurEffect = lyricDisplaySettings.blurEffectEnabled,
                     perspectiveEffectEnabled = lyricDisplaySettings.perspectiveEffectEnabled,
                     perspectiveAngleDegrees = lyricDisplaySettings.perspectiveAngleDegrees.toFloat(),
-                    tapToSeekEnabled = lyricDisplaySettings.tapProgressToSeekEnabled,
+                    tapToSeekEnabled = lyricDisplaySettings.tapToSeekEnabled,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -1650,6 +1650,6 @@ private fun formatPlayerDuration(duration: kotlin.time.Duration): String {
     return if (hours > 0) {
         "$hours:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
     } else {
-        "$minutes:${seconds.toString().padStart(2, '0')}:$seconds"
+        "$minutes:${seconds.toString().padStart(2, '0')}"
     }
 }
