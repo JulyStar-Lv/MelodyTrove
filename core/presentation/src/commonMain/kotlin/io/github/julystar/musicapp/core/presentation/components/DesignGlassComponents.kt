@@ -45,7 +45,8 @@ data class DesignStickyHeaderState(
     val subtitle: String?,
     val collapseFraction: Float,
     val onNavigateBack: (() -> Unit)? = null,
-    val showBackButtonBackground: Boolean = true,
+    val backContentDescription: String? = null,
+    val actions: (@Composable () -> Unit)? = null,
     val compactTitle: Boolean = false,
 )
 
@@ -134,7 +135,8 @@ fun DesignStickyGlassActionBar(
     modifier: Modifier = Modifier,
     statusBarInset: Dp = 0.dp,
     onNavigateBack: (() -> Unit)? = null,
-    showBackButtonBackground: Boolean = true,
+    backContentDescription: String? = null,
+    actions: (@Composable () -> Unit)? = null,
     centerTitle: Boolean = false,
     compactTitle: Boolean = false,
 ) {
@@ -145,6 +147,14 @@ fun DesignStickyGlassActionBar(
             null
         } else {
             { latestOnNavigateBack.value?.invoke() }
+        }
+    }
+    val latestActions = rememberUpdatedState(actions)
+    val stableActions: (@Composable () -> Unit)? = remember(actions != null) {
+        if (actions == null) {
+            null
+        } else {
+            { latestActions.value?.invoke() }
         }
     }
     val stateOwner = remember { Any() }
@@ -158,7 +168,8 @@ fun DesignStickyGlassActionBar(
                     subtitle = subtitle,
                     collapseFraction = fraction,
                     onNavigateBack = stableOnNavigateBack,
-                    showBackButtonBackground = showBackButtonBackground,
+                    backContentDescription = backContentDescription,
+                    actions = stableActions,
                     compactTitle = compactTitle,
                 ),
             )
@@ -184,9 +195,7 @@ fun DesignStickyGlassActionBar(
             intensity = fraction,
         )
     } else if (backdrop == null) {
-        Modifier
-            .alpha(fraction)
-            .background(MiuixTheme.colorScheme.background)
+        Modifier.background(MiuixTheme.colorScheme.background.copy(alpha = fraction))
     } else {
         Modifier
     }
@@ -209,14 +218,15 @@ fun DesignStickyGlassActionBar(
                     title = title,
                     height = adaptive.compactHeaderHeight,
                     titleStyle = actionBarTitleStyle,
+                    titleAlpha = titleFraction,
                     centerTitle = centerTitle,
                     navigationIcon = {
                         DesignTopBarBackButton(
                             onClick = stableOnNavigateBack,
-                            showBackground = showBackButtonBackground,
+                            contentDescription = backContentDescription,
                         )
                     },
-                    modifier = Modifier.alpha(titleFraction),
+                    actions = stableActions,
                 )
             } else {
                 DesignPageHeader(

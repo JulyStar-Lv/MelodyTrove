@@ -8,7 +8,6 @@ import io.github.julystar.musicapp.core.domain.model.AudioFocusMode
 import io.github.julystar.musicapp.core.domain.model.AutoScanMode
 import io.github.julystar.musicapp.core.domain.model.DiagnosticsExportResult
 import io.github.julystar.musicapp.core.domain.model.DiagnosticsReport
-import io.github.julystar.musicapp.core.domain.model.DuplicateTrackPolicy
 import io.github.julystar.musicapp.core.domain.model.LibraryRebuildState
 import io.github.julystar.musicapp.core.domain.model.LyricFontSettings
 import io.github.julystar.musicapp.core.domain.model.LyricOutputSettings
@@ -68,7 +67,6 @@ interface SettingsRepository {
     suspend fun setWebDavMetadataScanMode(mode: MetadataScanMode)
     suspend fun setMinimumAudioDurationMs(value: Long)
     suspend fun setMissingFilePolicy(policy: MissingFilePolicy)
-    suspend fun setDuplicateTrackPolicy(policy: DuplicateTrackPolicy)
     suspend fun setAllowMeteredNetworkUsage(enabled: Boolean)
     suspend fun setNetworkRetryCount(value: Int)
     suspend fun setConnectionTimeoutSeconds(value: Int)

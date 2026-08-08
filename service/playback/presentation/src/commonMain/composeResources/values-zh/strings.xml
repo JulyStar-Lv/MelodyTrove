@@ -17,6 +17,11 @@
     <string name="time_to_pause_minute">分钟</string>
     <string name="now_playing_title">正在播放</string>
     <string name="player_more_options">更多选项</string>
+    <string name="player_playback_source">选择音源</string>
+    <string name="player_playback_source_title">播放音源</string>
+    <string name="player_playback_source_description">选择后将在下次播放时优先使用；不可用时会自动切换到其他音源。</string>
+    <string name="player_playback_source_current">优先</string>
+    <string name="player_playback_source_cancel">取消</string>
     <string name="player_play">播放</string>
     <string name="player_pause">暂停</string>
     <string name="player_previous_track">上一首</string>

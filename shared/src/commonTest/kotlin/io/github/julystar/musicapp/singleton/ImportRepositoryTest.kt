@@ -96,10 +96,21 @@ class ImportRepositoryTest {
 
         assertEquals(ImportSelectionMode.CurrentDirectory, repository.selectionMode.value)
         assertEquals(emptyList(), repository.allowTypes.value)
+        assertNull(repository.currentDirectoryAccountId.value)
 
         repository.onFinishCurrentDirectory(selection)
 
         assertEquals(selection, selected)
+    }
+
+    @Test
+    fun currentDirectoryImportCanTargetOneSourceAccount() {
+        val repository = ImportRepositoryImpl()
+        val accountId = SourceAccountId("storage:9")
+
+        repository.prepareCurrentDirectory(accountId) { }
+
+        assertEquals(accountId, repository.currentDirectoryAccountId.value)
     }
 
     @Test

@@ -10,6 +10,11 @@ import io.github.julystar.musicapp.core.domain.model.toStorageRouteIdOrNull
 import io.github.julystar.musicapp.database.ProviderTypes
 import io.github.julystar.musicapp.database.AppDatabase
 import io.github.julystar.musicapp.database.AppDatabaseConstructor
+import io.github.julystar.musicapp.database.SourceAccountEntity
+import io.github.julystar.musicapp.domain.importing.RemoteLibraryImportCoordinator
+import io.github.julystar.musicapp.domain.importing.RemoteLibraryImportRequest
+import io.github.julystar.musicapp.source.storage.MetadataRepository
+import io.github.julystar.musicapp.source.storage.RemoteScannerRepository
 import io.github.julystar.musicapp.singleton.Bridge
 import java.nio.file.Files
 import kotlinx.coroutines.CoroutineScope
@@ -40,12 +45,13 @@ class SmbStorageRepositoryIntegrationTest {
         val credentialStore = InMemoryCredentialStore()
         val tempDir = Files.createTempDirectory("musicapp-smb-account").toFile()
         try {
+            val bridge = Bridge(
+                appDocumentDir = tempDir.absolutePath,
+                appCacheDir = tempDir.absolutePath,
+                toastRepository = ToastRepositoryImpl(scope),
+            )
             val repository = StorageRepositoryImpl(
-                bridge = Bridge(
-                    appDocumentDir = tempDir.absolutePath,
-                    appCacheDir = tempDir.absolutePath,
-                    toastRepository = ToastRepositoryImpl(scope),
-                ),
+                bridge = bridge,
                 scope = scope,
                 sourceAccountDao = database.sourceAccountDao(),
                 credentialStore = credentialStore,
@@ -95,6 +101,50 @@ class SmbStorageRepositoryIntegrationTest {
             repository.upsertSource(
                 draft.copy(
                     id = storageId,
+                    secret = "",
+                    smbPort = 445,
+                    smbRootPath = "",
+                    smbDomain = "",
+                    smbRequireSigning = false,
+                    smbRequireEncryption = false,
+                )
+            )
+            assertEquals(
+                "smb://nas.local/Music%20Share",
+                repository.storageForRust(uniffi.app_backend.StorageId(storageId))?.addr,
+            )
+            assertEquals(
+                "Music Share",
+                repository.loadEditorState(storageId)?.draft?.smbShare,
+            )
+
+            RemoteLibraryImportCoordinator(
+                database = database,
+                trackDao = database.trackDao(),
+                metadataDao = database.metadataDao(),
+                syncDao = database.syncDao(),
+                metadataRepository = MetadataRepository(bridge, repository),
+                remoteScannerRepository = RemoteScannerRepository(bridge, repository),
+                storageRepository = repository,
+            ).importCompleteSnapshot(
+                RemoteLibraryImportRequest(
+                    storageId = storageId,
+                    selectedFolderRemoteId = null,
+                    selectedFolderCanonicalPath = "/",
+                    entries = emptyList(),
+                    scanId = "smb-configuration-preservation",
+                )
+            )
+            val accountAfterScanStarted = assertNotNull(database.sourceAccountDao().get(storageId))
+            assertEquals("/", accountAfterScanStarted.rootPath)
+            assertTrue(
+                accountAfterScanStarted.providerConfig.orEmpty()
+                    .contains("\"share\":\"Music Share\"")
+            )
+
+            repository.upsertSource(
+                draft.copy(
+                    id = storageId,
                     alias = "Renamed NAS",
                     secret = "",
                 )
@@ -104,6 +154,34 @@ class SmbStorageRepositoryIntegrationTest {
             repository.removeByAccountId(accountId)
             assertNull(database.sourceAccountDao().get(storageId))
             assertNull(credentialStore.load(storageId))
+
+            val legacyStorageId = 42L
+            database.sourceAccountDao().upsert(
+                SourceAccountEntity(
+                    id = legacyStorageId,
+                    providerType = ProviderTypes.Smb,
+                    displayName = "Legacy NAS",
+                    endpoint = "nas.local",
+                    externalAccountId = null,
+                    credentialRef = "storage-$legacyStorageId",
+                    priority = 0,
+                    enabled = true,
+                    createdAt = 1L,
+                    updatedAt = 1L,
+                    rootPath = null,
+                    providerConfig = null,
+                )
+            )
+
+            val legacyEditor = assertNotNull(repository.loadEditorState(legacyStorageId))
+            assertEquals(SourceEditorType.Smb, legacyEditor.draft.storageType)
+            assertEquals("nas.local", legacyEditor.draft.smbHost)
+            assertEquals(445, legacyEditor.draft.smbPort)
+            assertEquals("", legacyEditor.draft.smbShare)
+            assertEquals("", legacyEditor.draft.smbRootPath)
+            assertEquals("", legacyEditor.draft.smbDomain)
+            assertFalse(legacyEditor.draft.smbRequireSigning)
+            assertFalse(legacyEditor.draft.smbRequireEncryption)
         } finally {
             scope.cancel()
             database.close()

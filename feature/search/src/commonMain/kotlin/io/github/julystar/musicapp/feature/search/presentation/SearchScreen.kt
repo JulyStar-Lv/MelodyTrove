@@ -333,7 +333,7 @@ private fun TrackResult(
             modifier = Modifier
                 .size(44.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(Brush.linearGradient(listOf(DesignPalette.Primary, DesignPalette.Secondary))),
+                .background(Brush.linearGradient(listOf(DesignPalette.BrandPink, DesignPalette.Secondary))),
             contentAlignment = Alignment.Center,
         ) {
             Icon(

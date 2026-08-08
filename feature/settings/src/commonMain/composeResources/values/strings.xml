@@ -39,7 +39,7 @@
     <string name="settings_lyrics_percent_value">%1$d%%</string>
     <string name="settings_lyrics_sp_value">%1$d sp</string>
     <string name="settings_lyrics_degree_value">%1$d°</string>
-    <string name="settings_sources_title">Library &amp; sources</string>
+    <string name="settings_sources_title">Source settings</string>
     <string name="settings_sources_summary">%1$d sources · %2$d tracks</string>
     <string name="settings_sources_summary_empty">Manage local music and WebDAV</string>
     <string name="settings_network_cache_title">Network &amp; cache</string>
@@ -186,7 +186,7 @@
     <string name="settings_library_up_to_date">Up to date</string>
     <string name="settings_library_no_sources">No sources</string>
     <string name="settings_library_sources_paused">%1$d paused</string>
-    <string name="settings_tracks_indexed">Tracks indexed</string>
+    <string name="settings_tracks_indexed">Source files indexed</string>
     <string name="settings_sources_enabled">Sources enabled</string>
     <string name="settings_source_local">Local music</string>
     <string name="settings_source_webdav">WebDAV</string>
@@ -207,6 +207,7 @@
     <string name="settings_source_manage">Manage music source</string>
     <string name="settings_source_manage_summary">Add or remove local music directories</string>
     <string name="settings_source_edit_action">Edit music source</string>
+    <string name="settings_source_path_action">Configure music path</string>
     <string name="settings_source_scan_action">Scan music source</string>
     <string name="settings_source_scan_results">Scan results</string>
     <string name="settings_source_delete_action">Delete music source</string>
@@ -247,7 +248,7 @@
     <string name="settings_library_scanning">Scanning enabled sources</string>
     <string name="settings_library_scan_attention">Library scan needs attention</string>
     <string name="settings_library_scanning_summary">%1$s items checked · keep this screen open to monitor progress</string>
-    <string name="settings_library_no_scan_summary">No scan history · %1$s tracks indexed</string>
+    <string name="settings_library_no_scan_summary">No scan history · %1$s source files indexed</string>
     <string name="settings_library_scan_complete_no_failures_summary">Completed %1$s · %2$s tracks · no failures</string>
     <string name="settings_library_scan_complete_summary">Completed %1$s · %2$s tracks · %3$s failures</string>
     <string name="settings_scan_now">Scan now</string>
@@ -284,12 +285,6 @@
     <string name="settings_missing_mark_summary">Keep library metadata but prevent playback</string>
     <string name="settings_missing_remove">Remove scan result</string>
     <string name="settings_missing_remove_summary">Remove regenerated source records, never the source file</string>
-    <string name="settings_duplicate_policy">Duplicates</string>
-    <string name="settings_duplicate_policy_design_summary">Keep matching source files as separate library entries</string>
-    <string name="settings_duplicate_separate">Separate by source</string>
-    <string name="settings_duplicate_separate_summary">Only match duplicates within the same source</string>
-    <string name="settings_duplicate_keep_all">Keep all</string>
-    <string name="settings_duplicate_keep_all_summary">Import every newly discovered source item separately</string>
     <string name="settings_scan_status_section">Scan status</string>
     <string name="settings_scan_no_history">No scan history</string>
     <string name="settings_scan_failure_details">Failure details</string>
@@ -466,6 +461,8 @@
     <string name="settings_feedback_webdav_save_failed">Could not save WebDAV account: %1$s</string>
     <string name="settings_feedback_webdav_enable_required">Enable this WebDAV source first</string>
     <string name="settings_feedback_smb_saved">SMB share saved</string>
+    <string name="settings_feedback_source_path_saved">Music path set to %1$s</string>
+    <string name="settings_feedback_source_path_save_failed">Unable to save music path: %1$s</string>
     <string name="settings_feedback_smb_save_failed">Could not save SMB share: %1$s</string>
     <string name="settings_feedback_smb_enable_required">Enable this SMB source first</string>
     <string name="settings_feedback_scan_cancelled">Scan cancelled</string>

@@ -348,6 +348,33 @@ interface TrackSourceRefDao {
     @Query("SELECT * FROM track_source_ref WHERE trackId = :trackId")
     suspend fun findByTrackId(trackId: Long): List<TrackSourceRefEntity>
 
+    @Query(
+        """
+        SELECT EXISTS(
+            SELECT 1 FROM track_source_ref
+            WHERE trackId = :trackId AND sourceItemId = :sourceItemId
+        )
+        """
+    )
+    suspend fun contains(trackId: Long, sourceItemId: Long): Boolean
+
+    @Query(
+        """
+        UPDATE track_source_ref
+        SET isPreferred = CASE WHEN sourceItemId = :sourceItemId THEN 1 ELSE 0 END,
+            updatedAt = :now
+        WHERE trackId = :trackId
+        """
+    )
+    suspend fun updatePreferredSource(trackId: Long, sourceItemId: Long, now: Long)
+
+    @Transaction
+    suspend fun selectPreferredSource(trackId: Long, sourceItemId: Long, now: Long): Boolean {
+        if (!contains(trackId, sourceItemId)) return false
+        updatePreferredSource(trackId, sourceItemId, now)
+        return true
+    }
+
     @Query("SELECT * FROM track_source_ref WHERE sourceItemId IN (:sourceItemIds)")
     suspend fun findBySourceItemIds(sourceItemIds: List<Long>): List<TrackSourceRefEntity>
 

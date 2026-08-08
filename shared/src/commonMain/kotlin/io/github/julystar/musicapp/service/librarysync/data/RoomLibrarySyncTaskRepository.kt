@@ -1,7 +1,6 @@
 package io.github.julystar.musicapp.service.librarysync.data
 
 import io.github.julystar.musicapp.core.domain.model.SourceAccountId
-import io.github.julystar.musicapp.core.domain.model.DuplicateTrackPolicy
 import io.github.julystar.musicapp.core.domain.model.MetadataScanMode
 import io.github.julystar.musicapp.core.domain.model.MissingFilePolicy
 import io.github.julystar.musicapp.database.ImportJobWithFolder
@@ -112,8 +111,6 @@ internal fun ImportJobWithFolder.toLibrarySyncTask(): LibrarySyncTask {
             scanSubdirectories = job.scanSubdirectories,
             minDurationMs = if (job.ignoreShortAudio) job.minDurationMs else 0,
             missingFilePolicy = job.missingFilePolicy.enumOrDefault(MissingFilePolicy.MarkUnavailable),
-            duplicateTrackPolicy = job.duplicateTrackPolicy
-                .enumOrDefault(DuplicateTrackPolicy.SeparateBySource),
             ignoreHiddenFiles = job.ignoreHiddenFiles,
             ignoredDirectoryNames = job.ignoredDirectoryNames
                 .split(SNAPSHOT_LIST_SEPARATOR)

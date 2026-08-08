@@ -148,6 +148,45 @@ class PlaybackResourceResolverTest {
     }
 
     @Test
+    fun explicitlyPreferredRemoteSourceIsTriedBeforeLocalFallback() = runBlocking {
+        val calls = mutableListOf<String>()
+        val remoteResource = PlaybackResource(uri = "http://127.0.0.1/preferred.flac")
+        val resolver = PlaybackResourceResolver(
+            storageLookup = LegacyStorageLookup { null },
+            trackSourceRefDao = fakeTrackSourceRefDao(
+                candidate(
+                    path = "/Remote/Track.flac",
+                    sourceItemId = 101,
+                    isPreferred = true,
+                ),
+                candidate(
+                    path = "/Local/Track.flac",
+                    providerType = ProviderTypes.Local,
+                    sourceAccountId = 7,
+                    sourceItemId = 102,
+                    isPreferred = false,
+                ),
+            ),
+            sourceRegistry = MusicSourceRegistry(
+                listOf(
+                    fakeMusicSource(BuiltInSourceIds.WebDav) {
+                        calls += "remote"
+                        SourcePlaybackResult.Success(remoteResource)
+                    },
+                    fakeMusicSource(BuiltInSourceIds.Local) {
+                        calls += "local"
+                        SourcePlaybackResult.Success(PlaybackResource(uri = "file:///Local/Track.flac"))
+                    },
+                )
+            ),
+            legacyStoragePlaybackResolver = unusedPlaybackResolver(),
+        )
+
+        assertEquals(SourcePlaybackResult.Success(remoteResource), resolver.resolve(music(42, "/Legacy.flac")))
+        assertEquals(listOf("remote"), calls)
+    }
+
+    @Test
     fun resolvesCompletedCacheBeforeRemoteCandidate() = runBlocking {
         var remoteCalls = 0
         val source = fakeMusicSource(BuiltInSourceIds.WebDav) {
@@ -359,6 +398,10 @@ class PlaybackResourceResolverTest {
             return emptyList()
         }
 
+        override suspend fun contains(trackId: Long, sourceItemId: Long) = false
+
+        override suspend fun updatePreferredSource(trackId: Long, sourceItemId: Long, now: Long) = Unit
+
         override suspend fun findBySourceItemIds(sourceItemIds: List<Long>): List<TrackSourceRefEntity> {
             return emptyList()
         }
@@ -406,14 +449,16 @@ class PlaybackResourceResolverTest {
         providerType: String = ProviderTypes.WebDav,
         sourceAccountId: Long = 42,
         etag: String? = null,
+        sourceItemId: Long = 100,
+        isPreferred: Boolean = true,
     ) = TrackSourcePlaybackCandidate(
         ref = TrackSourceRefEntity(
             trackId = 7,
-            sourceItemId = 100,
+            sourceItemId = sourceItemId,
             role = "primary",
             matchMethod = "source_identity",
             matchConfidence = 100,
-            isPreferred = true,
+            isPreferred = isPreferred,
             isAvailable = true,
             isDownloaded = false,
             playable = true,
@@ -429,11 +474,11 @@ class PlaybackResourceResolverTest {
             updatedAt = 2,
         ),
         item = SourceItemEntity(
-            id = 100,
+            id = sourceItemId,
             sourceAccountId = sourceAccountId,
             libraryRootId = 2,
             itemType = SourceItemTypes.Track,
-            providerItemId = "item-100",
+            providerItemId = "item-$sourceItemId",
             parentProviderItemId = null,
             canonicalPath = path,
             displayPath = path,

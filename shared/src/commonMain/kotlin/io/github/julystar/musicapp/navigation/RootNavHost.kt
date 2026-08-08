@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -96,9 +97,12 @@ internal fun RootNavHost(
     val onRootTabSelected: (HomeTab) -> Unit = { selectedRootTabName = it.name }
     val playerTransitionDurationMillis = DesignTokens.motion.playerExpandMillis
 
-    val navigationContent: @Composable (Modifier) -> Unit = { modifier ->
+    // Home and secondary routes use different shells. Keep the same NavHost instance while it
+    // moves between them so the start destination cannot flash during the shell transition.
+    val movableNavigationContent = remember(navController, playerTransitionDurationMillis) {
+        movableContentOf<RootNavigationContentArgs> { args ->
         NavHost(
-            modifier = modifier,
+            modifier = args.modifier,
             navController = navController,
             startDestination = MusicGraph.Home,
             enterTransition = {
@@ -143,10 +147,10 @@ internal fun RootNavHost(
             },
         ) {
         homeGraph(
-            scaffoldPadding = scaffoldPadding,
-            currentTab = selectedRootTab,
-            onTabSelected = onRootTabSelected,
-            onOpenQueue = { showQueue = true },
+            scaffoldPadding = args.scaffoldPadding,
+            currentTab = args.selectedRootTab,
+            onTabSelected = args.onRootTabSelected,
+            onOpenQueue = args.onOpenQueue,
         )
         albumGraph(
             onNavigateBack = { navController.popBackStack() },
@@ -177,7 +181,7 @@ internal fun RootNavHost(
         }
         composable<MusicGraph.Playlist> {
             PlaylistRoot(
-                scaffoldPadding = scaffoldPadding,
+                scaffoldPadding = args.scaffoldPadding,
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToImport = {
                     navController.navigate(MusicGraph.Import(RouteImportType.Music))
@@ -191,7 +195,7 @@ internal fun RootNavHost(
         }
         composable<MusicGraph.Favorites> {
             FavoritesPlaylistRoot(
-                scaffoldPadding = scaffoldPadding,
+                scaffoldPadding = args.scaffoldPadding,
                 onNavigateBack = { navController.popBackStack() },
             )
         }
@@ -231,13 +235,26 @@ internal fun RootNavHost(
         playerGraph(
             onNavigateBack = { navController.popBackStack() },
             onNavigateToLyrics = { trackId -> navController.navigate(MusicGraph.Lyrics(trackId)) },
-            onOpenQueue = { showQueue = true },
+            onOpenQueue = args.onOpenQueue,
             onNavigateToLyricImport = {
                 navController.navigate(MusicGraph.Import(RouteImportType.Lyric))
             },
-            onSearchMetadata = { track -> metadataTrack = track },
+            onSearchMetadata = args.onSearchMetadata,
         )
         }
+        }
+    }
+    val navigationContent: @Composable (Modifier) -> Unit = { modifier ->
+        movableNavigationContent(
+            RootNavigationContentArgs(
+                modifier = modifier,
+                scaffoldPadding = scaffoldPadding,
+                selectedRootTab = selectedRootTab,
+                onRootTabSelected = onRootTabSelected,
+                onOpenQueue = { showQueue = true },
+                onSearchMetadata = { track -> metadataTrack = track },
+            ),
+        )
     }
     SharedTransitionLayout(modifier = Modifier.fillMaxSize()) {
         val sharedTransitionScope = this
@@ -256,8 +273,7 @@ internal fun RootNavHost(
                     scaffoldPadding = scaffoldPadding,
                     onOpenNowPlaying = { navController.navigate(MusicGraph.NowPlaying) },
                     onOpenQueue = { showQueue = true },
-                    captureStickyHeader =
-                        currentRoute == MusicGraph.PluginSettings::class.qualifiedName,
+                    captureStickyHeader = shouldCaptureSecondaryStickyHeader(currentRoute),
                     content = navigationContent,
                 )
             } else {
@@ -275,6 +291,15 @@ internal fun RootNavHost(
         }
     }
 }
+
+private data class RootNavigationContentArgs(
+    val modifier: Modifier,
+    val scaffoldPadding: PaddingValues,
+    val selectedRootTab: HomeTab,
+    val onRootTabSelected: (HomeTab) -> Unit,
+    val onOpenQueue: () -> Unit,
+    val onSearchMetadata: (NowPlayingTrackItem) -> Unit,
+)
 
 private fun immediateEnterTransition(durationMillis: Int) = fadeIn(
     initialAlpha = 0f,
@@ -297,6 +322,14 @@ internal fun shouldShowPersistentMiniPlayer(route: String?): Boolean =
 
 internal fun isImmersivePlayerRoute(route: String?): Boolean =
     isRouteNowPlaying(route) || isRouteLyrics(route)
+
+internal fun shouldCaptureSecondaryStickyHeader(route: String?): Boolean {
+    val routeName = route?.substringBefore('/') ?: return false
+    return routeName == "Album" || routeName.endsWith(".Album") ||
+        routeName == "Playlist" || routeName.endsWith(".Playlist") ||
+        routeName == "Favorites" || routeName.endsWith(".Favorites") ||
+        routeName == "PluginSettings" || routeName.endsWith(".PluginSettings")
+}
 
 @Composable
 private fun SecondaryRootNavigationLayout(
@@ -363,7 +396,8 @@ private fun SecondaryRootNavigationLayout(
                                     collapseFraction = state.collapseFraction,
                                     statusBarInset = statusBarInset,
                                     onNavigateBack = state.onNavigateBack,
-                                    showBackButtonBackground = state.showBackButtonBackground,
+                                    backContentDescription = state.backContentDescription,
+                                    actions = state.actions,
                                     centerTitle = true,
                                     compactTitle = state.compactTitle,
                                     modifier = Modifier.align(Alignment.TopCenter),

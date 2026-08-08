@@ -35,7 +35,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 import kotlin.math.roundToInt
@@ -249,7 +248,7 @@ private fun bufferColor(enabled: Boolean): Color = if (enabled) {
 
 @Composable
 private fun thumbColor(enabled: Boolean): Color = if (enabled) {
-    DesignPalette.Primary
+    MiuixTheme.colorScheme.primary
 } else {
     MiuixTheme.colorScheme.disabledOnPrimary
 }
@@ -258,8 +257,8 @@ private fun thumbColor(enabled: Boolean): Color = if (enabled) {
 private fun fillBrush(enabled: Boolean): Brush = if (enabled) {
     Brush.horizontalGradient(
         listOf(
-            DesignPalette.Primary,
-            DesignPalette.Secondary,
+            MiuixTheme.colorScheme.primary,
+            MiuixTheme.colorScheme.secondary,
         ),
     )
 } else {

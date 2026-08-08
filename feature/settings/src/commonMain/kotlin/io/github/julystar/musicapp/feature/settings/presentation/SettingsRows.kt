@@ -139,7 +139,6 @@ internal fun SettingsPageLayout(
                     title = title,
                     collapseFraction = 1f,
                     onNavigateBack = onBack,
-                    showBackButtonBackground = false,
                     compactTitle = true,
                     modifier = Modifier.align(Alignment.TopCenter),
                 )
@@ -393,7 +392,7 @@ private fun markerGradient(marker: String, accentColor: Color): List<Color> = wh
     "↓", "⌁", "S", "▦", "▣" -> DesignGradients.OrangeYellow.colors
     "▷", "↻", "↺", "♫", "♪" -> DesignGradients.PinkOrange.colors
     "◇", "文", "§", "◐", "◌", "⌕" -> DesignGradients.GreenBlue.colors
-    "●" -> listOf(accentColor, DesignPalette.Primary)
+    "●" -> listOf(accentColor, DesignPalette.BrandPink)
     else -> DesignGradients.Brand.colors
 }
 

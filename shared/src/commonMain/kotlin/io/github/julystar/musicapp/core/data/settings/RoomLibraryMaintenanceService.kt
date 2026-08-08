@@ -117,5 +117,4 @@ internal fun AppSettings.toLibrarySyncScanRules() =
         scanSubdirectories = scanSubdirectories,
         minDurationMs = minimumAudioDurationMs,
         missingFilePolicy = missingFilePolicy,
-        duplicateTrackPolicy = duplicateTrackPolicy,
     )

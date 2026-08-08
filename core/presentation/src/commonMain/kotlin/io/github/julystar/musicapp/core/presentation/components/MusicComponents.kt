@@ -23,7 +23,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignFontFamilies
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import top.yukonga.miuix.kmp.basic.Text
@@ -90,8 +89,8 @@ fun DesignTrackNumberBadge(
     val backgroundBrush = if (active) {
         Brush.linearGradient(
             listOf(
-                DesignPalette.Primary,
-                DesignPalette.Secondary,
+                MiuixTheme.colorScheme.primary,
+                MiuixTheme.colorScheme.secondary,
             ),
         )
     } else {
@@ -256,7 +255,7 @@ fun DesignTrackRow(
             null
         },
         borderColor = if (active) {
-            DesignPalette.Primary.copy(alpha = 0.36f)
+            MiuixTheme.colorScheme.primary.copy(alpha = 0.36f)
         } else {
             null
         },

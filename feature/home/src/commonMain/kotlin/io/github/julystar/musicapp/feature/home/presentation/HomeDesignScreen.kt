@@ -219,7 +219,9 @@ fun HomeDesignScreen(
                                     playlists = state.pinnedPlaylists,
                                     cardWidth = playlistCardWidth,
                                     showMeta = true,
-                                    onClick = { onAction(HomeAction.NavigateToLibrary) },
+                                    onClick = { playlist ->
+                                        onAction(HomeAction.NavigateToPlaylist(playlist.id))
+                                    },
                                 )
                             }
                         }
@@ -246,7 +248,9 @@ fun HomeDesignScreen(
                                     playlists = state.pinnedPlaylists,
                                     cardWidth = playlistCardWidth,
                                     showMeta = false,
-                                    onClick = { onAction(HomeAction.NavigateToLibrary) },
+                                    onClick = { playlist ->
+                                        onAction(HomeAction.NavigateToPlaylist(playlist.id))
+                                    },
                                 )
                             }
                         }
@@ -290,7 +294,9 @@ fun HomeDesignScreen(
                                 AlbumRow(
                                     albums = state.featuredAlbums,
                                     cardWidth = suggestedAlbumCardWidth,
-                                    onClick = { onAction(HomeAction.NavigateToLibrary) },
+                                    onClick = { album ->
+                                        onAction(HomeAction.NavigateToAlbum(album.id))
+                                    },
                                 )
                             }
                         }
@@ -730,7 +736,7 @@ private fun PlaylistRow(
     playlists: List<HomePlaylist>,
     cardWidth: Dp,
     showMeta: Boolean,
-    onClick: () -> Unit,
+    onClick: (HomePlaylist) -> Unit,
 ) {
     LazyRow(
         modifier = Modifier
@@ -743,7 +749,7 @@ private fun PlaylistRow(
                 playlist = playlist,
                 width = cardWidth,
                 showMeta = showMeta,
-                onClick = onClick,
+                onClick = { onClick(playlist) },
             )
         }
     }
@@ -967,7 +973,7 @@ private fun NewSongRow(
 private fun AlbumRow(
     albums: List<HomeFeaturedAlbum>,
     cardWidth: Dp,
-    onClick: () -> Unit,
+    onClick: (HomeFeaturedAlbum) -> Unit,
 ) {
     val itemPadding = DesignTokens.spacing.xxs
     LazyRow(
@@ -979,7 +985,7 @@ private fun AlbumRow(
                 modifier = Modifier
                     .width(cardWidth + itemPadding * 2)
                     .clip(RoundedCornerShape(14.dp))
-                    .clickable(onClick = onClick)
+                    .clickable { onClick(album) }
                     .padding(itemPadding),
             ) {
                 val shape = RoundedCornerShape(14.dp)

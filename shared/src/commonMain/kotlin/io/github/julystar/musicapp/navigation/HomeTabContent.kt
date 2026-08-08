@@ -62,9 +62,14 @@ internal fun HomeTabContent(
                     onNavigateToListening = {
                         rootNavController.navigate(MusicGraph.Listening)
                     },
+                    onNavigateToAlbum = onNavigateToAlbum,
+                    onNavigateToPlaylist = onNavigateToPlaylist,
                     onOpenSleepTimer = { openSleepTimer(SleepModeLeftTime(30 * 60 * 1000L)) },
                 )
-                HomeTab.SEARCH -> SearchTabGraph(searchNavController)
+                HomeTab.SEARCH -> SearchTabGraph(
+                    navController = searchNavController,
+                    onNavigateToAlbum = onNavigateToAlbum,
+                )
                 HomeTab.LIBRARY -> LibraryTabGraph(
                     navController = libraryNavController,
                     onNavigateToLibraryFolderImport = onNavigateToLibraryFolderImport,
@@ -82,6 +87,7 @@ internal fun HomeTabContent(
                     onNavigateToPlugins = {
                         rootNavController.navigate(MusicGraph.PluginSettings)
                     },
+                    onNavigateToSourcePathPicker = onNavigateToLibraryFolderImport,
                 )
             }
         }

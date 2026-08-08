@@ -2,9 +2,11 @@
 <resources>
     <string name="manual_metadata_title">Search metadata</string>
     <string name="manual_metadata_summary">Choose a result to update this library track. The music file itself will not be modified.</string>
+    <string name="manual_metadata_current_track">Current track</string>
     <string name="manual_metadata_keyword">Song or artist</string>
     <string name="manual_metadata_search">Search</string>
     <string name="manual_metadata_searching">Searching…</string>
+    <string name="manual_metadata_results_title">Search results</string>
     <string name="manual_metadata_results">%1$d results</string>
     <string name="manual_metadata_no_sources">No metadata provider is enabled. Enable one in Settings and try again.</string>
     <string name="manual_metadata_no_matches">No matches found. Try a different song title or artist.</string>

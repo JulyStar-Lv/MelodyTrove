@@ -4,7 +4,9 @@
     <string name="artist_loading">Loading artist</string>
     <string name="artist_unavailable">Artist unavailable</string>
     <string name="artist_retry">Retry</string>
+    <string name="artist_back">Back</string>
     <string name="artist_albums">Albums</string>
+    <string name="artist_all_songs">All Songs</string>
     <string name="artist_release_count">%1$d releases</string>
     <string name="artist_top_tracks">Top Tracks</string>
     <string name="artist_song_count">%1$d songs</string>
@@ -12,4 +14,10 @@
     <string name="artist_summary">%1$d albums, %2$d songs</string>
     <string name="artist_play_all">Play All</string>
     <string name="artist_download">Download</string>
+    <string name="artist_download_track">Download %1$s</string>
+    <string name="artist_no_albums">No albums yet</string>
+    <string name="artist_no_albums_message">Albums by this artist will appear here.</string>
+    <string name="artist_no_songs">No songs yet</string>
+    <string name="artist_no_songs_message">Music by this artist will appear here.</string>
+    <string name="artist_unknown_year">Unknown year</string>
 </resources>

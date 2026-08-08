@@ -17,6 +17,7 @@ fun ArtistRoot(
 ) {
     val playbackController = koinInject<PlaybackController>()
     val state by viewModel.state.collectAsState()
+    val playerState by playbackController.state.collectAsState()
 
     LaunchedEffect(viewModel) {
         viewModel.events.collect { event ->
@@ -28,6 +29,7 @@ fun ArtistRoot(
 
     ArtistScreen(
         state = state,
+        currentPlayingTrackId = playerState.currentItem?.libraryTrackId,
         onAction = { action ->
             when (action) {
                 ArtistAction.NavigateBack -> onNavigateBack()

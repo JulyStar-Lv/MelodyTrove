@@ -7,7 +7,6 @@ import io.github.julystar.musicapp.core.domain.model.AudioFocusMode
 import io.github.julystar.musicapp.core.domain.model.AutoScanMode
 import io.github.julystar.musicapp.core.domain.model.DiagnosticsExportResult
 import io.github.julystar.musicapp.core.domain.model.DiagnosticsReport
-import io.github.julystar.musicapp.core.domain.model.DuplicateTrackPolicy
 import io.github.julystar.musicapp.core.domain.model.LibraryRebuildState
 import io.github.julystar.musicapp.core.domain.model.LocalMusicDirectory
 import io.github.julystar.musicapp.core.domain.model.LyricTextAlignment
@@ -52,6 +51,11 @@ import io.github.julystar.musicapp.service.playback.domain.PlaybackQueue
 import io.github.julystar.musicapp.service.playback.domain.PlayerState
 import io.github.julystar.musicapp.service.playback.domain.RepeatMode
 import io.github.julystar.musicapp.source.api.BuiltInSourceIds
+import io.github.julystar.musicapp.source.api.ImportRepository
+import io.github.julystar.musicapp.source.api.SourceDirectorySelection
+import io.github.julystar.musicapp.source.api.SourceNodeSelection
+import io.github.julystar.musicapp.source.api.SourceNodeType
+import io.github.julystar.musicapp.core.domain.model.ImportSelectionMode
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -154,6 +158,7 @@ class SettingsVMTest {
             viewModel.onAction(SettingsAction.ConfirmPendingAction)
             advanceUntilIdle()
             assertEquals(1, environment.maintenance.rebuildCalls)
+
         }
     }
 
@@ -416,6 +421,45 @@ class SettingsVMTest {
     }
 
     @Test
+    fun `remote source path picker targets the source and saves the selected path`() = runTest {
+        val accountId = storageSourceAccountId(42L)
+        val storage = FakeStorageRepository().apply {
+            accounts.value = listOf(
+                sourceAccount(42L, BuiltInSourceIds.WebDav, "Home DAV", 12),
+            )
+        }
+        val environment = TestEnvironment(storageRepository = storage)
+
+        withStartedViewModel(environment) { viewModel ->
+            viewModel.onAction(SettingsAction.ConfigureSourcePath(accountId))
+
+            assertIs<SettingsEvent.OpenSourcePathPicker>(viewModel.eventFlow.first())
+            assertEquals(accountId, environment.importRepository.currentDirectoryAccountId.value)
+
+            environment.importRepository.onFinishCurrentDirectory(
+                SourceDirectorySelection(
+                    sourceId = BuiltInSourceIds.WebDav,
+                    accountId = accountId,
+                    path = "/Music/Lossless",
+                    remoteId = "folder-42",
+                )
+            )
+            advanceUntilIdle()
+
+            assertEquals(accountId to "/Music/Lossless", storage.lastRootPathUpdate)
+            assertTrue(environment.librarySyncController.requests.isEmpty())
+
+            viewModel.onAction(SettingsAction.ScanSourceAccount(accountId))
+            advanceUntilIdle()
+
+            assertEquals(
+                "/Music/Lossless",
+                environment.librarySyncController.requests.single().selectedFolderCanonicalPath,
+            )
+        }
+    }
+
+    @Test
     fun `local directory scan waits for storage permission`() = runTest {
         val sync = FakeLibrarySyncController()
         val permissionChecker = FakePermissionChecker(granted = false)
@@ -526,6 +570,44 @@ class SettingsVMTest {
         }
     }
 
+    @Test
+    fun `SMB scan starts at the backend root without repeating its configured root path`() = runTest {
+        val accountId = storageSourceAccountId(2L)
+        val storage = FakeStorageRepository().apply {
+            accounts.value = listOf(
+                sourceAccount(2L, BuiltInSourceIds.Smb, "NAS", 0),
+            )
+            editorState = SourceEditorStorageState(
+                accountId = accountId,
+                draft = SourceEditorDraft(
+                    id = 2L,
+                    alias = "NAS",
+                    storageType = SourceEditorType.Smb,
+                    smbHost = "nas.example.test",
+                    smbShare = "Music",
+                    smbRootPath = "Lossless",
+                ),
+                title = "NAS",
+                musicCount = 0u,
+                isOneDrive = false,
+            )
+        }
+        val sync = FakeLibrarySyncController()
+        val environment = TestEnvironment(
+            storageRepository = storage,
+            librarySyncController = sync,
+        )
+
+        withStartedViewModel(environment) { viewModel ->
+            viewModel.onAction(SettingsAction.ScanSourceAccount(accountId))
+            advanceUntilIdle()
+
+            val request = sync.requests.single()
+            assertEquals("/", request.selectedFolderCanonicalPath)
+            assertEquals("/", request.selectedFolderDisplayPath)
+        }
+    }
+
     private suspend fun kotlinx.coroutines.test.TestScope.withStartedViewModel(
         environment: TestEnvironment,
         block: suspend (SettingsVM) -> Unit,
@@ -552,6 +634,7 @@ private class TestEnvironment(
     val appDataClear = FakeAppDataClearService()
     val toast = FakeToastRepository()
     val playback = FakePlaybackController()
+    val importRepository = FakeImportRepository()
 
     fun createViewModel() = SettingsVM(
         settingsRepository = settingsRepository,
@@ -567,6 +650,7 @@ private class TestEnvironment(
         playbackController = playback,
         metadataRefreshController = FakeMetadataRefreshController(),
         audioDspAnalysisRepository = FakeAudioDspAnalysisRepository,
+        importRepository = importRepository,
         capabilities = SettingsCapabilities(),
         textProvider = FakeSettingsTextProvider(),
     )
@@ -640,7 +724,6 @@ private class FakeSettingsRepository(initial: AppSettings = AppSettings.Default)
     override suspend fun setWebDavMetadataScanMode(mode: MetadataScanMode) = update { it.copy(webDavMetadataScanMode = mode) }
     override suspend fun setMinimumAudioDurationMs(value: Long) = update { it.copy(minimumAudioDurationMs = value) }
     override suspend fun setMissingFilePolicy(policy: MissingFilePolicy) = update { it.copy(missingFilePolicy = policy) }
-    override suspend fun setDuplicateTrackPolicy(policy: DuplicateTrackPolicy) = update { it.copy(duplicateTrackPolicy = policy) }
     override suspend fun setAllowMeteredNetworkUsage(enabled: Boolean) =
         update { it.copy(allowMeteredNetworkUsage = enabled) }
     override suspend fun setNetworkRetryCount(value: Int) = update { it.copy(networkRetryCount = value) }
@@ -696,6 +779,7 @@ private class FakeStorageRepository : StorageRepository {
     var editorState: SourceEditorStorageState? = null
     var credential: StoredCredential? = null
     var upsertedDraft: SourceEditorDraft? = null
+    var lastRootPathUpdate: Pair<SourceAccountId, String>? = null
 
     override suspend fun reload() = Unit
     override suspend fun startOneDriveOAuth(): String = ""
@@ -709,8 +793,46 @@ private class FakeStorageRepository : StorageRepository {
     override suspend fun updateOneDriveRefreshTokenByAccountId(accountId: SourceAccountId, refreshToken: String) = Unit
     override fun findStorageAccountByAccountId(accountId: SourceAccountId) = accounts.value.firstOrNull { it.accountId == accountId }
     override suspend fun loadCredentialByAccountId(accountId: SourceAccountId): StoredCredential? = credential
-    override suspend fun setAccountRootPath(accountId: SourceAccountId, rootPath: String) = Unit
+    override suspend fun setAccountRootPath(accountId: SourceAccountId, rootPath: String) {
+        lastRootPathUpdate = accountId to rootPath
+        accounts.value = accounts.value.map { account ->
+            if (account.accountId == accountId) account.copy(rootPath = rootPath) else account
+        }
+    }
     override suspend fun removeByAccountId(accountId: SourceAccountId) = Unit
+}
+
+private class FakeImportRepository : ImportRepository {
+    override val allowTypes = MutableStateFlow<List<SourceNodeType>>(emptyList())
+    override val selectionMode = MutableStateFlow(ImportSelectionMode.Entries)
+    override val currentDirectoryAccountId = MutableStateFlow<SourceAccountId?>(null)
+    private var directoryCallback: ((SourceDirectorySelection) -> Unit)? = null
+
+    override fun prepare(
+        types: List<SourceNodeType>,
+        block: (List<SourceNodeSelection>) -> Unit,
+    ) {
+        allowTypes.value = types
+        selectionMode.value = ImportSelectionMode.Entries
+        currentDirectoryAccountId.value = null
+    }
+
+    override fun prepareCurrentDirectory(
+        accountId: SourceAccountId?,
+        block: (SourceDirectorySelection) -> Unit,
+    ) {
+        allowTypes.value = emptyList()
+        selectionMode.value = ImportSelectionMode.CurrentDirectory
+        currentDirectoryAccountId.value = accountId
+        directoryCallback = block
+    }
+
+    override fun onFinish(entries: List<SourceNodeSelection>) = Unit
+
+    override fun onFinishCurrentDirectory(selection: SourceDirectorySelection) {
+        directoryCallback?.invoke(selection)
+        directoryCallback = null
+    }
 }
 
 private class FakeStorageUsageRepository : StorageUsageRepository {

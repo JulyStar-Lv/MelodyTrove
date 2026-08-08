@@ -108,6 +108,7 @@ fun HomeOverviewScreen(
                     MediaCardRow(
                         albums = state.featuredAlbums,
                         cardSize = layout.albumCardSize,
+                        onClick = { album -> onAction(HomeAction.NavigateToAlbum(album.id)) },
                     )
                 }
             }
@@ -119,6 +120,7 @@ fun HomeOverviewScreen(
                     MediaCardRow(
                         albums = state.recentlyAddedAlbums,
                         cardSize = layout.smallAlbumCardSize,
+                        onClick = { album -> onAction(HomeAction.NavigateToAlbum(album.id)) },
                     )
                 }
             }
@@ -135,7 +137,12 @@ fun HomeOverviewScreen(
                     title = stringResource(Res.string.home_pinned_playlists),
                     action = seeAll,
                 ) {
-                    PlaylistRow(playlists = state.pinnedPlaylists)
+                    PlaylistRow(
+                        playlists = state.pinnedPlaylists,
+                        onClick = { playlist ->
+                            onAction(HomeAction.NavigateToPlaylist(playlist.id))
+                        },
+                    )
                 }
             }
             item {
@@ -340,6 +347,7 @@ private fun HomeMediaSection(
 private fun MediaCardRow(
     albums: List<HomeFeaturedAlbum>,
     cardSize: Dp,
+    onClick: (HomeFeaturedAlbum) -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -348,7 +356,7 @@ private fun MediaCardRow(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         albums.forEach { album ->
-            AlbumCard(album = album, size = cardSize)
+            AlbumCard(album = album, size = cardSize, onClick = { onClick(album) })
         }
     }
 }
@@ -357,8 +365,14 @@ private fun MediaCardRow(
 private fun AlbumCard(
     album: HomeFeaturedAlbum,
     size: Dp,
+    onClick: () -> Unit,
 ) {
-    Column(modifier = Modifier.width(size)) {
+    Column(
+        modifier = Modifier
+            .width(size)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick),
+    ) {
         val artworkShape = RoundedCornerShape(24.dp)
         Box(
             modifier = Modifier
@@ -449,7 +463,10 @@ private fun ArtistRow(artists: List<HomeArtist>) {
 }
 
 @Composable
-private fun PlaylistRow(playlists: List<HomePlaylist>) {
+private fun PlaylistRow(
+    playlists: List<HomePlaylist>,
+    onClick: (HomePlaylist) -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -457,7 +474,12 @@ private fun PlaylistRow(playlists: List<HomePlaylist>) {
         horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         playlists.forEach { playlist ->
-            Column(modifier = Modifier.width(160.dp)) {
+            Column(
+                modifier = Modifier
+                    .width(160.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable { onClick(playlist) },
+            ) {
                 val artworkShape = RoundedCornerShape(24.dp)
                 Box(
                     modifier = Modifier

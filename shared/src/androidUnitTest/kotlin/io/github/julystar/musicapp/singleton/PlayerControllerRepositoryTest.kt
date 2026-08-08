@@ -56,6 +56,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.time.Duration.Companion.milliseconds
 
 class PlayerControllerRepositoryTest {
@@ -149,6 +150,33 @@ class PlayerControllerRepositoryTest {
 
         awaitUntil { harness.playerState.playing.value }
         assertEquals("Daily Picks", harness.playerState.playlist.value?.abstr?.meta?.title)
+    }
+
+    @Test
+    fun restoredPreviewLoadsPlayerWithoutReplacingVisibleTrack() = withHarness(
+        sourceResult = SourcePlaybackResult.Success(TEST_RESOURCE),
+        engine = RecordingAndroidPlaybackEngine(PlaybackEngineLoadResult.Ready),
+    ) { harness ->
+        val previewMusic = music(id = TRACK_ID, title = TRACK_TITLE)
+        val previewPlaylist = playlist(
+            id = PLAYLIST_ID,
+            musics = listOf(musicAbstract(id = TRACK_ID, title = TRACK_TITLE)),
+        )
+        val resolveGate = CompletableDeferred<Unit>()
+        harness.playerState.setCurrent(previewMusic, previewPlaylist)
+        harness.source.resolveGate = resolveGate
+
+        harness.controller.play(MusicId(TRACK_ID), PlaylistId(PLAYLIST_ID))
+        awaitUntil { harness.playerState.loading.value && harness.source.resolveCalls == 1 }
+
+        assertSame(previewMusic, harness.playerState.music.value)
+
+        resolveGate.complete(Unit)
+        awaitUntil { harness.playerState.playing.value }
+
+        assertSame(previewMusic, harness.playerState.music.value)
+        assertEquals(1, harness.engine.queueLoadCalls)
+        assertEquals(1, harness.engine.loadedRequests.size)
     }
 
     @Test
@@ -430,16 +458,25 @@ private class RecordingAndroidPlaybackEngine(
         private set
     var queueLoadCalls = 0
         private set
+    private var loadedTrackId: Long? = null
 
     override fun load(request: PlaybackEngineLoadRequest): PlaybackEngineLoadResult {
         loadedRequests += request
+        if (loadResult == PlaybackEngineLoadResult.Ready) {
+            loadedTrackId = request.item.libraryTrackId
+        }
         return loadResult
     }
 
     override fun loadQueue(request: AndroidPlaybackQueueLoadRequest): PlaybackEngineLoadResult {
         queueLoadCalls += 1
+        if (queueLoadResult == PlaybackEngineLoadResult.Ready) {
+            loadedTrackId = request.currentTrackId
+        }
         return queueLoadResult
     }
+
+    override fun hasLoadedTrack(trackId: Long): Boolean = loadedTrackId == trackId
 
     override fun play() {
         playCalls += 1
@@ -451,6 +488,7 @@ private class RecordingAndroidPlaybackEngine(
 
     override fun stop() {
         stopCalls += 1
+        loadedTrackId = null
     }
 
     override fun seekTo(positionMs: Long) {
@@ -527,6 +565,10 @@ private object EmptyTrackSourceRefDao : TrackSourceRefDao {
     override suspend fun findByTrackId(trackId: Long): List<TrackSourceRefEntity> {
         return emptyList()
     }
+
+    override suspend fun contains(trackId: Long, sourceItemId: Long) = false
+
+    override suspend fun updatePreferredSource(trackId: Long, sourceItemId: Long, now: Long) = Unit
 
     override suspend fun findBySourceItemIds(sourceItemIds: List<Long>): List<TrackSourceRefEntity> {
         return emptyList()

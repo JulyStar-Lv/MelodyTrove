@@ -57,6 +57,23 @@ class RootNavHostTest {
     }
 
     @Test
+    fun `detail routes reuse the secondary liquid glass header`() {
+        listOf(
+            "io.github.julystar.musicapp.core.presentation.navigation.MusicGraph.Album/{id}",
+            "io.github.julystar.musicapp.core.presentation.navigation.MusicGraph.Playlist/{id}",
+            "io.github.julystar.musicapp.core.presentation.navigation.MusicGraph.Favorites",
+            "io.github.julystar.musicapp.core.presentation.navigation.MusicGraph.PluginSettings",
+        ).forEach { route ->
+            assertTrue(shouldCaptureSecondaryStickyHeader(route), route)
+        }
+        assertFalse(
+            shouldCaptureSecondaryStickyHeader(
+                "io.github.julystar.musicapp.core.presentation.navigation.MusicGraph.Artist/{id}",
+            ),
+        )
+    }
+
+    @Test
     fun `disposing outgoing page does not clear incoming sticky header`() {
         var currentState: DesignStickyHeaderState? = null
         val sink = OwnedDesignStickyHeaderStateSink { state -> currentState = state }

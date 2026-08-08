@@ -1,19 +1,24 @@
 package io.github.julystar.musicapp.plugin.management
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -24,16 +29,21 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import io.github.julystar.musicapp.core.presentation.components.AppTextField
 import io.github.julystar.musicapp.core.presentation.components.DesignDialog
 import io.github.julystar.musicapp.core.presentation.components.DesignLoadingIndicator
+import io.github.julystar.musicapp.core.presentation.components.DesignSearchBar
+import io.github.julystar.musicapp.core.presentation.components.DesignStatusBadge
+import io.github.julystar.musicapp.core.presentation.components.DesignStatusTone
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButton
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonSize
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonVariant
+import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import io.github.julystar.musicapp.service.playback.presentation.nowplaying.NowPlayingTrackItem
 import io.github.julystar.musicapp.source.api.MetaSongCandidate
@@ -49,6 +59,7 @@ import musicapp.shared.generated.resources.manual_metadata_applied_without_lyric
 import musicapp.shared.generated.resources.manual_metadata_apply
 import musicapp.shared.generated.resources.manual_metadata_apply_failed
 import musicapp.shared.generated.resources.manual_metadata_applying
+import musicapp.shared.generated.resources.manual_metadata_current_track
 import musicapp.shared.generated.resources.manual_metadata_keyword
 import musicapp.shared.generated.resources.manual_metadata_no_matches
 import musicapp.shared.generated.resources.manual_metadata_no_sources
@@ -57,6 +68,7 @@ import musicapp.shared.generated.resources.manual_metadata_reset
 import musicapp.shared.generated.resources.manual_metadata_reset_failed
 import musicapp.shared.generated.resources.manual_metadata_resetting
 import musicapp.shared.generated.resources.manual_metadata_results
+import musicapp.shared.generated.resources.manual_metadata_results_title
 import musicapp.shared.generated.resources.manual_metadata_search
 import musicapp.shared.generated.resources.manual_metadata_search_failed
 import musicapp.shared.generated.resources.manual_metadata_searching
@@ -195,19 +207,21 @@ fun ManualMetadataSearchDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text(
-                text = stringResource(Res.string.manual_metadata_title),
-                style = MiuixTheme.textStyles.title2,
-                fontWeight = FontWeight.Bold,
-                color = MiuixTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = stringResource(Res.string.manual_metadata_summary),
-                style = MiuixTheme.textStyles.body2,
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = stringResource(Res.string.manual_metadata_title),
+                    style = MiuixTheme.textStyles.title2,
+                    fontWeight = FontWeight.Bold,
+                    color = MiuixTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = stringResource(Res.string.manual_metadata_summary),
+                    style = MiuixTheme.textStyles.body2,
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                )
+            }
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -215,9 +229,15 @@ fun ManualMetadataSearchDialog(
                         color = MiuixTheme.colorScheme.surfaceContainerHigh,
                         shape = RoundedCornerShape(DesignTokens.shapes.md),
                     )
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
+                Text(
+                    text = stringResource(Res.string.manual_metadata_current_track),
+                    style = MiuixTheme.textStyles.footnote2,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MiuixTheme.colorScheme.primary,
+                )
                 Text(
                     text = activeTrack.title,
                     maxLines = 1,
@@ -236,70 +256,71 @@ fun ManualMetadataSearchDialog(
                     )
                 }
             }
-            AppTextField(
-                value = keyword,
-                onValueChange = { keyword = it },
-                modifier = Modifier.fillMaxWidth(),
-                label = stringResource(Res.string.manual_metadata_keyword),
-                singleLine = true,
-                enabled = !searching && !applying && !resetting,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { search() }),
-            )
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
+                DesignSearchBar(
+                    value = keyword,
+                    onValueChange = { keyword = it },
+                    placeholder = stringResource(Res.string.manual_metadata_keyword),
+                    onSearch = ::search,
+                    onClear = { keyword = "" },
+                    enabled = !searching && !applying && !resetting,
+                    modifier = Modifier.weight(1f),
+                )
                 DesignTextButton(
-                    text = if (searching) {
-                        stringResource(Res.string.manual_metadata_searching)
-                    } else {
-                        stringResource(Res.string.manual_metadata_search)
-                    },
-                    variant = DesignTextButtonVariant.Primary,
+                    text = stringResource(Res.string.manual_metadata_search),
+                    variant = DesignTextButtonVariant.PrimaryFilled,
                     size = DesignTextButtonSize.Medium,
                     enabled = keyword.isNotBlank() && !searching && !applying && !resetting,
                     onClick = ::search,
                 )
             }
-            Column(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 320.dp)
-                    .weight(1f, fill = false)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                    .padding(top = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (searching) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 24.dp),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        DesignLoadingIndicator(size = 24.dp, strokeWidth = 2.dp)
-                    }
-                }
-                candidates.forEach { candidate ->
-                    MetadataCandidateRow(
-                        candidate = candidate,
-                        selected = candidate == selected,
-                        enabled = !applying && !resetting,
-                        onClick = { selected = candidate },
+                Text(
+                    text = stringResource(Res.string.manual_metadata_results_title),
+                    style = MiuixTheme.textStyles.body1,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MiuixTheme.colorScheme.onSurface,
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                if (candidates.isNotEmpty()) {
+                    DesignStatusBadge(
+                        label = stringResource(
+                            Res.string.manual_metadata_results,
+                            candidates.size,
+                        ),
+                        tone = DesignStatusTone.Accent,
                     )
                 }
             }
-            feedback?.let { value ->
-                Text(
-                    text = manualMetadataFeedbackText(value),
-                    style = MiuixTheme.textStyles.body2,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                )
-            }
+            MetadataResults(
+                candidates = candidates,
+                selected = selected,
+                feedback = feedback,
+                loading = searching || (feedback == null && candidates.isEmpty()),
+                enabled = !applying && !resetting,
+                onSelect = { selected = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+            )
+            feedback
+                ?.takeIf { candidates.isNotEmpty() && it.shouldShowAlongsideResults() }
+                ?.let { value ->
+                    MetadataFeedbackMessage(feedback = value)
+                }
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 DesignTextButton(
                     text = if (resetting) {
@@ -326,6 +347,131 @@ fun ManualMetadataSearchDialog(
             }
         }
     }
+}
+
+@Composable
+private fun MetadataResults(
+    candidates: List<MetaSongCandidate>,
+    selected: MetaSongCandidate?,
+    feedback: ManualMetadataFeedback?,
+    loading: Boolean,
+    enabled: Boolean,
+    onSelect: (MetaSongCandidate) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    when {
+        loading -> MetadataSearchState(
+            text = stringResource(Res.string.manual_metadata_searching),
+            loading = true,
+            modifier = modifier,
+        )
+        candidates.isEmpty() -> MetadataSearchState(
+            text = feedback?.let { manualMetadataFeedbackText(it) }
+                ?: stringResource(Res.string.manual_metadata_no_matches),
+            error = feedback?.isError() == true,
+            modifier = modifier,
+        )
+        else -> LazyColumn(
+            modifier = modifier,
+            contentPadding = PaddingValues(vertical = 2.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            items(
+                items = candidates,
+                key = { candidate -> "${candidate.sourceId}:${candidate.id}" },
+            ) { candidate ->
+                MetadataCandidateRow(
+                    candidate = candidate,
+                    selected = candidate == selected,
+                    enabled = enabled,
+                    onClick = { onSelect(candidate) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MetadataSearchState(
+    text: String,
+    modifier: Modifier = Modifier,
+    loading: Boolean = false,
+    error: Boolean = false,
+) {
+    Box(
+        modifier = modifier
+            .heightIn(min = 132.dp)
+            .clip(RoundedCornerShape(DesignTokens.shapes.md))
+            .background(MiuixTheme.colorScheme.surfaceContainerHigh)
+            .padding(20.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            if (loading) {
+                DesignLoadingIndicator(size = 24.dp, strokeWidth = 2.dp)
+            }
+            Text(
+                text = text,
+                style = MiuixTheme.textStyles.body2,
+                color = if (error) {
+                    MiuixTheme.colorScheme.error
+                } else {
+                    MiuixTheme.colorScheme.onSurfaceVariantSummary
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun MetadataFeedbackMessage(feedback: ManualMetadataFeedback) {
+    val accent = when {
+        feedback.isError() -> MiuixTheme.colorScheme.error
+        feedback is ManualMetadataFeedback.AppliedWithoutLyrics -> DesignPalette.SupportOrange
+        feedback is ManualMetadataFeedback.SearchCompleted && feedback.failedSourceCount > 0 ->
+            DesignPalette.SupportOrange
+        else -> MiuixTheme.colorScheme.onSurfaceVariantSummary
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(DesignTokens.shapes.sm))
+            .background(accent.copy(alpha = 0.10f))
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Box(
+            modifier = Modifier
+                .padding(top = 5.dp)
+                .size(6.dp)
+                .clip(CircleShape)
+                .background(accent),
+        )
+        Text(
+            text = manualMetadataFeedbackText(feedback),
+            modifier = Modifier.weight(1f),
+            style = MiuixTheme.textStyles.footnote1,
+            color = accent,
+        )
+    }
+}
+
+private fun ManualMetadataFeedback.shouldShowAlongsideResults(): Boolean = when (this) {
+    is ManualMetadataFeedback.SearchCompleted -> failedSourceCount > 0
+    else -> true
+}
+
+private fun ManualMetadataFeedback.isError(): Boolean = when (this) {
+    is ManualMetadataFeedback.SearchCompleted ->
+        queriedSourceCount == 0 || (resultCount == 0 && failedSourceCount > 0)
+    ManualMetadataFeedback.SearchFailed,
+    ManualMetadataFeedback.ApplyFailed,
+    ManualMetadataFeedback.ResetFailed -> true
+    is ManualMetadataFeedback.AppliedWithoutLyrics -> false
 }
 
 private fun defaultManualMetadataKeyword(track: NowPlayingTrackItem): String =
@@ -379,49 +525,114 @@ private fun MetadataCandidateRow(
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
-    Column(
+    val shape = RoundedCornerShape(DesignTokens.shapes.md)
+    val source = candidate.sourceId?.let { sourceId ->
+        stringResource(Res.string.manual_metadata_source, sourceId)
+    }
+    val details = listOfNotNull(
+        candidate.date?.trim()?.takeIf(String::isNotEmpty),
+        candidate.durationMs?.let(::formatMetadataDuration),
+    ).joinToString(" · ")
+    Row(
         modifier = Modifier
             .fillMaxWidth()
+            .alpha(if (enabled) 1f else 0.55f)
+            .clip(shape)
             .background(
                 color = if (selected) {
-                    MiuixTheme.colorScheme.primary.copy(alpha = 0.14f)
+                    MiuixTheme.colorScheme.primary.copy(alpha = 0.12f)
                 } else {
                     MiuixTheme.colorScheme.surfaceContainerHigh
                 },
-                shape = RoundedCornerShape(DesignTokens.shapes.md),
             )
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+            .border(
+                width = 1.dp,
+                color = if (selected) {
+                    MiuixTheme.colorScheme.primary.copy(alpha = 0.55f)
+                } else {
+                    MiuixTheme.colorScheme.outline.copy(alpha = 0f)
+                },
+                shape = shape,
+            )
+            .selectable(
+                selected = selected,
+                enabled = enabled,
+                role = Role.RadioButton,
+                onClick = onClick,
+            )
+            .padding(horizontal = 14.dp, vertical = 11.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = candidate.title,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            style = MiuixTheme.textStyles.body1,
-            fontWeight = FontWeight.Medium,
-            color = MiuixTheme.colorScheme.onSurface,
-        )
-        Text(
-            text = listOfNotNull(candidate.artist, candidate.album).joinToString(" · ")
-                .ifBlank { stringResource(Res.string.manual_metadata_unknown_artist) },
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            style = MiuixTheme.textStyles.body2,
-            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-        )
-        candidate.sourceId?.let { sourceId ->
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
             Text(
-                text = buildList {
-                    candidate.date?.trim()?.takeIf(String::isNotEmpty)?.let(::add)
-                    candidate.durationMs?.let { durationMs -> add(formatMetadataDuration(durationMs)) }
-                    add(stringResource(Res.string.manual_metadata_source, sourceId))
-                }.joinToString(" · "),
+                text = candidate.title,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                style = MiuixTheme.textStyles.footnote2,
+                style = MiuixTheme.textStyles.body1,
+                fontWeight = FontWeight.SemiBold,
+                color = MiuixTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = listOfNotNull(candidate.artist, candidate.album).joinToString(" · ")
+                    .ifBlank { stringResource(Res.string.manual_metadata_unknown_artist) },
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = MiuixTheme.textStyles.body2,
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             )
+            if (source != null || details.isNotEmpty()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    source?.let {
+                        Text(
+                            text = it,
+                            modifier = Modifier.weight(1f, fill = false),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MiuixTheme.textStyles.footnote2,
+                            color = MiuixTheme.colorScheme.primary,
+                        )
+                    }
+                    if (source != null && details.isNotEmpty()) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    if (details.isNotEmpty()) {
+                        Text(
+                            text = details,
+                            maxLines = 1,
+                            style = MiuixTheme.textStyles.footnote2,
+                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        )
+                    }
+                }
+            }
+        }
+        Box(
+            modifier = Modifier
+                .size(20.dp)
+                .clip(CircleShape)
+                .border(
+                    width = 2.dp,
+                    color = if (selected) {
+                        MiuixTheme.colorScheme.primary
+                    } else {
+                        MiuixTheme.colorScheme.onSurfaceVariantSummary
+                    },
+                    shape = CircleShape,
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (selected) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(MiuixTheme.colorScheme.primary),
+                )
+            }
         }
     }
 }

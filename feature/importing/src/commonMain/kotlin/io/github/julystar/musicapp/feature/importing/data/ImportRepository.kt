@@ -1,6 +1,7 @@
 package io.github.julystar.musicapp.feature.importing.data
 
 import io.github.julystar.musicapp.core.domain.model.ImportSelectionMode
+import io.github.julystar.musicapp.core.domain.model.SourceAccountId
 import io.github.julystar.musicapp.source.api.ImportRepository
 import io.github.julystar.musicapp.source.api.SourceDirectorySelection
 import io.github.julystar.musicapp.source.api.SourceNodeSelection
@@ -14,22 +15,29 @@ typealias DirectoryImportHandler = (selection: SourceDirectorySelection) -> Unit
 class ImportRepositoryImpl : ImportRepository {
     private val _allowTypes = MutableStateFlow(listOf<SourceNodeType>())
     private val _selectionMode = MutableStateFlow(ImportSelectionMode.Entries)
+    private val _currentDirectoryAccountId = MutableStateFlow<SourceAccountId?>(null)
     private var _importCallback: ((List<SourceNodeSelection>) -> Unit)? = null
     private var _directoryImportCallback: ((SourceDirectorySelection) -> Unit)? = null
 
     override val allowTypes = _allowTypes.asStateFlow()
     override val selectionMode = _selectionMode.asStateFlow()
+    override val currentDirectoryAccountId = _currentDirectoryAccountId.asStateFlow()
 
     override fun prepare(types: List<SourceNodeType>, block: (List<SourceNodeSelection>) -> Unit) {
         _allowTypes.value = types
         _selectionMode.value = ImportSelectionMode.Entries
+        _currentDirectoryAccountId.value = null
         _importCallback = block
         _directoryImportCallback = null
     }
 
-    override fun prepareCurrentDirectory(block: (SourceDirectorySelection) -> Unit) {
+    override fun prepareCurrentDirectory(
+        accountId: SourceAccountId?,
+        block: (SourceDirectorySelection) -> Unit,
+    ) {
         _allowTypes.value = emptyList()
         _selectionMode.value = ImportSelectionMode.CurrentDirectory
+        _currentDirectoryAccountId.value = accountId
         _importCallback = null
         _directoryImportCallback = block
     }

@@ -13,7 +13,17 @@ data class NowPlayingState(
     val currentTrack: NowPlayingTrackItem? = null,
     val queue: NowPlayingQueueState = NowPlayingQueueState(),
     val controls: NowPlayingControlsState = NowPlayingControlsState(),
+    val playbackSources: List<NowPlayingSourceItem> = emptyList(),
     val externalEditorSupported: Boolean = false,
+)
+
+@Immutable
+data class NowPlayingSourceItem(
+    val sourceItemId: Long,
+    val accountName: String,
+    val displayName: String,
+    val quality: String?,
+    val isSelected: Boolean,
 )
 
 @Immutable
@@ -69,6 +79,7 @@ sealed interface NowPlayingAction {
     data object RemoveLyric : NowPlayingAction
     data object RemoveCurrentTrack : NowPlayingAction
     data object DownloadCurrentTrack : NowPlayingAction
+    data class SelectPlaybackSource(val sourceItemId: Long) : NowPlayingAction
     data object OpenSleepTimer : NowPlayingAction
     data object OpenLyrics : NowPlayingAction
     data object OpenQueue : NowPlayingAction

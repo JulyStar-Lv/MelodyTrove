@@ -33,7 +33,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -48,14 +50,13 @@ import io.github.julystar.musicapp.core.presentation.components.DesignIconButton
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButtonVariant
 import io.github.julystar.musicapp.core.presentation.components.DesignListDivider
 import io.github.julystar.musicapp.core.presentation.components.DesignStatusCard
+import io.github.julystar.musicapp.core.presentation.components.DesignStickyGlassActionBar
 import io.github.julystar.musicapp.core.presentation.components.LocalDesignBottomContentInset
 import io.github.julystar.musicapp.core.presentation.media.ArtworkImage
 import io.github.julystar.musicapp.core.presentation.theme.DesignFontFamilies
-import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import kotlinx.coroutines.launch
 import musicapp.core.presentation.generated.resources.Res as CoreRes
-import musicapp.core.presentation.generated.resources.icon_arrow_left
 import musicapp.core.presentation.generated.resources.icon_download
 import musicapp.core.presentation.generated.resources.icon_heart
 import musicapp.core.presentation.generated.resources.icon_heart_filled
@@ -105,11 +106,18 @@ fun AlbumScreen(
     val defaultTitle = stringResource(Res.string.album_default_title)
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
-    val compactTitleVisible by remember {
+    val collapseDistance = with(LocalDensity.current) { 88.dp.roundToPx() }
+    val actionBarProgress by remember(listState, collapseDistance) {
         derivedStateOf {
-            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 96
+            if (listState.firstVisibleItemIndex > 0) {
+                1f
+            } else {
+                (listState.firstVisibleItemScrollOffset / collapseDistance.toFloat())
+                    .coerceIn(0f, 1f)
+            }
         }
     }
+    val pageTitleAlpha = (1f - actionBarProgress / 0.70f).coerceIn(0f, 1f)
     val currentTrackIndex = state.tracks.indexOfFirst { track -> track.id == currentPlayingTrackId }
 
     BoxWithConstraints(
@@ -120,28 +128,21 @@ fun AlbumScreen(
         val compact = maxWidth < 600.dp
         val horizontalPadding = if (compact) 20.dp else 32.dp
 
-        Column(
+        Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .widthIn(max = 960.dp)
                 .fillMaxWidth()
                 .fillMaxHeight(),
         ) {
-            AlbumTopBar(
-                title = state.title.ifBlank { defaultTitle },
-                showTitle = compactTitleVisible && !state.isLoading,
-                canPlay = state.tracks.isNotEmpty(),
-                onNavigateBack = { onAction(AlbumAction.NavigateBack) },
-                onPlayAll = { onAction(AlbumAction.PlayAll) },
-            )
-
             when {
                 state.isLoading -> DesignStatusCard(
                     title = stringResource(Res.string.album_loading),
                     message = state.title.ifBlank { defaultTitle },
                     loading = true,
                     modifier = Modifier
-                        .weight(1f)
+                        .fillMaxSize()
+                        .padding(top = DesignTokens.adaptive.compactHeaderHeight)
                         .padding(horizontal = horizontalPadding, vertical = spacing.md),
                 )
 
@@ -149,7 +150,8 @@ fun AlbumScreen(
                     title = stringResource(Res.string.album_unavailable),
                     message = state.error,
                     modifier = Modifier
-                        .weight(1f)
+                        .fillMaxSize()
+                        .padding(top = DesignTokens.adaptive.compactHeaderHeight)
                         .padding(horizontal = horizontalPadding, vertical = spacing.md),
                     actionText = stringResource(Res.string.album_retry),
                     onAction = { onAction(AlbumAction.Retry) },
@@ -157,9 +159,10 @@ fun AlbumScreen(
 
                 else -> LazyColumn(
                     state = listState,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(
                         start = horizontalPadding,
+                        top = DesignTokens.adaptive.compactHeaderHeight,
                         end = horizontalPadding,
                         bottom = spacing.lg + bottomContentInset,
                     ),
@@ -168,6 +171,7 @@ fun AlbumScreen(
                         AlbumHero(
                             state = state,
                             compact = compact,
+                            titleAlpha = pageTitleAlpha,
                         )
                     }
                     stickyHeader(key = "album-actions") {
@@ -212,6 +216,24 @@ fun AlbumScreen(
                     }
                 }
             }
+            DesignStickyGlassActionBar(
+                title = state.title.ifBlank { defaultTitle },
+                collapseFraction = if (state.isLoading || state.error != null) {
+                    1f
+                } else {
+                    actionBarProgress
+                },
+                onNavigateBack = { onAction(AlbumAction.NavigateBack) },
+                backContentDescription = stringResource(Res.string.album_back),
+                centerTitle = true,
+                actions = {
+                    AlbumTopBarActions(
+                        canPlay = state.tracks.isNotEmpty(),
+                        onPlayAll = { onAction(AlbumAction.PlayAll) },
+                    )
+                },
+                modifier = Modifier.align(Alignment.TopCenter),
+            )
         }
     }
 }
@@ -219,75 +241,38 @@ fun AlbumScreen(
 private const val AlbumTrackListStartIndex = 2
 
 @Composable
-private fun AlbumTopBar(
-    title: String,
-    showTitle: Boolean,
+private fun AlbumTopBarActions(
     canPlay: Boolean,
-    onNavigateBack: () -> Unit,
     onPlayAll: () -> Unit,
 ) {
     var moreMenuExpanded by remember { mutableStateOf(false) }
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .background(MiuixTheme.colorScheme.background.copy(alpha = 0.96f)),
-    ) {
+    Box {
         DesignIconButton(
             size = DesignIconButtonSize.Touch,
             variant = DesignIconButtonVariant.Default,
-            painter = painterResource(CoreRes.drawable.icon_arrow_left),
-            contentDescription = stringResource(Res.string.album_back),
-            onClick = onNavigateBack,
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .padding(start = 4.dp),
+            painter = painterResource(CoreRes.drawable.icon_more_horizontal),
+            contentDescription = stringResource(Res.string.album_more_actions),
+            enabled = canPlay,
+            onClick = { moreMenuExpanded = true },
         )
-        if (showTitle) {
-            Text(
-                text = title,
-                color = MiuixTheme.colorScheme.onSurface,
-                style = MiuixTheme.textStyles.body1.copy(fontSize = 16.sp, lineHeight = 20.sp),
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(horizontal = 64.dp),
-            )
-        }
         Box(
             modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .padding(end = 4.dp),
+                .align(Alignment.TopEnd)
+                .offset(x = 14.dp, y = 36.dp),
         ) {
-            DesignIconButton(
-                size = DesignIconButtonSize.Touch,
-                variant = DesignIconButtonVariant.Default,
-                painter = painterResource(CoreRes.drawable.icon_more_horizontal),
-                contentDescription = stringResource(Res.string.album_more_actions),
-                enabled = canPlay,
-                onClick = { moreMenuExpanded = true },
-            )
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .offset(x = 14.dp, y = 36.dp),
-            ) {
-                DesignContextMenu(
-                    expanded = moreMenuExpanded,
-                    onDismissRequest = { moreMenuExpanded = false },
-                    compact = true,
-                    items = listOf(
-                        DesignContextMenuItem(
-                            label = Res.string.album_play_all,
-                            icon = CoreRes.drawable.icon_play,
-                            onClick = onPlayAll,
-                        ),
+            DesignContextMenu(
+                expanded = moreMenuExpanded,
+                onDismissRequest = { moreMenuExpanded = false },
+                compact = true,
+                items = listOf(
+                    DesignContextMenuItem(
+                        label = Res.string.album_play_all,
+                        icon = CoreRes.drawable.icon_play,
+                        onClick = onPlayAll,
                     ),
-                )
-            }
+                ),
+            )
         }
     }
 }
@@ -296,6 +281,7 @@ private fun AlbumTopBar(
 private fun AlbumHero(
     state: AlbumState,
     compact: Boolean,
+    titleAlpha: Float,
 ) {
     val artworkSize = if (compact) 112.dp else 220.dp
     val artworkRadius = if (compact) 18.dp else 24.dp
@@ -339,6 +325,7 @@ private fun AlbumHero(
                 fontWeight = FontWeight.Bold,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.alpha(titleAlpha),
             )
             if (metadata.isNotBlank()) {
                 Text(
@@ -393,23 +380,26 @@ private fun AlbumActionBar(
             Icon(
                 painter = painterResource(CoreRes.drawable.icon_play),
                 contentDescription = null,
-                tint = DesignPalette.Primary.copy(alpha = if (canPlay) 1f else 0.35f),
+                tint = MiuixTheme.colorScheme.primary.copy(alpha = if (canPlay) 1f else 0.35f),
                 modifier = Modifier.size(16.dp),
             )
             Text(
                 text = stringResource(Res.string.album_play_all),
-                color = DesignPalette.Primary.copy(alpha = if (canPlay) 1f else 0.35f),
+                color = MiuixTheme.colorScheme.primary.copy(alpha = if (canPlay) 1f else 0.35f),
                 style = MiuixTheme.textStyles.body2.copy(fontSize = 14.sp, lineHeight = 18.sp),
                 fontWeight = FontWeight.SemiBold,
             )
         }
         Box(modifier = Modifier.weight(1f))
         DesignIconButton(
-            size = DesignIconButtonSize.Touch,
-            variant = DesignIconButtonVariant.Surface,
+            size = DesignIconButtonSize.Medium,
+            variant = DesignIconButtonVariant.Default,
             painter = painterResource(CoreRes.drawable.icon_locate_fixed),
             contentDescription = stringResource(Res.string.album_locate_current),
-            colors = DesignIconButtonColors(iconTint = DesignPalette.Primary),
+            colors = DesignIconButtonColors(
+                buttonBg = MiuixTheme.colorScheme.surfaceContainerHigh,
+                iconTint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            ),
             enabled = canLocate,
             onClick = onLocateCurrent,
         )
@@ -496,7 +486,7 @@ private fun AlbumTrackRow(
                         if (favorite) Res.string.album_remove_favorite else Res.string.album_add_favorite,
                         track.title,
                     ),
-                    tint = if (favorite) DesignPalette.Primary else MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    tint = if (favorite) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     modifier = Modifier.size(17.dp),
                 )
             }

@@ -118,7 +118,8 @@ class ImportVM constructor(
     private val _selected = MutableStateFlow(persistentHashSetOf<String>())
     private val _entries = MutableStateFlow(listOf<SourceNode>())
     private val _selectedStorageAccountId = MutableStateFlow(
-        storageRepository.storageAccounts.value.firstOrNull()?.accountId
+        importRepository.currentDirectoryAccountId.value
+            ?: storageRepository.storageAccounts.value.firstOrNull()?.accountId
     )
     private val _loadState = MutableStateFlow(ImportLoadState.Loading)
     private val _disabledToggleAll = _entries.map { entries ->
@@ -172,8 +173,15 @@ class ImportVM constructor(
                 disabledToggleAll = disabledToggleAll,
             )
         },
-        storageRepository.storageAccounts.map { accounts ->
-            accounts.map { it.toImportStorageAccountUi() }
+        combine(
+            storageRepository.storageAccounts,
+            importRepository.currentDirectoryAccountId,
+        ) { accounts, targetAccountId ->
+            accounts
+                .filter { account ->
+                    targetAccountId == null || account.accountId == targetAccountId
+                }
+                .map { it.toImportStorageAccountUi() }
         },
     ) { browse, selection, chrome, storageAccounts ->
         importState(

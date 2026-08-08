@@ -16,11 +16,14 @@ import io.github.julystar.musicapp.service.playback.domain.NowPlayingRepository
 import io.github.julystar.musicapp.service.playback.domain.PlayableItem
 import io.github.julystar.musicapp.service.playback.domain.PlaybackController
 import io.github.julystar.musicapp.service.playback.domain.PlaybackStatus
+import io.github.julystar.musicapp.service.playback.domain.PlaybackSourceOption
+import io.github.julystar.musicapp.service.playback.domain.PlaybackSourceRepository
 import io.github.julystar.musicapp.service.playback.domain.PlayerState
 import io.github.julystar.musicapp.service.playback.domain.RepeatMode
 import io.github.julystar.musicapp.service.playback.presentation.nowplaying.NowPlayingAction
 import io.github.julystar.musicapp.service.playback.presentation.nowplaying.NowPlayingEvent
 import io.github.julystar.musicapp.service.playback.presentation.nowplaying.NowPlayingState
+import io.github.julystar.musicapp.service.playback.presentation.nowplaying.NowPlayingSourceItem
 import io.github.julystar.musicapp.service.playback.presentation.nowplaying.NowPlayingTrackItem
 import io.github.julystar.musicapp.service.playback.presentation.nowplaying.toNowPlayingControlsState
 import io.github.julystar.musicapp.service.playback.presentation.nowplaying.toNowPlayingQueueState
@@ -43,6 +46,7 @@ class PlayerVM constructor(
     private val enqueueDownload: EnqueueDownloadUseCase,
     private val settingsRepository: SettingsRepository,
     private val externalEditorLauncher: ExternalEditorLauncher,
+    private val playbackSourceRepository: PlaybackSourceRepository,
 ) : ViewModel() {
     private val whileSubscribed = SharingStarted.WhileSubscribed(5_000)
     private val _nowPlayingState = MutableStateFlow(
@@ -94,8 +98,14 @@ class PlayerVM constructor(
         viewModelScope.launch {
             nowPlayingRepository.currentTrackInfo.collect { info ->
                 currentTrackInfo = info
+                val playbackSources = info?.let { track ->
+                    runCatching { playbackSourceRepository.sources(track.id) }
+                        .getOrDefault(emptyList())
+                        .map(PlaybackSourceOption::toNowPlayingSourceItem)
+                }.orEmpty()
                 _nowPlayingState.value = _nowPlayingState.value.copy(
                     currentTrack = info?.toNowPlayingTrackItem(),
+                    playbackSources = playbackSources,
                 )
             }
         }
@@ -141,6 +151,7 @@ class PlayerVM constructor(
             NowPlayingAction.RemoveLyric -> removeLyric()
             NowPlayingAction.RemoveCurrentTrack -> remove()
             NowPlayingAction.DownloadCurrentTrack -> downloadCurrentTrack()
+            is NowPlayingAction.SelectPlaybackSource -> selectPlaybackSource(action.sourceItemId)
             NowPlayingAction.OpenSleepTimer -> Unit
             NowPlayingAction.OpenLyrics -> Unit
             NowPlayingAction.OpenQueue -> Unit
@@ -220,6 +231,19 @@ class PlayerVM constructor(
         enqueueTrackDownload(track)
     }
 
+    private fun selectPlaybackSource(sourceItemId: Long) {
+        val trackId = _nowPlayingState.value.currentTrack?.id ?: return
+        viewModelScope.launch {
+            if (!playbackSourceRepository.select(trackId, sourceItemId)) return@launch
+            val sources = playbackSourceRepository.sources(trackId)
+                .map(PlaybackSourceOption::toNowPlayingSourceItem)
+            _nowPlayingState.value = _nowPlayingState.value.copy(playbackSources = sources)
+            _nowPlayingEvents.send(
+                NowPlayingEvent.ShowMessage("Preferred source updated; it will be used first next time."),
+            )
+        }
+    }
+
     private fun openExternalEditor(kind: ExternalEditorKind) {
         val track = currentTrackInfo ?: return
         val launched = externalEditorLauncher.launch(
@@ -266,6 +290,14 @@ class PlayerVM constructor(
         }
     }
 }
+
+private fun PlaybackSourceOption.toNowPlayingSourceItem() = NowPlayingSourceItem(
+    sourceItemId = sourceItemId,
+    accountName = accountName,
+    displayName = displayName,
+    quality = quality,
+    isSelected = isSelected,
+)
 
 private fun ULong.toPlaybackPositionMs(): Long {
     val max = Long.MAX_VALUE.toULong()

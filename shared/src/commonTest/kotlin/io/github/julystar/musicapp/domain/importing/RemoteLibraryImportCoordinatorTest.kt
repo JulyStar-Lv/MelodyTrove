@@ -598,6 +598,45 @@ class RemoteLibraryImportCoordinatorTest {
     }
 
     @Test
+    fun crossSourceMatchPreservesCanonicalMetadataAndRecordsEvidence() {
+        val canonicalEntry = entry(path = "/Music/Canonical.flac", name = "Canonical.flac")
+        val canonical = buildTrackEntity(
+            entry = canonicalEntry,
+            metadata = metadata(title = "Canonical title", artist = "Canonical artist", sampleRate = 44_100u),
+            sourceItem = sourceItem(id = 41, canonicalPath = canonicalEntry.path),
+            now = 100,
+        )
+        val sourceItem = sourceItem(id = 42, canonicalPath = "/Mirror/Other.flac")
+        val sourceMetadata = metadata(title = "Other title", artist = "Other artist", sampleRate = 96_000u)
+        val preserved = buildTrackEntity(
+            entry = entry(path = "/Mirror/Other.flac", name = "Other.flac"),
+            metadata = sourceMetadata,
+            sourceItem = sourceItem,
+            now = 200,
+            existingTrack = canonical,
+            preserveExistingMetadata = true,
+        )
+        val ref = buildTrackSourceRefEntity(
+            track = preserved,
+            sourceItem = sourceItem,
+            metadata = sourceMetadata,
+            now = 200,
+            role = TrackSourceRoles.Alternate,
+            matchMethod = TrackMatchMethods.IsrcDuration,
+            matchConfidence = MATCH_CONFIDENCE_ISRC,
+        )
+
+        assertEquals(canonical.id, preserved.id)
+        assertEquals("Canonical title", preserved.title)
+        assertEquals("Canonical artist", preserved.artist)
+        assertEquals(44_100, preserved.sampleRate)
+        assertEquals(96_000, ref.sampleRate)
+        assertEquals("alternate", ref.role)
+        assertEquals("isrc_duration", ref.matchMethod)
+        assertEquals(95, ref.matchConfidence)
+    }
+
+    @Test
     fun metadataRefreshProtectsPluginFieldsUntilExplicitFileReset() {
         val entry = entry(path = "/Music/Song.flac", name = "Song.flac")
         val sourceItem = sourceItem(id = 42, canonicalPath = entry.path)

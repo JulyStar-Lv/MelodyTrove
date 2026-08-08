@@ -93,7 +93,7 @@ fun DesignSourceBadge(
 @Composable
 private fun qualityBadgeColors(type: QualityBadgeType): QualityBadgeColors {
     val accent = when (type) {
-        QualityBadgeType.Flac -> DesignPalette.Primary
+        QualityBadgeType.Flac -> MiuixTheme.colorScheme.primary
         QualityBadgeType.HiRes -> DesignPalette.Secondary
         QualityBadgeType.DolbyAtmos -> DesignPalette.SupportGreen
     }

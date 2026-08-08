@@ -690,7 +690,7 @@ private fun SearchArtistResultRow(
                 .clip(RoundedCornerShape(20.dp))
                 .background(
                     Brush.linearGradient(
-                        listOf(DesignPalette.SupportOrange, DesignPalette.Primary),
+                        listOf(DesignPalette.SupportOrange, DesignPalette.BrandPink),
                     ),
                 ),
             contentAlignment = Alignment.Center,
@@ -805,9 +805,9 @@ private fun SearchTrackItem.qualityBadgeType(): QualityBadgeType = when {
 }
 
 private val searchTrackGradients = listOf(
-    DesignPalette.Primary to DesignPalette.Secondary,
+    DesignPalette.BrandPink to DesignPalette.Secondary,
     DesignPalette.Secondary to DesignPalette.SupportBlue,
-    DesignPalette.SupportOrange to DesignPalette.Primary,
+    DesignPalette.SupportOrange to DesignPalette.BrandPink,
     DesignPalette.SupportGreen to DesignPalette.SupportBlue,
 )
 

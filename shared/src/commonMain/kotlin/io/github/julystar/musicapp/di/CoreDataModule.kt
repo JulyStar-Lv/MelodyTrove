@@ -4,6 +4,7 @@ import io.github.julystar.musicapp.core.data.datastore.AppPreferencesRepository
 import io.github.julystar.musicapp.core.data.datastore.createAppDataStore
 import io.github.julystar.musicapp.core.data.security.createCredentialStore
 import io.github.julystar.musicapp.core.data.settings.AutoScanCoordinator
+import io.github.julystar.musicapp.core.data.settings.AutomaticTrackMerger
 import io.github.julystar.musicapp.core.data.settings.DataStoreSettingsRepository
 import io.github.julystar.musicapp.core.data.settings.FileDiagnosticsService
 import io.github.julystar.musicapp.core.data.settings.FileStorageUsageRepository
@@ -11,6 +12,7 @@ import io.github.julystar.musicapp.core.data.settings.RoomLibraryMaintenanceServ
 import io.github.julystar.musicapp.core.data.settings.RoomAppDataClearService
 import io.github.julystar.musicapp.core.data.settings.RoomSettingsMigration
 import io.github.julystar.musicapp.core.data.settings.RoomSourceSettingsRepository
+import io.github.julystar.musicapp.core.data.settings.TrackDuplicateMerger
 import io.github.julystar.musicapp.core.data.settings.JsonSettingsBackupService
 import io.github.julystar.musicapp.core.data.settings.RustAudioDspAnalysisRepository
 import io.github.julystar.musicapp.core.domain.model.SettingsCapabilities
@@ -92,6 +94,7 @@ val coreDataModule = module {
     single<LibraryMaintenanceService> {
         RoomLibraryMaintenanceService(get(), get(), get(), get(), get())
     }
+    single<AutomaticTrackMerger> { TrackDuplicateMerger(get(), get()) }
     single<AppDataClearService> {
         RoomAppDataClearService(get(), get(), get(), get(), get(), get(), get(), get(), get())
     }

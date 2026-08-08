@@ -32,7 +32,6 @@ import io.github.julystar.musicapp.core.presentation.components.DesignDialog
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButton
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonSize
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonVariant
-import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -141,7 +140,7 @@ private fun FullImportSection(
                 .background(MiuixTheme.colorScheme.tertiaryContainer)
                 .border(
                     1.dp,
-                    DesignPalette.Primary.copy(alpha = 0.18f),
+                    MiuixTheme.colorScheme.primary.copy(alpha = 0.18f),
                     RoundedCornerShape(DesignTokens.shapes.lg),
                 )
                 .padding(24.dp),
@@ -151,7 +150,7 @@ private fun FullImportSection(
             Icon(
                 painter = painterResource(Res.drawable.icon_download),
                 contentDescription = null,
-                tint = DesignPalette.Primary,
+                tint = MiuixTheme.colorScheme.primary,
             )
             Box(modifier = Modifier.height(10.dp))
             Text(

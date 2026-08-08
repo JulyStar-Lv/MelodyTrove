@@ -10,6 +10,7 @@ import androidx.navigation.compose.composable
 @Composable
 fun SearchTabGraph(
     navController: NavHostController,
+    onNavigateToAlbum: (Long) -> Unit,
 ) {
     NavHost(
         navController = navController,
@@ -17,7 +18,7 @@ fun SearchTabGraph(
     ) {
         composable("search") {
             SearchRoot(
-                onNavigateToAlbum = { albumId -> },
+                onNavigateToAlbum = onNavigateToAlbum,
                 onNavigateToArtist = { artistId -> },
             )
         }

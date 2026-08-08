@@ -1,6 +1,5 @@
 package io.github.julystar.musicapp.core.presentation.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -29,6 +29,7 @@ fun DesignTopBar(
     modifier: Modifier = Modifier,
     height: Dp = 56.dp,
     titleStyle: TextStyle = MiuixTheme.textStyles.title3,
+    titleAlpha: Float = 1f,
     centerTitle: Boolean = false,
     navigationIcon: (@Composable () -> Unit)? = null,
     actions: (@Composable () -> Unit)? = null,
@@ -57,6 +58,7 @@ fun DesignTopBar(
                 textAlign = if (centerTitle) TextAlign.Center else TextAlign.Start,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.alpha(titleAlpha),
             )
         }
         Row(
@@ -74,18 +76,11 @@ fun DesignTopBarBackButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     contentDescription: String? = null,
-    showBackground: Boolean = true,
 ) {
-    val backgroundModifier = if (showBackground) {
-        Modifier.background(MiuixTheme.colorScheme.surfaceVariant)
-    } else {
-        Modifier
-    }
     Box(
         modifier = modifier
             .size(40.dp)
             .clip(RoundedCornerShape(14.dp))
-            .then(backgroundModifier)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {

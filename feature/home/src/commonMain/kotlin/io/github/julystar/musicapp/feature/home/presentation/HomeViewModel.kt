@@ -77,6 +77,8 @@ class HomeViewModel(
             is HomeAction.PlayTrack -> return
             is HomeAction.PlayLibraryTrack -> return
             HomeAction.PlayDailyPicks -> return
+            is HomeAction.NavigateToAlbum -> HomeEvent.NavigateToAlbum(action.albumId)
+            is HomeAction.NavigateToPlaylist -> HomeEvent.NavigateToPlaylist(action.playlistId)
             HomeAction.NavigateToDownloads -> HomeEvent.NavigateToDownloads
             HomeAction.NavigateToLibrary -> HomeEvent.NavigateToLibrary
             HomeAction.NavigateToSourceSettings -> HomeEvent.NavigateToSourceSettings
@@ -121,6 +123,7 @@ internal fun LibraryTrackItem.toHomeTrack(liked: Boolean): HomeRecentTrack = Hom
 )
 
 internal fun LibraryAlbumItem.toHomeAlbum(): HomeFeaturedAlbum = HomeFeaturedAlbum(
+    id = id,
     title = name,
     subtitle = year?.toString().orEmpty(),
     artwork = Artwork.LibraryAlbum(id),
@@ -142,6 +145,7 @@ private fun LibraryArtistItem.toHomeArtist(): HomeArtist = HomeArtist(
 )
 
 private fun PlaylistSummary.toHomePlaylist(): HomePlaylist = HomePlaylist(
+    id = id,
     title = title,
     description = "",
     meta = "",
@@ -155,7 +159,7 @@ private fun indexFor(id: Long): Int = ((id % 8L + 8L) % 8L).toInt() + 1
 
 private fun homeGradient(id: Long): ImmutableList<Color> {
     val colors = listOf(
-        DesignPalette.Primary,
+        DesignPalette.BrandPink,
         DesignPalette.Secondary,
         DesignPalette.SupportBlue,
         DesignPalette.SupportGreen,

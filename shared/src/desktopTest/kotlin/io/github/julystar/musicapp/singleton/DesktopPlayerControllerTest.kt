@@ -651,6 +651,10 @@ private object EmptyTrackSourceRefDao : TrackSourceRefDao {
         return emptyList()
     }
 
+    override suspend fun contains(trackId: Long, sourceItemId: Long) = false
+
+    override suspend fun updatePreferredSource(trackId: Long, sourceItemId: Long, now: Long) = Unit
+
     override suspend fun findBySourceItemIds(sourceItemIds: List<Long>): List<TrackSourceRefEntity> {
         return emptyList()
     }

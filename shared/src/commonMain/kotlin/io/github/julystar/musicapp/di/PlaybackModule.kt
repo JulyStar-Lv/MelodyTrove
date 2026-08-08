@@ -11,8 +11,10 @@ import io.github.julystar.musicapp.service.playback.data.PlaybackResourceResolve
 import io.github.julystar.musicapp.service.playback.data.PersistentPlaybackAudioCache
 import io.github.julystar.musicapp.service.playback.data.PlayerController
 import io.github.julystar.musicapp.service.playback.data.PlayerRepository
+import io.github.julystar.musicapp.service.playback.data.RoomPlaybackSourceRepository
 import io.github.julystar.musicapp.service.playback.domain.NowPlayingRepository
 import io.github.julystar.musicapp.service.playback.domain.PlaybackController
+import io.github.julystar.musicapp.service.playback.domain.PlaybackSourceRepository
 import io.github.julystar.musicapp.service.playback.domain.PlaylistPlaybackSync
 import io.github.julystar.musicapp.service.playback.domain.SleepController
 import io.github.julystar.musicapp.service.playback.presentation.di.playbackPresentationModule
@@ -28,6 +30,7 @@ val playbackModule = module {
         )
     }
     single { PlaybackResourceResolver(get(), get(), get(), get(), get()) }
+    single<PlaybackSourceRepository> { RoomPlaybackSourceRepository(get()) }
     single { PlaybackLyricsEnricher(get(), get(), get(), get(), get()) }
     single { PlayerRepository(get(), get(), get(), get(), get(), get(), get(), get()) }
     single { ManualMetadataService(get(), get(), get(), get(), get(), get()) }

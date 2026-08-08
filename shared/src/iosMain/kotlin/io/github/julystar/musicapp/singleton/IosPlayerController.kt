@@ -159,7 +159,8 @@ class IosPlayerController internal constructor(
     override fun play(id: MusicId, playlistId: PlaylistId) {
         if (
             playerRepository.music.value?.meta?.id == id &&
-            playerRepository.playlist.value?.abstr?.meta?.id == playlistId
+            playerRepository.playlist.value?.abstr?.meta?.id == playlistId &&
+            playbackResource != null
         ) {
             resume()
             return
@@ -207,7 +208,12 @@ class IosPlayerController internal constructor(
                     }
                 }
 
-                playerRepository.setCurrent(music, playlist)
+                if (
+                    playerRepository.music.value?.meta?.id != id ||
+                    playerRepository.playlist.value?.abstr?.meta?.id != playlistId
+                ) {
+                    playerRepository.setCurrent(music, playlist)
+                }
                 updateAudioDsp(currentSettings, music.meta.id.value)
                 playbackEngine.play()
                 playerRepository.setIsPlaying(true)

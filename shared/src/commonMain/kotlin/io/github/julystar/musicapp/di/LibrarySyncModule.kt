@@ -24,7 +24,7 @@ val librarySyncModule = module {
             storageRepository.storages.value.firstOrNull { storage -> storage.id == storageId }
         }
     }
-    single<LibrarySyncController> { LegacyLibrarySyncController(get(), get(), get()) }
+    single<LibrarySyncController> { LegacyLibrarySyncController(get(), get(), get(), get()) }
     single<MetadataRefreshController> { RemoteMetadataRefreshController(get(), get()) }
     single { TrackMetadataPrefetcher(get(), get(), get()) }
 }

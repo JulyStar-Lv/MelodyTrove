@@ -16,14 +16,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun DesignDetailHeaderSurface(
     modifier: Modifier = Modifier,
-    accentColor: Color = DesignPalette.Primary,
+    accentColor: Color = MiuixTheme.colorScheme.primary,
     accentAlpha: Float = 0.72f,
     surfaceAlpha: Float = 0.92f,
     borderAlpha: Float = 0.16f,

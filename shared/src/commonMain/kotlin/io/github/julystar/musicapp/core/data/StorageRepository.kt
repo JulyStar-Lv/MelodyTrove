@@ -297,7 +297,8 @@ class StorageRepositoryImpl(
         }
         if (entity.providerType == ProviderTypes.Smb) {
             val credential = loadCredential(StorageId(id))
-            val config = entity.smbProviderConfiguration() ?: return null
+            val editorConfig = entity.smbEditorConfiguration() ?: return null
+            val config = editorConfig.providerConfiguration
             return SourceEditorStorageState(
                 accountId = storageSourceAccountId(id),
                 draft = SourceEditorDraft(
@@ -307,7 +308,7 @@ class StorageRepositoryImpl(
                     secret = "",
                     isAnonymous = credential?.isAnonymous == true,
                     storageType = SourceEditorType.Smb,
-                    smbHost = entity.endpoint.orEmpty(),
+                    smbHost = editorConfig.host,
                     smbPort = config.port,
                     smbShare = config.share,
                     smbRootPath = config.rootPath,
@@ -696,6 +697,28 @@ private fun SourceAccountEntity.smbProviderConfiguration(): SmbProviderConfigura
     return runCatching {
         SMB_JSON.decodeFromString<SmbProviderConfiguration>(value)
     }.getOrNull()
+}
+
+private data class SmbEditorConfiguration(
+    val host: String,
+    val providerConfiguration: SmbProviderConfiguration,
+)
+
+private fun SourceAccountEntity.smbEditorConfiguration(): SmbEditorConfiguration? {
+    smbProviderConfiguration()?.let { config ->
+        return SmbEditorConfiguration(
+            host = endpoint.orEmpty(),
+            providerConfiguration = config,
+        )
+    }
+    val host = endpoint?.trim()?.takeIf(String::isNotEmpty) ?: return null
+    return SmbEditorConfiguration(
+        host = host,
+        providerConfiguration = SmbProviderConfiguration(
+            share = "",
+            rootPath = rootPath.orEmpty(),
+        ),
+    )
 }
 
 private val SMB_JSON = Json {

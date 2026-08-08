@@ -74,7 +74,7 @@ fun OnboardingScreen(
             .background(
                 Brush.radialGradient(
                     listOf(
-                        DesignPalette.Primary.copy(alpha = 0.22f),
+                        MiuixTheme.colorScheme.primary.copy(alpha = 0.22f),
                         Color.Transparent,
                     ),
                     radius = 780f,
@@ -111,7 +111,7 @@ fun OnboardingScreen(
             Spacer(modifier = Modifier.height(28.dp))
             Text(
                 text = appName,
-                color = DesignPalette.Primary,
+                color = MiuixTheme.colorScheme.primary,
                 style = MiuixTheme.textStyles.title1,
                 fontWeight = FontWeight.Black,
                 textAlign = TextAlign.Center,
@@ -140,7 +140,7 @@ fun OnboardingScreen(
                     .clip(RoundedCornerShape(DesignTokens.shapes.full))
                     .background(
                         Brush.linearGradient(
-                            listOf(DesignPalette.Primary, DesignPalette.Secondary),
+                            listOf(MiuixTheme.colorScheme.primary, MiuixTheme.colorScheme.secondary),
                         ),
                     )
                     .clickable { onAction(OnboardingAction.Finish) }

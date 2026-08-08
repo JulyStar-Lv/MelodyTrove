@@ -118,7 +118,7 @@ fun DesignStatusCard(
     message: String,
     modifier: Modifier = Modifier,
     loading: Boolean = false,
-    loadingColor: Color = DesignPalette.Primary,
+    loadingColor: Color = MiuixTheme.colorScheme.primary,
     actionText: String? = null,
     onAction: (() -> Unit)? = null,
     minHeight: Dp = 240.dp,
@@ -210,7 +210,7 @@ fun DesignIconBadge(
         )
         DesignIconBadgeVariant.Brand -> Brush.linearGradient(
             listOf(
-                DesignPalette.Primary,
+                DesignPalette.BrandPink,
                 DesignPalette.Secondary,
             ),
         )

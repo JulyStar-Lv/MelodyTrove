@@ -2,7 +2,6 @@ package io.github.julystar.musicapp.service.librarysync.domain
 
 import io.github.julystar.musicapp.core.domain.model.DEFAULT_IGNORED_SOURCE_DIRECTORIES
 import io.github.julystar.musicapp.core.domain.model.DEFAULT_MINIMUM_AUDIO_DURATION_MS
-import io.github.julystar.musicapp.core.domain.model.DuplicateTrackPolicy
 import io.github.julystar.musicapp.core.domain.model.MetadataScanMode
 import io.github.julystar.musicapp.core.domain.model.MissingFilePolicy
 import io.github.julystar.musicapp.core.domain.model.SourceAccountId
@@ -69,7 +68,6 @@ data class LibrarySyncScanRules(
     val scanSubdirectories: Boolean = true,
     val minDurationMs: Long = DEFAULT_MINIMUM_AUDIO_DURATION_MS,
     val missingFilePolicy: MissingFilePolicy = MissingFilePolicy.MarkUnavailable,
-    val duplicateTrackPolicy: DuplicateTrackPolicy = DuplicateTrackPolicy.SeparateBySource,
     val ignoreHiddenFiles: Boolean = true,
     val ignoredDirectoryNames: Set<String> = DEFAULT_IGNORED_SOURCE_DIRECTORIES.toSet(),
 ) {

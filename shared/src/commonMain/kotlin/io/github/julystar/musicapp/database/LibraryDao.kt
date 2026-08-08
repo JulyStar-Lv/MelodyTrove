@@ -165,6 +165,37 @@ interface TrackDao {
 
     @Query(
         """
+        SELECT DISTINCT t.*
+        FROM track t
+        JOIN track_source_ref ref ON ref.trackId = t.id
+        JOIN source_item item ON item.id = ref.sourceItemId
+        WHERE item.contentHash = :contentHash
+          AND item.contentHash IS NOT NULL
+        LIMIT 2
+        """
+    )
+    suspend fun findBySourceContentHash(contentHash: String): List<TrackEntity>
+
+    @Query(
+        """
+        SELECT DISTINCT t.*
+        FROM track t
+        JOIN track_source_ref ref ON ref.trackId = t.id
+        JOIN source_item item ON item.id = ref.sourceItemId
+        WHERE item.audioFingerprint = :audioFingerprint
+          AND item.audioFingerprint IS NOT NULL
+          AND t.durationMs BETWEEN :minDurationMs AND :maxDurationMs
+        LIMIT 2
+        """
+    )
+    suspend fun findByAudioFingerprintWithinDuration(
+        audioFingerprint: String,
+        minDurationMs: Long,
+        maxDurationMs: Long,
+    ): List<TrackEntity>
+
+    @Query(
+        """
         SELECT * FROM track
         WHERE musicBrainzRecordingId = :recordingId
           AND musicBrainzRecordingId IS NOT NULL
@@ -376,6 +407,164 @@ data class SourceTrackSearchRow(
     val resolvedAlbum: String?,
 )
 
+data class TrackDeduplicationCandidate(
+    @Embedded val track: TrackEntity,
+    val albumName: String?,
+)
+
+data class TrackDeduplicationSource(
+    val trackId: Long,
+    val sourceAccountId: Long,
+    val contentHash: String?,
+    val audioFingerprint: String?,
+)
+
+@Dao
+interface TrackMergeDao {
+    @Query(
+        """
+        SELECT t.*, album.name AS albumName
+        FROM track t
+        LEFT JOIN album ON album.id = t.albumId
+        WHERE EXISTS (
+            SELECT 1
+            FROM track_source_ref ref
+            JOIN source_item item ON item.id = ref.sourceItemId
+            WHERE ref.trackId = t.id
+              AND ref.isAvailable = 1
+              AND item.isDeleted = 0
+        )
+        ORDER BY t.id
+        """
+    )
+    suspend fun listCandidates(): List<TrackDeduplicationCandidate>
+
+    @Query(
+        """
+        SELECT ref.trackId,
+               item.sourceAccountId,
+               item.contentHash,
+               item.audioFingerprint
+        FROM track_source_ref ref
+        JOIN source_item item ON item.id = ref.sourceItemId
+        WHERE ref.isAvailable = 1
+          AND item.isDeleted = 0
+        ORDER BY ref.trackId, ref.sourceItemId
+        """
+    )
+    suspend fun listSources(): List<TrackDeduplicationSource>
+
+    @Query(
+        """
+        UPDATE track_source_ref
+        SET trackId = :targetTrackId,
+            role = 'alternate',
+            matchMethod = :matchMethod,
+            matchConfidence = CASE
+                WHEN matchConfidence > :matchConfidence THEN matchConfidence
+                ELSE :matchConfidence
+            END,
+            updatedAt = :now
+        WHERE trackId = :sourceTrackId
+        """
+    )
+    suspend fun moveSourceRefs(
+        sourceTrackId: Long,
+        targetTrackId: Long,
+        matchMethod: String,
+        matchConfidence: Int,
+        now: Long,
+    )
+
+    @Query("SELECT * FROM playlist_track WHERE trackId = :trackId")
+    suspend fun listPlaylistTracks(trackId: Long): List<PlaylistTrackCrossRef>
+
+    @Upsert
+    suspend fun upsertPlaylistTracks(tracks: List<PlaylistTrackCrossRef>)
+
+    @Query("DELETE FROM playlist_track WHERE trackId = :sourceTrackId")
+    suspend fun deleteRemainingPlaylistTracks(sourceTrackId: Long)
+
+    @Query("UPDATE OR IGNORE track_artist SET trackId = :targetTrackId WHERE trackId = :sourceTrackId")
+    suspend fun moveTrackArtists(sourceTrackId: Long, targetTrackId: Long)
+
+    @Query("DELETE FROM track_artist WHERE trackId = :sourceTrackId")
+    suspend fun deleteRemainingTrackArtists(sourceTrackId: Long)
+
+    @Query("UPDATE OR IGNORE track_genre SET trackId = :targetTrackId WHERE trackId = :sourceTrackId")
+    suspend fun moveTrackGenres(sourceTrackId: Long, targetTrackId: Long)
+
+    @Query("DELETE FROM track_genre WHERE trackId = :sourceTrackId")
+    suspend fun deleteRemainingTrackGenres(sourceTrackId: Long)
+
+    @Query("UPDATE OR IGNORE lyrics SET trackId = :targetTrackId WHERE trackId = :sourceTrackId")
+    suspend fun moveLyrics(sourceTrackId: Long, targetTrackId: Long)
+
+    @Query("DELETE FROM lyrics WHERE trackId = :sourceTrackId")
+    suspend fun deleteRemainingLyrics(sourceTrackId: Long)
+
+    @Query("UPDATE raw_metadata SET trackId = :targetTrackId WHERE trackId = :sourceTrackId")
+    suspend fun moveRawMetadata(sourceTrackId: Long, targetTrackId: Long)
+
+    @Query("UPDATE artwork SET trackId = :targetTrackId WHERE trackId = :sourceTrackId")
+    suspend fun moveArtwork(sourceTrackId: Long, targetTrackId: Long)
+
+    @Query("UPDATE listening_history SET trackId = :targetTrackId WHERE trackId = :sourceTrackId")
+    suspend fun moveListeningHistory(sourceTrackId: Long, targetTrackId: Long)
+
+    @Query("DELETE FROM track WHERE id = :trackId")
+    suspend fun deleteTrack(trackId: Long)
+
+    @Query(
+        """
+        UPDATE track
+        SET lastPlayedAt = :lastPlayedAt,
+            updatedAt = :now
+        WHERE id = :trackId
+        """
+    )
+    suspend fun updateLastPlayedAt(trackId: Long, lastPlayedAt: Long?, now: Long)
+
+    @Transaction
+    suspend fun mergeTracks(
+        targetTrackId: Long,
+        sourceTrackIds: List<Long>,
+        matchMethod: String,
+        matchConfidence: Int,
+        lastPlayedAt: Long?,
+        now: Long,
+    ) {
+        sourceTrackIds.forEach { sourceTrackId ->
+            moveSourceRefs(sourceTrackId, targetTrackId, matchMethod, matchConfidence, now)
+            val targetPlaylistTracks = listPlaylistTracks(targetTrackId).associateBy { it.playlistId }
+            val mergedPlaylistTracks = listPlaylistTracks(sourceTrackId).map { sourceTrack ->
+                val targetTrack = targetPlaylistTracks[sourceTrack.playlistId]
+                if (targetTrack == null) {
+                    sourceTrack.copy(trackId = targetTrackId)
+                } else {
+                    targetTrack.copy(
+                        sortOrder = minOf(targetTrack.sortOrder, sourceTrack.sortOrder),
+                        addedAt = minOf(targetTrack.addedAt, sourceTrack.addedAt),
+                    )
+                }
+            }
+            deleteRemainingPlaylistTracks(sourceTrackId)
+            upsertPlaylistTracks(mergedPlaylistTracks)
+            moveTrackArtists(sourceTrackId, targetTrackId)
+            deleteRemainingTrackArtists(sourceTrackId)
+            moveTrackGenres(sourceTrackId, targetTrackId)
+            deleteRemainingTrackGenres(sourceTrackId)
+            moveLyrics(sourceTrackId, targetTrackId)
+            deleteRemainingLyrics(sourceTrackId)
+            moveRawMetadata(sourceTrackId, targetTrackId)
+            moveArtwork(sourceTrackId, targetTrackId)
+            moveListeningHistory(sourceTrackId, targetTrackId)
+            deleteTrack(sourceTrackId)
+        }
+        updateLastPlayedAt(targetTrackId, lastPlayedAt, now)
+    }
+}
+
 data class PlaylistSummaryRow(
     val id: Long,
     val title: String,
@@ -447,8 +636,28 @@ interface PlaylistDao {
         FROM playlist_track pt
         JOIN track t ON t.id = pt.trackId
         LEFT JOIN album a ON a.id = t.albumId
-        LEFT JOIN track_source_ref ref ON ref.trackId = t.id AND ref.isPreferred = 1 AND ref.isAvailable = 1
-        LEFT JOIN source_item item ON item.id = ref.sourceItemId AND item.isDeleted = 0
+        LEFT JOIN source_item item ON item.id = (
+            SELECT candidate.sourceItemId
+            FROM track_source_ref candidate
+            JOIN source_item candidate_item ON candidate_item.id = candidate.sourceItemId
+            JOIN source_account account ON account.id = candidate_item.sourceAccountId
+            WHERE candidate.trackId = t.id
+              AND candidate.playable = 1
+              AND candidate.isAvailable = 1
+              AND candidate_item.isDeleted = 0
+              AND account.enabled = 1
+            ORDER BY
+              candidate.isDownloaded DESC,
+              CASE WHEN account.providerType = 'local' THEN 1 ELSE 0 END DESC,
+              candidate.isPreferred DESC,
+              COALESCE(candidate.lossless, 0) DESC,
+              COALESCE(candidate.bitsPerSample, 0) DESC,
+              COALESCE(candidate.sampleRate, 0) DESC,
+              COALESCE(candidate.bitRate, 0) DESC,
+              account.priority DESC,
+              candidate.updatedAt DESC
+            LIMIT 1
+        )
         WHERE pt.playlistId = :playlistId
         ORDER BY pt.sortOrder, pt.trackId
         """

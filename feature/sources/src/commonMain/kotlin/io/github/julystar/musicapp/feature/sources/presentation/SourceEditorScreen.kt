@@ -46,7 +46,6 @@ import io.github.julystar.musicapp.core.presentation.components.DesignIconButton
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButton
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonSize
 import io.github.julystar.musicapp.core.presentation.components.DesignTextButtonVariant
-import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
@@ -166,7 +165,7 @@ private fun StorageBlock(
 ) {
     val shapes = DesignTokens.shapes
     val bgColor = if (isActive) {
-        DesignPalette.Primary
+        MiuixTheme.colorScheme.primary
     } else {
         MiuixTheme.colorScheme.surfaceContainer
     }
@@ -176,7 +175,7 @@ private fun StorageBlock(
         MiuixTheme.colorScheme.onSurface
     }
     val borderColor = if (isActive) {
-        DesignPalette.Primary.copy(alpha = 0.22f)
+        MiuixTheme.colorScheme.primary.copy(alpha = 0.22f)
     } else {
         MiuixTheme.colorScheme.outline
     }

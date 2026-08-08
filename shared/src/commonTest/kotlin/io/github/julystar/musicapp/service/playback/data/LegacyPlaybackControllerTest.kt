@@ -57,6 +57,43 @@ class LegacyPlaybackControllerTest {
     }
 
     @Test
+    fun restoredPreviewPublishesSavedProgressWhilePlayerIsNotLoaded() {
+        assertEquals(
+            PlaybackPosition(
+                positionMs = 45_000L,
+                durationMs = 180_000L,
+            ),
+            PlaybackPosition.Zero.withRestoredPlaybackPreview(
+                positionMs = 45_000L,
+                durationMs = 180_000L,
+            ),
+        )
+    }
+
+    @Test
+    fun restoredPreviewDoesNotOverrideLivePlayerProgress() {
+        val live = PlaybackPosition(
+            positionMs = 46_000L,
+            bufferedMs = 70_000L,
+            durationMs = 180_000L,
+        )
+
+        assertEquals(
+            live,
+            live.withRestoredPlaybackPreview(
+                positionMs = 45_000L,
+                durationMs = 180_000L,
+            ),
+        )
+    }
+
+    @Test
+    fun restoredPreviewClampsStaleProgressToTrackDuration() {
+        assertEquals(180_000L, restoredPlaybackPosition(240_000L, 180_000L))
+        assertEquals(0L, restoredPlaybackPosition(-1L, 180_000L))
+    }
+
+    @Test
     fun mapsLegacyStateToSeparatedPlayerState() {
         val state = legacyPlayerState(
             music = music(id = 7, title = "Moon"),

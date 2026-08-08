@@ -16,6 +16,11 @@
     <string name="time_to_pause_minute">Minute</string>
     <string name="now_playing_title">Now Playing</string>
     <string name="player_more_options">More options</string>
+    <string name="player_playback_source">Choose source</string>
+    <string name="player_playback_source_title">Playback source</string>
+    <string name="player_playback_source_description">The selected source is tried first next time. If unavailable, another source is used automatically.</string>
+    <string name="player_playback_source_current">Preferred</string>
+    <string name="player_playback_source_cancel">Cancel</string>
     <string name="player_play">Play</string>
     <string name="player_pause">Pause</string>
     <string name="player_previous_track">Previous track</string>

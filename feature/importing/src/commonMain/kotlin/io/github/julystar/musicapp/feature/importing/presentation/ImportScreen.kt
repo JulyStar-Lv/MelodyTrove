@@ -53,7 +53,6 @@ import io.github.julystar.musicapp.core.presentation.components.DesignIconButton
 import io.github.julystar.musicapp.core.presentation.components.LocalDesignBottomContentInset
 import io.github.julystar.musicapp.core.domain.model.ImportSelectionMode
 import io.github.julystar.musicapp.core.presentation.platform.PlatformBackHandler
-import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import io.github.julystar.musicapp.source.api.SourceNode
 import io.github.julystar.musicapp.source.api.SourceNodeType
@@ -67,6 +66,13 @@ import musicapp.feature.importing.generated.resources.icon_music_note
 import musicapp.feature.importing.generated.resources.icon_toggle_all
 import musicapp.feature.importing.generated.resources.icon_warning
 import musicapp.feature.importing.generated.resources.icon_yes
+import musicapp.feature.importing.generated.resources.import_library_current_folder
+import musicapp.feature.importing.generated.resources.import_library_empty_desc
+import musicapp.feature.importing.generated.resources.import_library_empty_title
+import musicapp.feature.importing.generated.resources.import_library_location_label
+import musicapp.feature.importing.generated.resources.import_library_select_current
+import musicapp.feature.importing.generated.resources.import_library_source_label
+import musicapp.feature.importing.generated.resources.import_library_subtitle
 import musicapp.feature.importing.generated.resources.import_library_title
 import musicapp.feature.importing.generated.resources.import_musics_error_authentication_desc
 import musicapp.feature.importing.generated.resources.import_musics_error_authentication_title
@@ -85,6 +91,7 @@ import musicapp.feature.importing.generated.resources.import_musics_title_single
 @Composable
 private fun ImportEntriesSkeleton(
     horizontalPadding: Dp,
+    foldersOnly: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val shapes = DesignTokens.shapes
@@ -152,8 +159,13 @@ private fun ImportEntriesSkeleton(
             height = 17.dp
         )
         FolderItem()
-        FileItem()
-        FileItem()
+        if (foldersOnly) {
+            FolderItem()
+            FolderItem()
+        } else {
+            FileItem()
+            FileItem()
+        }
     }
 }
 
@@ -165,6 +177,7 @@ private fun ImportEntry(
     onClickEntry: (entry: SourceNode) -> Unit
 ) {
     val canCheck = allowNodeTypes.any { type -> type == entry.type }
+    val canOpen = entry.type == SourceNodeType.Folder
     val painter = when (entry.type) {
         SourceNodeType.Folder -> painterResource(Res.drawable.icon_folder)
         SourceNodeType.Image -> painterResource(Res.drawable.icon_image)
@@ -189,7 +202,7 @@ private fun ImportEntry(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1.0F)
             ) {
-                ImportEntryIcon(painter = painter, active = canCheck)
+                ImportEntryIcon(painter = painter, active = canCheck || canOpen)
                 Text(
                     text = entry.name,
                     color = MiuixTheme.colorScheme.onSurface,
@@ -207,6 +220,11 @@ private fun ImportEntry(
                         onClick()
                     },
                 )
+            } else if (canOpen) {
+                DesignChevron(
+                    size = 12.dp,
+                    tint = MiuixTheme.colorScheme.onSurfaceVariantActions,
+                )
             }
         }
     }
@@ -219,7 +237,7 @@ private fun ImportEntryIcon(
 ) {
     val shape = RoundedCornerShape(DesignTokens.shapes.md)
     val tint = if (active) {
-        DesignPalette.Primary
+        MiuixTheme.colorScheme.primary
     } else {
         MiuixTheme.colorScheme.onSurfaceVariantSummary
     }
@@ -229,7 +247,7 @@ private fun ImportEntryIcon(
             .size(38.dp)
             .clip(shape)
             .background(if (active) MiuixTheme.colorScheme.tertiaryContainer else MiuixTheme.colorScheme.surfaceContainerHigh)
-            .border(1.dp, if (active) DesignPalette.Primary.copy(alpha = 0.18f) else MiuixTheme.colorScheme.outline, shape),
+            .border(1.dp, if (active) MiuixTheme.colorScheme.primary.copy(alpha = 0.18f) else MiuixTheme.colorScheme.outline, shape),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
@@ -242,6 +260,109 @@ private fun ImportEntryIcon(
 }
 
 @Composable
+private fun ImportSectionLabel(
+    text: String,
+    horizontalPadding: Dp,
+) {
+    Text(
+        text = text,
+        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+        style = MiuixTheme.textStyles.footnote1,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(horizontal = horizontalPadding),
+    )
+}
+
+@Composable
+private fun EmptyLibraryFolderHint() {
+    DesignCardSurface(
+        contentPadding = PaddingValues(18.dp),
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            ImportEntryIcon(
+                painter = painterResource(Res.drawable.icon_folder),
+                active = false,
+            )
+            Column(
+                verticalArrangement = Arrangement.spacedBy(3.dp),
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(
+                    text = stringResource(Res.string.import_library_empty_title),
+                    color = MiuixTheme.colorScheme.onSurface,
+                    style = MiuixTheme.textStyles.body2,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = stringResource(Res.string.import_library_empty_desc),
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    style = MiuixTheme.textStyles.footnote1,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CurrentDirectoryAction(
+    currentPath: String,
+    horizontalPadding: Dp,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val bottomContentInset = LocalDesignBottomContentInset.current
+
+    DesignCardSurface(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(
+                start = horizontalPadding,
+                end = horizontalPadding,
+                bottom = 12.dp + bottomContentInset,
+            ),
+        cornerRadius = 22.dp,
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+        backgroundColor = MiuixTheme.colorScheme.surfaceContainerHighest,
+        borderColor = MiuixTheme.colorScheme.primary.copy(alpha = 0.14f),
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(
+                    text = stringResource(Res.string.import_library_current_folder),
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    style = MiuixTheme.textStyles.footnote2,
+                )
+                Text(
+                    text = currentPath,
+                    color = MiuixTheme.colorScheme.onSurface,
+                    style = MiuixTheme.textStyles.body2,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            DesignButton(
+                text = stringResource(Res.string.import_library_select_current),
+                variant = DesignButtonVariant.Primary,
+                minWidth = 132.dp,
+                onClick = onClick,
+            )
+        }
+    }
+}
+
+@Composable
 private fun ImportEntries(
     state: ImportState,
     horizontalPadding: Dp,
@@ -250,6 +371,17 @@ private fun ImportEntries(
     val spacing = DesignTokens.spacing
     val shapes = DesignTokens.shapes
     val bottomContentInset = LocalDesignBottomContentInset.current
+    val choosingDirectory = state.selectionMode == ImportSelectionMode.CurrentDirectory
+    val visibleEntries = if (choosingDirectory) {
+        state.entries.filter { entry -> entry.type == SourceNodeType.Folder }
+    } else {
+        state.entries
+    }
+    val currentPath = if (state.splitPaths.isEmpty()) {
+        "/"
+    } else {
+        state.splitPaths.joinToString(separator = "/", prefix = "/") { it.name }
+    }
 
     @Composable
     fun PathTab(
@@ -259,7 +391,7 @@ private fun ImportEntries(
     ) {
         val shape = RoundedCornerShape(shapes.full)
         val color = if (!disabled) {
-            DesignPalette.Primary
+            MiuixTheme.colorScheme.primary
         } else {
             MiuixTheme.colorScheme.onSurfaceVariantSummary
         }
@@ -273,7 +405,7 @@ private fun ImportEntries(
             modifier = Modifier
                 .clip(shape)
                 .background(if (!disabled) MiuixTheme.colorScheme.tertiaryContainer else MiuixTheme.colorScheme.surfaceContainerHigh)
-                .border(1.dp, if (!disabled) DesignPalette.Primary.copy(alpha = 0.16f) else MiuixTheme.colorScheme.outline, shape)
+                .border(1.dp, if (!disabled) MiuixTheme.colorScheme.primary.copy(alpha = 0.16f) else MiuixTheme.colorScheme.outline, shape)
                 .clickable(
                     enabled = !disabled,
                     onClick = {
@@ -289,6 +421,12 @@ private fun ImportEntries(
         modifier = Modifier.fillMaxSize()
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
+            if (choosingDirectory) {
+                ImportSectionLabel(
+                    text = stringResource(Res.string.import_library_location_label),
+                    horizontalPadding = horizontalPadding,
+                )
+            }
             Row(
                 horizontalArrangement = Arrangement.spacedBy(spacing.xs),
                 verticalAlignment = Alignment.CenterVertically,
@@ -319,9 +457,21 @@ private fun ImportEntries(
                     .fillMaxSize()
                     .padding(horizontal = horizontalPadding),
                 verticalArrangement = Arrangement.spacedBy(spacing.xs),
-                contentPadding = PaddingValues(bottom = 88.dp + bottomContentInset),
+                contentPadding = PaddingValues(
+                    top = spacing.xs,
+                    bottom = if (choosingDirectory) {
+                        112.dp + bottomContentInset
+                    } else {
+                        88.dp + bottomContentInset
+                    },
+                ),
             ) {
-                itemsIndexed(state.entries, key = { index, item -> item.lazyListKey(index) }) { _, item ->
+                if (choosingDirectory && visibleEntries.isEmpty()) {
+                    item(key = "empty-library-folder") {
+                        EmptyLibraryFolderHint()
+                    }
+                }
+                itemsIndexed(visibleEntries, key = { index, item -> item.lazyListKey(index) }) { _, item ->
                     ImportEntry(
                         entry = item,
                         checked = state.selectedPaths.contains(item.path),
@@ -333,22 +483,14 @@ private fun ImportEntries(
                 }
             }
         }
-        if (state.selectionMode == ImportSelectionMode.CurrentDirectory) {
-            DesignFab(
-                onClick = {
-                    onAction(ImportAction.FinishCurrentDirectory)
-                },
+        if (choosingDirectory) {
+            CurrentDirectoryAction(
+                currentPath = currentPath,
+                horizontalPadding = horizontalPadding,
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = horizontalPadding, bottom = horizontalPadding)
-            ) {
-                Icon(
-                    painter = painterResource(Res.drawable.icon_yes),
-                    contentDescription = null,
-                    tint = MiuixTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
+                    .align(Alignment.BottomCenter),
+                onClick = { onAction(ImportAction.FinishCurrentDirectory) },
+            )
         } else if (state.selectedCount > 0) {
             DesignFab(
                 onClick = {
@@ -373,88 +515,118 @@ internal fun io.github.julystar.musicapp.source.api.SourceNode.lazyListKey(index
     "import-entry-$index-$path"
 
 @Composable
+private fun ImportStorageCard(
+    item: ImportStorageAccountUi,
+    selected: Boolean,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val spacing = DesignTokens.spacing
+    val shapes = DesignTokens.shapes
+    val shape = RoundedCornerShape(shapes.lg)
+    val bgColor = if (selected) {
+        MiuixTheme.colorScheme.primary
+    } else {
+        MiuixTheme.colorScheme.surfaceContainer
+    }
+    val textColor = if (selected) {
+        MiuixTheme.colorScheme.onPrimary
+    } else {
+        MiuixTheme.colorScheme.onSurface
+    }
+    val subtitleColor = if (selected) {
+        MiuixTheme.colorScheme.onPrimary.copy(alpha = 0.76f)
+    } else {
+        MiuixTheme.colorScheme.onSurfaceVariantSummary
+    }
+    val borderColor = if (selected) {
+        MiuixTheme.colorScheme.primary.copy(alpha = 0.28f)
+    } else {
+        MiuixTheme.colorScheme.outline
+    }
+
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .clickable(enabled = enabled, onClick = onClick)
+            .background(bgColor)
+            .border(1.dp, borderColor, shape)
+            .heightIn(min = 76.dp),
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(spacing.xxs),
+            modifier = Modifier.padding(horizontal = spacing.md, vertical = spacing.sm),
+        ) {
+            Text(
+                text = item.name,
+                color = textColor,
+                style = MiuixTheme.textStyles.body2,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = item.subtitle,
+                color = subtitleColor,
+                style = MiuixTheme.textStyles.footnote2,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (!item.isLocal) {
+            Icon(
+                painter = painterResource(Res.drawable.icon_cloud),
+                contentDescription = null,
+                tint = if (selected) {
+                    MiuixTheme.colorScheme.onPrimary.copy(alpha = 0.2f)
+                } else {
+                    MiuixTheme.colorScheme.primary.copy(alpha = 0.18f)
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .width(27.dp)
+                    .offset(7.dp, 1.dp),
+            )
+        }
+    }
+}
+
+@Composable
 private fun ImportStorages(
     state: ImportState,
     horizontalPadding: Dp,
     onAction: (ImportAction) -> Unit,
 ) {
-    val spacing = DesignTokens.spacing
-    val shapes = DesignTokens.shapes
+    val onlyAccount = state.storageAccounts.singleOrNull()
+        ?.takeIf { state.selectionMode == ImportSelectionMode.CurrentDirectory }
+    if (onlyAccount != null) {
+        ImportStorageCard(
+            item = onlyAccount,
+            selected = true,
+            enabled = false,
+            modifier = Modifier
+                .padding(horizontal = horizontalPadding)
+                .fillMaxWidth(),
+            onClick = {},
+        )
+        return
+    }
 
     Row(
-        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+        horizontalArrangement = Arrangement.spacedBy(DesignTokens.spacing.sm),
         modifier = Modifier
             .padding(horizontal = horizontalPadding)
-            .horizontalScroll(rememberScrollState())
+            .horizontalScroll(rememberScrollState()),
     ) {
-       for (item in state.storageAccounts) {
-            val selected = state.selectedStorageAccountId == item.accountId
-            val shape = RoundedCornerShape(shapes.lg)
-            val bgColor = if (selected) {
-                DesignPalette.Primary
-            } else {
-                MiuixTheme.colorScheme.surfaceContainer
-            }
-            val textColor = if (selected) {
-                MiuixTheme.colorScheme.onPrimary
-            } else {
-                MiuixTheme.colorScheme.onSurface
-            }
-            val subtitleColor = if (selected) {
-                MiuixTheme.colorScheme.onPrimary.copy(alpha = 0.76f)
-            } else {
-                MiuixTheme.colorScheme.onSurfaceVariantSummary
-            }
-            val borderColor = if (selected) {
-                DesignPalette.Primary.copy(alpha = 0.28f)
-            } else {
-                MiuixTheme.colorScheme.outline
-            }
-
-            Box(
-                modifier = Modifier
-                    .clip(shape)
-                    .clickable {
-                        onAction(ImportAction.SelectStorage(item.accountId))
-                    }
-                    .background(bgColor)
-                    .border(1.dp, borderColor, shape)
-                    .width(156.dp)
-                    .heightIn(min = 76.dp)
-            ) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(spacing.xxs),
-                    modifier = Modifier
-                        .padding(horizontal = spacing.md, vertical = spacing.sm)
-                ) {
-                    Text(
-                        text = item.name,
-                        color = textColor,
-                        style = MiuixTheme.textStyles.body2,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = item.subtitle,
-                        color = subtitleColor,
-                        style = MiuixTheme.textStyles.footnote2,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                if (!item.isLocal) {
-                    Icon(
-                        painter = painterResource(Res.drawable.icon_cloud),
-                        contentDescription = null,
-                        tint = if (selected) MiuixTheme.colorScheme.onPrimary.copy(alpha = 0.2f) else DesignPalette.Primary.copy(alpha = 0.18f),
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .width(27.dp)
-                            .offset(7.dp, 1.dp)
-                    )
-                }
-            }
+        state.storageAccounts.forEach { item ->
+            ImportStorageCard(
+                item = item,
+                selected = state.selectedStorageAccountId == item.accountId,
+                enabled = true,
+                modifier = Modifier.width(156.dp),
+                onClick = { onAction(ImportAction.SelectStorage(item.accountId)) },
+            )
         }
     }
 }
@@ -633,15 +805,28 @@ fun ImportScreen(
                             onAction(ImportAction.NavigateBack)
                         }
                     )
-                    Text(
-                        text = titleText,
-                        color = MiuixTheme.colorScheme.onBackground,
-                        style = MiuixTheme.textStyles.title3,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
                         modifier = Modifier.weight(1f),
-                    )
+                    ) {
+                        Text(
+                            text = titleText,
+                            color = MiuixTheme.colorScheme.onBackground,
+                            style = MiuixTheme.textStyles.title3,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        if (state.selectionMode == ImportSelectionMode.CurrentDirectory) {
+                            Text(
+                                text = stringResource(Res.string.import_library_subtitle),
+                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                style = MiuixTheme.textStyles.footnote1,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
                 }
                 if (state.selectionMode == ImportSelectionMode.Entries) {
                     DesignIconButton(
@@ -655,6 +840,13 @@ fun ImportScreen(
                     )
                 }
             }
+            if (state.selectionMode == ImportSelectionMode.CurrentDirectory) {
+                ImportSectionLabel(
+                    text = stringResource(Res.string.import_library_source_label),
+                    horizontalPadding = horizontalPadding,
+                )
+                Box(modifier = Modifier.height(spacing.xs))
+            }
             ImportStorages(
                 state = state,
                 horizontalPadding = horizontalPadding,
@@ -662,7 +854,10 @@ fun ImportScreen(
             )
             Box(modifier = Modifier.height(spacing.md))
             when (state.loadState) {
-                ImportLoadState.Loading -> ImportEntriesSkeleton(horizontalPadding = horizontalPadding)
+                ImportLoadState.Loading -> ImportEntriesSkeleton(
+                    horizontalPadding = horizontalPadding,
+                    foldersOnly = state.selectionMode == ImportSelectionMode.CurrentDirectory,
+                )
                 ImportLoadState.Timeout,
                 ImportLoadState.AuthenticationFailed,
                 ImportLoadState.UnknownError,

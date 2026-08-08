@@ -29,6 +29,7 @@ internal val HomeState.shouldShowEmptyStateOnly: Boolean
 
 @Immutable
 data class HomeFeaturedAlbum(
+    val id: Long,
     val title: String,
     val subtitle: String,
     val artwork: Artwork,
@@ -47,6 +48,7 @@ data class HomeArtist(
 
 @Immutable
 data class HomePlaylist(
+    val id: Long,
     val title: String,
     val description: String,
     val meta: String,
@@ -74,6 +76,8 @@ sealed interface HomeAction {
     data class PlayTrack(val trackId: Long) : HomeAction
     data class PlayLibraryTrack(val trackId: Long) : HomeAction
     data object PlayDailyPicks : HomeAction
+    data class NavigateToAlbum(val albumId: Long) : HomeAction
+    data class NavigateToPlaylist(val playlistId: Long) : HomeAction
     data object NavigateToDownloads : HomeAction
     data object NavigateToLibrary : HomeAction
     data object NavigateToSourceSettings : HomeAction
@@ -83,6 +87,8 @@ sealed interface HomeAction {
 }
 
 sealed interface HomeEvent {
+    data class NavigateToAlbum(val albumId: Long) : HomeEvent
+    data class NavigateToPlaylist(val playlistId: Long) : HomeEvent
     data object NavigateToDownloads : HomeEvent
     data object NavigateToLibrary : HomeEvent
     data object NavigateToSourceSettings : HomeEvent

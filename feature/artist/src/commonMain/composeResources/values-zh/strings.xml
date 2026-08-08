@@ -4,7 +4,9 @@
     <string name="artist_loading">正在加载艺术家</string>
     <string name="artist_unavailable">艺术家不可用</string>
     <string name="artist_retry">重试</string>
+    <string name="artist_back">返回</string>
     <string name="artist_albums">专辑</string>
+    <string name="artist_all_songs">全部歌曲</string>
     <string name="artist_release_count">%1$d 张专辑</string>
     <string name="artist_top_tracks">热门歌曲</string>
     <string name="artist_song_count">%1$d 首歌曲</string>
@@ -12,4 +14,10 @@
     <string name="artist_summary">%1$d 张专辑，%2$d 首歌曲</string>
     <string name="artist_play_all">播放全部</string>
     <string name="artist_download">下载</string>
+    <string name="artist_download_track">下载“%1$s”</string>
+    <string name="artist_no_albums">暂无专辑</string>
+    <string name="artist_no_albums_message">该艺术家的专辑会显示在这里。</string>
+    <string name="artist_no_songs">暂无歌曲</string>
+    <string name="artist_no_songs_message">该艺术家的歌曲会显示在这里。</string>
+    <string name="artist_unknown_year">未知年份</string>
 </resources>

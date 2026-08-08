@@ -44,7 +44,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import io.github.julystar.musicapp.core.domain.model.AutoScanMode
-import io.github.julystar.musicapp.core.domain.model.DuplicateTrackPolicy
 import io.github.julystar.musicapp.core.domain.model.LocalMusicDirectory
 import io.github.julystar.musicapp.core.domain.model.MAX_MINIMUM_AUDIO_DURATION_MS
 import io.github.julystar.musicapp.core.domain.model.MissingFilePolicy
@@ -155,14 +154,6 @@ fun SourceSettingsSection(
                 options = MissingFilePolicy.entries.toList(),
                 optionLabel = { policy -> stringResource(policy.titleResource()) },
                 onSelect = { onAction(SettingsAction.SetMissingFilePolicy(it)) },
-            )
-            SettingsSelectRow(
-                label = stringResource(Res.string.settings_duplicate_policy),
-                subtitle = stringResource(Res.string.settings_duplicate_policy_design_summary),
-                selected = settings.duplicateTrackPolicy,
-                options = DuplicateTrackPolicy.entries.toList(),
-                optionLabel = { policy -> stringResource(policy.titleResource()) },
-                onSelect = { onAction(SettingsAction.SetDuplicateTrackPolicy(it)) },
             )
         }
 
@@ -839,6 +830,14 @@ private fun SourceActionsButton(
                                         SettingsAction.OpenEditSmbDialog(account.accountId)
                                     },
                                 )
+                            },
+                        )
+                        SourceMenuItem(
+                            icon = Res.drawable.icon_source_sliders,
+                            label = stringResource(Res.string.settings_source_path_action),
+                            onClick = {
+                                menuOpen = false
+                                onAction(SettingsAction.ConfigureSourcePath(account.accountId))
                             },
                         )
                     }
@@ -1684,14 +1683,6 @@ private fun WebDavAccountDialog(
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth(),
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            DesignTextField(
-                value = activeDialog.rootPath,
-                onValueChange = { onAction(SettingsAction.SetWebDavDialogRootPath(it)) },
-                label = stringResource(Res.string.settings_webdav_root),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
             state.webDavConnectionTestMessage?.let { message ->
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -1704,21 +1695,6 @@ private fun WebDavAccountDialog(
             }
             Spacer(modifier = Modifier.height(16.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                if (activeDialog.isEditing && activeDialog.accountId != null) {
-                    DesignTextButton(
-                        text = stringResource(Res.string.settings_delete),
-                        variant = DesignTextButtonVariant.Error,
-                        size = DesignTextButtonSize.Medium,
-                        onClick = {
-                            onAction(
-                                SettingsAction.RequestDeleteWebDavAccount(
-                                    activeDialog.accountId,
-                                    activeDialog.name.ifBlank { activeDialog.serverUrl },
-                                )
-                            )
-                        },
-                    )
-                }
                 DesignTextButton(
                     text = stringResource(Res.string.settings_cancel),
                     variant = DesignTextButtonVariant.Default,
@@ -1810,14 +1786,6 @@ private fun SmbAccountDialog(
                     modifier = Modifier.weight(0.64f),
                 )
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            DesignTextField(
-                value = activeDialog.rootPath,
-                onValueChange = { onAction(SettingsAction.SetSmbDialogRootPath(it)) },
-                label = stringResource(Res.string.settings_smb_root),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
             Spacer(modifier = Modifier.height(12.dp))
             SourceDialogSwitchRow(
                 title = stringResource(Res.string.settings_smb_guest),
@@ -1852,29 +1820,7 @@ private fun SmbAccountDialog(
                     visualTransformation = PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                DesignTextField(
-                    value = activeDialog.domain,
-                    onValueChange = { onAction(SettingsAction.SetSmbDialogDomain(it)) },
-                    label = stringResource(Res.string.settings_smb_domain),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
             }
-            Spacer(modifier = Modifier.height(12.dp))
-            SourceDialogSwitchRow(
-                title = stringResource(Res.string.settings_smb_signing),
-                summary = stringResource(Res.string.settings_smb_signing_summary),
-                checked = activeDialog.requireSigning,
-                onCheckedChange = { onAction(SettingsAction.SetSmbDialogRequireSigning(it)) },
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            SourceDialogSwitchRow(
-                title = stringResource(Res.string.settings_smb_encryption),
-                summary = stringResource(Res.string.settings_smb_encryption_summary),
-                checked = activeDialog.requireEncryption,
-                onCheckedChange = { onAction(SettingsAction.SetSmbDialogRequireEncryption(it)) },
-            )
             state.smbConnectionTestMessage?.let { message ->
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
@@ -1889,21 +1835,6 @@ private fun SmbAccountDialog(
             }
             Spacer(modifier = Modifier.height(16.dp))
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                if (activeDialog.isEditing && activeDialog.accountId != null) {
-                    DesignTextButton(
-                        text = stringResource(Res.string.settings_delete),
-                        variant = DesignTextButtonVariant.Error,
-                        size = DesignTextButtonSize.Medium,
-                        onClick = {
-                            onAction(
-                                SettingsAction.RequestDeleteSmbAccount(
-                                    activeDialog.accountId,
-                                    activeDialog.name.ifBlank { activeDialog.host },
-                                ),
-                            )
-                        },
-                    )
-                }
                 DesignTextButton(
                     text = stringResource(Res.string.settings_cancel),
                     variant = DesignTextButtonVariant.Default,
@@ -2014,11 +1945,6 @@ private fun AutoScanMode.titleResource() = when (this) {
 private fun MissingFilePolicy.titleResource() = when (this) {
     MissingFilePolicy.MarkUnavailable -> Res.string.settings_missing_mark
     MissingFilePolicy.RemoveOnScan -> Res.string.settings_missing_remove
-}
-
-private fun DuplicateTrackPolicy.titleResource() = when (this) {
-    DuplicateTrackPolicy.SeparateBySource -> Res.string.settings_duplicate_separate
-    DuplicateTrackPolicy.KeepAll -> Res.string.settings_duplicate_keep_all
 }
 
 private val MINIMUM_DURATION_PRESETS_MS = listOf(0L, 15_000L, 30_000L, 60_000L)

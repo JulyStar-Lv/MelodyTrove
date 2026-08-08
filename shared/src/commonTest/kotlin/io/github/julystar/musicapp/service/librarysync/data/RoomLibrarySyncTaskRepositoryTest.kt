@@ -1,7 +1,6 @@
 package io.github.julystar.musicapp.service.librarysync.data
 
 import io.github.julystar.musicapp.core.domain.model.SourceAccountId
-import io.github.julystar.musicapp.core.domain.model.DuplicateTrackPolicy
 import io.github.julystar.musicapp.core.domain.model.MetadataScanMode
 import io.github.julystar.musicapp.core.domain.model.MissingFilePolicy
 import io.github.julystar.musicapp.database.ImportJobEntity
@@ -43,7 +42,6 @@ class RoomLibrarySyncTaskRepositoryTest {
         assertEquals(false, task.scanRules.ignoreHiddenFiles)
         assertEquals(setOf("cache", "trash"), task.scanRules.ignoredDirectoryNames)
         assertEquals(MissingFilePolicy.RemoveOnScan, task.scanRules.missingFilePolicy)
-        assertEquals(DuplicateTrackPolicy.KeepAll, task.scanRules.duplicateTrackPolicy)
         assertTrue(task.hasError)
     }
 

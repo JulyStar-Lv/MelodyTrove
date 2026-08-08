@@ -30,4 +30,61 @@ class AppPreferencesRepositoryTest {
             file.delete()
         }
     }
+
+    @Test
+    fun persistsAndClearsPlaybackSession() = runBlocking {
+        val file = File.createTempFile("musicapp-preferences-", ".preferences_pb").apply {
+            delete()
+        }
+
+        try {
+            val repository = AppPreferencesRepository(
+                createAppDataStore { file.absolutePath.toPath() }
+            )
+            val session = PersistedPlaybackSession(
+                trackId = 2,
+                playlistId = 7,
+                positionMs = 45_000,
+                wasPlaying = true,
+            )
+
+            repository.savePlaybackSession(session)
+            assertEquals(session, withTimeout(5_000) { repository.playbackSession.first() })
+
+            repository.clearPlaybackSession()
+            assertEquals(null, withTimeout(5_000) { repository.playbackSession.first() })
+        } finally {
+            file.delete()
+        }
+    }
+
+    @Test
+    fun remapsFavoritesAndPersistedPlaybackSession() = runBlocking {
+        val file = File.createTempFile("musicapp-preferences-", ".preferences_pb").apply {
+            delete()
+        }
+
+        try {
+            val repository = AppPreferencesRepository(
+                createAppDataStore { file.absolutePath.toPath() }
+            )
+            repository.toggleFavoriteTrack(1)
+            repository.toggleFavoriteTrack(2)
+            repository.savePlaybackSession(
+                PersistedPlaybackSession(
+                    trackId = 2,
+                    playlistId = 7,
+                    positionMs = 1_000,
+                    wasPlaying = true,
+                )
+            )
+
+            repository.remapTrackIds(mapOf(2L to 1L))
+
+            assertEquals(setOf(1L), withTimeout(5_000) { repository.favoriteTrackIds.first() })
+            assertEquals(1L, withTimeout(5_000) { repository.playbackSession.first() }?.trackId)
+        } finally {
+            file.delete()
+        }
+    }
 }

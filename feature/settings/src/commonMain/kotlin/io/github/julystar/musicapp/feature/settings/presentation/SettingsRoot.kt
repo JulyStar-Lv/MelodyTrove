@@ -36,6 +36,7 @@ fun SettingsRoot(
     onNavigateToDiagnostics: () -> Unit,
     onNavigateToAbout: () -> Unit,
     onNavigateToLicenses: () -> Unit,
+    onNavigateToSourcePathPicker: () -> Unit,
     onBack: () -> Unit,
     settingsVM: SettingsVM = koinViewModel(),
 ) {
@@ -57,6 +58,7 @@ fun SettingsRoot(
         settingsVM.eventFlow.collect { event ->
             when (event) {
                 SettingsEvent.OpenLibraryFolderPicker -> directoryPicker.launch()
+                SettingsEvent.OpenSourcePathPicker -> onNavigateToSourcePathPicker()
             }
         }
     }

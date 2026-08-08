@@ -77,6 +77,22 @@ class AppPreferencesRepository(
         }
         return isFavorite
     }
+
+    suspend fun remapTrackIds(replacements: Map<Long, Long>) {
+        if (replacements.isEmpty()) return
+        dataStore.edit { preferences ->
+            val favoriteIds = preferences[FAVORITE_TRACK_IDS_KEY].orEmpty()
+                .mapNotNull(String::toLongOrNull)
+                .mapTo(mutableSetOf()) { trackId -> replacements[trackId] ?: trackId }
+            preferences[FAVORITE_TRACK_IDS_KEY] = favoriteIds.mapTo(mutableSetOf(), Long::toString)
+
+            preferences[LAST_TRACK_ID_KEY]?.let { trackId ->
+                replacements[trackId]?.let { targetTrackId ->
+                    preferences[LAST_TRACK_ID_KEY] = targetTrackId
+                }
+            }
+        }
+    }
 }
 
 data class PersistedPlaybackSession(

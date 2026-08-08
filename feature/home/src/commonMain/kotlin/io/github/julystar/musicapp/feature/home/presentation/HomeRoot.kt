@@ -24,6 +24,8 @@ fun HomeRoot(
     onNavigateToSourceSettings: () -> Unit,
     onNavigateToSearch: () -> Unit,
     onNavigateToListening: () -> Unit,
+    onNavigateToAlbum: (Long) -> Unit,
+    onNavigateToPlaylist: (Long) -> Unit,
     onOpenSleepTimer: () -> Unit,
     viewModel: HomeViewModel? = null,
 ) {
@@ -36,6 +38,8 @@ fun HomeRoot(
     LaunchedEffect(activeViewModel) {
         activeViewModel.events.collect { event ->
             when (event) {
+                is HomeEvent.NavigateToAlbum -> onNavigateToAlbum(event.albumId)
+                is HomeEvent.NavigateToPlaylist -> onNavigateToPlaylist(event.playlistId)
                 HomeEvent.NavigateToDownloads -> onNavigateToDownloads()
                 HomeEvent.NavigateToLibrary -> onNavigateToLibrary()
                 HomeEvent.NavigateToSourceSettings -> onNavigateToSourceSettings()

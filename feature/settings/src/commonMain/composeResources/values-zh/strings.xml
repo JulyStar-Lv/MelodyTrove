@@ -39,7 +39,7 @@
     <string name="settings_lyrics_percent_value">%1$d%%</string>
     <string name="settings_lyrics_sp_value">%1$d sp</string>
     <string name="settings_lyrics_degree_value">%1$d°</string>
-    <string name="settings_sources_title">音乐库与音源</string>
+    <string name="settings_sources_title">音源设置</string>
     <string name="settings_sources_summary">%1$d 个音源 · %2$d 首曲目</string>
     <string name="settings_sources_summary_empty">管理本地音乐与 WebDAV</string>
     <string name="settings_network_cache_title">网络与缓存</string>
@@ -186,7 +186,7 @@
     <string name="settings_library_up_to_date">已是最新</string>
     <string name="settings_library_no_sources">暂无音源</string>
     <string name="settings_library_sources_paused">%1$d 个已暂停</string>
-    <string name="settings_tracks_indexed">已索引曲目</string>
+    <string name="settings_tracks_indexed">已索引音源文件</string>
     <string name="settings_sources_enabled">已启用音源</string>
     <string name="settings_source_local">本地音乐</string>
     <string name="settings_source_webdav">WebDAV</string>
@@ -207,6 +207,7 @@
     <string name="settings_source_manage">管理音乐音源</string>
     <string name="settings_source_manage_summary">添加或移除本地音乐目录</string>
     <string name="settings_source_edit_action">编辑音乐音源</string>
+    <string name="settings_source_path_action">配置音乐路径</string>
     <string name="settings_source_scan_action">扫描音乐音源</string>
     <string name="settings_source_scan_results">扫描结果</string>
     <string name="settings_source_delete_action">删除音乐音源</string>
@@ -247,7 +248,7 @@
     <string name="settings_library_scanning">正在扫描已启用音源</string>
     <string name="settings_library_scan_attention">音乐库扫描需要处理</string>
     <string name="settings_library_scanning_summary">已检查 %1$s 项 · 保持此页面打开可查看进度</string>
-    <string name="settings_library_no_scan_summary">暂无扫描记录 · 已索引 %1$s 首曲目</string>
+    <string name="settings_library_no_scan_summary">暂无扫描记录 · 已索引 %1$s 个音源文件</string>
     <string name="settings_library_scan_complete_no_failures_summary">%1$s完成 · %2$s 首曲目 · 无失败项</string>
     <string name="settings_library_scan_complete_summary">%1$s完成 · %2$s 首曲目 · %3$s 项失败</string>
     <string name="settings_scan_now">立即扫描</string>
@@ -284,12 +285,6 @@
     <string name="settings_missing_mark_summary">保留音乐库元数据，但禁止播放</string>
     <string name="settings_missing_remove">移除扫描结果</string>
     <string name="settings_missing_remove_summary">仅移除可重建的音源记录，不删除源文件</string>
-    <string name="settings_duplicate_policy">重复歌曲</string>
-    <string name="settings_duplicate_policy_design_summary">将不同音源中的匹配文件保留为独立音乐库条目</string>
-    <string name="settings_duplicate_separate">按音源分开</string>
-    <string name="settings_duplicate_separate_summary">只在同一音源内匹配重复歌曲</string>
-    <string name="settings_duplicate_keep_all">全部保留</string>
-    <string name="settings_duplicate_keep_all_summary">每个新发现的音源条目单独导入</string>
     <string name="settings_scan_status_section">扫描状态</string>
     <string name="settings_scan_no_history">暂无扫描记录</string>
     <string name="settings_scan_failure_details">失败详情</string>
@@ -466,6 +461,8 @@
     <string name="settings_feedback_webdav_save_failed">保存 WebDAV 账号失败：%1$s</string>
     <string name="settings_feedback_webdav_enable_required">请先启用该 WebDAV 音源</string>
     <string name="settings_feedback_smb_saved">已保存 SMB 共享</string>
+    <string name="settings_feedback_source_path_saved">音乐路径已设为 %1$s</string>
+    <string name="settings_feedback_source_path_save_failed">无法保存音乐路径：%1$s</string>
     <string name="settings_feedback_smb_save_failed">保存 SMB 共享失败：%1$s</string>
     <string name="settings_feedback_smb_enable_required">请先启用该 SMB 音源</string>
     <string name="settings_feedback_scan_cancelled">已取消扫描</string>

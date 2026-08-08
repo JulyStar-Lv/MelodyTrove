@@ -186,7 +186,6 @@ private fun AppSettings.mergeBackup(
             webDavMetadataScanMode = backup.webDavMetadataScanMode,
             minimumAudioDurationMs = backup.minimumAudioDurationMs,
             missingFilePolicy = backup.missingFilePolicy,
-            duplicateTrackPolicy = backup.duplicateTrackPolicy,
         )
     }
     if (selection.networkAndCache) {

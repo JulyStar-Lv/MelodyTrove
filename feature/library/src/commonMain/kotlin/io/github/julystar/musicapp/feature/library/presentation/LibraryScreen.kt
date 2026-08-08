@@ -464,7 +464,7 @@ private fun NavigationRow(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(Brush.linearGradient(listOf(DesignPalette.Primary, DesignPalette.Secondary))),
+                    .background(Brush.linearGradient(listOf(DesignPalette.BrandPink, DesignPalette.Secondary))),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -608,7 +608,7 @@ private enum class LibraryCategory(
 }
 
 private val accentColors = listOf(
-    DesignPalette.Primary,
+    DesignPalette.BrandPink,
     DesignPalette.Secondary,
     DesignPalette.SupportBlue,
     DesignPalette.SupportOrange,

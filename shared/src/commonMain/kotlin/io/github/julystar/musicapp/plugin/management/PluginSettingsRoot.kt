@@ -354,7 +354,6 @@ fun PluginSettingsRoot(
             title = pluginUiText("Metadata plugins"),
             collapseFraction = 1f,
             onNavigateBack = onBack,
-            showBackButtonBackground = false,
             compactTitle = true,
             modifier = Modifier.align(Alignment.TopCenter),
         )

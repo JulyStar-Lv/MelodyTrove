@@ -33,8 +33,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -51,14 +53,13 @@ import io.github.julystar.musicapp.core.presentation.components.DesignIconButton
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButtonSize
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButtonVariant
 import io.github.julystar.musicapp.core.presentation.components.DesignListDivider
+import io.github.julystar.musicapp.core.presentation.components.DesignStickyGlassActionBar
 import io.github.julystar.musicapp.core.presentation.media.ArtworkImage
 import io.github.julystar.musicapp.core.presentation.theme.DesignFontFamilies
-import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import kotlinx.coroutines.launch
 import musicapp.core.presentation.generated.resources.Res as CoreRes
 import musicapp.core.presentation.generated.resources.cover_default_playlist_image
-import musicapp.core.presentation.generated.resources.icon_arrow_left
 import musicapp.core.presentation.generated.resources.icon_deleteseep
 import musicapp.core.presentation.generated.resources.icon_download
 import musicapp.core.presentation.generated.resources.icon_drag
@@ -123,13 +124,31 @@ fun PlaylistScreen(
     var selectedTrackIds by remember(state.playlistId) { mutableStateOf(emptySet<Long>()) }
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
-    val compactTitleVisible by remember {
+    val collapseDistance = with(LocalDensity.current) { 88.dp.roundToPx() }
+    val actionBarProgress by remember(listState, collapseDistance) {
         derivedStateOf {
-            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 96
+            if (listState.firstVisibleItemIndex > 0) {
+                1f
+            } else {
+                (listState.firstVisibleItemScrollOffset / collapseDistance.toFloat())
+                    .coerceIn(0f, 1f)
+            }
         }
     }
+    val pageTitleAlpha = (1f - actionBarProgress / 0.70f).coerceIn(0f, 1f)
     val currentTrackIndex = state.tracks.indexOfFirst { track -> track.id == currentPlayingTrackId }
     val allSelected = state.tracks.isNotEmpty() && state.tracks.all { track -> track.id in selectedTrackIds }
+    val title = state.title.ifBlank { stringResource(Res.string.playlist_default_title) }
+    val topBarActions: (@Composable () -> Unit)? = if (editable) {
+        {
+            PlaylistTopBarActions(
+                title = title,
+                onAction = onAction,
+            )
+        }
+    } else {
+        null
+    }
     val reorderableLazyListState = rememberReorderableLazyListState(lazyListState = listState) { from, to ->
         val fromIndex = from.index - TrackListStartIndex
         val toIndex = to.index - TrackListStartIndex
@@ -146,29 +165,28 @@ fun PlaylistScreen(
         val compact = maxWidth < 600.dp
         val horizontalPadding = if (compact) 20.dp else 32.dp
 
-        Column(
+        Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .widthIn(max = 960.dp)
                 .fillMaxWidth()
                 .fillMaxHeight(),
         ) {
-            PlaylistTopBar(
-                state = state,
-                showTitle = compactTitleVisible,
-                editable = editable,
-                onAction = onAction,
-            )
             LazyColumn(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxSize(),
                 state = listState,
                 contentPadding = PaddingValues(
                     start = horizontalPadding,
+                    top = DesignTokens.adaptive.compactHeaderHeight,
                     end = horizontalPadding,
                 ),
             ) {
                 item(key = "playlist-hero") {
-                    PlaylistHero(state = state, compact = compact)
+                    PlaylistHero(
+                        state = state,
+                        compact = compact,
+                        titleAlpha = pageTitleAlpha,
+                    )
                 }
                 stickyHeader(key = "playlist-actions") {
                     PlaylistActionBar(
@@ -249,6 +267,15 @@ fun PlaylistScreen(
                     BottomBarSpacer(showMiniPlayer = true, scaffoldPadding = scaffoldPadding)
                 }
             }
+            DesignStickyGlassActionBar(
+                title = title,
+                collapseFraction = actionBarProgress,
+                onNavigateBack = { onAction(PlaylistAction.NavigateBack) },
+                backContentDescription = stringResource(Res.string.playlist_back),
+                centerTitle = true,
+                actions = topBarActions,
+                modifier = Modifier.align(Alignment.TopCenter),
+            )
         }
     }
     if (editable) {
@@ -257,87 +284,48 @@ fun PlaylistScreen(
 }
 
 @Composable
-private fun PlaylistTopBar(
-    state: PlaylistState,
-    showTitle: Boolean,
-    editable: Boolean,
+private fun PlaylistTopBarActions(
+    title: String,
     onAction: (PlaylistAction) -> Unit,
 ) {
     var moreMenuExpanded by remember { mutableStateOf(false) }
-    val title = state.title.ifBlank { stringResource(Res.string.playlist_default_title) }
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .background(MiuixTheme.colorScheme.background.copy(alpha = 0.96f)),
-    ) {
+    Box {
         DesignIconButton(
             size = DesignIconButtonSize.Touch,
             variant = DesignIconButtonVariant.Default,
-            painter = painterResource(CoreRes.drawable.icon_arrow_left),
-            contentDescription = stringResource(Res.string.playlist_back),
-            onClick = { onAction(PlaylistAction.NavigateBack) },
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .padding(start = 4.dp),
+            painter = painterResource(CoreRes.drawable.icon_more_horizontal),
+            contentDescription = stringResource(Res.string.playlist_track_more_actions, title),
+            onClick = { moreMenuExpanded = true },
         )
-        if (showTitle) {
-            Text(
-                text = title,
-                color = MiuixTheme.colorScheme.onSurface,
-                style = MiuixTheme.textStyles.body1.copy(fontSize = 16.sp, lineHeight = 20.sp),
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(horizontal = 64.dp),
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = 14.dp, y = 36.dp),
+        ) {
+            DesignContextMenu(
+                expanded = moreMenuExpanded,
+                onDismissRequest = { moreMenuExpanded = false },
+                compact = true,
+                items = listOf(
+                    DesignContextMenuItem(
+                        label = Res.string.playlist_context_menu_import,
+                        icon = CoreRes.drawable.icon_download,
+                        onClick = { onAction(PlaylistAction.ImportTracks) },
+                    ),
+                    DesignContextMenuItem(
+                        label = Res.string.playlist_context_menu_edit,
+                        icon = CoreRes.drawable.icon_setting,
+                        onClick = { onAction(PlaylistAction.EditPlaylist) },
+                    ),
+                    DesignContextMenuItem(
+                        label = Res.string.playlist_context_menu_remove,
+                        icon = CoreRes.drawable.icon_deleteseep,
+                        isError = true,
+                        onClick = { onAction(PlaylistAction.OpenRemoveDialog) },
+                    ),
+                ),
             )
-        }
-        if (editable) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = 4.dp),
-            ) {
-                DesignIconButton(
-                    size = DesignIconButtonSize.Touch,
-                    variant = DesignIconButtonVariant.Default,
-                    painter = painterResource(CoreRes.drawable.icon_more_horizontal),
-                    contentDescription = stringResource(Res.string.playlist_track_more_actions, title),
-                    onClick = { moreMenuExpanded = true },
-                )
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .offset(x = 14.dp, y = 36.dp),
-                ) {
-                    DesignContextMenu(
-                        expanded = moreMenuExpanded,
-                        onDismissRequest = { moreMenuExpanded = false },
-                        compact = true,
-                        items = listOf(
-                            DesignContextMenuItem(
-                                label = Res.string.playlist_context_menu_import,
-                                icon = CoreRes.drawable.icon_download,
-                                onClick = { onAction(PlaylistAction.ImportTracks) },
-                            ),
-                            DesignContextMenuItem(
-                                label = Res.string.playlist_context_menu_edit,
-                                icon = CoreRes.drawable.icon_setting,
-                                onClick = { onAction(PlaylistAction.EditPlaylist) },
-                            ),
-                            DesignContextMenuItem(
-                                label = Res.string.playlist_context_menu_remove,
-                                icon = CoreRes.drawable.icon_deleteseep,
-                                isError = true,
-                                onClick = { onAction(PlaylistAction.OpenRemoveDialog) },
-                            ),
-                        ),
-                    )
-                }
-            }
         }
     }
 }
@@ -346,6 +334,7 @@ private fun PlaylistTopBar(
 private fun PlaylistHero(
     state: PlaylistState,
     compact: Boolean,
+    titleAlpha: Float,
 ) {
     val artworkSize = if (compact) 112.dp else 220.dp
     val artworkRadius = if (compact) 18.dp else 24.dp
@@ -392,6 +381,7 @@ private fun PlaylistHero(
                 fontWeight = FontWeight.Bold,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.alpha(titleAlpha),
             )
             Text(
                 text = stringResource(
@@ -460,12 +450,12 @@ private fun PlaylistActionBar(
                 Icon(
                     painter = painterResource(CoreRes.drawable.icon_play),
                     contentDescription = null,
-                    tint = DesignPalette.Primary.copy(alpha = if (canPlay) 1f else 0.35f),
+                    tint = MiuixTheme.colorScheme.primary.copy(alpha = if (canPlay) 1f else 0.35f),
                     modifier = Modifier.size(16.dp),
                 )
                 Text(
                     text = stringResource(Res.string.playlist_play_all),
-                    color = DesignPalette.Primary.copy(alpha = if (canPlay) 1f else 0.35f),
+                    color = MiuixTheme.colorScheme.primary.copy(alpha = if (canPlay) 1f else 0.35f),
                     style = MiuixTheme.textStyles.body2.copy(fontSize = 14.sp, lineHeight = 18.sp),
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -473,11 +463,14 @@ private fun PlaylistActionBar(
         }
         Box(modifier = Modifier.weight(1f))
         DesignIconButton(
-            size = DesignIconButtonSize.Touch,
-            variant = DesignIconButtonVariant.Surface,
+            size = DesignIconButtonSize.Medium,
+            variant = DesignIconButtonVariant.Default,
             painter = painterResource(CoreRes.drawable.icon_locate_fixed),
             contentDescription = stringResource(Res.string.playlist_locate_current),
-            colors = DesignIconButtonColors(iconTint = DesignPalette.Primary),
+            colors = DesignIconButtonColors(
+                buttonBg = MiuixTheme.colorScheme.surfaceContainerHigh,
+                iconTint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            ),
             enabled = canLocate,
             onClick = onLocateCurrent,
         )
@@ -492,7 +485,7 @@ private fun PlaylistActionBar(
                 contentDescription = stringResource(
                     if (editing) Res.string.playlist_finish_editing else Res.string.playlist_edit_tracks,
                 ),
-                colors = if (editing) null else DesignIconButtonColors(iconTint = DesignPalette.Primary),
+                colors = if (editing) null else DesignIconButtonColors(iconTint = MiuixTheme.colorScheme.primary),
                 onClick = onToggleEditing,
             )
         }
@@ -576,7 +569,7 @@ private fun PlaylistTrackRow(
                         if (favorite) Res.string.playlist_remove_favorite else Res.string.playlist_add_favorite,
                         item.title,
                     ),
-                    tint = if (favorite) DesignPalette.Primary else MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    tint = if (favorite) MiuixTheme.colorScheme.primary else MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     modifier = Modifier.size(17.dp),
                 )
             }

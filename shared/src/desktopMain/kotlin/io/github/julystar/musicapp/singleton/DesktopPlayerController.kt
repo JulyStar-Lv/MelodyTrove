@@ -162,7 +162,8 @@ class DesktopPlayerController(
         if (
             !forceReload &&
             playerRepository.music.value?.meta?.id == id &&
-            playerRepository.playlist.value?.abstr?.meta?.id == playlistId
+            playerRepository.playlist.value?.abstr?.meta?.id == playlistId &&
+            playbackResource != null
         ) {
             resume()
             return
@@ -206,7 +207,12 @@ class DesktopPlayerController(
                     is PlaybackPreparationResult.Ready -> {
                         playbackResource = preparation.resource
                         pendingNetworkRecovery = null
-                        playerRepository.setCurrent(music, playlist)
+                        if (
+                            playerRepository.music.value?.meta?.id != id ||
+                            playerRepository.playlist.value?.abstr?.meta?.id != playlistId
+                        ) {
+                            playerRepository.setCurrent(music, playlist)
+                        }
                         playbackEngine.play()
                         playerRepository.setIsPlaying(true)
                         crossfadeAdvancedTrackId = null

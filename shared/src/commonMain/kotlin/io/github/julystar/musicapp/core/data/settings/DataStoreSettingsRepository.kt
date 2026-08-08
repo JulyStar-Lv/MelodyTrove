@@ -15,7 +15,6 @@ import io.github.julystar.musicapp.core.domain.model.AudioEffectSettings
 import io.github.julystar.musicapp.core.domain.model.AudioFocusMode
 import io.github.julystar.musicapp.core.domain.model.AutoScanMode
 import io.github.julystar.musicapp.core.domain.model.BackupSchedule
-import io.github.julystar.musicapp.core.domain.model.DuplicateTrackPolicy
 import io.github.julystar.musicapp.core.domain.model.DEFAULT_MANUAL_THEME_SEED_ARGB
 import io.github.julystar.musicapp.core.domain.model.LyricFontChoice
 import io.github.julystar.musicapp.core.domain.model.LyricFontSettings
@@ -245,8 +244,6 @@ class DataStoreSettingsRepository(
             ),
             missingFilePolicy = preferences[MISSING_FILE_POLICY_KEY]
                 .enumOrDefault(MissingFilePolicy.MarkUnavailable),
-            duplicateTrackPolicy = preferences[DUPLICATE_TRACK_POLICY_KEY]
-                .enumOrDefault(DuplicateTrackPolicy.SeparateBySource),
             allowMeteredNetworkUsage = preferences[ALLOW_METERED_NETWORK_USAGE_KEY] ?: false,
             networkRetryCount = normalizeNetworkRetryCount(
                 preferences[NETWORK_RETRY_COUNT_KEY] ?: AppSettings.Default.networkRetryCount,
@@ -496,7 +493,6 @@ class DataStoreSettingsRepository(
         setWebDavMetadataScanMode(settings.webDavMetadataScanMode)
         setMinimumAudioDurationMs(settings.minimumAudioDurationMs)
         setMissingFilePolicy(settings.missingFilePolicy)
-        setDuplicateTrackPolicy(settings.duplicateTrackPolicy)
         setAllowMeteredNetworkUsage(settings.allowMeteredNetworkUsage)
         setNetworkRetryCount(settings.networkRetryCount)
         setConnectionTimeoutSeconds(settings.connectionTimeoutSeconds)
@@ -528,9 +524,6 @@ class DataStoreSettingsRepository(
 
     override suspend fun setMissingFilePolicy(policy: MissingFilePolicy) =
         set(MISSING_FILE_POLICY_KEY, policy.name)
-
-    override suspend fun setDuplicateTrackPolicy(policy: DuplicateTrackPolicy) =
-        set(DUPLICATE_TRACK_POLICY_KEY, policy.name)
 
     override suspend fun setAllowMeteredNetworkUsage(enabled: Boolean) =
         set(ALLOW_METERED_NETWORK_USAGE_KEY, enabled)
@@ -722,7 +715,6 @@ internal val WEB_DAV_METADATA_SCAN_MODE_MIGRATED_KEY =
     booleanPreferencesKey("settings.webDavMetadataScanModeMigrated")
 internal val MINIMUM_AUDIO_DURATION_MS_KEY = longPreferencesKey("settings.minimumAudioDurationMs")
 internal val MISSING_FILE_POLICY_KEY = stringPreferencesKey("settings.missingFilePolicy")
-internal val DUPLICATE_TRACK_POLICY_KEY = stringPreferencesKey("settings.duplicateTrackPolicy")
 internal val ALLOW_METERED_NETWORK_USAGE_KEY =
     booleanPreferencesKey("settings.allowMeteredNetworkUsage")
 internal val NETWORK_RETRY_COUNT_KEY = intPreferencesKey("settings.networkRetryCount")
@@ -830,7 +822,6 @@ private val SETTINGS_KEYS = setOf(
     WEB_DAV_METADATA_SCAN_MODE_KEY,
     MINIMUM_AUDIO_DURATION_MS_KEY,
     MISSING_FILE_POLICY_KEY,
-    DUPLICATE_TRACK_POLICY_KEY,
     ALLOW_METERED_NETWORK_USAGE_KEY,
     NETWORK_RETRY_COUNT_KEY,
     CONNECTION_TIMEOUT_SECONDS_KEY,

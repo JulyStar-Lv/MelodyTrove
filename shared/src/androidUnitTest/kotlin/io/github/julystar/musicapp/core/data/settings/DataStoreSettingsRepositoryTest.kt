@@ -7,7 +7,6 @@ import io.github.julystar.musicapp.core.domain.model.AppSettings
 import io.github.julystar.musicapp.core.domain.model.AppThemeMode
 import io.github.julystar.musicapp.core.domain.model.AudioFocusMode
 import io.github.julystar.musicapp.core.domain.model.AutoScanMode
-import io.github.julystar.musicapp.core.domain.model.DuplicateTrackPolicy
 import io.github.julystar.musicapp.core.domain.model.MAX_AUDIO_CACHE_LIMIT_BYTES
 import io.github.julystar.musicapp.core.domain.model.MAX_IMAGE_CACHE_LIMIT_BYTES
 import io.github.julystar.musicapp.core.domain.model.LyricTextAlignment
@@ -55,7 +54,6 @@ class DataStoreSettingsRepositoryTest {
         repository.setWebDavMetadataScanMode(MetadataScanMode.Full)
         repository.setMinimumAudioDurationMs(47_000L)
         repository.setMissingFilePolicy(MissingFilePolicy.RemoveOnScan)
-        repository.setDuplicateTrackPolicy(DuplicateTrackPolicy.KeepAll)
         repository.setAllowMeteredNetworkUsage(true)
         repository.setNetworkRetryCount(4)
         repository.setConnectionTimeoutSeconds(45)
@@ -92,7 +90,6 @@ class DataStoreSettingsRepositoryTest {
         assertEquals(MetadataScanMode.Full, settings.webDavMetadataScanMode)
         assertEquals(47_000L, settings.minimumAudioDurationMs)
         assertEquals(MissingFilePolicy.RemoveOnScan, settings.missingFilePolicy)
-        assertEquals(DuplicateTrackPolicy.KeepAll, settings.duplicateTrackPolicy)
         assertTrue(settings.allowMeteredNetworkUsage)
         assertEquals(4, settings.networkRetryCount)
         assertEquals(45, settings.connectionTimeoutSeconds)

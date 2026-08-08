@@ -35,7 +35,6 @@ import androidx.compose.ui.unit.dp
 import io.github.julystar.musicapp.core.presentation.components.appIconPainter
 import io.github.julystar.musicapp.core.presentation.layout.WindowSizeClass
 import io.github.julystar.musicapp.core.presentation.platform.LocalDesktopTitleBarInset
-import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import io.github.julystar.musicapp.navigation.HomeTab
 import musicapp.shared.generated.resources.Res
@@ -166,8 +165,8 @@ private fun SidebarItem(
     val backgroundBrush = if (selected) {
         Brush.linearGradient(
             listOf(
-                DesignPalette.Primary.copy(alpha = 0.16f),
-                DesignPalette.Secondary.copy(alpha = 0.13f),
+                MiuixTheme.colorScheme.primary.copy(alpha = 0.16f),
+                MiuixTheme.colorScheme.secondary.copy(alpha = 0.13f),
             ),
         )
     } else {

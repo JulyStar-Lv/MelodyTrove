@@ -17,7 +17,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import top.yukonga.miuix.kmp.basic.Icon
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -197,8 +196,8 @@ fun DesignPlayerControlButton(
         )
         DesignPlayerControlVariant.Primary -> Brush.linearGradient(
             listOf(
-                DesignPalette.Primary,
-                DesignPalette.Secondary,
+                MiuixTheme.colorScheme.primary,
+                MiuixTheme.colorScheme.secondary,
             ),
         )
     }

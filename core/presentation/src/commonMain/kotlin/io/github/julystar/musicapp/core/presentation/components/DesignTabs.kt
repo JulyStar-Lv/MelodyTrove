@@ -35,7 +35,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -375,7 +374,7 @@ private fun tabContentColor(
 @Composable
 private fun tabIndicatorBrush(enabled: Boolean): Brush {
     val colors = if (enabled) {
-        listOf(DesignPalette.Primary, DesignPalette.Secondary)
+        listOf(MiuixTheme.colorScheme.primary, MiuixTheme.colorScheme.secondary)
     } else {
         listOf(
             MiuixTheme.colorScheme.disabledPrimarySlider,

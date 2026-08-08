@@ -12,8 +12,8 @@ import top.yukonga.miuix.kmp.theme.Colors
  * duplicating hex values.
  */
 object DesignPalette {
-    val Primary = Color(0xFFFF5B8A)
-    val DefaultManualThemeSeed = Primary
+    val BrandPink = Color(0xFFFF5B8A)
+    val DefaultManualThemeSeed = BrandPink
     val Secondary = Color(0xFF7A6CFF)
     val SupportBlue = Color(0xFF3D9AFF)
     val SupportOrange = Color(0xFFFF8A3D)
@@ -33,13 +33,13 @@ data class DesignGradient(
 
 object DesignGradients {
     val PurplePink = DesignGradient(
-        colors = persistentListOf(DesignPalette.Secondary, DesignPalette.Primary),
+        colors = persistentListOf(DesignPalette.Secondary, DesignPalette.BrandPink),
     )
     val PinkPurple = DesignGradient(
-        colors = persistentListOf(DesignPalette.Primary, DesignPalette.Secondary),
+        colors = persistentListOf(DesignPalette.BrandPink, DesignPalette.Secondary),
     )
     val PinkOrange = DesignGradient(
-        colors = persistentListOf(DesignPalette.Primary, DesignPalette.SupportOrange),
+        colors = persistentListOf(DesignPalette.BrandPink, DesignPalette.SupportOrange),
     )
     val OrangeYellow = DesignGradient(
         colors = persistentListOf(DesignPalette.SupportOrange, DesignPalette.SupportYellow),
@@ -57,7 +57,7 @@ object DesignGradients {
         colors = persistentListOf(DesignPalette.SupportCyan, DesignPalette.SupportTeal),
     )
     val PinkYellow = DesignGradient(
-        colors = persistentListOf(DesignPalette.Primary, DesignPalette.SupportYellow),
+        colors = persistentListOf(DesignPalette.BrandPink, DesignPalette.SupportYellow),
     )
     val BlueGreenPurple = DesignGradient(
         colors = persistentListOf(
@@ -70,7 +70,7 @@ object DesignGradients {
 }
 
 internal val DesignLightColors = Colors(
-    primary = DesignPalette.Primary,
+    primary = DesignPalette.DefaultManualThemeSeed,
     onPrimary = Color.White,
     primaryVariant = DesignPalette.Secondary,
     onPrimaryVariant = Color.White,
@@ -83,7 +83,7 @@ internal val DesignLightColors = Colors(
     disabledPrimaryButton = Color(0xFFC5C2D8),
     disabledOnPrimaryButton = Color.White,
     disabledPrimarySlider = Color(0xFFC5C2D8),
-    primaryContainer = DesignPalette.Primary,
+    primaryContainer = DesignPalette.DefaultManualThemeSeed,
     onPrimaryContainer = Color.White,
     secondary = DesignPalette.Secondary,
     onSecondary = Color.White,
@@ -98,7 +98,7 @@ internal val DesignLightColors = Colors(
     secondaryContainerVariant = Color(0xFFE2DEF5),
     onSecondaryContainerVariant = Color(0xFF6B6880),
     tertiaryContainer = Color(0xFFFFE9F0),
-    onTertiaryContainer = DesignPalette.Primary,
+    onTertiaryContainer = DesignPalette.DefaultManualThemeSeed,
     tertiaryContainerVariant = Color(0xFFEAE7F5),
     background = Color(0xFFF4F2FA),
     onBackground = Color(0xFF0D0B18),
@@ -121,12 +121,12 @@ internal val DesignLightColors = Colors(
     dividerLine = Color(0x140D0B18),
     windowDimming = Color.Black.copy(alpha = 0.32f),
     sliderKeyPoint = Color(0xFFC5C2D8).copy(alpha = 0.3f),
-    sliderKeyPointForeground = DesignPalette.Primary,
+    sliderKeyPointForeground = DesignPalette.DefaultManualThemeSeed,
     sliderBackground = Color.Black.copy(alpha = 0.08f),
 )
 
 internal val DesignDarkColors = Colors(
-    primary = DesignPalette.Primary,
+    primary = DesignPalette.DefaultManualThemeSeed,
     onPrimary = Color.White,
     primaryVariant = DesignPalette.Secondary,
     onPrimaryVariant = Color.White,
@@ -139,7 +139,7 @@ internal val DesignDarkColors = Colors(
     disabledPrimaryButton = Color(0xFF3A3555),
     disabledOnPrimaryButton = Color(0xFF9B97B0),
     disabledPrimarySlider = Color(0xFF3A3555),
-    primaryContainer = DesignPalette.Primary,
+    primaryContainer = DesignPalette.DefaultManualThemeSeed,
     onPrimaryContainer = Color.White,
     secondary = DesignPalette.Secondary,
     onSecondary = Color.White,
@@ -177,6 +177,6 @@ internal val DesignDarkColors = Colors(
     dividerLine = Color(0x12F0EDF8),
     windowDimming = Color.Black.copy(alpha = 0.7f),
     sliderKeyPoint = Color(0xFF9B97B0).copy(alpha = 0.35f),
-    sliderKeyPointForeground = DesignPalette.Primary,
+    sliderKeyPointForeground = DesignPalette.DefaultManualThemeSeed,
     sliderBackground = Color.White.copy(alpha = 0.12f),
 )

@@ -31,6 +31,8 @@ internal data class AndroidPlaybackQueueLoadRequest(
 )
 
 internal interface AndroidPlaybackEngine : PlaybackEngine {
+    fun hasLoadedTrack(trackId: Long): Boolean = false
+
     fun loadQueue(request: AndroidPlaybackQueueLoadRequest): PlaybackEngineLoadResult {
         return PlaybackEngineLoadResult.Unsupported(
             PlaybackEngineUnsupportedReason.MissingPlatformEngine
@@ -96,6 +98,12 @@ internal class MediaControllerAndroidPlaybackEngine(
             mediaController.prepare()
             mediaController.play()
             PlaybackEngineLoadResult.Ready
+        }
+    }
+
+    override fun hasLoadedTrack(trackId: Long): Boolean {
+        return runOnApplicationThread {
+            mediaController.currentMediaItem?.mediaId == trackId.toString()
         }
     }
 

@@ -37,12 +37,6 @@ enum class MissingFilePolicy {
 }
 
 @Serializable
-enum class DuplicateTrackPolicy {
-    KeepAll,
-    SeparateBySource,
-}
-
-@Serializable
 enum class LyricTextAlignment {
     Left,
     Center,
@@ -513,7 +507,6 @@ data class AppSettings(
     val webDavMetadataScanMode: MetadataScanMode = MetadataScanMode.Standard,
     val minimumAudioDurationMs: Long = DEFAULT_MINIMUM_AUDIO_DURATION_MS,
     val missingFilePolicy: MissingFilePolicy = MissingFilePolicy.MarkUnavailable,
-    val duplicateTrackPolicy: DuplicateTrackPolicy = DuplicateTrackPolicy.SeparateBySource,
     val allowMeteredNetworkUsage: Boolean = false,
     val networkRetryCount: Int = DEFAULT_NETWORK_RETRY_COUNT,
     val connectionTimeoutSeconds: Int = DEFAULT_CONNECTION_TIMEOUT_SECONDS,

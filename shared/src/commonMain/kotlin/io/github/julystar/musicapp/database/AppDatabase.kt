@@ -45,6 +45,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun sourceItemDao(): SourceItemDao
     abstract fun trackSourceRefDao(): TrackSourceRefDao
     abstract fun trackDao(): TrackDao
+    abstract fun trackMergeDao(): TrackMergeDao
     abstract fun playlistDao(): PlaylistDao
     abstract fun metadataDao(): MetadataDao
     abstract fun syncDao(): SyncDao

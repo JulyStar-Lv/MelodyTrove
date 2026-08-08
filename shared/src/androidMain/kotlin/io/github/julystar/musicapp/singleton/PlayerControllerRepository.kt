@@ -248,7 +248,11 @@ class PlayerControllerRepository internal constructor(
     override fun play(id: MusicId, playlistId: PlaylistId) {
         val engine = playbackEngine ?: return
 
-        if (_music.value?.meta?.id == id && _playlist.value?.abstr?.meta?.id == playlistId) {
+        if (
+            _music.value?.meta?.id == id &&
+            _playlist.value?.abstr?.meta?.id == playlistId &&
+            engine.hasLoadedTrack(id.value)
+        ) {
             resume()
             return
         }
@@ -317,7 +321,12 @@ class PlayerControllerRepository internal constructor(
                     }
                 }
 
-                playerState.setCurrent(music, playlist)
+                if (
+                    _music.value?.meta?.id != id ||
+                    _playlist.value?.abstr?.meta?.id != playlistId
+                ) {
+                    playerState.setCurrent(music, playlist)
+                }
                 playerState.setIsPlaying(true)
                 playerState.notifyDurationChanged()
             } catch (exception: CancellationException) {

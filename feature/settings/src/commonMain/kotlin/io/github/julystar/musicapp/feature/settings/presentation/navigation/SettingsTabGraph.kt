@@ -25,6 +25,7 @@ fun SettingsTabGraph(
     appBuildInfo: String,
     gitCommitSha: String,
     onNavigateToPlugins: () -> Unit,
+    onNavigateToSourcePathPicker: () -> Unit,
 ) {
     fun navigate(route: String) {
         navController.navigate(route)
@@ -47,6 +48,7 @@ fun SettingsTabGraph(
             onNavigateToDiagnostics = { navController.navigateSection(ROUTE_DIAGNOSTICS) },
             onNavigateToAbout = { navController.navigateSection(ROUTE_ABOUT) },
             onNavigateToLicenses = { navigate(ROUTE_LICENSES) },
+            onNavigateToSourcePathPicker = onNavigateToSourcePathPicker,
             onBack = { navController.navigateUp() },
         )
     }

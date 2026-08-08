@@ -7,7 +7,6 @@ import io.github.julystar.musicapp.core.domain.model.AppThemeMode
 import io.github.julystar.musicapp.core.domain.model.AudioEffectSettings
 import io.github.julystar.musicapp.core.domain.model.AudioFocusMode
 import io.github.julystar.musicapp.core.domain.model.AutoScanMode
-import io.github.julystar.musicapp.core.domain.model.DuplicateTrackPolicy
 import io.github.julystar.musicapp.core.domain.model.LibraryRebuildState
 import io.github.julystar.musicapp.core.domain.model.LocalMusicDirectory
 import io.github.julystar.musicapp.core.domain.model.LyricFontSettings
@@ -138,7 +137,6 @@ sealed interface SettingsAction {
     data class SetWebDavMetadataScanMode(val mode: MetadataScanMode) : SettingsAction
     data class SetMinimumAudioDurationMs(val value: Long) : SettingsAction
     data class SetMissingFilePolicy(val policy: MissingFilePolicy) : SettingsAction
-    data class SetDuplicateTrackPolicy(val policy: DuplicateTrackPolicy) : SettingsAction
     data class SetAllowMeteredNetworkUsage(val enabled: Boolean) : SettingsAction
     data class SetNetworkRetryCount(val value: Int) : SettingsAction
     data class SetConnectionTimeoutSeconds(val value: Int) : SettingsAction
@@ -188,6 +186,7 @@ sealed interface SettingsAction {
         val accountId: SourceAccountId,
         val title: String,
     ) : SettingsAction
+    data class ConfigureSourcePath(val accountId: SourceAccountId) : SettingsAction
     data class ScanSourceAccount(val accountId: SourceAccountId) : SettingsAction
     data class CancelScan(val scanId: String) : SettingsAction
     data class OpenScanFailures(val scanId: String) : SettingsAction
@@ -212,6 +211,7 @@ sealed interface SettingsAction {
 
 sealed interface SettingsEvent {
     data object OpenLibraryFolderPicker : SettingsEvent
+    data object OpenSourcePathPicker : SettingsEvent
 }
 
 @Immutable

@@ -28,7 +28,6 @@ import io.github.julystar.musicapp.database.TrackGenreCrossRef
 import io.github.julystar.musicapp.database.TrackMetadataSources
 import io.github.julystar.musicapp.database.TrackSourceRefEntity
 import io.github.julystar.musicapp.platform.currentTimeMillis
-import io.github.julystar.musicapp.core.domain.model.DuplicateTrackPolicy
 import io.github.julystar.musicapp.core.domain.model.MetadataScanMode
 import io.github.julystar.musicapp.core.domain.model.MetadataParsingSettings
 import io.github.julystar.musicapp.core.domain.model.toOptions
@@ -1130,25 +1129,47 @@ class RemoteLibraryImportCoordinator(
                     val entry = row.entry
                     val metadata = row.metadata
                     val sourceItem = row.sourceItem
-                    val existingTrack = existingRefsBySourceItemId[sourceItem.id]
-                        ?.let { existingTracksById[it.trackId] }
+                    val existingRef = existingRefsBySourceItemId[sourceItem.id]
+                    val canonicalMatch = existingRef
+                        ?.let { ref ->
+                            existingTracksById[ref.trackId]?.let { track ->
+                                CanonicalTrackMatch(
+                                    track = track,
+                                    method = ref.matchMethod,
+                                    confidence = ref.matchConfidence,
+                                    preserveCanonicalMetadata = ref.role == TrackSourceRoles.Alternate,
+                                )
+                            }
+                        }
                         ?: findCanonicalTrack(
                             metadata = metadata,
                             sourceItem = sourceItem,
-                            duplicateTrackPolicy = request.scanRules.duplicateTrackPolicy,
                         )
                     val track = buildTrackEntity(
                         entry = entry,
                         metadata = metadata,
                         sourceItem = sourceItem,
                         now = now,
-                        existingTrack = existingTrack,
+                        existingTrack = canonicalMatch?.track,
                         albumId = metadata.album
                             ?.let(::normalizeMetadataName)
                             ?.let(albumsByName::get)
                             ?.id,
+                        preserveExistingMetadata = canonicalMatch?.preserveCanonicalMetadata == true,
                     )
-                    TrackMetadataContext(track, metadata, sourceItem)
+                    TrackMetadataContext(
+                        track = track,
+                        metadata = metadata,
+                        sourceItem = sourceItem,
+                        updateCanonicalMetadata = canonicalMatch?.preserveCanonicalMetadata != true,
+                        sourceRole = existingRef?.role ?: if (canonicalMatch?.preserveCanonicalMetadata == true) {
+                            TrackSourceRoles.Alternate
+                        } else {
+                            TrackSourceRoles.Primary
+                        },
+                        matchMethod = canonicalMatch?.method ?: TrackMatchMethods.SourceIdentity,
+                        matchConfidence = canonicalMatch?.confidence ?: MATCH_CONFIDENCE_EXACT,
+                    )
                 }
                 val tracks = trackContexts.map { it.track }
                 trackDao.upsertAll(tracks)
@@ -1159,12 +1180,17 @@ class RemoteLibraryImportCoordinator(
                         metadata = context.metadata,
                         now = now,
                         existingRef = existingRefsBySourceItemId[context.sourceItem.id],
+                        role = context.sourceRole,
+                        matchMethod = context.matchMethod,
+                        matchConfidence = context.matchConfidence,
                     )
                 }
                 if (sourceRefs.isNotEmpty()) {
                     database.trackSourceRefDao().upsertAll(sourceRefs)
                 }
-                val unlockedTrackContexts = trackContexts.filterNot { it.track.metadataLocked }
+                val unlockedTrackContexts = trackContexts.filter { context ->
+                    context.updateCanonicalMetadata && !context.track.metadataLocked
+                }
                 val unlockedTrackIds = unlockedTrackContexts.map { it.track.id }
                 if (unlockedTrackIds.isNotEmpty()) {
                     metadataDao.deleteTrackArtistsForTracks(unlockedTrackIds)
@@ -1217,7 +1243,7 @@ class RemoteLibraryImportCoordinator(
                     metadataDao.upsertAlbumArtists(albumArtists)
                 }
                 metadataDao.updateOptionalMetadata(
-                    updates = trackContexts.map { context ->
+                    updates = trackContexts.filter(TrackMetadataContext::updateCanonicalMetadata).map { context ->
                         OptionalMetadataUpdate(
                             trackId = context.track.id,
                             albumId = context.track.albumId,
@@ -1271,46 +1297,88 @@ class RemoteLibraryImportCoordinator(
     private suspend fun findCanonicalTrack(
         metadata: RemoteMetadata,
         sourceItem: SourceItemEntity,
-        duplicateTrackPolicy: DuplicateTrackPolicy,
-    ): TrackEntity? {
-        if (duplicateTrackPolicy == DuplicateTrackPolicy.KeepAll) return null
-        val recordingId = metadata.musicbrainzRecordingId?.takeIf { it.isNotBlank() }
-        if (recordingId != null) {
-            trackDao.findByMusicBrainzRecordingId(recordingId)
-                .singleOrNull()
-                ?.takeIf { track ->
-                    database.trackSourceRefDao().hasSourceAccount(track.id, sourceItem.sourceAccountId)
-                }
-                ?.let { return it }
+    ): CanonicalTrackMatch? {
+        suspend fun match(
+            candidates: List<TrackEntity>,
+            method: String,
+            confidence: Int,
+        ): CanonicalTrackMatch? {
+            val track = candidates.distinctBy(TrackEntity::id).singleOrNull() ?: return null
+            val hasSameSource = database.trackSourceRefDao()
+                .hasSourceAccount(track.id, sourceItem.sourceAccountId)
+            return CanonicalTrackMatch(
+                track = track,
+                method = method,
+                confidence = confidence,
+                preserveCanonicalMetadata = !hasSameSource,
+            )
         }
 
-        val durationMs = metadata.durationMs.toLongOrNull() ?: return null
+        sourceItem.contentHash?.takeIf(String::isNotBlank)?.let { contentHash ->
+            match(
+                candidates = trackDao.findBySourceContentHash(contentHash),
+                method = TrackMatchMethods.ContentHash,
+                confidence = MATCH_CONFIDENCE_EXACT,
+            )?.let { return it }
+        }
+
+        val durationMs = metadata.durationMs.toLongOrNull()
+        if (durationMs != null) {
+            sourceItem.audioFingerprint?.takeIf(String::isNotBlank)?.let { fingerprint ->
+                match(
+                    candidates = trackDao.findByAudioFingerprintWithinDuration(
+                        audioFingerprint = fingerprint,
+                        minDurationMs = durationMs - DURATION_MATCH_TOLERANCE_MS,
+                        maxDurationMs = durationMs + DURATION_MATCH_TOLERANCE_MS,
+                    ),
+                    method = TrackMatchMethods.AudioFingerprint,
+                    confidence = MATCH_CONFIDENCE_FINGERPRINT,
+                )?.let { return it }
+            }
+        }
+
+        val recordingId = metadata.musicbrainzRecordingId?.takeIf { it.isNotBlank() }
+        if (recordingId != null) {
+            match(
+                candidates = trackDao.findByMusicBrainzRecordingId(recordingId),
+                method = TrackMatchMethods.MusicBrainzRecordingId,
+                confidence = MATCH_CONFIDENCE_EXACT,
+            )?.let { return it }
+        }
+
+        durationMs ?: return null
         val isrc = metadata.isrc?.takeIf { it.isNotBlank() }
         if (isrc != null) {
-            trackDao.findByIsrcWithinDuration(
-                isrc = isrc,
-                minDurationMs = durationMs - DURATION_MATCH_TOLERANCE_MS,
-                maxDurationMs = durationMs + DURATION_MATCH_TOLERANCE_MS,
-            ).singleOrNull()
-                ?.takeIf { track ->
-                    database.trackSourceRefDao().hasSourceAccount(track.id, sourceItem.sourceAccountId)
-                }
-                ?.let { return it }
+            match(
+                candidates = trackDao.findByIsrcWithinDuration(
+                    isrc = isrc,
+                    minDurationMs = durationMs - DURATION_MATCH_TOLERANCE_MS,
+                    maxDurationMs = durationMs + DURATION_MATCH_TOLERANCE_MS,
+                ),
+                method = TrackMatchMethods.IsrcDuration,
+                confidence = MATCH_CONFIDENCE_ISRC,
+            )?.let { return it }
         }
 
         val title = metadata.title?.takeIf { it.isNotBlank() }
             ?: sourceItem.displayName.substringBeforeLast('.')
-        if (title.hasVersionToken()) return null
+        if (title.hasTrackVersionToken()) return null
+        val titleKey = title.normalizedTrackMatchKey()
+        val artistKey = metadata.artist.normalizedTrackMatchKey()
+        val albumKey = metadata.album.normalizedTrackMatchKey()
+        if (titleKey.isBlank() || artistKey.isBlank() || albumKey.isBlank()) return null
 
-        return trackDao.findByStrictMetadata(
-            titleKey = title.normalizedMatchKey(),
-            artistKey = metadata.artist.normalizedMatchKey(),
-            albumKey = metadata.album.normalizedMatchKey(),
-            minDurationMs = durationMs - DURATION_MATCH_TOLERANCE_MS,
-            maxDurationMs = durationMs + DURATION_MATCH_TOLERANCE_MS,
-        ).singleOrNull()?.takeIf { track ->
-            database.trackSourceRefDao().hasSourceAccount(track.id, sourceItem.sourceAccountId)
-        }
+        return match(
+            candidates = trackDao.findByStrictMetadata(
+                titleKey = titleKey,
+                artistKey = artistKey,
+                albumKey = albumKey,
+                minDurationMs = durationMs - DURATION_MATCH_TOLERANCE_MS,
+                maxDurationMs = durationMs + DURATION_MATCH_TOLERANCE_MS,
+            ),
+            method = TrackMatchMethods.StrictMetadata,
+            confidence = MATCH_CONFIDENCE_STRICT_METADATA,
+        )
     }
 
     private suspend fun ensureAlbums(
@@ -1652,7 +1720,7 @@ class RemoteLibraryImportCoordinator(
                 .sorted()
                 .joinToString(SNAPSHOT_LIST_SEPARATOR),
             missingFilePolicy = request.scanRules.missingFilePolicy.name,
-            duplicateTrackPolicy = request.scanRules.duplicateTrackPolicy.name,
+            duplicateTrackPolicy = AUTOMATIC_DUPLICATE_TRACK_POLICY,
             syncMode = request.syncMode,
             directoryConcurrency = DEFAULT_DIRECTORY_CONCURRENCY,
             capabilityDetectionElapsedMs = request.capabilityDetectionElapsedMs,
@@ -1787,16 +1855,16 @@ class RemoteLibraryImportCoordinator(
 
     private suspend fun ensureSourceAccount(storageId: Long, now: Long): SourceAccountEntity {
         val existing = database.sourceAccountDao().get(storageId)
-        val account = SourceAccountEntity(
+        val account = existing?.copy(updatedAt = now) ?: SourceAccountEntity(
             id = storageId,
-            providerType = existing?.providerType ?: ProviderTypes.WebDav,
-            displayName = existing?.displayName ?: "Source $storageId",
-            endpoint = existing?.endpoint,
-            externalAccountId = existing?.externalAccountId,
-            credentialRef = existing?.credentialRef ?: "storage-$storageId",
-            priority = existing?.priority ?: 0,
-            enabled = existing?.enabled ?: true,
-            createdAt = existing?.createdAt ?: now,
+            providerType = ProviderTypes.WebDav,
+            displayName = "Source $storageId",
+            endpoint = null,
+            externalAccountId = null,
+            credentialRef = "storage-$storageId",
+            priority = 0,
+            enabled = true,
+            createdAt = now,
             updatedAt = now,
         )
         database.sourceAccountDao().upsert(account)
@@ -1856,6 +1924,17 @@ private data class TrackMetadataContext(
     val track: TrackEntity,
     val metadata: RemoteMetadata,
     val sourceItem: SourceItemEntity,
+    val updateCanonicalMetadata: Boolean,
+    val sourceRole: String,
+    val matchMethod: String,
+    val matchConfidence: Int,
+)
+
+private data class CanonicalTrackMatch(
+    val track: TrackEntity,
+    val method: String,
+    val confidence: Int,
+    val preserveCanonicalMetadata: Boolean,
 )
 
 private data class SourceImportRow(
@@ -2334,6 +2413,7 @@ internal fun buildTrackEntity(
     existingTrack: TrackEntity? = null,
     albumId: Long? = null,
     respectMetadataLock: Boolean = true,
+    preserveExistingMetadata: Boolean = false,
 ): TrackEntity {
     val scannedTrack = TrackEntity(
         id = existingTrack?.id
@@ -2387,6 +2467,9 @@ internal fun buildTrackEntity(
         metadataSource = TrackMetadataSources.File,
         metadataLocked = false,
     )
+    if (preserveExistingMetadata && existingTrack != null) {
+        return existingTrack.copy(updatedAt = now)
+    }
     if (!respectMetadataLock || existingTrack?.metadataLocked != true) return scannedTrack
 
     return scannedTrack.copy(
@@ -2433,13 +2516,16 @@ internal fun buildTrackSourceRefEntity(
     metadata: RemoteMetadata,
     now: Long,
     existingRef: TrackSourceRefEntity? = null,
+    role: String = existingRef?.role ?: TrackSourceRoles.Primary,
+    matchMethod: String = existingRef?.matchMethod ?: TrackMatchMethods.SourceIdentity,
+    matchConfidence: Int = existingRef?.matchConfidence ?: MATCH_CONFIDENCE_EXACT,
 ): TrackSourceRefEntity {
     return TrackSourceRefEntity(
         trackId = track.id,
         sourceItemId = sourceItem.id,
-        role = existingRef?.role ?: "primary",
-        matchMethod = existingRef?.matchMethod ?: "source_identity",
-        matchConfidence = existingRef?.matchConfidence ?: 100,
+        role = role,
+        matchMethod = matchMethod,
+        matchConfidence = matchConfidence,
         isPreferred = existingRef?.isPreferred ?: true,
         isAvailable = !sourceItem.isDeleted,
         isDownloaded = existingRef?.isDownloaded ?: false,
@@ -2722,12 +2808,12 @@ private fun normalizeMetadataName(value: String): String {
     return value.trim().lowercase()
 }
 
-private fun String?.normalizedMatchKey(): String {
+internal fun String?.normalizedTrackMatchKey(): String {
     return this?.trim()?.lowercase()?.replace(Regex("\\s+"), " ") ?: ""
 }
 
-private fun String.hasVersionToken(): Boolean {
-    val value = normalizedMatchKey()
+internal fun String.hasTrackVersionToken(): Boolean {
+    val value = normalizedTrackMatchKey()
     return versionTokens.any { token -> value.contains(token) }
 }
 
@@ -2794,10 +2880,15 @@ internal const val SYNC_MODE_WEBDAV_SYNC_TOKEN = "WEBDAV_SYNC_TOKEN"
 internal const val SYNC_MODE_PARALLEL_FULL_SCAN = "PARALLEL_FULL_SCAN"
 internal const val SYNC_MODE_LEGACY_FULL_SCAN_FALLBACK = "LEGACY_FULL_SCAN_FALLBACK"
 private const val DEFAULT_DIRECTORY_CONCURRENCY = 4
-private const val DURATION_MATCH_TOLERANCE_MS = 2_000L
+internal const val DURATION_MATCH_TOLERANCE_MS = 2_000L
+internal const val MATCH_CONFIDENCE_EXACT = 100
+internal const val MATCH_CONFIDENCE_FINGERPRINT = 98
+internal const val MATCH_CONFIDENCE_ISRC = 95
+internal const val MATCH_CONFIDENCE_STRICT_METADATA = 80
 private const val MAX_IMPORT_BATCH_SIZE = 500
 private const val MAX_REMOTE_ID_QUERY_SIZE = 500
 private const val MAX_SOURCE_ITEM_ID_QUERY_SIZE = 500
+private const val AUTOMATIC_DUPLICATE_TRACK_POLICY = "MergeAcrossSources"
 private const val MAX_DELTA_PAGES = 1_000
 private const val MAX_DELTA_ITEMS = 100_000
 private const val MAX_FAILURE_SUMMARY_ITEMS = 7
@@ -2821,3 +2912,17 @@ private val versionTokens = listOf(
     "extended mix",
     "cover",
 )
+
+internal object TrackMatchMethods {
+    const val SourceIdentity = "source_identity"
+    const val ContentHash = "content_hash"
+    const val AudioFingerprint = "audio_fingerprint"
+    const val MusicBrainzRecordingId = "musicbrainz_recording_id"
+    const val IsrcDuration = "isrc_duration"
+    const val StrictMetadata = "strict_metadata"
+}
+
+internal object TrackSourceRoles {
+    const val Primary = "primary"
+    const val Alternate = "alternate"
+}

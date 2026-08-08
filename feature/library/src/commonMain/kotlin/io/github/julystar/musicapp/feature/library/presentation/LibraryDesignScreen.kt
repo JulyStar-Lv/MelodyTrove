@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -24,6 +25,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -37,6 +39,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,6 +52,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -73,6 +77,7 @@ import io.github.julystar.musicapp.core.presentation.components.designListDivide
 import io.github.julystar.musicapp.core.presentation.media.ArtworkImage
 import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.DrawableResource
 import musicapp.core.presentation.generated.resources.Res as CoreRes
@@ -111,8 +116,8 @@ fun LibraryDesignScreen(
 ) {
     var selectedCategory by remember { mutableStateOf(LibraryDesignCategory.Playlists) }
     var songQuery by remember { mutableStateOf("") }
+    var artistQuery by remember { mutableStateOf("") }
     var sortBy by remember { mutableStateOf(LibrarySortBy.Title) }
-    var activeArtistLetter by remember { mutableStateOf<String?>(null) }
     val bottomContentInset = LocalDesignBottomContentInset.current
 
     DesignGlassScene(modifier = Modifier.fillMaxSize()) {
@@ -159,10 +164,10 @@ fun LibraryDesignScreen(
                         onSelectCategory = { selectedCategory = it },
                         songQuery = songQuery,
                         onSongQueryChange = { songQuery = it },
+                        artistQuery = artistQuery,
+                        onArtistQueryChange = { artistQuery = it },
                         sortBy = sortBy,
                         onSortByChange = { sortBy = it },
-                        activeArtistLetter = activeArtistLetter,
-                        onArtistLetterChange = { activeArtistLetter = it },
                         compact = false,
                         pagePadding = pagePadding,
                         bottomContentInset = bottomContentInset,
@@ -174,7 +179,32 @@ fun LibraryDesignScreen(
                 state = mobileListState,
                 modifier = Modifier
                     .fillMaxSize()
-                    .widthIn(max = DesignTokens.adaptive.contentMaxWidth),
+                    .widthIn(max = DesignTokens.adaptive.contentMaxWidth)
+                    .pointerInput(selectedCategory) {
+                        val swipeThreshold = 48.dp.toPx()
+                        var horizontalDrag = 0f
+                        detectHorizontalDragGestures(
+                            onDragStart = { horizontalDrag = 0f },
+                            onDragCancel = { horizontalDrag = 0f },
+                            onDragEnd = {
+                                val currentIndex = primaryLibraryCategories.indexOf(selectedCategory)
+                                val nextIndex = libraryCategoryIndexAfterSwipe(
+                                    currentIndex = currentIndex,
+                                    categoryCount = primaryLibraryCategories.size,
+                                    horizontalDrag = horizontalDrag,
+                                    swipeThreshold = swipeThreshold,
+                                )
+                                if (nextIndex != currentIndex) {
+                                    selectedCategory = primaryLibraryCategories[nextIndex]
+                                }
+                                horizontalDrag = 0f
+                            },
+                            onHorizontalDrag = { change, dragAmount ->
+                                change.consume()
+                                horizontalDrag += dragAmount
+                            },
+                        )
+                    },
                 contentPadding = PaddingValues(
                     start = pagePadding,
                     top = 0.dp,
@@ -207,11 +237,25 @@ fun LibraryDesignScreen(
                     onSelectCategory = { selectedCategory = it },
                     songQuery = songQuery,
                     onSongQueryChange = { songQuery = it },
+                    artistQuery = artistQuery,
+                    onArtistQueryChange = { artistQuery = it },
                     sortBy = sortBy,
                     onSortByChange = { sortBy = it },
-                    activeArtistLetter = activeArtistLetter,
-                    onArtistLetterChange = { activeArtistLetter = it },
                     showPlaylistMetadata = false,
+                    artistContentEndPadding = 24.dp,
+                )
+            }
+            val artistGroups = remember(state.artists, state.tracks, artistQuery) {
+                libraryArtistGroups(state.artists, state.tracks, artistQuery)
+            }
+            if (selectedCategory == LibraryDesignCategory.Artists && state.hasIndexedTracks) {
+                LibraryArtistIndexOverlay(
+                    groups = artistGroups,
+                    listState = mobileListState,
+                    firstGroupItemIndex = MOBILE_ARTIST_FIRST_GROUP_ITEM_INDEX,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(end = 4.dp, top = 44.dp),
                 )
             }
             DesignStickyGlassActionBar(
@@ -403,10 +447,10 @@ private fun LibraryContent(
     onSelectCategory: (LibraryDesignCategory) -> Unit,
     songQuery: String,
     onSongQueryChange: (String) -> Unit,
+    artistQuery: String,
+    onArtistQueryChange: (String) -> Unit,
     sortBy: LibrarySortBy,
     onSortByChange: (LibrarySortBy) -> Unit,
-    activeArtistLetter: String?,
-    onArtistLetterChange: (String?) -> Unit,
     compact: Boolean,
     pagePadding: Dp,
     bottomContentInset: Dp,
@@ -462,11 +506,29 @@ private fun LibraryContent(
                 onSelectCategory = onSelectCategory,
                 songQuery = songQuery,
                 onSongQueryChange = onSongQueryChange,
+                artistQuery = artistQuery,
+                onArtistQueryChange = onArtistQueryChange,
                 sortBy = sortBy,
                 onSortByChange = onSortByChange,
-                activeArtistLetter = activeArtistLetter,
-                onArtistLetterChange = onArtistLetterChange,
                 showPlaylistMetadata = true,
+                artistContentEndPadding = 24.dp,
+            )
+        }
+        val artistGroups = remember(state.artists, state.tracks, artistQuery) {
+            libraryArtistGroups(state.artists, state.tracks, artistQuery)
+        }
+        if (selectedCategory == LibraryDesignCategory.Artists && state.hasIndexedTracks) {
+            LibraryArtistIndexOverlay(
+                groups = artistGroups,
+                listState = listState,
+                firstGroupItemIndex = if (compact) {
+                    COMPACT_ARTIST_FIRST_GROUP_ITEM_INDEX
+                } else {
+                    DESKTOP_ARTIST_FIRST_GROUP_ITEM_INDEX
+                },
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 4.dp, top = 44.dp),
             )
         }
         DesignStickyGlassActionBar(
@@ -491,11 +553,12 @@ private fun LazyListScope.LibraryCategoryItems(
     onSelectCategory: (LibraryDesignCategory) -> Unit,
     songQuery: String,
     onSongQueryChange: (String) -> Unit,
+    artistQuery: String,
+    onArtistQueryChange: (String) -> Unit,
     sortBy: LibrarySortBy,
     onSortByChange: (LibrarySortBy) -> Unit,
-    activeArtistLetter: String?,
-    onArtistLetterChange: (String?) -> Unit,
     showPlaylistMetadata: Boolean,
+    artistContentEndPadding: Dp,
 ) = with(state) {
     val libraryHasTracks = hasIndexedTracks
     val favoriteTracks = favorites.dataOrNull.orEmpty()
@@ -516,8 +579,11 @@ private fun LazyListScope.LibraryCategoryItems(
                 year = album.year,
             )
         }
-    val artistRows = artists
-        .map { artist -> LibraryArtistRowItem(id = artist.id, name = artist.name) }
+    val artistRows = libraryArtistRows(artists, tracks)
+    val filteredArtistRows = artistRows.filter { artist ->
+        artistQuery.isBlank() || artist.name.contains(artistQuery.trim(), ignoreCase = true)
+    }
+    val artistGroups = groupLibraryArtists(filteredArtistRows)
     val genreCards = genreNames.dataOrNull
         .orEmpty()
         .map { genre -> LibraryGenreCardItem(name = genre) }
@@ -578,6 +644,21 @@ private fun LazyListScope.LibraryCategoryItems(
         }
     }
 
+    if (
+        selectedCategory == LibraryDesignCategory.Artists &&
+        libraryHasTracks &&
+        artistRows.isNotEmpty()
+    ) {
+        item {
+            LibrarySongSearchBar(
+                value = artistQuery,
+                onValueChange = onArtistQueryChange,
+                placeholder = "Search artists",
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+
     when (selectedCategory) {
         LibraryDesignCategory.Songs,
         LibraryDesignCategory.Favorites,
@@ -631,16 +712,32 @@ private fun LazyListScope.LibraryCategoryItems(
         }
 
         LibraryDesignCategory.Artists -> {
-            item {
-                if (!libraryHasTracks || artistRows.isEmpty()) {
+            when {
+                !libraryHasTracks || artistRows.isEmpty() -> item {
                     LibraryCategoryEmptyCard(LibraryDesignCategory.Artists)
-                } else {
-                    LibraryArtistGrouped(
-                        artists = artistRows,
-                        activeLetter = activeArtistLetter,
-                        onLetterChange = onArtistLetterChange,
-                        onOpenArtist = { onNavigateToArtist(it.id) },
-                    )
+                }
+                filteredArtistRows.isEmpty() -> item {
+                    DesignCardSurface(contentPadding = PaddingValues(24.dp)) {
+                        LibraryEmptyContent(
+                            title = "No matches",
+                            message = "Try a different search.",
+                            action = "Clear search" to { onArtistQueryChange("") },
+                        )
+                    }
+                }
+                else -> artistGroups.forEach { group ->
+                    item(key = "artist-section-${group.letter}") {
+                        Column {
+                            LibraryArtistSectionHeader(group.letter)
+                            group.artists.forEach { artist ->
+                                LibraryArtistRow(
+                                    artist = artist,
+                                    onOpenArtist = { onNavigateToArtist(artist.id) },
+                                    modifier = Modifier.padding(end = artistContentEndPadding),
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -1184,129 +1281,156 @@ private fun AlbumCard(
     }
 }
 
-// ── Artist Grouped ──
+// ── Artists ──
 
 @Composable
-private fun LibraryArtistGrouped(
-    artists: List<LibraryArtistRowItem>,
-    activeLetter: String?,
-    onLetterChange: (String?) -> Unit,
-    onOpenArtist: (LibraryArtistRowItem) -> Unit,
-) {
-    val grouped = remember(artists) {
-        artists
-            .sortedBy { it.name }
-            .groupBy { it.name.first().uppercaseChar().toString() }
-            .entries
-            .sortedBy { it.key }
+private fun LibraryArtistSectionHeader(letter: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(28.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        Text(
+            text = letter,
+            color = MiuixTheme.colorScheme.primary,
+            style = MiuixTheme.textStyles.footnote2,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 8.dp),
+        )
     }
-    val availableLetters = grouped.map { it.key }.toSet()
-    val selectedLetter = activeLetter ?: grouped.firstOrNull()?.key
+}
 
-    Row(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.weight(1f)) {
-            grouped.forEach { (letter, group) ->
-                Column {
-                    Text(
-                        text = letter,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                        style = MiuixTheme.textStyles.footnote2,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(28.dp)
-                            .padding(horizontal = 8.dp),
-                    )
-                    group.forEach { artist ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
-                                .clickable { onOpenArtist(artist) }
-                                .padding(horizontal = 8.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .clip(CircleShape)
-                                    .background(libraryArtworkBrush(artist.name.hashCode())),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text(
-                                    text = artistInitials(artist.name),
-                                    color = Color.White.copy(alpha = 0.9f),
-                                    style = MiuixTheme.textStyles.body1,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                            }
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(2.dp),
-                            ) {
-                                Text(
-                                    text = artist.name,
-                                    color = MiuixTheme.colorScheme.onBackground,
-                                    style = MiuixTheme.textStyles.body1,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                                Text(
-                                    text = artist.genre ?: localizedLibraryText("Artist"),
-                                    color = MiuixTheme.colorScheme.onBackgroundVariant,
-                                    style = MiuixTheme.textStyles.footnote1,
-                                )
-                            }
-                            Icon(
-                                painter = painterResource(CoreRes.drawable.icon_chevron_right),
-                                contentDescription = null,
-                                tint = MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.7f),
-                                modifier = Modifier.size(16.dp),
-                            )
-                        }
-                    }
+@Composable
+private fun LibraryArtistRow(
+    artist: LibraryArtistRowItem,
+    onOpenArtist: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(68.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onOpenArtist)
+            .designListDivider()
+            .padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .shadow(2.dp, CircleShape)
+                .clip(CircleShape)
+                .background(libraryArtworkBrush(artist.name.hashCode())),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = artistInitials(artist.name),
+                color = Color.White.copy(alpha = 0.94f),
+                style = MiuixTheme.textStyles.body1,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = artist.name,
+                color = MiuixTheme.colorScheme.onBackground,
+                style = MiuixTheme.textStyles.body1,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = localizedLibraryText("${artist.trackCount} tracks"),
+                color = MiuixTheme.colorScheme.onBackgroundVariant,
+                style = MiuixTheme.textStyles.footnote1,
+                maxLines = 1,
+            )
+        }
+        Icon(
+            painter = painterResource(CoreRes.drawable.icon_chevron_right),
+            contentDescription = null,
+            tint = MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.7f),
+            modifier = Modifier.size(16.dp),
+        )
+    }
+}
+
+@Composable
+private fun LibraryArtistIndexOverlay(
+    groups: List<LibraryArtistGroup>,
+    listState: LazyListState,
+    firstGroupItemIndex: Int,
+    modifier: Modifier = Modifier,
+) {
+    val targets = artistIndexTargets(groups, firstGroupItemIndex)
+    if (targets.size <= 1) return
+
+    val coroutineScope = rememberCoroutineScope()
+    ArtistAlphabetIndex(
+        availableLetters = targets.map { it.letter }.toSet(),
+        selectedLetter = visibleArtistLetter(targets, listState.firstVisibleItemIndex),
+        onLetterSelected = { letter ->
+            targets.firstOrNull { it.letter == letter }?.let { target ->
+                coroutineScope.launch {
+                    listState.animateScrollToItem(target.itemIndex)
                 }
             }
-        }
-        // Alphabet index
-        if (grouped.size > 1) {
-            Column(
+        },
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun ArtistAlphabetIndex(
+    availableLetters: Set<String>,
+    selectedLetter: String?,
+    onLetterSelected: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val shape = RoundedCornerShape(DesignTokens.shapes.full)
+    Column(
+        modifier = modifier
+            .clip(shape)
+            .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.88f))
+            .border(1.dp, MiuixTheme.colorScheme.outline.copy(alpha = 0.55f), shape)
+            .padding(vertical = 4.dp, horizontal = 2.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        artistIndexLetters.forEach { letter ->
+            val available = letter in availableLetters
+            val isSelected = letter == selectedLetter
+            Box(
                 modifier = Modifier
-                    .padding(start = 12.dp)
-                    .clip(RoundedCornerShape(DesignTokens.shapes.full))
-                    .background(MiuixTheme.colorScheme.surfaceContainer.copy(alpha = 0.7f))
-                    .border(1.dp, MiuixTheme.colorScheme.outline.copy(alpha = 0.6f), RoundedCornerShape(DesignTokens.shapes.full))
-                    .padding(vertical = 4.dp, horizontal = 2.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                "ABCDEFGHIJKLMNOPQRSTUVWXYZ".forEach { letter ->
-                    val letterStr = letter.toString()
-                    val available = letterStr in availableLetters
-                    val isSelected = letterStr == selectedLetter
-                    Text(
-                        text = letterStr,
-                        color = when {
-                            !available -> MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.25f)
-                            isSelected -> MiuixTheme.colorScheme.primary
-                            else -> MiuixTheme.colorScheme.onSurfaceVariantSummary
-                        },
-                        style = MiuixTheme.textStyles.footnote2,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .size(18.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (isSelected) MiuixTheme.colorScheme.primary.copy(alpha = 0.15f)
-                                else Color.Transparent,
-                            )
-                            .then(
-                                if (available) Modifier.clickable { onLetterChange(letterStr) }
-                                else Modifier
-                            ),
+                    .size(18.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (isSelected) MiuixTheme.colorScheme.primary else Color.Transparent,
                     )
-                }
+                    .then(
+                        if (available) Modifier.clickable { onLetterSelected(letter) } else Modifier,
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = letter,
+                    color = when {
+                        isSelected -> MiuixTheme.colorScheme.onPrimary
+                        available -> MiuixTheme.colorScheme.onSurfaceVariantSummary
+                        else -> MiuixTheme.colorScheme.onSurfaceVariantSummary.copy(alpha = 0.22f)
+                    },
+                    style = MiuixTheme.textStyles.footnote2.copy(
+                        fontSize = if (letter == "#") 8.sp else 9.sp,
+                        lineHeight = 11.sp,
+                    ),
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                )
             }
         }
     }
@@ -1591,7 +1715,7 @@ private fun LibraryEmptyContent(
                     .clip(RoundedCornerShape(DesignTokens.shapes.full))
                     .background(
                         Brush.linearGradient(
-                            listOf(DesignPalette.Primary, DesignPalette.Secondary),
+                            listOf(MiuixTheme.colorScheme.primary, MiuixTheme.colorScheme.secondary),
                         ),
                     )
                     .clickable(onClick = action.second)
@@ -1720,6 +1844,74 @@ private fun artistInitials(name: String): String = name
     .joinToString("") { it.take(1).uppercase() }
     .ifBlank { "?" }
 
+private fun libraryArtistRows(
+    artists: List<LibraryArtistItem>,
+    tracks: List<LibraryTrackItem>,
+): List<LibraryArtistRowItem> {
+    val trackCounts = tracks
+        .mapNotNull { track -> track.artist?.normalizedArtistName()?.takeIf(String::isNotEmpty) }
+        .groupingBy { it }
+        .eachCount()
+    return artists
+        .filter { artist -> artist.name.isNotBlank() }
+        .map { artist ->
+            LibraryArtistRowItem(
+                id = artist.id,
+                name = artist.name.trim(),
+                trackCount = trackCounts[artist.name.normalizedArtistName()] ?: 0,
+            )
+        }
+        .sortedBy { artist -> artist.name.lowercase() }
+}
+
+private fun libraryArtistGroups(
+    artists: List<LibraryArtistItem>,
+    tracks: List<LibraryTrackItem>,
+    query: String,
+): List<LibraryArtistGroup> {
+    val normalizedQuery = query.trim()
+    return groupLibraryArtists(
+        libraryArtistRows(artists, tracks).filter { artist ->
+            normalizedQuery.isEmpty() || artist.name.contains(normalizedQuery, ignoreCase = true)
+        },
+    )
+}
+
+private fun groupLibraryArtists(artists: List<LibraryArtistRowItem>): List<LibraryArtistGroup> {
+    return artists
+        .groupBy { artist -> artistSectionLabel(artist.name) }
+        .entries
+        .sortedWith(compareBy({ it.key == "#" }, { it.key }))
+        .map { (letter, rows) -> LibraryArtistGroup(letter = letter, artists = rows) }
+}
+
+private fun artistSectionLabel(name: String): String {
+    val initial = name.trim().firstOrNull()?.uppercaseChar() ?: return "#"
+    return if (initial in 'A'..'Z') initial.toString() else "#"
+}
+
+private fun String.normalizedArtistName(): String = trim().lowercase()
+
+private fun artistIndexTargets(
+    groups: List<LibraryArtistGroup>,
+    firstGroupItemIndex: Int,
+): List<ArtistIndexTarget> {
+    var itemIndex = firstGroupItemIndex
+    return groups.map { group ->
+        ArtistIndexTarget(letter = group.letter, itemIndex = itemIndex).also {
+            itemIndex += 1
+        }
+    }
+}
+
+private fun visibleArtistLetter(
+    targets: List<ArtistIndexTarget>,
+    firstVisibleItemIndex: Int,
+): String? {
+    return targets.lastOrNull { target -> firstVisibleItemIndex >= target.itemIndex }?.letter
+        ?: targets.firstOrNull()?.letter
+}
+
 // ── Sort By ──
 
 private enum class LibrarySortBy(val label: String) {
@@ -1747,7 +1939,17 @@ private data class LibraryAlbumCardItem(
 private data class LibraryArtistRowItem(
     val id: Long,
     val name: String,
-    val genre: String? = null,
+    val trackCount: Int,
+)
+
+private data class LibraryArtistGroup(
+    val letter: String,
+    val artists: List<LibraryArtistRowItem>,
+)
+
+private data class ArtistIndexTarget(
+    val letter: String,
+    val itemIndex: Int,
 )
 
 private data class LibraryGenreCardItem(
@@ -1797,6 +1999,17 @@ private val primaryLibraryCategories = listOf(
     LibraryDesignCategory.Genres,
 )
 
+internal fun libraryCategoryIndexAfterSwipe(
+    currentIndex: Int,
+    categoryCount: Int,
+    horizontalDrag: Float,
+    swipeThreshold: Float,
+): Int {
+    if (kotlin.math.abs(horizontalDrag) < swipeThreshold) return currentIndex
+    val indexDelta = if (horizontalDrag < 0f) 1 else -1
+    return (currentIndex + indexDelta).coerceIn(0, categoryCount - 1)
+}
+
 private val songLibraryCategories = setOf(
     LibraryDesignCategory.Songs,
     LibraryDesignCategory.Favorites,
@@ -1808,10 +2021,15 @@ private val songLibraryCategories = setOf(
 )
 
 private val libraryArtworkColors = listOf(
-    DesignPalette.Primary,
+    DesignPalette.BrandPink,
     DesignPalette.Secondary,
     DesignPalette.SupportBlue,
     DesignPalette.SupportOrange,
     DesignPalette.SupportGreen,
     DesignPalette.SupportYellow,
 )
+
+private val artistIndexLetters = ('A'..'Z').map(Char::toString) + "#"
+private const val MOBILE_ARTIST_FIRST_GROUP_ITEM_INDEX = 4
+private const val COMPACT_ARTIST_FIRST_GROUP_ITEM_INDEX = 2
+private const val DESKTOP_ARTIST_FIRST_GROUP_ITEM_INDEX = 3

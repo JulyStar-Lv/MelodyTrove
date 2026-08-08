@@ -2,6 +2,7 @@ package io.github.julystar.musicapp.service.librarysync.data
 
 import io.github.julystar.musicapp.domain.importing.RemoteLibraryImportCoordinator
 import io.github.julystar.musicapp.domain.importing.RemoteLibraryImportResult
+import io.github.julystar.musicapp.core.data.settings.AutomaticTrackMerger
 import io.github.julystar.musicapp.core.domain.model.MetadataScanMode
 import io.github.julystar.musicapp.service.librarysync.domain.LibrarySyncAlreadyActiveException
 import io.github.julystar.musicapp.service.librarysync.domain.LibrarySyncController
@@ -25,6 +26,7 @@ internal class LegacyLibrarySyncController(
     private val importer: LegacyLibrarySyncImporter,
     private val storageProvider: LegacyLibrarySyncStorageProvider,
     private val taskRepository: LibrarySyncTaskRepository,
+    private val automaticTrackMerger: AutomaticTrackMerger,
 ) : LibrarySyncController {
     private val startMutex = Mutex()
     private val recoveryMutex = Mutex()
@@ -62,7 +64,7 @@ internal class LegacyLibrarySyncController(
                 throw LibrarySyncAlreadyActiveException(request.accountId)
             }
 
-            when (storage.typ) {
+            val importResult = when (storage.typ) {
                 StorageType.ONE_DRIVE -> importer.syncOneDriveFolder(
                     storageId = storageId.value,
                     selectedFolderRemoteId = requireNotNull(request.selectedFolderRemoteId) {
@@ -111,6 +113,8 @@ internal class LegacyLibrarySyncController(
                     importBatchSize = request.importBatchSize,
                 )
             }
+            automaticTrackMerger.merge()
+            importResult
         }
 
         return result.toLibrarySyncResult()

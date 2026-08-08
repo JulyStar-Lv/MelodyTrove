@@ -54,6 +54,7 @@ class HomeStateTest {
             isLoading = false,
             pinnedPlaylists = persistentListOf(
                 HomePlaylist(
+                    id = 1L,
                     title = "Saved playlist",
                     description = "From a previous library",
                     meta = "0 tracks",
@@ -72,6 +73,15 @@ class HomeStateTest {
         val action = HomeAction.PlayTrack(trackId = 42L)
 
         assertEquals(42L, action.trackId)
+    }
+
+    @Test
+    fun `collection navigation actions identify the selected item`() {
+        val albumAction = HomeAction.NavigateToAlbum(albumId = 7L)
+        val playlistAction = HomeAction.NavigateToPlaylist(playlistId = 9L)
+
+        assertEquals(7L, albumAction.albumId)
+        assertEquals(9L, playlistAction.playlistId)
     }
 
     @Test
@@ -116,6 +126,7 @@ class HomeStateTest {
             year = 2026,
         ).toHomeAlbum()
 
+        assertEquals(7L, item.id)
         assertEquals(Artwork.LibraryAlbum(albumId = 7L), item.artwork)
     }
 }

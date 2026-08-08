@@ -337,6 +337,10 @@ class PlayerRepository(
         )
     }
 
+    suspend fun clearPlaybackSession() {
+        appPreferencesRepository.clearPlaybackSession()
+    }
+
     suspend fun randomTrackInPlaylist(playlistId: Long): Long? =
         roomLibraryStore.getPlaylist(PlaylistId(playlistId))?.musics?.randomOrNull()?.meta?.id?.value
 

@@ -78,6 +78,7 @@ import io.github.julystar.musicapp.core.domain.model.PlayerInteractionSettings
 import io.github.julystar.musicapp.core.lyrics.ui.LyricsView
 import io.github.julystar.musicapp.core.presentation.components.DesignContextMenu
 import io.github.julystar.musicapp.core.presentation.components.DesignContextMenuItem
+import io.github.julystar.musicapp.core.presentation.components.DesignDialog
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButton
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButtonSize
 import io.github.julystar.musicapp.core.presentation.components.DesignIconButtonVariant
@@ -140,6 +141,11 @@ import musicapp.service.playback.presentation.generated.resources.player_add_fav
 import musicapp.service.playback.presentation.generated.resources.player_loading_lyrics
 import musicapp.service.playback.presentation.generated.resources.player_lyrics_unavailable
 import musicapp.service.playback.presentation.generated.resources.player_more_options
+import musicapp.service.playback.presentation.generated.resources.player_playback_source
+import musicapp.service.playback.presentation.generated.resources.player_playback_source_cancel
+import musicapp.service.playback.presentation.generated.resources.player_playback_source_current
+import musicapp.service.playback.presentation.generated.resources.player_playback_source_description
+import musicapp.service.playback.presentation.generated.resources.player_playback_source_title
 import musicapp.service.playback.presentation.generated.resources.player_next_track
 import musicapp.service.playback.presentation.generated.resources.player_pause
 import musicapp.service.playback.presentation.generated.resources.player_play
@@ -205,6 +211,7 @@ private fun NowPlayingMoreButton(
     compact: Boolean = false,
 ) {
     var moreMenuExpanded by remember { mutableStateOf(false) }
+    var sourceDialogOpen by remember { mutableStateOf(false) }
 
     Box {
         if (compact) {
@@ -297,6 +304,16 @@ private fun NowPlayingMoreButton(
                             },
                         )
                     } else null,
+                    if (nowPlayingState.playbackSources.size > 1) {
+                        DesignContextMenuItem(
+                            label = Res.string.player_playback_source,
+                            icon = CoreRes.drawable.icon_settings_sliders,
+                            onClick = {
+                                moreMenuExpanded = false
+                                sourceDialogOpen = true
+                            },
+                        )
+                    } else null,
                     DesignContextMenuItem(
                         label = Res.string.music_player_context_menu_remove,
                         icon = CoreRes.drawable.icon_deleteseep,
@@ -307,6 +324,86 @@ private fun NowPlayingMoreButton(
                         },
                     ),
                 ),
+            )
+        }
+    }
+    PlaybackSourceDialog(
+        show = sourceDialogOpen,
+        sources = nowPlayingState.playbackSources,
+        onSelect = { sourceItemId ->
+            sourceDialogOpen = false
+            onAction(NowPlayingAction.SelectPlaybackSource(sourceItemId))
+        },
+        onDismiss = { sourceDialogOpen = false },
+    )
+}
+
+@Composable
+private fun PlaybackSourceDialog(
+    show: Boolean,
+    sources: List<NowPlayingSourceItem>,
+    onSelect: (Long) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    DesignDialog(show = show, onDismiss = onDismiss) {
+        Text(
+            text = stringResource(Res.string.player_playback_source_title),
+            style = MiuixTheme.textStyles.title3,
+            color = MiuixTheme.colorScheme.onSurface,
+        )
+        Spacer(modifier = Modifier.height(DesignTokens.spacing.xs))
+        Text(
+            text = stringResource(Res.string.player_playback_source_description),
+            style = MiuixTheme.textStyles.body2,
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+        )
+        Spacer(modifier = Modifier.height(DesignTokens.spacing.sm))
+        sources.forEach { source ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(DesignTokens.shapes.md))
+                    .clickable { onSelect(source.sourceItemId) }
+                    .padding(horizontal = DesignTokens.spacing.sm, vertical = DesignTokens.spacing.sm),
+                horizontalArrangement = Arrangement.spacedBy(DesignTokens.spacing.sm),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = source.accountName,
+                        style = MiuixTheme.textStyles.body1,
+                        color = MiuixTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = listOfNotNull(source.displayName, source.quality)
+                            .joinToString(" · "),
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                if (source.isSelected) {
+                    Text(
+                        text = stringResource(Res.string.player_playback_source_current),
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = MiuixTheme.colorScheme.primary,
+                    )
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(DesignTokens.spacing.sm))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.End,
+        ) {
+            DesignTextButton(
+                text = stringResource(Res.string.player_playback_source_cancel),
+                variant = DesignTextButtonVariant.Default,
+                size = DesignTextButtonSize.Medium,
+                onClick = onDismiss,
             )
         }
     }

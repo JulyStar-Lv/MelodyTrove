@@ -2,6 +2,7 @@ package io.github.julystar.musicapp.service.librarysync.data
 
 import io.github.julystar.musicapp.core.domain.model.SourceAccountId
 import io.github.julystar.musicapp.core.domain.model.MetadataScanMode
+import io.github.julystar.musicapp.core.data.settings.AutomaticTrackMerger
 import io.github.julystar.musicapp.domain.importing.RemoteLibraryImportResult
 import io.github.julystar.musicapp.service.librarysync.domain.DEFAULT_LIBRARY_SYNC_BATCH_SIZE
 import io.github.julystar.musicapp.service.librarysync.domain.DEFAULT_LIBRARY_SYNC_METADATA_CONCURRENCY
@@ -24,6 +25,20 @@ import uniffi.app_backend.StorageId
 import uniffi.app_backend.StorageType
 
 class LegacyLibrarySyncControllerTest {
+    @Test
+    fun completedScanAutomaticallyMergesDuplicateTracks() = runBlocking {
+        var mergeCalls = 0
+        val controller = controller(
+            importer = FakeLegacyLibrarySyncImporter(),
+            storage = storage(id = 42, typ = StorageType.LOCAL),
+            automaticTrackMerger = AutomaticTrackMerger { mergeCalls++ },
+        )
+
+        controller.syncFolder(request(selectedFolderRemoteId = null))
+
+        assertEquals(1, mergeCalls)
+    }
+
     @Test
     fun webDavStorageUsesDedicatedIncrementalSync() = runBlocking {
         val importer = FakeLegacyLibrarySyncImporter()
@@ -389,6 +404,7 @@ class LegacyLibrarySyncControllerTest {
         importer: FakeLegacyLibrarySyncImporter,
         storage: Storage,
         taskRepository: FakeLibrarySyncTaskRepository = FakeLibrarySyncTaskRepository(),
+        automaticTrackMerger: AutomaticTrackMerger = AutomaticTrackMerger {},
     ): LegacyLibrarySyncController {
         return LegacyLibrarySyncController(
             importer = importer,
@@ -396,6 +412,7 @@ class LegacyLibrarySyncControllerTest {
                 storage.takeIf { it.id == storageId }
             },
             taskRepository = taskRepository,
+            automaticTrackMerger = automaticTrackMerger,
         )
     }
 

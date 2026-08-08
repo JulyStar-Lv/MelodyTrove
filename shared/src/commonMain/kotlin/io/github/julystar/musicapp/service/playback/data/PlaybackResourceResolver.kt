@@ -25,7 +25,18 @@ class PlaybackResourceResolver(
 ) {
     suspend fun resolve(music: Music): SourcePlaybackResult {
         val candidates = trackSourceRefDao.playbackCandidates(music.meta.id.value)
-        val localCandidates = candidates.filter { candidate ->
+        val explicitlyPreferred = candidates
+            .filter { candidate -> candidate.ref.isPreferred }
+            .singleOrNull()
+        explicitlyPreferred?.let { candidate ->
+            resolvePlaybackCandidate(candidate)?.let { result ->
+                if (result is SourcePlaybackResult.Success) return result
+            }
+        }
+        val fallbackCandidates = candidates.filterNot { candidate ->
+            candidate.item.id == explicitlyPreferred?.item?.id
+        }
+        val localCandidates = fallbackCandidates.filter { candidate ->
             candidate.account.providerType == ProviderTypes.Local
         }
         for (candidate in localCandidates) {
@@ -41,7 +52,7 @@ class PlaybackResourceResolver(
             }
         }
 
-        val remoteCandidates = candidates.filterNot { candidate ->
+        val remoteCandidates = fallbackCandidates.filterNot { candidate ->
             candidate.account.providerType == ProviderTypes.Local
         }
         for (candidate in remoteCandidates) {
@@ -84,6 +95,25 @@ class PlaybackResourceResolver(
                 resource = result.resource,
             )
         )
+    }
+
+    private suspend fun resolvePlaybackCandidate(
+        candidate: TrackSourcePlaybackCandidate,
+    ): SourcePlaybackResult? {
+        if (candidate.account.providerType == ProviderTypes.Local) {
+            return resolveCandidate(candidate)
+        }
+        val identity = candidate.cacheIdentity() ?: return null
+        playbackAudioCache.resolveCompleted(identity, candidate.item.mimeType)?.let { resource ->
+            return SourcePlaybackResult.Success(resource)
+        }
+        return when (val result = resolveCandidate(candidate)) {
+            is SourcePlaybackResult.Success -> SourcePlaybackResult.Success(
+                playbackAudioCache.wrapRemote(identity, result.resource)
+            )
+            is SourcePlaybackResult.Failure,
+            null -> result
+        }
     }
 
     private suspend fun resolveCandidate(

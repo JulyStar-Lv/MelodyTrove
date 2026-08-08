@@ -1,5 +1,6 @@
 use std::{
     fmt,
+    future::Future,
     io::ErrorKind as IoErrorKind,
     num::NonZeroUsize,
     sync::{
@@ -34,6 +35,16 @@ const STREAM_CHANNEL_CAPACITY: usize = 2;
 const MAX_OPERATION_RETRIES: usize = 2;
 const RETRY_DELAYS: [Duration; MAX_OPERATION_RETRIES] =
     [Duration::from_millis(200), Duration::from_millis(400)];
+
+struct AbortTaskOnDrop(Option<tokio::task::AbortHandle>);
+
+impl Drop for AbortTaskOnDrop {
+    fn drop(&mut self) {
+        if let Some(handle) = self.0.take() {
+            handle.abort();
+        }
+    }
+}
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct BuildSmbArg {
@@ -697,7 +708,10 @@ fn validate_range(total_size: u64, range: ByteRange) -> StorageBackendResult<()>
 
 impl StorageBackend for SmbBackend {
     fn list(&self, dir: String) -> BoxFuture<'_, StorageBackendResult<Vec<Entry>>> {
-        Box::pin(self.list_impl(dir))
+        let backend = self.clone();
+        Box::pin(run_on_tokio_runtime(
+            async move { backend.list_impl(dir).await },
+        ))
     }
 
     fn get(
@@ -705,7 +719,10 @@ impl StorageBackend for SmbBackend {
         path: String,
         byte_offset: u64,
     ) -> BoxFuture<'_, StorageBackendResult<StreamFile>> {
-        Box::pin(self.get_impl(path, byte_offset))
+        let backend = self.clone();
+        Box::pin(run_on_tokio_runtime(async move {
+            backend.get_impl(path, byte_offset).await
+        }))
     }
 
     fn get_range_response(
@@ -713,16 +730,32 @@ impl StorageBackend for SmbBackend {
         path: String,
         range: ByteRange,
     ) -> BoxFuture<'_, StorageBackendResult<RangeResponse>> {
-        Box::pin(self.get_range_response_impl(path, range))
+        let backend = self.clone();
+        Box::pin(run_on_tokio_runtime(async move {
+            backend.get_range_response_impl(path, range).await
+        }))
     }
 
     fn release(&self, path: String) -> BoxFuture<'_, StorageBackendResult<()>> {
-        Box::pin(async move {
+        let backend = self.clone();
+        Box::pin(run_on_tokio_runtime(async move {
             let relative_path = normalize_file_path(&path)?;
-            self.invalidate_reader(&relative_path).await;
+            backend.invalidate_reader(&relative_path).await;
             Ok(())
-        })
+        }))
     }
+}
+
+async fn run_on_tokio_runtime<F, T>(future: F) -> StorageBackendResult<T>
+where
+    F: Future<Output = StorageBackendResult<T>> + Send + 'static,
+    T: Send + 'static,
+{
+    let task = tokio_runtime().spawn(future);
+    let mut abort_on_drop = AbortTaskOnDrop(Some(task.abort_handle()));
+    let result = task.await?;
+    abort_on_drop.0 = None;
+    result
 }
 
 async fn connect_session(arg: &BuildSmbArg) -> StorageBackendResult<ConnectedSession> {
@@ -982,6 +1015,7 @@ fn mime_type_for_path(path: &str) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::net::TcpListener;
 
     fn parse(address: &str) -> StorageBackendResult<BuildSmbArg> {
         BuildSmbArg::from_url(
@@ -1133,5 +1167,30 @@ mod tests {
             validate_range(0, ByteRange::new(0, 0).unwrap()),
             Err(StorageBackendError::InvalidRange { .. })
         ));
+    }
+
+    #[test]
+    fn list_from_non_tokio_executor_returns_error_instead_of_panicking() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        drop(listener);
+        let backend = SmbBackend::new(BuildSmbArg {
+            host: "127.0.0.1".to_string(),
+            port,
+            share: "public".to_string(),
+            root_path: String::new(),
+            domain: None,
+            username: String::new(),
+            password: String::new(),
+            is_guest: true,
+            require_signing: false,
+            require_encryption: false,
+            connect_timeout: Duration::from_millis(100),
+        })
+        .unwrap();
+
+        let result = futures_executor::block_on(backend.list("/".to_string()));
+
+        assert!(matches!(result, Err(StorageBackendError::ConnectionLost)));
     }
 }

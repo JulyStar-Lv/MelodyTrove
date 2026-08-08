@@ -45,6 +45,7 @@ import io.github.julystar.musicapp.service.librarysync.domain.MetadataRefreshReq
 import io.github.julystar.musicapp.service.librarysync.domain.MetadataRefreshScope
 import io.github.julystar.musicapp.service.playback.domain.PlaybackController
 import io.github.julystar.musicapp.source.api.BuiltInSourceIds
+import io.github.julystar.musicapp.source.api.ImportRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
@@ -78,6 +79,7 @@ class SettingsVM(
     private val playbackController: PlaybackController,
     private val metadataRefreshController: MetadataRefreshController,
     private val audioDspAnalysisRepository: AudioDspAnalysisRepository,
+    private val importRepository: ImportRepository,
     private val capabilities: SettingsCapabilities,
     private val textProvider: SettingsTextProvider,
     private val backupService: SettingsBackupService? = null,
@@ -334,9 +336,6 @@ class SettingsVM(
             is SettingsAction.SetMissingFilePolicy -> updateSetting {
                 settingsRepository.setMissingFilePolicy(action.policy)
             }
-            is SettingsAction.SetDuplicateTrackPolicy -> updateSetting {
-                settingsRepository.setDuplicateTrackPolicy(action.policy)
-            }
             is SettingsAction.SetAllowMeteredNetworkUsage -> updateSetting {
                 if (
                     capabilities.networkStatusSupported ||
@@ -427,6 +426,7 @@ class SettingsVM(
                     title = action.title,
                 )
             }
+            is SettingsAction.ConfigureSourcePath -> configureSourcePath(action.accountId)
             is SettingsAction.ScanSourceAccount -> scanSourceAccount(action.accountId)
             is SettingsAction.CancelScan -> cancelScan(action.scanId)
             is SettingsAction.OpenScanFailures -> failureDialogTaskId.value = action.scanId
@@ -505,6 +505,30 @@ class SettingsVM(
 
     private fun requestAddLocalDirectory() {
         viewModelScope.launch { events.send(SettingsEvent.OpenLibraryFolderPicker) }
+    }
+
+    private fun configureSourcePath(accountId: SourceAccountId) {
+        val account = state.value.sourceAccounts.firstOrNull { it.accountId == accountId }
+            ?: return
+        if (!account.isWebDav && !account.isSmb) return
+
+        importRepository.prepareCurrentDirectory(accountId) { selection ->
+            if (selection.accountId != accountId) return@prepareCurrentDirectory
+            viewModelScope.launch {
+                runCatching {
+                    storageRepository.setAccountRootPath(accountId, selection.path)
+                    storageRepository.reload()
+                }.onSuccess {
+                    emitFeedback(Res.string.settings_feedback_source_path_saved, selection.path)
+                }.onFailure { error ->
+                    emitFeedback(
+                        Res.string.settings_feedback_source_path_save_failed,
+                        error.userMessage(),
+                    )
+                }
+            }
+        }
+        viewModelScope.launch { events.send(SettingsEvent.OpenSourcePathPicker) }
     }
 
     private fun addLocalDirectory(path: String) {
@@ -844,11 +868,7 @@ class SettingsVM(
             return
         }
         viewModelScope.launch {
-            val routeId = accountId.toStorageRouteIdOrNull() ?: return@launch
-            val rootPath = storageRepository.loadEditorState(routeId)
-                ?.draft
-                ?.smbRootPath
-                .normalizedRootPath()
+            val rootPath = account.rootPath.normalizedRootPath()
             syncFolder(
                 request = LibrarySyncRequest(
                     accountId = accountId,
@@ -1201,7 +1221,6 @@ internal fun AppSettings.scanRules(): LibrarySyncScanRules {
         scanSubdirectories = scanSubdirectories,
         minDurationMs = minimumAudioDurationMs,
         missingFilePolicy = missingFilePolicy,
-        duplicateTrackPolicy = duplicateTrackPolicy,
     )
 }
 

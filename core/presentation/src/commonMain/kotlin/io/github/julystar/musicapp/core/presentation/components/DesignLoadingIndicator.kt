@@ -5,16 +5,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.ProgressIndicatorDefaults
+import top.yukonga.miuix.kmp.theme.MiuixTheme
 
 @Composable
 fun DesignLoadingIndicator(
     modifier: Modifier = Modifier,
     size: Dp = 32.dp,
     strokeWidth: Dp = 3.dp,
-    color: Color = DesignPalette.Primary,
+    color: Color = MiuixTheme.colorScheme.primary,
 ) {
     CircularProgressIndicator(
         modifier = modifier,
