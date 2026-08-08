@@ -10,10 +10,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
@@ -257,7 +259,9 @@ fun ManualMetadataSearchDialog(
                 }
             }
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -274,6 +278,7 @@ fun ManualMetadataSearchDialog(
                     text = stringResource(Res.string.manual_metadata_search),
                     variant = DesignTextButtonVariant.PrimaryFilled,
                     size = DesignTextButtonSize.Medium,
+                    modifier = Modifier.widthIn(min = 72.dp),
                     enabled = keyword.isNotBlank() && !searching && !applying && !resetting,
                     onClick = ::search,
                 )
@@ -318,7 +323,9 @@ fun ManualMetadataSearchDialog(
                     MetadataFeedbackMessage(feedback = value)
                 }
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -328,8 +335,9 @@ fun ManualMetadataSearchDialog(
                     } else {
                         stringResource(Res.string.manual_metadata_reset)
                     },
-                    variant = DesignTextButtonVariant.Default,
+                    variant = DesignTextButtonVariant.Tonal,
                     size = DesignTextButtonSize.Medium,
+                    modifier = Modifier.widthIn(min = 120.dp),
                     enabled = !searching && !applying && !resetting,
                     onClick = ::resetFromFile,
                 )
@@ -341,6 +349,7 @@ fun ManualMetadataSearchDialog(
                     },
                     variant = DesignTextButtonVariant.PrimaryFilled,
                     size = DesignTextButtonSize.Medium,
+                    modifier = Modifier.widthIn(min = 88.dp),
                     enabled = selected != null && !searching && !applying && !resetting,
                     onClick = ::applySelected,
                 )
@@ -527,7 +536,7 @@ private fun MetadataCandidateRow(
 ) {
     val shape = RoundedCornerShape(DesignTokens.shapes.md)
     val source = candidate.sourceId?.let { sourceId ->
-        stringResource(Res.string.manual_metadata_source, sourceId)
+        stringResource(Res.string.manual_metadata_source, metadataSourceDisplayName(sourceId))
     }
     val details = listOfNotNull(
         candidate.date?.trim()?.takeIf(String::isNotEmpty),
@@ -635,6 +644,15 @@ private fun MetadataCandidateRow(
             }
         }
     }
+}
+
+internal fun metadataSourceDisplayName(sourceId: String): String = when (sourceId) {
+    "com.qqmusic.source" -> "QQ音乐"
+    "com.kugou.source" -> "酷狗音乐"
+    "com.applemusic.source" -> "Apple Music"
+    "com.sodamusic.source" -> "汽水音乐"
+    "com.neteasecloudmusic.source" -> "网易云音乐"
+    else -> sourceId
 }
 
 private fun formatMetadataDuration(durationMs: Long): String {

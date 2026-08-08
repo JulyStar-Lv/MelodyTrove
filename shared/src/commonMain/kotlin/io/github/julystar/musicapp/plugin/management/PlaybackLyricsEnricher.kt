@@ -95,17 +95,13 @@ class PlaybackLyricsEnricher(
             }
             .mapTo(mutableSetOf(), PluginSummary::id)
         if (sourceIds.isEmpty()) return false
-        val candidate = lookup.searchSongs(
-            query = query,
-            mode = PluginLookupMode.AUTOMATIC,
-            sourceIds = sourceIds,
-        ).items
-            .mapNotNull { value ->
-                value.matchScore(query)?.let { score -> value to score }
-            }
-            .maxByOrNull { (_, score) -> score }
-            ?.first
-            ?: return false
+        val candidate = findBestLyricsCandidate(query) { searchQuery ->
+            lookup.searchSongs(
+                query = searchQuery,
+                mode = PluginLookupMode.AUTOMATIC,
+                sourceIds = sourceIds,
+            ).items
+        } ?: return false
         val lyrics = lookup.getLyrics(
             candidate = candidate,
             mode = PluginLookupMode.AUTOMATIC,
@@ -114,6 +110,21 @@ class PlaybackLyricsEnricher(
         metadataDao.upsertLyrics(listOf(entity))
         return true
     }
+}
+
+internal suspend fun findBestLyricsCandidate(
+    query: MetaSongQuery,
+    search: suspend (MetaSongQuery) -> List<MetaSongCandidate>,
+): MetaSongCandidate? {
+    fun bestMatch(candidates: List<MetaSongCandidate>): MetaSongCandidate? = candidates
+        .mapNotNull { value ->
+            value.matchScore(query)?.let { score -> value to score }
+        }
+        .maxByOrNull { (_, score) -> score }
+        ?.first
+
+    return bestMatch(search(query))
+        ?: bestMatch(search(query.copy(keyword = query.title)))
 }
 
 internal fun MetaSongCandidate.matchScore(query: MetaSongQuery): Int? {
@@ -143,8 +154,8 @@ internal fun MetaSongCandidate.matchScore(query: MetaSongQuery): Int? {
         val difference = abs(expectedDuration - candidateDuration)
         if (difference > MAX_PLAYBACK_LYRICS_DURATION_DIFFERENCE_MS) return null
         score += when {
-            difference <= 2_000 -> 30
-            difference <= 5_000 -> 15
+            difference <= 1_000 -> 30
+            difference <= 2_000 -> 15
             else -> 5
         }
     }
@@ -163,5 +174,5 @@ private val FEATURED_ARTIST_SUFFIX = Regex(
 )
 
 private const val PLAYBACK_LYRICS_RESULTS_PER_SOURCE = 3
-private const val MAX_PLAYBACK_LYRICS_DURATION_DIFFERENCE_MS = 10_000L
+private const val MAX_PLAYBACK_LYRICS_DURATION_DIFFERENCE_MS = 3_000L
 private const val DEFAULT_PLAYBACK_LYRICS_LOOKUP_TIMEOUT_MS = 15_000L

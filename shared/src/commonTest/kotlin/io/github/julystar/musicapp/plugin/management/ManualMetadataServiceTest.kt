@@ -232,4 +232,20 @@ class ManualMetadataServiceTest {
             message,
         )
     }
+
+    @Test
+    fun displaysFriendlyMetadataSourceNames() {
+        val expectedNames = mapOf(
+            "com.qqmusic.source" to "QQ音乐",
+            "com.kugou.source" to "酷狗音乐",
+            "com.applemusic.source" to "Apple Music",
+            "com.sodamusic.source" to "汽水音乐",
+            "com.neteasecloudmusic.source" to "网易云音乐",
+            "com.example.source" to "com.example.source",
+        )
+
+        expectedNames.forEach { (sourceId, expectedName) ->
+            assertEquals(expectedName, metadataSourceDisplayName(sourceId))
+        }
+    }
 }
