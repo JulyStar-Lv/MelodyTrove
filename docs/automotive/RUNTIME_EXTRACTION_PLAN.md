@@ -202,6 +202,34 @@ behind a large move.
 
 ### Slice 2 - persistence, diagnostics, bridge, and platform primitives
 
+#### Slice 2 dependency-closure amendment
+
+The original Slice 2 root list contains a real source-level cycle with the
+planned Slice 3 and Slice 4 roots. `LibraryDao` directly uses the database-bound
+identity/lyrics algorithms, while `RoomLibraryStore` directly uses remote-path
+identity helpers and the entity-to-playback-audio mapper. Moving persistence
+without those files would require the forbidden `:core:runtime -> :shared`
+edge. Therefore Slice 2 also moves the following minimal non-UI closure while
+preserving every package name and public API:
+
+- `metadata/LyricsQualitySelector.kt`, `metadata/TrackIdentityMatcher.kt`, and
+  `metadata/TrackVersionTokens.kt`
+- a new `domain/importing/RemotePathIdentity.kt` extracted from
+  `RemoteLibraryImportCoordinator.kt`, containing `RemotePathSemantics`,
+  `normalizeRemotePath`, `toLegacyAndroidPrimaryStoragePath`, `stableTrackId`,
+  and `DURATION_MATCH_TOLERANCE_MS`
+- `service/playback/data/AudioTechnicalInfoEntityMappers.kt`
+- `core/data/PersistedLyrics.kt`, plus the playlist mutation request models and
+  the two selection-to-legacy-entry adapters extracted into runtime-owned files
+
+These files are implementation prerequisites rather than an early start of the
+source, metadata-service, or playback-controller migrations. All remaining
+`domain/importing/**`, `metadata/**`, and `service/playback/data/**` files stay
+in `:shared` until their planned slices and consume these declarations through
+the existing `:shared -> :core:runtime` edge. Declarations that were module
+`internal` become public only where the existing shell still has to consume
+them across that edge; their names and behavior remain unchanged.
+
 Move these coherent roots/files:
 
 - `shared/src/commonMain/.../database/**` and Android/Desktop/iOS

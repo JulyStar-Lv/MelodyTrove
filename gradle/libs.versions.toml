@@ -33,6 +33,7 @@ filekit = "0.14.2"
 lyriconProvider = "0.1.70"
 lyricGetterApi = "7.0.0"
 backdrop = "2.0.0"
+atomicfu = "0.26.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -82,6 +83,7 @@ androidx-datastore = { module = "androidx.datastore:datastore", version.ref = "d
 androidx-datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
 androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "work" }
 runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "runtime" }
+kotlinx-atomicfu = { module = "org.jetbrains.kotlinx:atomicfu", version.ref = "atomicfu" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

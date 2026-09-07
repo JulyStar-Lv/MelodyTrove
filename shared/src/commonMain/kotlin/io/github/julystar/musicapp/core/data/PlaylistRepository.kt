@@ -31,18 +31,6 @@ import uniffi.app_backend.MusicId
 import uniffi.app_backend.PlaylistId
 import kotlin.time.Duration.Companion.milliseconds
 
-data class CreatePlaylistRequest(
-    val title: String,
-    val cover: SourceNodeSelection?,
-    val entries: List<SourceNodeSelection>,
-)
-
-data class UpdatePlaylistRequest(
-    val id: Long,
-    val title: String,
-    val cover: SourceNodeSelection?,
-)
-
 @OptIn(FlowPreview::class)
 class PlaylistRepositoryImpl(
     private val storageRepository: StorageRepositoryImpl,

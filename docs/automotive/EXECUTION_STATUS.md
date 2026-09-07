@@ -118,6 +118,19 @@ planned test cannot substitute for device/window or end-to-end evidence.
   tests cannot initialize because `android.os.Build.FINGERPRINT` is null outside a
   Robolectric runner. One unrelated Desktop download-finalization integration assertion
   remains reproducibly red; no download/finalizer source was changed in Slice 1.
+- Runtime Slice 2 moves Room ownership and all 24 versioned schemas, DataStore and
+  credential stores, migrations, diagnostics, bridge primitives, app-version/time
+  platform APIs, and the minimum non-UI dependency closure into `:core:runtime`.
+  Cargo/UniFFI, generated build information, Room KSP, and schema generation now
+  have a single owner in `:core:runtime`; `:shared` consumes that module and keeps
+  only platform presentation actuals. Schema files are byte-identical to `HEAD`,
+  `APP_DATABASE_VERSION` remains 25, and static scans find no Compose, Mobile
+  feature, core-presentation, playback-presentation, or `:shared` dependency edge
+  in runtime. Runtime Desktop and Android main compilation plus
+  `:core:runtime:desktopTest :core:runtime:testDebugUnitTest` pass. The downstream
+  `:shared:compileTestKotlinDesktop :shared:compileDebugUnitTestKotlinAndroid`
+  test-source compilation also passes. Windows cannot compile the moved iOS Rust
+  Cinterop, so iOS verification remains a macOS gate.
 - `:car:presentation` now contains the Phase 4 theme, layout-profile, navigation,
   and focus seams. Its six resolver/OEM/inset tests pass, and
   `:car:presentation:testDebugUnitTest :car:presentation:assembleDebug` is

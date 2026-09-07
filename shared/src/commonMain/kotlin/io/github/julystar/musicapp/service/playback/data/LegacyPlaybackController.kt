@@ -461,8 +461,9 @@ class LegacyPlaybackController(
     ): PersistedPlaybackSession? {
         val music = roomLibraryStore.getMusic(MusicId(saved.trackId)) ?: return null
         val storedPlaylist = roomLibraryStore.getPlaylist(PlaylistId(saved.playlistId)) ?: return null
-        val playlist = if (saved.queueTrackIds != null) {
-            storedPlaylist.forPlaybackTrackIds(saved.queueTrackIds) ?: return null
+        val queueTrackIds = saved.queueTrackIds
+        val playlist = if (queueTrackIds != null) {
+            storedPlaylist.forPlaybackTrackIds(queueTrackIds) ?: return null
         } else {
             storedPlaylist
         }

@@ -76,11 +76,6 @@ data class RemoteLibraryImportRequest(
     val pathSemantics: RemotePathSemantics = RemotePathSemantics.Legacy,
 )
 
-enum class RemotePathSemantics {
-    Legacy,
-    OpenListRaw,
-}
-
 data class RemoteLibraryImportResult(
     val scanId: String,
     val selectedFolderId: Long,
@@ -2812,43 +2807,6 @@ private fun escapeLikePattern(value: String): String {
         .replace("_", "\\_")
 }
 
-internal fun normalizeRemotePath(
-    path: String,
-    pathSemantics: RemotePathSemantics = RemotePathSemantics.Legacy,
-): String {
-    if (path.isBlank()) return "/"
-    val normalized = when (pathSemantics) {
-        RemotePathSemantics.Legacy -> path.replace('\\', '/')
-        RemotePathSemantics.OpenListRaw -> path
-    }
-    return if (normalized.startsWith('/')) normalized else "/$normalized"
-}
-
-internal fun String.toLegacyAndroidPrimaryStoragePath(): String? {
-    return when {
-        this == "/" -> ANDROID_PRIMARY_STORAGE_PATH
-        startsWith("$ANDROID_PRIMARY_STORAGE_PATH/") -> null
-        else -> "$ANDROID_PRIMARY_STORAGE_PATH$this"
-    }
-}
-
-private const val ANDROID_PRIMARY_STORAGE_PATH = "/storage/emulated/0"
-
-internal fun stableTrackId(
-    storageId: Long,
-    canonicalPath: String,
-    pathSemantics: RemotePathSemantics = RemotePathSemantics.Legacy,
-): Long {
-    var hash = -3_750_763_034_362_895_579L
-    val value = "track:$storageId:${normalizeRemotePath(canonicalPath, pathSemantics)}"
-    value.forEach { ch ->
-        hash = hash xor ch.code.toLong()
-        hash *= 1_099_511_628_211L
-    }
-    val positive = hash and Long.MAX_VALUE
-    return if (positive == 0L) 1L else positive
-}
-
 private fun String.yearPrefix(): Int? {
     if (length < 4) return null
     return take(4).toIntOrNull()
@@ -3001,7 +2959,6 @@ internal const val SYNC_MODE_WEBDAV_SYNC_TOKEN = "WEBDAV_SYNC_TOKEN"
 internal const val SYNC_MODE_PARALLEL_FULL_SCAN = "PARALLEL_FULL_SCAN"
 internal const val SYNC_MODE_LEGACY_FULL_SCAN_FALLBACK = "LEGACY_FULL_SCAN_FALLBACK"
 private const val DEFAULT_DIRECTORY_CONCURRENCY = 4
-internal const val DURATION_MATCH_TOLERANCE_MS = 2_000L
 internal const val MATCH_CONFIDENCE_EXACT = 100
 internal const val MATCH_CONFIDENCE_FINGERPRINT = 98
 internal const val MATCH_CONFIDENCE_ISRC = 95

@@ -356,7 +356,7 @@ class TrackPreparationCoordinatorTest {
             scope = backgroundScope,
             triggers = triggers,
             operations = operations,
-            diagnostics = TrackPreparationDiagnostics { },
+            diagnostics = TrackPreparationDiagnostics(),
             debounceMillis = debounceMillis,
         )
         runCurrent()
