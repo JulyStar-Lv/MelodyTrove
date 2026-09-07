@@ -5,7 +5,6 @@ import io.github.julystar.musicapp.platform.getAppDataDirectory
 import io.github.julystar.musicapp.core.domain.repository.DiagnosticsRepository
 import io.github.julystar.musicapp.diagnostics.TrackPreparationDiagnostics
 import io.github.julystar.musicapp.metadata.PluginSemanticMetadataEnricher
-import io.github.julystar.musicapp.plugin.management.ManualMetadataService
 import io.github.julystar.musicapp.plugin.management.PlaybackLyricsEnricher
 import io.github.julystar.musicapp.service.playback.data.LegacyPlaybackController
 import io.github.julystar.musicapp.service.playback.data.CompletedMediaPromoter
@@ -26,12 +25,9 @@ import io.github.julystar.musicapp.service.playback.domain.PlaybackController
 import io.github.julystar.musicapp.service.playback.domain.PlaybackSourceRepository
 import io.github.julystar.musicapp.service.playback.domain.PlaylistPlaybackSync
 import io.github.julystar.musicapp.service.playback.domain.SleepController
-import io.github.julystar.musicapp.service.playback.presentation.di.playbackPresentationModule
 import org.koin.dsl.module
 
-val playbackModule = module {
-    includes(playbackPresentationModule)
-
+val playbackRuntimeModule = module {
     single<CompletedMediaPromoter> {
         CompletedPlaybackCachePromoter(
             database = get(),
@@ -71,7 +67,6 @@ val playbackModule = module {
         )
     }
     single { TrackPreparationDiagnostics(get<DiagnosticsRepository>()) }
-    single { ManualMetadataService(get(), get(), get(), get(), get(), get(), get()) }
     single<PlaybackController> {
         LegacyPlaybackController(
             playerRepository = get(),

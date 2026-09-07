@@ -2,9 +2,6 @@ package io.github.julystar.musicapp.singleton
 
 import io.github.julystar.musicapp.core.data.ToastRepositoryImpl
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.compositionLocalOf
 import uniffi.app_backend.ArgInitializeApp
 import uniffi.app_backend.Backend
 import uniffi.app_backend.createBackend

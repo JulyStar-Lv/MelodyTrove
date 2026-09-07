@@ -5,8 +5,8 @@ import io.github.julystar.musicapp.core.domain.model.Artwork
 import io.github.julystar.musicapp.core.domain.model.LibraryAlbumItem
 import io.github.julystar.musicapp.core.domain.model.LibraryArtistItem
 import io.github.julystar.musicapp.core.domain.model.LibraryTrackItem
-import io.github.julystar.musicapp.feature.home.domain.ListeningHistoryEntry
-import io.github.julystar.musicapp.feature.home.domain.ListeningStatisticsSnapshot
+import io.github.julystar.musicapp.core.domain.home.ListeningHistoryEntry
+import io.github.julystar.musicapp.core.domain.home.ListeningStatisticsSnapshot
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone
@@ -104,7 +104,7 @@ class HomeStateTest {
 
     @Test
     fun `statistics can be attached to state`() {
-        val stats = io.github.julystar.musicapp.feature.home.domain.HomeStatistics(
+        val stats = io.github.julystar.musicapp.core.domain.home.HomeStatistics(
             totalTracksEverPlayed = 10,
             totalListeningDurationMs = 3600_000L,
             tracksPlayedToday = 3,

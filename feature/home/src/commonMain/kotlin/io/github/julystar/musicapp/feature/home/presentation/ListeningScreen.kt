@@ -45,7 +45,7 @@ import io.github.julystar.musicapp.core.domain.model.Artwork
 import io.github.julystar.musicapp.core.presentation.media.ArtworkImage
 import io.github.julystar.musicapp.core.presentation.components.LocalDesignBottomContentInset
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
-import io.github.julystar.musicapp.feature.home.domain.ListeningDistributionBucket
+import io.github.julystar.musicapp.core.domain.home.ListeningDistributionBucket
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import org.jetbrains.compose.resources.DrawableResource

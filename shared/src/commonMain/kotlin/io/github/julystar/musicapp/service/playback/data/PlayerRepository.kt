@@ -6,8 +6,8 @@ import io.github.julystar.musicapp.core.domain.model.Artwork
 import io.github.julystar.musicapp.core.domain.model.Lyrics
 import io.github.julystar.musicapp.core.domain.model.CurrentTrackInfo
 import io.github.julystar.musicapp.core.domain.repository.SettingsRepository
-import io.github.julystar.musicapp.feature.home.domain.HomeStatisticsRepository
-import io.github.julystar.musicapp.feature.home.domain.ListeningPlaybackTrack
+import io.github.julystar.musicapp.core.domain.repository.HomeStatisticsRepository
+import io.github.julystar.musicapp.core.domain.home.ListeningPlaybackTrack
 import io.github.julystar.musicapp.core.toArtwork
 import io.github.julystar.musicapp.domain.importing.TrackMetadataPrefetcher
 import io.github.julystar.musicapp.plugin.management.PlaybackLyricsEnricher

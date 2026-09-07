@@ -1,5 +1,8 @@
-package io.github.julystar.musicapp.feature.home.domain
+package io.github.julystar.musicapp.core.domain.repository
 
+import io.github.julystar.musicapp.core.domain.home.HomeStatistics
+import io.github.julystar.musicapp.core.domain.home.ListeningPlaybackTrack
+import io.github.julystar.musicapp.core.domain.home.ListeningStatisticsSnapshot
 import kotlinx.coroutines.flow.StateFlow
 
 interface HomeStatisticsRepository {

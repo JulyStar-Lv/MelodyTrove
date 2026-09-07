@@ -1,4 +1,4 @@
-package io.github.julystar.musicapp.feature.search.domain
+package io.github.julystar.musicapp.core.domain.search
 
 import io.github.julystar.musicapp.core.domain.model.MediaId
 import io.github.julystar.musicapp.core.domain.model.SourceAccountId
@@ -118,9 +118,7 @@ class SearchLibraryUseCase(
         query: String,
         sourceAccounts: List<SearchSourceAccount> = emptyList(),
         limit: Int = DEFAULT_SEARCH_LIMIT,
-    ): SearchResults {
-        return aggregator.search(query, sourceAccounts, limit)
-    }
+    ): SearchResults = aggregator.search(query, sourceAccounts, limit)
 }
 
 class SearchSuggestionsUseCase(
@@ -162,7 +160,7 @@ class SearchSuggestionsUseCase(
     }
 }
 
-internal fun mergeSearchSuggestions(
+fun mergeSearchSuggestions(
     query: String,
     history: List<String>,
     localSuggestions: List<String>,
@@ -194,4 +192,3 @@ const val DEFAULT_SEARCH_SUGGESTION_LIMIT = 10
 const val LOCAL_LIBRARY_SOURCE_LABEL = "Library"
 const val MAX_SEARCH_HISTORY_SIZE = 10
 const val DEFAULT_SEARCH_ALBUM_ARTIST_LIMIT = 5
-

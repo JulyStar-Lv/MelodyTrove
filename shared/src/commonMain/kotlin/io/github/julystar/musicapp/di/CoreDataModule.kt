@@ -1,6 +1,7 @@
 package io.github.julystar.musicapp.di
 
 import io.github.julystar.musicapp.core.data.datastore.AppPreferencesRepository
+import io.github.julystar.musicapp.core.data.ToastRepositoryImpl
 import io.github.julystar.musicapp.core.data.datastore.createAppDataStore
 import io.github.julystar.musicapp.core.data.security.createCredentialStore
 import io.github.julystar.musicapp.core.data.settings.AutoScanCoordinator
@@ -29,6 +30,7 @@ import io.github.julystar.musicapp.core.domain.repository.SettingsRepository
 import io.github.julystar.musicapp.core.domain.repository.SettingsBackupService
 import io.github.julystar.musicapp.core.domain.repository.SourceSettingsRepository
 import io.github.julystar.musicapp.core.domain.repository.StorageUsageRepository
+import io.github.julystar.musicapp.core.domain.repository.ToastRepository
 import io.github.julystar.musicapp.database.AppDatabase
 import io.github.julystar.musicapp.database.buildDatabase
 import io.github.julystar.musicapp.platform.getAppCacheDir
@@ -51,10 +53,6 @@ import io.github.julystar.musicapp.metadata.TrackIdentityReconciler
 import io.github.julystar.musicapp.metadata.UnifiedMetadataRepository
 import io.github.julystar.musicapp.singleton.Bridge
 import io.github.julystar.musicapp.singleton.RoomLibraryStore
-import io.github.julystar.musicapp.feature.home.data.RoomHomeHistoryRepository
-import io.github.julystar.musicapp.feature.home.data.RoomHomeStatisticsRepository
-import io.github.julystar.musicapp.feature.home.domain.HomeHistoryRepository
-import io.github.julystar.musicapp.feature.home.domain.HomeStatisticsRepository
 import io.github.julystar.musicapp.diagnostics.RustDiagnosticsRepository
 import io.github.julystar.musicapp.core.audio.AudioDspRuntimeMonitor
 import io.github.julystar.musicapp.core.audio.AudioReactiveMonitor
@@ -70,6 +68,8 @@ import org.koin.dsl.module
 
 val coreDataModule = module {
     single { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
+    single { ToastRepositoryImpl(get()) }
+    single<ToastRepository> { get<ToastRepositoryImpl>() }
     single { buildDatabase() }
     single { get<AppDatabase>().sourceAccountDao() }
     single { get<AppDatabase>().libraryRootDao() }
@@ -116,10 +116,6 @@ val coreDataModule = module {
     single { createCredentialStore() }
     single { Bridge(getAppDataDirectory(), getAppCacheDir(), get()) }
     single { RoomLibraryStore(get(), get(), get(), get(), get(), get(), get()) }
-    single<HomeHistoryRepository> { RoomHomeHistoryRepository(get(), get(), get()) }
-    single<HomeStatisticsRepository> { RoomHomeStatisticsRepository(get(), get(), get(), get()) }
-
-
     single {
         PluginRuntimeSettings(
             appVersionName = getAppVersion(),

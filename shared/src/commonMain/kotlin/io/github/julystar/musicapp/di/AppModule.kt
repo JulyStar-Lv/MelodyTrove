@@ -13,6 +13,8 @@ val appModule = module {
         playbackModule,
         downloadModule,
         downloadsFeatureModule,
+        homeStatisticsDataModule,
+        homePresentationDataModule,
         homeFeatureModule,
         sourcesFeatureModule,
         librarySyncModule,

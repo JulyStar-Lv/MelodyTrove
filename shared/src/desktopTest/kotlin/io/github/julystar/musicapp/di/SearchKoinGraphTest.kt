@@ -1,7 +1,7 @@
 package io.github.julystar.musicapp.di
 
 import io.github.julystar.musicapp.database.AppDatabase
-import io.github.julystar.musicapp.feature.search.domain.SearchLibraryUseCase
+import io.github.julystar.musicapp.core.domain.search.SearchLibraryUseCase
 import io.github.julystar.musicapp.source.api.MusicSourceRegistry
 import io.github.julystar.musicapp.source.storage.LegacyStorageLookup
 import java.nio.file.Files

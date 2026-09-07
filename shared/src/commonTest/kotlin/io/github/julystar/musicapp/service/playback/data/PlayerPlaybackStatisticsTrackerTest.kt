@@ -1,9 +1,9 @@
 package io.github.julystar.musicapp.service.playback.data
 
-import io.github.julystar.musicapp.feature.home.domain.HomeStatistics
-import io.github.julystar.musicapp.feature.home.domain.HomeStatisticsRepository
-import io.github.julystar.musicapp.feature.home.domain.ListeningPlaybackTrack
-import io.github.julystar.musicapp.feature.home.domain.ListeningStatisticsSnapshot
+import io.github.julystar.musicapp.core.domain.home.HomeStatistics
+import io.github.julystar.musicapp.core.domain.repository.HomeStatisticsRepository
+import io.github.julystar.musicapp.core.domain.home.ListeningPlaybackTrack
+import io.github.julystar.musicapp.core.domain.home.ListeningStatisticsSnapshot
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test

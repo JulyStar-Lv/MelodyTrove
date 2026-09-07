@@ -38,10 +38,10 @@ import io.github.julystar.musicapp.core.presentation.components.StatusTone
 import io.github.julystar.musicapp.core.presentation.components.LocalDesignBottomContentInset
 import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
-import io.github.julystar.musicapp.feature.search.domain.LOCAL_LIBRARY_SOURCE_LABEL
-import io.github.julystar.musicapp.feature.search.domain.SearchAlbumItem
-import io.github.julystar.musicapp.feature.search.domain.SearchArtistItem
-import io.github.julystar.musicapp.feature.search.domain.SearchTrackItem
+import io.github.julystar.musicapp.core.domain.search.LOCAL_LIBRARY_SOURCE_LABEL
+import io.github.julystar.musicapp.core.domain.search.SearchAlbumItem
+import io.github.julystar.musicapp.core.domain.search.SearchArtistItem
+import io.github.julystar.musicapp.core.domain.search.SearchTrackItem
 import musicapp.feature.search.generated.resources.Res
 import musicapp.feature.search.generated.resources.icon_download
 import musicapp.feature.search.generated.resources.icon_music_note

@@ -2,8 +2,8 @@ package io.github.julystar.musicapp.feature.search.data
 
 import io.github.julystar.musicapp.core.domain.model.StorageAccountInfo
 import io.github.julystar.musicapp.core.domain.model.SourceAccountId
-import io.github.julystar.musicapp.feature.search.domain.SearchSourceAccount
-import io.github.julystar.musicapp.feature.search.domain.SearchSourceAccountProvider
+import io.github.julystar.musicapp.core.domain.search.SearchSourceAccount
+import io.github.julystar.musicapp.core.domain.search.SearchSourceAccountProvider
 import io.github.julystar.musicapp.core.data.StorageRepositoryImpl
 
 class StorageSearchSourceAccountProvider(

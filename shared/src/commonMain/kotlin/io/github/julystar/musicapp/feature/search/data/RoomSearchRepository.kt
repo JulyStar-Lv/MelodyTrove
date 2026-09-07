@@ -6,12 +6,12 @@ import io.github.julystar.musicapp.database.TrackEntity
 import io.github.julystar.musicapp.database.MetadataDao
 import io.github.julystar.musicapp.database.TrackFtsDao
 import io.github.julystar.musicapp.database.TrackSourceRefDao
-import io.github.julystar.musicapp.feature.search.domain.LOCAL_LIBRARY_SOURCE_LABEL
-import io.github.julystar.musicapp.feature.search.domain.SearchRepository
-import io.github.julystar.musicapp.feature.search.domain.SearchResults
-import io.github.julystar.musicapp.feature.search.domain.SearchAlbumItem
-import io.github.julystar.musicapp.feature.search.domain.SearchArtistItem
-import io.github.julystar.musicapp.feature.search.domain.SearchTrackItem
+import io.github.julystar.musicapp.core.domain.search.LOCAL_LIBRARY_SOURCE_LABEL
+import io.github.julystar.musicapp.core.domain.search.SearchRepository
+import io.github.julystar.musicapp.core.domain.search.SearchResults
+import io.github.julystar.musicapp.core.domain.search.SearchAlbumItem
+import io.github.julystar.musicapp.core.domain.search.SearchArtistItem
+import io.github.julystar.musicapp.core.domain.search.SearchTrackItem
 import io.github.julystar.musicapp.source.storage.toSourceTrackMediaIdOrNull
 
 class RoomSearchRepository(

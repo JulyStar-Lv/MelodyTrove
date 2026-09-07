@@ -1,14 +1,14 @@
 package io.github.julystar.musicapp.feature.search.data
 
-import io.github.julystar.musicapp.feature.search.domain.DEFAULT_SEARCH_ALBUM_ARTIST_LIMIT
-import io.github.julystar.musicapp.feature.search.domain.DEFAULT_SEARCH_LIMIT
-import io.github.julystar.musicapp.feature.search.domain.SearchAggregator
-import io.github.julystar.musicapp.feature.search.domain.SearchRepository
-import io.github.julystar.musicapp.feature.search.domain.SearchResults
-import io.github.julystar.musicapp.feature.search.domain.SearchSourceAccount
-import io.github.julystar.musicapp.feature.search.domain.SearchSourceFailure
-import io.github.julystar.musicapp.feature.search.domain.SearchSourceFailureReason
-import io.github.julystar.musicapp.feature.search.domain.SearchTrackItem
+import io.github.julystar.musicapp.core.domain.search.DEFAULT_SEARCH_ALBUM_ARTIST_LIMIT
+import io.github.julystar.musicapp.core.domain.search.DEFAULT_SEARCH_LIMIT
+import io.github.julystar.musicapp.core.domain.search.SearchAggregator
+import io.github.julystar.musicapp.core.domain.search.SearchRepository
+import io.github.julystar.musicapp.core.domain.search.SearchResults
+import io.github.julystar.musicapp.core.domain.search.SearchSourceAccount
+import io.github.julystar.musicapp.core.domain.search.SearchSourceFailure
+import io.github.julystar.musicapp.core.domain.search.SearchSourceFailureReason
+import io.github.julystar.musicapp.core.domain.search.SearchTrackItem
 import io.github.julystar.musicapp.source.api.MusicSource
 import io.github.julystar.musicapp.source.api.MusicSourceRegistry
 import io.github.julystar.musicapp.source.api.SourceCapability

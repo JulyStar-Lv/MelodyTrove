@@ -5,7 +5,7 @@ import androidx.compose.ui.graphics.Color
 import io.github.julystar.musicapp.core.domain.model.Artwork
 import io.github.julystar.musicapp.core.domain.model.MediaId
 import io.github.julystar.musicapp.core.presentation.components.QualityBadgeType
-import io.github.julystar.musicapp.feature.home.domain.HomeStatistics
+import io.github.julystar.musicapp.core.domain.home.HomeStatistics
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 

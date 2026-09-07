@@ -4,9 +4,7 @@ import io.github.julystar.musicapp.singleton.Bridge
 import io.github.julystar.musicapp.singleton.RoomLibraryStore
 import io.github.julystar.musicapp.core.data.StorageRepositoryImpl
 
-import androidx.compose.ui.graphics.ImageBitmap
 import io.github.julystar.musicapp.core.DataSourceKeyH
-import io.github.julystar.musicapp.platform.byteArrayToImageBitmap
 import io.github.julystar.musicapp.core.domain.model.DiagnosticLogCategory
 import io.github.julystar.musicapp.diagnostics.AppLogger
 import uniffi.app_backend.AssetStream
@@ -22,7 +20,6 @@ class AssetRepository(
     private val roomLibraryStore: RoomLibraryStore,
 ) {
     private val bufCache = HashMap<DataSourceKeyH, ByteArray>()
-    private val bitmapCache = HashMap<DataSourceKeyH, ImageBitmap>()
 
     suspend fun load(key: DataSourceKey): ByteArray? {
         val keyH = DataSourceKeyH(key)
@@ -49,24 +46,8 @@ class AssetRepository(
         }
     }
 
-    suspend fun loadBitmap(key: DataSourceKey): ImageBitmap? {
-        val keyH = DataSourceKeyH(key)
-        bitmapCache[keyH]?.let {
-            return it
-        }
-
-        val buf = load(key) ?: return null
-        val bitmap = byteArrayToImageBitmap(buf) ?: return null
-        bitmapCache[keyH] = bitmap
-        return bitmap
-    }
-
     fun get(key: DataSourceKey): ByteArray? {
         return bufCache[DataSourceKeyH(key)]
-    }
-
-    fun getBitmap(key: DataSourceKey): ImageBitmap? {
-        return bitmapCache[DataSourceKeyH(key)]
     }
 
     suspend fun openMusicStream(id: MusicId, byteOffset: ULong): AssetStream? {

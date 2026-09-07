@@ -9,7 +9,7 @@ import io.github.julystar.musicapp.core.domain.repository.LibraryRepository
 import io.github.julystar.musicapp.core.domain.repository.ToastRepository
 import io.github.julystar.musicapp.core.domain.repository.UiMessage
 import io.github.julystar.musicapp.core.domain.repository.UiMessageKey
-import io.github.julystar.musicapp.feature.search.domain.SearchTrackItem
+import io.github.julystar.musicapp.core.domain.search.SearchTrackItem
 import io.github.julystar.musicapp.service.playback.domain.PlayableItem
 import io.github.julystar.musicapp.service.playback.domain.PlaybackController
 import org.koin.compose.koinInject

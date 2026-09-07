@@ -52,9 +52,9 @@ import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.core.presentation.theme.DesignFontFamilies
 import io.github.julystar.musicapp.core.presentation.theme.DesignTokens
 import io.github.julystar.musicapp.core.presentation.transition.albumArtworkSharedElement
-import io.github.julystar.musicapp.feature.search.domain.SearchAlbumItem
-import io.github.julystar.musicapp.feature.search.domain.SearchArtistItem
-import io.github.julystar.musicapp.feature.search.domain.SearchTrackItem
+import io.github.julystar.musicapp.core.domain.search.SearchAlbumItem
+import io.github.julystar.musicapp.core.domain.search.SearchArtistItem
+import io.github.julystar.musicapp.core.domain.search.SearchTrackItem
 import kotlin.time.Duration.Companion.milliseconds
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
@@ -648,9 +648,9 @@ private fun SearchAlbumResultRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (album.artist != null) {
+            album.artist?.let { albumArtist ->
                 Text(
-                    text = album.artist,
+                    text = albumArtist,
                     color = MiuixTheme.colorScheme.onBackgroundVariant,
                     style = MiuixTheme.textStyles.footnote1,
                     maxLines = 1,

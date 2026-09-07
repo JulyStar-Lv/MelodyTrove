@@ -1,7 +1,7 @@
 package io.github.julystar.musicapp.service.playback.data
 
-import io.github.julystar.musicapp.feature.home.domain.HomeStatisticsRepository
-import io.github.julystar.musicapp.feature.home.domain.ListeningPlaybackTrack
+import io.github.julystar.musicapp.core.domain.repository.HomeStatisticsRepository
+import io.github.julystar.musicapp.core.domain.home.ListeningPlaybackTrack
 
 /**
  * Mirrors Halcyon's listening-statistics rules: a play counts after 20 seconds, then actual
