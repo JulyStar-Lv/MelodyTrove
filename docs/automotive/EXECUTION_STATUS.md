@@ -34,8 +34,9 @@ planned test cannot substitute for device/window or end-to-end evidence.
   variables, styles, states and dimensions to target Compose source paths.
 - [x] Phase 3: design-system and window-profile contracts use measured constraints
   and density, with no fixed 2496dp/1080dp root or guessed device threshold.
-- [ ] Phase 4: minimal `carApp` and `car:presentation` run; both
-  `:carApp:assembleDebug` and `:androidApp:assembleDebug` pass; Sol reviews boundary.
+- [ ] Phase 4: minimal `carApp` and `car:presentation` are implemented and both
+  APK build gates pass. Runtime launch evidence remains unavailable without an
+  attached AAOS device/emulator, so the phase is not marked complete.
 - [ ] Phase 5: Figma-based Car theme/components implement default, selected,
   focused, pressed, disabled and playing states, with light/dark support.
 - [ ] Phase 6: navigation, header/exit, Home and mini player use real repositories.
@@ -191,7 +192,25 @@ planned test cannot substitute for device/window or end-to-end evidence.
 - `:car:presentation` now contains the Phase 4 theme, layout-profile, navigation,
   and focus seams. Its six resolver/OEM/inset tests pass, and
   `:car:presentation:testDebugUnitTest :car:presentation:assembleDebug` is
-  **BUILD SUCCESSFUL**. Phase 4 remains open until `:carApp`, its manifest/runtime
-  bootstrap, post-change `:androidApp` regression build, and Sol boundary review pass.
+  **BUILD SUCCESSFUL**.
+- `:carApp` is now an independent Android application with production ID
+  `io.github.julystar.musicapp.car` and debug ID suffix `.debug`. It depends on
+  `:core:runtime`, `:core:domain`, `:service:playback:domain`, and
+  `:car:presentation`; static checks find no `:shared`, `:androidApp`, Mobile
+  feature, core-presentation, or playback-presentation edge/import. Its
+  `CarApplication` composes `runtimeModules + carPresentationModule` and calls the
+  same `AppInitializer` bridge/repository sequence. Its Activity resolves layout
+  metrics from live Compose constraints and attaches Media3 to the runtime-owned
+  `PlayerControllerRepository`; it owns no player or queue state.
+- The merged Car debug manifest resolves package
+  `io.github.julystar.musicapp.car.debug`, declares required Automotive hardware,
+  one exported launcher Activity and exactly one runtime `PlaybackService` with
+  both media-library browse actions. The two ABI APKs contain their matching
+  `libapp_backend.so`. After adding the required direct `:core:domain` API edge,
+  `:carApp:assembleDebug` is **BUILD SUCCESSFUL in 1m 55s**, 425 actionable tasks
+  (25 executed, 400 up-to-date). The final combined
+  `:carApp:assembleDebug :androidApp:assembleDebug` gate is **BUILD SUCCESSFUL in
+  1m 26s**, 1005 actionable tasks (41 executed, 964 up-to-date). No device is
+  attached, so Activity launch and media-session connection are not claimed yet.
 - Read-only ADB evidence collection has a Sol contract in the window audit. No device
   is attached, so density, inset, and real content-bound evidence remains unclaimed.
