@@ -35,5 +35,5 @@ val libraryPresentationModule = module {
 }
 
 val libraryFeatureModule = module {
-    includes(libraryDataModule, libraryPresentationModule)
+    includes(libraryPresentationModule)
 }

@@ -3,6 +3,7 @@ package io.github.julystar.musicapp
 import android.app.Application
 import io.github.julystar.musicapp.core.domain.recovery.allowsNormalApplicationInitialization
 import io.github.julystar.musicapp.di.AppInitializer
+import io.github.julystar.musicapp.di.appModule
 import io.github.julystar.musicapp.di.initKoin
 import io.github.julystar.musicapp.diagnostics.DiagnosticsBootstrap
 import io.github.julystar.musicapp.diagnostics.RustDiagnosticsRepository
@@ -39,7 +40,7 @@ class AppApplication : Application() {
 
     fun initializeFullApplication(disabledComponents: Set<String>): Koin {
         koin?.let { return it }
-        val initialized = initKoin().koin
+        val initialized = initKoin(additionalModules = listOf(appModule)).koin
         try {
             AppInitializer.initializeBridge(initialized, disabledComponents)
             runBlocking {

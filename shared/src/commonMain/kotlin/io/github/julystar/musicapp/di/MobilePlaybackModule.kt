@@ -10,5 +10,5 @@ val mobilePlaybackModule = module {
 }
 
 val playbackModule = module {
-    includes(playbackRuntimeModule, mobilePlaybackModule)
+    includes(mobilePlaybackModule)
 }

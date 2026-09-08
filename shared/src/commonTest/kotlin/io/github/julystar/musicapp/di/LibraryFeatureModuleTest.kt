@@ -9,7 +9,7 @@ class LibraryFeatureModuleTest {
     @Test
     fun providesSystemFileSystemForArtworkComponents() {
         val koinApplication = koinApplication {
-            modules(libraryFeatureModule)
+            modules(libraryDataModule, libraryFeatureModule)
         }
 
         try {

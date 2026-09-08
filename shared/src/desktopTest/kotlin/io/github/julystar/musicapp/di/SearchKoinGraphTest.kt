@@ -27,6 +27,7 @@ class SearchKoinGraphTest {
                         single<LegacyStorageLookup> { LegacyStorageLookup { null } }
                         single { MusicSourceRegistry(emptyList()) }
                     },
+                    searchDataModule,
                     searchFeatureModule,
                 )
             }

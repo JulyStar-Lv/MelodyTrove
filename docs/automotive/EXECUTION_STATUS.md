@@ -170,6 +170,24 @@ planned test cannot substitute for device/window or end-to-end evidence.
   **BUILD SUCCESSFUL in 3m 56s**, 1077 actionable tasks (167 executed, 910 up-to-date).
   Windows still cannot compile the moved Apple cinterop, so iOS verification remains
   a macOS gate.
+- Runtime Slice 5 completes the bootstrap cutover. `runtimeModules` in
+  `:core:runtime` is now the sole composition list for platform, persistence,
+  source, download, library-sync, library, Search-data, Home-statistics and
+  playback-runtime providers. `initKoin` starts that graph and accepts explicit
+  additional modules; it has no knowledge of Mobile presentation. The existing
+  Android, Desktop and iOS entry points add the presentation-only `appModule`, so
+  each process still starts one Koin graph and preserves `AppInitializer` ordering.
+  Runtime source/build scans contain no Compose, Mobile feature, `:shared`, core-
+  presentation or playback-presentation edge. Android/Desktop runtime and shared
+  main plus test-source compilation pass. The moved `AppInitializerTest` remains
+  beside its internal implementation; affected Library/Search Koin composition
+  tests pass on Android and Desktop. The complete shared Android test task still
+  has the two previously recorded Compose navigation failures caused by a null
+  `android.os.Build.FINGERPRINT` outside Robolectric; runtime tests complete without
+  a Slice 5 failure. The post-cutover
+  `:androidApp:assembleDebug :desktopApp:compileKotlinDesktop` regression command is
+  **BUILD SUCCESSFUL in 3m 33s**, 1076 actionable tasks (74 executed, 1002
+  up-to-date). Apple framework verification remains a macOS gate.
 - `:car:presentation` now contains the Phase 4 theme, layout-profile, navigation,
   and focus seams. Its six resolver/OEM/inset tests pass, and
   `:car:presentation:testDebugUnitTest :car:presentation:assembleDebug` is

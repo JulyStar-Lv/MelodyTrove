@@ -17,6 +17,7 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import io.github.julystar.musicapp.core.presentation.platform.LocalDesktopTitleBarInset
 import io.github.julystar.musicapp.di.AppInitializer
+import io.github.julystar.musicapp.di.appModule
 import io.github.julystar.musicapp.di.initKoin
 import io.github.julystar.musicapp.diagnostics.DiagnosticsBootstrap
 import io.github.julystar.musicapp.diagnostics.DiagnosticsBootstrapState
@@ -195,7 +196,7 @@ private class DesktopApplicationRuntime {
 
     suspend fun initializeAsync(disabledComponents: Set<String>) {
         if (koinApp != null) return
-        val application = initKoin()
+        val application = initKoin(additionalModules = listOf(appModule))
         try {
             AppInitializer.initializeBridgeAsync(application.koin, disabledComponents)
             AppInitializer.reloadRepositories(application.koin, disabledComponents)
