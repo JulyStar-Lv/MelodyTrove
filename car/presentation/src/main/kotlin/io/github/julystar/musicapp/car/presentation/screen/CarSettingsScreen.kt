@@ -8,6 +8,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import io.github.julystar.musicapp.car.presentation.component.CarPreference
+import io.github.julystar.musicapp.car.presentation.focus.CarFocusIds
+import io.github.julystar.musicapp.car.presentation.focus.carFocusTarget
 import io.github.julystar.musicapp.car.presentation.layout.CarLayoutMetrics
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarSpacing
 import io.github.julystar.musicapp.core.domain.model.AppSettings
@@ -51,7 +53,9 @@ fun CarSettingsScreen(
                         )
                     }
                 },
-                modifier = Modifier.height(metrics.compactCardHeight),
+                modifier = Modifier
+                    .carFocusTarget(CarFocusIds.content("Settings"), left = CarFocusIds.Settings)
+                    .height(metrics.compactCardHeight),
             )
         }
         item {
@@ -61,7 +65,9 @@ fun CarSettingsScreen(
                 checked = settings.pauseOnDisconnect,
                 controlSize = metrics.iconSize,
                 onClick = { scope.launch { repository.setPauseOnDisconnect(!settings.pauseOnDisconnect) } },
-                modifier = Modifier.height(metrics.compactCardHeight),
+                modifier = Modifier
+                    .carFocusTarget(CarFocusIds.item("setting", "pause_on_disconnect"), left = CarFocusIds.Settings)
+                    .height(metrics.compactCardHeight),
             )
         }
         item {
@@ -71,7 +77,9 @@ fun CarSettingsScreen(
                 checked = settings.gaplessPlaybackEnabled,
                 controlSize = metrics.iconSize,
                 onClick = { scope.launch { repository.setGaplessPlaybackEnabled(!settings.gaplessPlaybackEnabled) } },
-                modifier = Modifier.height(metrics.compactCardHeight),
+                modifier = Modifier
+                    .carFocusTarget(CarFocusIds.item("setting", "gapless"), left = CarFocusIds.Settings)
+                    .height(metrics.compactCardHeight),
             )
         }
         item {
@@ -81,7 +89,9 @@ fun CarSettingsScreen(
                 checked = settings.retryPlaybackOnFailure,
                 controlSize = metrics.iconSize,
                 onClick = { scope.launch { repository.setRetryPlaybackOnFailure(!settings.retryPlaybackOnFailure) } },
-                modifier = Modifier.height(metrics.compactCardHeight),
+                modifier = Modifier
+                    .carFocusTarget(CarFocusIds.item("setting", "retry"), left = CarFocusIds.Settings)
+                    .height(metrics.compactCardHeight),
             )
         }
     }

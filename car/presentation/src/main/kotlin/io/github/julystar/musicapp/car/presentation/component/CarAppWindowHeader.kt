@@ -13,6 +13,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import io.github.julystar.musicapp.car.presentation.icon.CarIcon
 import io.github.julystar.musicapp.car.presentation.icon.CarIcon as IconView
+import io.github.julystar.musicapp.car.presentation.focus.CarFocusIds
+import io.github.julystar.musicapp.car.presentation.focus.carFocusTarget
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarColors
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarShapes
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarSpacing
@@ -35,6 +37,7 @@ fun CarAppWindowHeader(
             contentAlignment = Alignment.Center,
             modifier = Modifier
                 .size(touchTargets.exit)
+                .carFocusTarget(CarFocusIds.Exit, down = CarFocusIds.Home)
                 .semantics { contentDescription = "退出 Tide Player" }
                 .carInteractiveSurface(LocalCarShapes.current.control, onClick = onExit),
         ) {

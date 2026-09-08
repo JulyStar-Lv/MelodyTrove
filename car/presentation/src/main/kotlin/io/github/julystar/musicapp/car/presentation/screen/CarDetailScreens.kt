@@ -32,6 +32,9 @@ import io.github.julystar.musicapp.car.presentation.component.CarArtwork
 import io.github.julystar.musicapp.car.presentation.component.CarQuickActionCard
 import io.github.julystar.musicapp.car.presentation.component.CarSongRow
 import io.github.julystar.musicapp.car.presentation.icon.CarIcon
+import io.github.julystar.musicapp.car.presentation.focus.CarFocusId
+import io.github.julystar.musicapp.car.presentation.focus.CarFocusIds
+import io.github.julystar.musicapp.car.presentation.focus.carFocusTarget
 import io.github.julystar.musicapp.car.presentation.layout.CarLayoutMetrics
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarColors
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarShapes
@@ -57,6 +60,7 @@ import org.koin.compose.koinInject
 fun CarAlbumDetailScreen(
     albumId: Long,
     metrics: CarLayoutMetrics,
+    navigationFocusId: CarFocusId,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -69,7 +73,7 @@ fun CarAlbumDetailScreen(
     }
     when (val value = result) {
         DetailResult.Loading -> CarPageState("正在载入专辑…", modifier)
-        is DetailResult.Error -> ErrorDetail(value.message, metrics, { retry++ }, onBack, modifier)
+        is DetailResult.Error -> ErrorDetail(value.message, metrics, navigationFocusId, { retry++ }, onBack, modifier)
         is DetailResult.Content -> DetailLayout(
             title = value.value.albumTitle,
             subtitle = listOfNotNull(value.value.albumArtist, value.value.year?.toString(), value.value.genre).joinToString(" · "),
@@ -77,6 +81,7 @@ fun CarAlbumDetailScreen(
             tracks = value.value.tracks.map(DomainTrackBrowserItem::toLibraryTrackItem),
             playlistId = null,
             metrics = metrics,
+            navigationFocusId = navigationFocusId,
             onBack = onBack,
             modifier = modifier,
         )
@@ -87,6 +92,7 @@ fun CarAlbumDetailScreen(
 fun CarArtistDetailScreen(
     artistId: Long,
     metrics: CarLayoutMetrics,
+    navigationFocusId: CarFocusId,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -99,7 +105,7 @@ fun CarArtistDetailScreen(
     }
     when (val value = result) {
         DetailResult.Loading -> CarPageState("正在载入歌手…", modifier)
-        is DetailResult.Error -> ErrorDetail(value.message, metrics, { retry++ }, onBack, modifier)
+        is DetailResult.Error -> ErrorDetail(value.message, metrics, navigationFocusId, { retry++ }, onBack, modifier)
         is DetailResult.Content -> DetailLayout(
             title = value.value.name ?: "未知歌手",
             subtitle = "${value.value.albums.size} 张专辑 · ${value.value.tracks.size} 首歌曲",
@@ -107,6 +113,7 @@ fun CarArtistDetailScreen(
             tracks = value.value.tracks.map(DomainTrackBrowserItem::toLibraryTrackItem),
             playlistId = null,
             metrics = metrics,
+            navigationFocusId = navigationFocusId,
             onBack = onBack,
             modifier = modifier,
         )
@@ -118,6 +125,7 @@ fun CarPlaylistDetailScreen(
     playlistId: Long,
     title: String,
     metrics: CarLayoutMetrics,
+    navigationFocusId: CarFocusId,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -137,7 +145,7 @@ fun CarPlaylistDetailScreen(
     }
     when (val value = result) {
         DetailResult.Loading -> CarPageState("正在载入歌单…", modifier)
-        is DetailResult.Error -> ErrorDetail(value.message, metrics, { retry++ }, onBack, modifier)
+        is DetailResult.Error -> ErrorDetail(value.message, metrics, navigationFocusId, { retry++ }, onBack, modifier)
         is DetailResult.Content -> DetailLayout(
             title = title,
             subtitle = "${value.value.size} 首歌曲",
@@ -145,6 +153,7 @@ fun CarPlaylistDetailScreen(
             tracks = value.value.map(DomainPlaylistTrack::toLibraryTrackItem),
             playlistId = playlistId,
             metrics = metrics,
+            navigationFocusId = navigationFocusId,
             onBack = onBack,
             modifier = modifier,
         )
@@ -159,6 +168,7 @@ private fun DetailLayout(
     tracks: List<LibraryTrackItem>,
     playlistId: Long?,
     metrics: CarLayoutMetrics,
+    navigationFocusId: CarFocusId,
     onBack: () -> Unit,
     modifier: Modifier,
 ) {
@@ -182,7 +192,10 @@ private fun DetailLayout(
             tileSize = metrics.headerHeight,
             iconSize = metrics.iconSize,
             onClick = onBack,
-            modifier = Modifier.width(metrics.detailHeroWidth).height(metrics.detailTopBarHeight),
+            modifier = Modifier
+                .carFocusTarget(CarFocusIds.DetailBack, left = navigationFocusId, down = CarFocusIds.DetailPlayAll)
+                .width(metrics.detailHeroWidth)
+                .height(metrics.detailTopBarHeight),
         )
         Spacer(Modifier.height(metrics.detailContentMargin))
         Row(horizontalArrangement = Arrangement.spacedBy(metrics.detailPaneGap), modifier = Modifier.fillMaxSize()) {
@@ -217,7 +230,10 @@ private fun DetailLayout(
                     iconSize = metrics.iconSize * 0.6f,
                     enabled = queue.isNotEmpty(),
                     onClick = { if (queue.isNotEmpty()) scope.launch { playbackController.play(queue, 0) } },
-                    modifier = Modifier.fillMaxWidth().height(metrics.headerHeight),
+                    modifier = Modifier
+                        .carFocusTarget(CarFocusIds.DetailPlayAll, up = CarFocusIds.DetailBack, left = navigationFocusId)
+                        .fillMaxWidth()
+                        .height(metrics.headerHeight),
                 )
             }
             if (tracks.isEmpty()) {
@@ -238,7 +254,12 @@ private fun DetailLayout(
                             playing = playerState.currentItem?.libraryTrackId == track.id,
                             height = metrics.detailRowHeight,
                             onClick = { scope.launch { playbackController.play(queue, index) } },
-                            modifier = Modifier.height(metrics.detailRowHeight),
+                            modifier = Modifier
+                                .carFocusTarget(
+                                    CarFocusIds.item("detail_track", track.id),
+                                    left = CarFocusIds.DetailPlayAll,
+                                )
+                                .height(metrics.detailRowHeight),
                         )
                     }
                 }
@@ -251,6 +272,7 @@ private fun DetailLayout(
 private fun ErrorDetail(
     message: String,
     metrics: CarLayoutMetrics,
+    navigationFocusId: CarFocusId,
     retry: () -> Unit,
     back: () -> Unit,
     modifier: Modifier,
@@ -258,8 +280,8 @@ private fun ErrorDetail(
     Column(modifier.padding(metrics.contentHorizontalPadding, metrics.contentTop)) {
         CarPageState(message, Modifier.weight(1f))
         Row(horizontalArrangement = Arrangement.spacedBy(metrics.cardGap)) {
-            CarQuickActionCard("返回", "回到列表", CarIcon.Back, metrics.headerHeight, metrics.iconSize, onClick = back, modifier = Modifier.weight(1f).height(metrics.navigationItemHeight))
-            CarQuickActionCard("重试", "重新载入", CarIcon.Play, metrics.headerHeight, metrics.iconSize, onClick = retry, modifier = Modifier.weight(1f).height(metrics.navigationItemHeight))
+            CarQuickActionCard("返回", "回到列表", CarIcon.Back, metrics.headerHeight, metrics.iconSize, onClick = back, modifier = Modifier.carFocusTarget(CarFocusIds.DetailBack, left = navigationFocusId).weight(1f).height(metrics.navigationItemHeight))
+            CarQuickActionCard("重试", "重新载入", CarIcon.Play, metrics.headerHeight, metrics.iconSize, onClick = retry, modifier = Modifier.carFocusTarget(CarFocusIds.item("detail", "retry"), left = CarFocusIds.DetailBack).weight(1f).height(metrics.navigationItemHeight))
         }
     }
 }

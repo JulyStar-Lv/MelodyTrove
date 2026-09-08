@@ -22,6 +22,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import io.github.julystar.musicapp.car.presentation.component.CarSongRow
+import io.github.julystar.musicapp.car.presentation.focus.CarFocusIds
+import io.github.julystar.musicapp.car.presentation.focus.carFocusTarget
 import io.github.julystar.musicapp.car.presentation.layout.CarLayoutMetrics
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarColors
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarShapes
@@ -84,6 +86,7 @@ fun CarSearchScreen(
                 }
             },
             modifier = Modifier
+                .carFocusTarget(CarFocusIds.SearchField, left = CarFocusIds.Home)
                 .fillMaxWidth()
                 .height(metrics.navigationItemHeight)
                 .clip(LocalCarShapes.current.navigationItem)
@@ -110,7 +113,13 @@ fun CarSearchScreen(
                             val startIndex = playable.indexOf(selected)
                             if (startIndex >= 0) scope.launch { playbackController.play(playable, startIndex) }
                         },
-                        modifier = Modifier.height(metrics.compactCardHeight),
+                        modifier = Modifier
+                            .carFocusTarget(
+                                CarFocusIds.item("search_result", item.id ?: "$index:${item.title}"),
+                                up = if (index == 0) CarFocusIds.SearchField else null,
+                                left = CarFocusIds.Home,
+                            )
+                            .height(metrics.compactCardHeight),
                     )
                 }
             }

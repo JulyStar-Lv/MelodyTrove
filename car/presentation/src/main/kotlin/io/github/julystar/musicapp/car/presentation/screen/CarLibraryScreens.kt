@@ -17,6 +17,8 @@ import io.github.julystar.musicapp.car.presentation.component.CarArtistCard
 import io.github.julystar.musicapp.car.presentation.component.CarQuickActionCard
 import io.github.julystar.musicapp.car.presentation.component.CarSongRow
 import io.github.julystar.musicapp.car.presentation.icon.CarIcon
+import io.github.julystar.musicapp.car.presentation.focus.CarFocusIds
+import io.github.julystar.musicapp.car.presentation.focus.carFocusTarget
 import io.github.julystar.musicapp.car.presentation.layout.CarLayoutMetrics
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarSpacing
 import io.github.julystar.musicapp.core.domain.model.LibraryAlbumItem
@@ -55,7 +57,12 @@ fun CarSongsScreen(
                     val request = tracks.toCarPlaybackRequest(index)
                     scope.launch { playbackController.play(request.items, request.startIndex) }
                 },
-                modifier = Modifier.height(metrics.compactCardHeight),
+                modifier = Modifier
+                    .carFocusTarget(
+                        id = if (index == 0) CarFocusIds.content("Songs") else CarFocusIds.item("song", track.id),
+                        left = CarFocusIds.Songs,
+                    )
+                    .height(metrics.compactCardHeight),
             )
         }
     }
@@ -76,13 +83,19 @@ fun CarAlbumsScreen(
         metrics = metrics,
         title = "专辑 · ${albums.size}",
         content = {
-            items(albums, key = { it.id }) { album ->
+            itemsIndexed(albums, key = { _, album -> album.id }) { index, album ->
                 CarAlbumCard(
                     album,
                     artworkRepository,
                     metrics.recommendationCardWidth - LocalCarSpacing.current.section,
                     onClick = { onAlbumClick(album.id) },
-                    modifier = Modifier.fillParentMaxWidth(0.2f).height(metrics.recommendationCardHeight),
+                    modifier = Modifier
+                        .carFocusTarget(
+                            id = if (index == 0) CarFocusIds.content("Albums") else CarFocusIds.item("album", album.id),
+                            left = CarFocusIds.Albums,
+                        )
+                        .fillParentMaxWidth(0.2f)
+                        .height(metrics.recommendationCardHeight),
                 )
             }
         },
@@ -106,7 +119,7 @@ fun CarArtistsScreen(
         metrics = metrics,
         title = "歌手 · ${artists.size}",
         content = {
-            items(artists, key = { it.id }) { artist ->
+            itemsIndexed(artists, key = { _, artist -> artist.id }) { index, artist ->
                 CarArtistCard(
                     artist,
                     albums.firstOrNull { it.artist == artist.name }?.let {
@@ -115,7 +128,13 @@ fun CarArtistsScreen(
                     artworkRepository,
                     metrics.recommendationCardWidth * 0.72f,
                     onClick = { onArtistClick(artist.id) },
-                    modifier = Modifier.fillParentMaxWidth(0.2f).height(metrics.artistCardHeight),
+                    modifier = Modifier
+                        .carFocusTarget(
+                            id = if (index == 0) CarFocusIds.content("Artists") else CarFocusIds.item("artist", artist.id),
+                            left = CarFocusIds.Artists,
+                        )
+                        .fillParentMaxWidth(0.2f)
+                        .height(metrics.artistCardHeight),
                 )
             }
         },
@@ -135,7 +154,7 @@ fun CarPlaylistsScreen(
     if (playlists.isEmpty()) return CarPageState("还没有歌单", modifier)
     LazyColumn(contentPadding = pagePadding(metrics), verticalArrangement = Arrangement.spacedBy(metrics.cardGap), modifier = modifier) {
         item { CarSectionTitle("歌单 · ${playlists.size}") }
-        items(playlists, key = { it.id }) { playlist ->
+        itemsIndexed(playlists, key = { _, playlist -> playlist.id }) { index, playlist ->
             CarQuickActionCard(
                 title = playlist.title,
                 summary = "${playlist.musicCount} 首歌曲",
@@ -143,7 +162,12 @@ fun CarPlaylistsScreen(
                 tileSize = metrics.headerHeight,
                 iconSize = metrics.iconSize,
                 onClick = { onPlaylistClick(playlist) },
-                modifier = Modifier.height(metrics.compactCardHeight),
+                modifier = Modifier
+                    .carFocusTarget(
+                        id = if (index == 0) CarFocusIds.content("Playlists") else CarFocusIds.item("playlist", playlist.id),
+                        left = CarFocusIds.Playlists,
+                    )
+                    .height(metrics.compactCardHeight),
             )
         }
     }

@@ -20,6 +20,8 @@ import io.github.julystar.musicapp.car.presentation.component.CarAlbumCard
 import io.github.julystar.musicapp.car.presentation.component.CarArtistCard
 import io.github.julystar.musicapp.car.presentation.component.CarQuickActionCard
 import io.github.julystar.musicapp.car.presentation.icon.CarIcon
+import io.github.julystar.musicapp.car.presentation.focus.CarFocusIds
+import io.github.julystar.musicapp.car.presentation.focus.carFocusTarget
 import io.github.julystar.musicapp.car.presentation.layout.CarLayoutMetrics
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarColors
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarSpacing
@@ -87,7 +89,9 @@ fun CarHomeScreen(
                     iconSize = metrics.iconSize,
                     enabled = tracks.isNotEmpty(),
                     onClick = { playAt(0) },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .carFocusTarget(CarFocusIds.content("Home"), left = CarFocusIds.Home)
+                        .weight(1f),
                 )
                 CarQuickActionCard(
                     title = "每日推荐",
@@ -97,7 +101,9 @@ fun CarHomeScreen(
                     iconSize = metrics.iconSize,
                     enabled = tracks.isNotEmpty(),
                     onClick = { playAt(if (tracks.size > 1) 1 else 0) },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .carFocusTarget(CarFocusIds.item("home_action", "daily"), left = CarFocusIds.Home)
+                        .weight(1f),
                 )
                 CarQuickActionCard(
                     title = "播放历史",
@@ -107,7 +113,9 @@ fun CarHomeScreen(
                     iconSize = metrics.iconSize,
                     enabled = statistics.totalTracksEverPlayed > 0,
                     onClick = {},
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .carFocusTarget(CarFocusIds.item("home_action", "history"), left = CarFocusIds.Home)
+                        .weight(1f),
                 )
                 CarQuickActionCard(
                     title = "搜索音乐",
@@ -116,7 +124,9 @@ fun CarHomeScreen(
                     tileSize = metrics.headerHeight,
                     iconSize = metrics.iconSize,
                     onClick = onOpenSearch,
-                    modifier = Modifier.weight(0.45f),
+                    modifier = Modifier
+                        .carFocusTarget(CarFocusIds.item("home_action", "search"), left = CarFocusIds.Home)
+                        .weight(0.45f),
                 )
             }
         }
@@ -131,6 +141,7 @@ fun CarHomeScreen(
                             artworkSize = metrics.recommendationCardWidth - spacing.section,
                             onClick = onOpenAlbums,
                             modifier = Modifier
+                                .carFocusTarget(CarFocusIds.item("home_album", album.id), left = CarFocusIds.Home)
                                 .fillParentMaxWidth(0.18f)
                                 .height(metrics.recommendationCardHeight),
                         )
@@ -150,6 +161,7 @@ fun CarHomeScreen(
                             artworkSize = metrics.recommendationCardWidth * 0.72f,
                             onClick = onOpenArtists,
                             modifier = Modifier
+                                .carFocusTarget(CarFocusIds.item("home_artist", artist.id), left = CarFocusIds.Home)
                                 .fillParentMaxWidth(0.18f)
                                 .height(metrics.artistCardHeight),
                         )

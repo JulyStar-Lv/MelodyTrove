@@ -49,8 +49,12 @@ planned test cannot substitute for device/window or end-to-end evidence.
 - [x] Phase 10: Queue selection, current highlight and automatic scroll follow
   reuse queue state and ordering.
 - [x] Phase 11: functional settings/search use shared stores and independent UI.
-- [ ] Phases 12–13: centralized focus graph, touch, D-pad, enter, back, rotary,
-  media keys, bringIntoView, scroll follow and focus restoration verified.
+- [x] Phase 12: `FOCUS_INPUT_CONTRACT.md` defines one Expanded focus graph for
+  initial focus, cross-pane movement, internal traversal, mini player, Now Playing,
+  Queue, Back, restoration, dialogs and every required input family.
+- [ ] Phase 13: centralized focus/input code, stable semantic IDs, touch/Enter,
+  D-pad, rotary, media keys, bringIntoView, scroll follow and route/queue restoration
+  compile and pass unit tests. Physical-controller verification remains Phase 18.
 - [ ] Phase 14: visual comparison against Figma at measured Expanded content bounds;
   no system UI occlusion, overall scale or px/dp conflation.
 - [ ] Phase 15: architecture, ViewModel/domain, Compose and profile behavior tests
@@ -243,3 +247,15 @@ planned test cannot substitute for device/window or end-to-end evidence.
 - The only installed AVD is `Pixel_10_Pro`, not AAOS. A launch attempt remained ADB
   `offline` for more than four minutes and was stopped. It is not runtime or window
   acceptance evidence.
+- Phase 12 is recorded in `FOCUS_INPUT_CONTRACT.md`. FileManager contributes the
+  accepted window-profile inference but has no reusable global focus graph; its UI
+  relies on classic View focus and local Activity/widget key handlers. TidePlayer's
+  centralized Compose coordinator now assigns stable semantic focus IDs, restores
+  focus per route, falls back when a remembered target is absent, links Navigation,
+  Content, Mini Player, Now Playing and Queue, calls `bringIntoView` for focused lazy
+  items, and routes D-pad, rotary and foreground media keys. Queue opening focuses
+  the current row and Queue Back restores the Queue button. Media Stop preserves the
+  runtime's documented resumable-pause semantics. The post-change
+  `:car:presentation:testDebugUnitTest :carApp:assembleDebug` command is **BUILD
+  SUCCESSFUL in 13s**, 426 actionable tasks (24 executed, 402 up-to-date); 13 Car
+  unit tests report zero failures/errors. AAOS hardware verification is not claimed.
