@@ -10,6 +10,9 @@ plugins {
 
 val appPackageVersion = rootProject.extra["appPackageVersion"] as String
 val desktopProguardDir = layout.buildDirectory.dir("compose/proguard")
+val desktopProguardEnabled = providers.gradleProperty("desktop.proguard.enabled")
+    .map { value -> value.equals("true", ignoreCase = true) }
+    .orElse(false)
 val desktopTargetFormats = when {
     System.getProperty("os.name").startsWith("Mac", ignoreCase = true) -> arrayOf(
         TargetFormat.Dmg,
@@ -49,11 +52,11 @@ compose.desktop {
         buildTypes {
             release {
                 proguard {
-                    // Hotfix: Desktop release obfuscation currently breaks AndroidX
-                    // DataStore protobuf reflection and bundled SQLite JNI classes.
-                    // Keep ProGuard disabled until the packaged release runtime has
-                    // dedicated smoke coverage for these startup dependencies.
-                    isEnabled.set(false)
+                    // Production hotfix default remains disabled because the previous
+                    // packaged build exposed DataStore/SQLite runtime regressions.
+                    // CI can explicitly enable shrinking with
+                    // -Pdesktop.proguard.enabled=true to validate keep rules safely.
+                    isEnabled.set(desktopProguardEnabled)
                     obfuscate.set(true)
                     // Kotlin coroutine state machines currently trigger a ProGuard
                     // stack-size calculation failure when optimization is enabled.
