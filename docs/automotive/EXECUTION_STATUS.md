@@ -131,6 +131,20 @@ planned test cannot substitute for device/window or end-to-end evidence.
   `:shared:compileTestKotlinDesktop :shared:compileDebugUnitTestKotlinAndroid`
   test-source compilation also passes. Windows cannot compile the moved iOS Rust
   Cinterop, so iOS verification remains a macOS gate.
+- Runtime Slice 3 moves source/storage and remote-server orchestration, importing,
+  metadata, plugin execution/install/non-UI management, audio DSP mapping/monitoring,
+  library repositories, Home statistics data, and Search data into `:core:runtime`.
+  The Mobile-only playlist editor, artwork image loader/bitmap adapter, Home history,
+  and manual-metadata presentation service remain in `:shared`; the service now calls
+  runtime-owned album/lyrics persistence helpers. Runtime has no Compose, presentation,
+  `:shared`, or feature-module dependency edge. Its retained `feature.home.data` and
+  `feature.search.data` package names contain only UI-neutral implementations and do
+  not import feature presentation code. Android and Desktop main compilation, shared
+  Android/Desktop main compilation, and downstream shared test-source compilation
+  pass. Runtime behavior verification ran 238 Android unit tests and 353 Desktop tests
+  with zero failures (one environment-dependent Desktop smoke test skipped). The Room
+  integration fixtures now cancel and join repository scopes before closing their
+  databases, preventing closed-statement exceptions from leaking into later tests.
 - `:car:presentation` now contains the Phase 4 theme, layout-profile, navigation,
   and focus seams. Its six resolver/OEM/inset tests pass, and
   `:car:presentation:testDebugUnitTest :car:presentation:assembleDebug` is

@@ -311,10 +311,12 @@ Acceptance:
 ./gradlew.bat :core:runtime:allTests :core:runtime:compileKotlinDesktop `
   :core:runtime:compileDebugKotlinAndroid :shared:allTests `
   --no-daemon --no-configuration-cache --console plain
-rg -n "io\.github\.julystar\.musicapp\.(feature\.|core\.presentation|service\.playback\.presentation)|androidx\.compose|org\.jetbrains\.compose" core/runtime/src
+rg -n "^import (io\.github\.julystar\.musicapp\.(feature\.[^.]+\.presentation|core\.presentation|service\.playback\.presentation)|androidx\.compose|org\.jetbrains\.compose)" core/runtime/src
 ```
 
-The static search must return no match.
+The static search must return no match. Runtime may preserve historical package
+names such as `feature.search.data`; package declarations do not create a Gradle
+or source dependency and are not treated as feature-presentation edges.
 
 ### Slice 4 - download, sync, playback, and complete platform actuals
 
@@ -407,7 +409,7 @@ Acceptance:
   :androidApp:assembleDebug :desktopApp:compileKotlinDesktop `
   --no-daemon --no-configuration-cache --console plain
 rg -n "project\(\":(shared|core:presentation|service:playback:presentation|feature:)" core/runtime/build.gradle.kts
-rg -n "io\.github\.julystar\.musicapp\.(feature\.|core\.presentation|service\.playback\.presentation)|androidx\.compose|org\.jetbrains\.compose" core/runtime/src
+rg -n "^import (io\.github\.julystar\.musicapp\.(feature\.[^.]+\.presentation|core\.presentation|service\.playback\.presentation)|androidx\.compose|org\.jetbrains\.compose)" core/runtime/src
 ```
 
 Both static searches must be empty. On macOS, also compile/link the existing iOS
