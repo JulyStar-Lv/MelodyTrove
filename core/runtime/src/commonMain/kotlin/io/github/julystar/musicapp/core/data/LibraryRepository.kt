@@ -13,6 +13,7 @@ import io.github.julystar.musicapp.source.storage.toSourceTrackMediaIdOrNull
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.launch
 
 class LibraryRepositoryImpl(
@@ -25,15 +26,17 @@ class LibraryRepositoryImpl(
     private val _albums = MutableStateFlow<List<LibraryAlbumItem>>(emptyList())
     private val _artists = MutableStateFlow<List<LibraryArtistItem>>(emptyList())
     private val _initialLoadComplete = MutableStateFlow(false)
+    private val _loadError = MutableStateFlow<String?>(null)
 
     override val initialLoadComplete = _initialLoadComplete.asStateFlow()
+    override val loadError = _loadError.asStateFlow()
     override val tracks = _tracks.asStateFlow()
     override val albums = _albums.asStateFlow()
     override val artists = _artists.asStateFlow()
 
     init {
         scope.launch {
-            trackDao.observeAll().collect { entities ->
+            trackDao.observeAll().catch { error -> recordLoadError("tracks", error) }.collect { entities ->
                 val mediaIds = if (entities.isEmpty()) {
                     emptyMap()
                 } else {
@@ -53,7 +56,7 @@ class LibraryRepositoryImpl(
             }
         }
         scope.launch {
-            metadataDao.observeAlbumsWithTracks().collect { rows ->
+            metadataDao.observeAlbumsWithTracks().catch { error -> recordLoadError("albums", error) }.collect { rows ->
                 _albums.value = rows.map { row ->
                     LibraryAlbumItem(
                         id = row.album.id,
@@ -65,10 +68,15 @@ class LibraryRepositoryImpl(
             }
         }
         scope.launch {
-            metadataDao.observeArtistsWithTracks().collect { entities ->
+            metadataDao.observeArtistsWithTracks().catch { error -> recordLoadError("artists", error) }.collect { entities ->
                 _artists.value = entities.map { LibraryArtistItem(it.id, it.name) }
             }
         }
+    }
+
+    private fun recordLoadError(source: String, error: Throwable) {
+        _loadError.value = "$source: ${error.message ?: error::class.simpleName ?: "unknown error"}"
+        _initialLoadComplete.value = true
     }
 }
 

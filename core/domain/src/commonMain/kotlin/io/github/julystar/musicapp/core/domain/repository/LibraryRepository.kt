@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 
 interface LibraryRepository {
     val initialLoadComplete: StateFlow<Boolean>
+    val loadError: StateFlow<String?>
     val tracks: StateFlow<List<LibraryTrackItem>>
     val albums: StateFlow<List<LibraryAlbumItem>>
     val artists: StateFlow<List<LibraryArtistItem>>

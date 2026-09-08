@@ -259,3 +259,11 @@ planned test cannot substitute for device/window or end-to-end evidence.
   `:car:presentation:testDebugUnitTest :carApp:assembleDebug` command is **BUILD
   SUCCESSFUL in 13s**, 426 actionable tasks (24 executed, 402 up-to-date); 13 Car
   unit tests report zero failures/errors. AAOS hardware verification is not claimed.
+- Final review found that `LibraryRepository` could leave consumers indefinitely in
+  loading when an upstream Room flow failed. It now exposes a shared `loadError`
+  state; the Car Home, Songs, Albums and Artists pages render that real error state.
+  Cancellation still propagates and no exception is converted into success. The
+  combined `:core:runtime:testDebugUnitTest :car:presentation:testDebugUnitTest
+  :carApp:assembleDebug :androidApp:assembleDebug` regression is **BUILD SUCCESSFUL
+  in 5m 37s**, 1019 actionable tasks (117 executed, 902 up-to-date). Runtime reports
+  343 tests and Car reports 13 tests, with zero failures/errors.

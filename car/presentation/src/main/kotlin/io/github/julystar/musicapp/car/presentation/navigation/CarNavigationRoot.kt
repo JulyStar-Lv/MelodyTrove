@@ -73,6 +73,7 @@ fun CarNavigationRoot(
     val settingsRepository = koinInject<SettingsRepository>()
     val searchRepository = koinInject<SearchRepository>()
     val initialized by library.initialLoadComplete.collectAsState()
+    val libraryError by library.loadError.collectAsState()
     val tracks by library.tracks.collectAsState()
     val albums by library.albums.collectAsState()
     val artists by library.artists.collectAsState()
@@ -155,6 +156,7 @@ fun CarNavigationRoot(
             CarRoute.Home -> CarHomeScreen(
                 metrics = safeMetrics,
                 loading = !initialized,
+                error = libraryError,
                 tracks = tracks,
                 albums = albums,
                 artists = artists,
@@ -167,16 +169,16 @@ fun CarNavigationRoot(
                 modifier = contentModifier,
             )
             CarRoute.Songs -> CarSongsScreen(
-                safeMetrics, !initialized, tracks, playerState.currentItem?.libraryTrackId,
+                safeMetrics, !initialized, libraryError, tracks, playerState.currentItem?.libraryTrackId,
                 playbackController, contentModifier,
             )
             CarRoute.Albums -> CarAlbumsScreen(
-                safeMetrics, !initialized, albums, artworkRepository,
+                safeMetrics, !initialized, libraryError, albums, artworkRepository,
                 onAlbumClick = { detailTarget = CarDetailTarget.Album(it) },
                 modifier = contentModifier,
             )
             CarRoute.Artists -> CarArtistsScreen(
-                safeMetrics, !initialized, artists, albums, artworkRepository,
+                safeMetrics, !initialized, libraryError, artists, albums, artworkRepository,
                 onArtistClick = { detailTarget = CarDetailTarget.Artist(it) },
                 modifier = contentModifier,
             )

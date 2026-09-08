@@ -39,6 +39,7 @@ import kotlinx.coroutines.launch
 fun CarHomeScreen(
     metrics: CarLayoutMetrics,
     loading: Boolean,
+    error: String?,
     tracks: List<LibraryTrackItem>,
     albums: List<LibraryAlbumItem>,
     artists: List<LibraryArtistItem>,
@@ -50,6 +51,10 @@ fun CarHomeScreen(
     onOpenSearch: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    if (error != null) {
+        CarPageState("音乐库载入失败：$error", modifier)
+        return
+    }
     if (loading) {
         CarPageState("正在载入音乐库…", modifier)
         return

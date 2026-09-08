@@ -33,11 +33,13 @@ import kotlinx.coroutines.launch
 fun CarSongsScreen(
     metrics: CarLayoutMetrics,
     loading: Boolean,
+    error: String?,
     tracks: List<LibraryTrackItem>,
     currentTrackId: Long?,
     playbackController: PlaybackController,
     modifier: Modifier = Modifier,
 ) {
+    if (error != null) return CarPageState("音乐库载入失败：$error", modifier)
     if (loading) return CarPageState("正在载入歌曲…", modifier)
     if (tracks.isEmpty()) return CarPageState("音乐库中没有歌曲", modifier)
     val scope = rememberCoroutineScope()
@@ -72,11 +74,13 @@ fun CarSongsScreen(
 fun CarAlbumsScreen(
     metrics: CarLayoutMetrics,
     loading: Boolean,
+    error: String?,
     albums: List<LibraryAlbumItem>,
     artworkRepository: ArtworkRepository,
     onAlbumClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    if (error != null) return CarPageState("音乐库载入失败：$error", modifier)
     if (loading) return CarPageState("正在载入专辑…", modifier)
     if (albums.isEmpty()) return CarPageState("音乐库中没有专辑", modifier)
     CarMediaGrid(
@@ -107,12 +111,14 @@ fun CarAlbumsScreen(
 fun CarArtistsScreen(
     metrics: CarLayoutMetrics,
     loading: Boolean,
+    error: String?,
     artists: List<LibraryArtistItem>,
     albums: List<LibraryAlbumItem>,
     artworkRepository: ArtworkRepository,
     onArtistClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    if (error != null) return CarPageState("音乐库载入失败：$error", modifier)
     if (loading) return CarPageState("正在载入歌手…", modifier)
     if (artists.isEmpty()) return CarPageState("音乐库中没有歌手", modifier)
     CarMediaGrid(

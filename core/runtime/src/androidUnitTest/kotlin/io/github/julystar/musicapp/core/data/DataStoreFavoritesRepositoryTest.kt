@@ -63,6 +63,7 @@ private class FakeLibraryRepository(
     tracks: List<LibraryTrackItem>,
 ) : LibraryRepository {
     override val initialLoadComplete = MutableStateFlow(true)
+    override val loadError = MutableStateFlow<String?>(null)
     override val tracks = MutableStateFlow(tracks)
     override val albums = MutableStateFlow<List<LibraryAlbumItem>>(emptyList())
     override val artists = MutableStateFlow<List<LibraryArtistItem>>(emptyList())
