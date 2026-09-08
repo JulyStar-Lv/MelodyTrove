@@ -6,9 +6,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridScope
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -87,7 +91,7 @@ fun CarAlbumsScreen(
         metrics = metrics,
         title = "专辑 · ${albums.size}",
         content = {
-            itemsIndexed(albums, key = { _, album -> album.id }) { index, album ->
+            gridItemsIndexed(albums, key = { _, album -> album.id }) { index, album ->
                 CarAlbumCard(
                     album,
                     artworkRepository,
@@ -98,7 +102,6 @@ fun CarAlbumsScreen(
                             id = if (index == 0) CarFocusIds.content("Albums") else CarFocusIds.item("album", album.id),
                             left = CarFocusIds.Albums,
                         )
-                        .fillParentMaxWidth(0.2f)
                         .height(metrics.recommendationCardHeight),
                 )
             }
@@ -125,7 +128,7 @@ fun CarArtistsScreen(
         metrics = metrics,
         title = "歌手 · ${artists.size}",
         content = {
-            itemsIndexed(artists, key = { _, artist -> artist.id }) { index, artist ->
+            gridItemsIndexed(artists, key = { _, artist -> artist.id }) { index, artist ->
                 CarArtistCard(
                     artist,
                     albums.firstOrNull { it.artist == artist.name }?.let {
@@ -139,7 +142,6 @@ fun CarArtistsScreen(
                             id = if (index == 0) CarFocusIds.content("Artists") else CarFocusIds.item("artist", artist.id),
                             left = CarFocusIds.Artists,
                         )
-                        .fillParentMaxWidth(0.2f)
                         .height(metrics.artistCardHeight),
                 )
             }
@@ -183,14 +185,18 @@ fun CarPlaylistsScreen(
 private fun CarMediaGrid(
     metrics: CarLayoutMetrics,
     title: String,
-    content: androidx.compose.foundation.lazy.LazyListScope.() -> Unit,
+    content: LazyGridScope.() -> Unit,
     modifier: Modifier,
 ) {
-    LazyColumn(contentPadding = pagePadding(metrics), modifier = modifier) {
-        item { CarSectionTitle(title) }
-        item {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(metrics.cardGap), content = content)
-        }
+    LazyVerticalGrid(
+        columns = GridCells.Fixed(4),
+        horizontalArrangement = Arrangement.spacedBy(metrics.cardGap),
+        verticalArrangement = Arrangement.spacedBy(metrics.libraryGap),
+        contentPadding = pagePadding(metrics),
+        modifier = modifier.fillMaxSize(),
+    ) {
+        item(span = { GridItemSpan(maxLineSpan) }) { CarSectionTitle(title) }
+        content()
     }
 }
 

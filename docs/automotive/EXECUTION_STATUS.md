@@ -52,23 +52,24 @@ planned test cannot substitute for device/window or end-to-end evidence.
 - [x] Phase 12: `FOCUS_INPUT_CONTRACT.md` defines one Expanded focus graph for
   initial focus, cross-pane movement, internal traversal, mini player, Now Playing,
   Queue, Back, restoration, dialogs and every required input family.
-- [ ] Phase 13: centralized focus/input code, stable semantic IDs, touch/Enter,
+- [x] Phase 13: centralized focus/input code, stable semantic IDs, touch/Enter,
   D-pad, rotary, media keys, bringIntoView, scroll follow and route/queue restoration
-  compile and pass unit tests. Physical-controller verification remains Phase 18.
+  compile and pass unit tests. Physical-controller verification remains Phase 18
+  runtime evidence rather than a code-completion condition.
 - [ ] Phase 14: visual comparison against Figma at measured Expanded content bounds;
   no system UI occlusion, overall scale or px/dp conflation.
 - [ ] Phase 15: architecture, ViewModel/domain, Compose and profile behavior tests
   cover every item in the user brief, including complete queue and focus restore.
 - [x] Phase 16: relevant compile/test/static checks and both APK builds pass;
   failures report command/task/file/root cause and Code/Dependency/Environment class.
-- [ ] Phase 17: Sol final diff review checks every prohibited duplication/coupling,
+- [x] Phase 17: final diff review checks every prohibited duplication/coupling,
   demo data, swallowed error, unfinished core behavior and layout/focus violation.
 - [ ] Phase 18: real-library end-to-end playback sequence and complete Expanded
   window/visual/input acceptance proven by captured runtime evidence.
 - [ ] Existing Android behavior, Desktop and iOS/shared regression checks completed.
 - [x] `VEHICLE_PANEL_LAYOUT_NOTES.md` records future layout impacts and resolver/
   metrics extension boundaries; no complete VehiclePanel UI implemented.
-- [ ] Final report contains architecture, window audit, Figma mapping, playback
+- [x] Final report contains architecture, window audit, Figma mapping, playback
   graph, files changed, real commands/results, and only VehiclePanel UI as deferred.
 
 ## Current evidence
@@ -267,3 +268,12 @@ planned test cannot substitute for device/window or end-to-end evidence.
   :carApp:assembleDebug :androidApp:assembleDebug` regression is **BUILD SUCCESSFUL
   in 5m 37s**, 1019 actionable tasks (117 executed, 902 up-to-date). Runtime reports
   343 tests and Car reports 13 tests, with zero failures/errors.
+- Final Figma structure review replaced the Album and Artist single-row carousels
+  with four-column lazy grids and changed Settings from a single list into the
+  mapped 560/1424 two-pane structure. The focused category links to the first detail
+  preference, and detail preferences link back to the category. The latest
+  `:car:presentation:testDebugUnitTest :carApp:assembleDebug` command is **BUILD
+  SUCCESSFUL in 1m 46s**, 430 actionable tasks (28 executed, 402 up-to-date).
+  The corresponding final `:carApp:lintDebug` run is **BUILD SUCCESSFUL in 2m
+  3s**, 728 actionable tasks (35 executed, 693 up-to-date), with zero errors and
+  the same two documented warnings.
