@@ -320,6 +320,16 @@ or source dependency and are not treated as feature-presentation edges.
 
 ### Slice 4 - download, sync, playback, and complete platform actuals
 
+#### Slice 4 dependency-closure amendment
+
+`SourceDataModule.kt` and `LibrarySyncModule.kt` move with their runtime
+implementations in this slice. Their providers construct module-internal source
+and synchronization implementations, so leaving the providers in `:shared`
+would either fail compilation or require widening implementation visibility.
+Keeping the providers and implementations in the same module preserves the
+existing APIs. Slice 5 still owns the complete runtime module list, Koin startup
+primitive, application initializer, and existing-shell composition cutover.
+
 Move:
 
 - `shared/src/commonMain/.../service/download/data/**`

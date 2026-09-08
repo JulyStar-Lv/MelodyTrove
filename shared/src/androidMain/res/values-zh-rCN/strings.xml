@@ -82,16 +82,6 @@
     <string name="debug_trigger_kt_exception">触发 Kotlin 异常</string>
     <string name="debug_trigger_kt_async_exception">触发 Kotlin 异步异常</string>
     <string name="log_title">日志</string>
-    <string name="notification_previous">上一首</string>
-    <string name="notification_play">播放</string>
-    <string name="notification_pause">暂停</string>
-    <string name="notification_next">下一首</string>
-    <string name="notification_add_favorite">添加到收藏</string>
-    <string name="notification_remove_favorite">从收藏中移除</string>
-    <string name="notification_playback_mode_repeat_off">顺序播放</string>
-    <string name="notification_playback_mode_repeat_all">列表循环</string>
-    <string name="notification_playback_mode_repeat_one">单曲循环</string>
-    <string name="notification_playback_mode_shuffle">随机播放</string>
     <plurals name="log_desc">
         <item quantity="other">找到 %d 个日志文件</item>
     </plurals>

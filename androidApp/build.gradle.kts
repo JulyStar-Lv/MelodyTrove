@@ -105,6 +105,7 @@ kotlin {
 
 dependencies {
     implementation(project(":shared"))
+    implementation(project(":core:runtime"))
     implementation(project(":core:domain"))
     implementation(project(":service:playback:domain"))
     implementation(libs.androidx.core.ktx)

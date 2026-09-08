@@ -145,6 +145,31 @@ planned test cannot substitute for device/window or end-to-end evidence.
   with zero failures (one environment-dependent Desktop smoke test skipped). The Room
   integration fixtures now cancel and join repository scopes before closing their
   databases, preventing closed-statement exceptions from leaking into later tests.
+- Runtime Slice 4 moves download, library-sync, playback, all platform scheduler/
+  controller implementations, Android Media3 service/session ownership, notification
+  resources, and the iOS audio-processing cinterop into `:core:runtime`. The platform
+  `expect`/`actual` Koin module now moves atomically with those implementations.
+  `SourceDataModule.kt` and `LibrarySyncModule.kt` also move as a dependency-closure
+  amendment so their internal implementations stay internal. `PlaybackService`
+  resolves the current package launcher through `PackageManager` and safely omits a
+  session activity when no launcher exists; it contains no reflected Mobile activity.
+  Runtime source/build scans contain no Compose, Mobile feature, `:shared`, core-
+  presentation, or playback-presentation edge, and the Android tree retains one
+  `ExoPlayer.Builder` and one `MediaLibrarySession.Builder` owner. Runtime verification
+  passes 342 Android tests and 479 Desktop tests with zero failures; one environment-
+  dependent Desktop smoke test is skipped. The Desktop playback tests now await
+  persisted queue mode and repository initialization before asserting completion or
+  closing Room, eliminating test-order races. The Rust metadata writer reuses the open
+  temporary-file handle on Windows and relies on `ReplaceFileW` write-through instead
+  of attempting a directory `fsync`; all 11 writer integration tests pass. Runtime and
+  shared Android/Desktop main compilation plus downstream shared test-source
+  compilation pass. Because the Android and Desktop entry points directly reference
+  runtime-owned diagnostics, storage, playback, and platform types, both application
+  modules now declare their runtime dependency explicitly. The post-move
+  `:androidApp:assembleDebug :desktopApp:compileKotlinDesktop` regression command is
+  **BUILD SUCCESSFUL in 3m 56s**, 1077 actionable tasks (167 executed, 910 up-to-date).
+  Windows still cannot compile the moved Apple cinterop, so iOS verification remains
+  a macOS gate.
 - `:car:presentation` now contains the Phase 4 theme, layout-profile, navigation,
   and focus seams. Its six resolver/OEM/inset tests pass, and
   `:car:presentation:testDebugUnitTest :car:presentation:assembleDebug` is

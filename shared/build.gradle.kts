@@ -22,12 +22,6 @@ kotlin {
             isStatic = true
             binaryOption("bundleId", "io.github.julystar.musicapp.shared")
         }
-        iosTarget.compilations.getByName("main").cinterops.create("audioProcessingTap") {
-            definitionFile.set(
-                layout.projectDirectory.file("src/nativeInterop/cinterop/AudioProcessingTap.def")
-            )
-            includeDirs(layout.projectDirectory.dir("../iosApp"))
-        }
     }
 
     sourceSets {
@@ -95,16 +89,7 @@ kotlin {
             implementation(libs.kotlinx.coroutines.test)
         }
         androidMain.dependencies {
-            implementation(libs.media3.exoplayer)
-            implementation(libs.media3.exoplayer.dash)
-            implementation(libs.media3.session)
             implementation(libs.androidx.activity.compose)
-            implementation(libs.androidx.core.ktx)
-            implementation(libs.koin.android)
-            implementation(libs.androidx.work.runtime.ktx)
-            implementation(libs.lyricon.provider)
-            implementation(libs.lyric.getter.api)
-            implementation(libs.superlyric.api)
         }
         val desktopMain by getting {
             dependencies {

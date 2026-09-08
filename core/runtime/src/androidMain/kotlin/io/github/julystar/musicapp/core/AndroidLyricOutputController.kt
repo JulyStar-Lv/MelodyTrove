@@ -128,7 +128,7 @@ internal class AndroidLyricOutputController(
                     playerPackageName = context.packageName,
                     logo = ProviderLogo.fromDrawable(
                         context,
-                        io.github.julystar.musicapp.shared.R.drawable.icon_lyrics,
+                        io.github.julystar.musicapp.core.runtime.R.drawable.icon_lyrics,
                         width = 96,
                         height = 96,
                     ),

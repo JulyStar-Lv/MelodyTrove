@@ -56,7 +56,7 @@ import io.github.julystar.musicapp.service.playback.data.PlayerRepository
 import io.github.julystar.musicapp.service.playback.data.toPlaybackArtwork
 import io.github.julystar.musicapp.service.playback.domain.PlaybackController
 import io.github.julystar.musicapp.service.playback.domain.RepeatMode
-import io.github.julystar.musicapp.shared.R
+import io.github.julystar.musicapp.core.runtime.R
 import io.github.julystar.musicapp.singleton.RoomLibraryStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -122,15 +122,16 @@ class PlaybackService : MediaLibraryService() {
         )
         val context = this
 
-        val intent = Intent(this, Class.forName("io.github.julystar.musicapp.MainActivity")).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK
-        }
-        val pendingIntent = PendingIntent.getActivity(
-            this,
-            0,
-            intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-        )
+        val sessionActivity = packageManager.getLaunchIntentForPackage(packageName)
+            ?.apply { flags = Intent.FLAG_ACTIVITY_NEW_TASK }
+            ?.let { intent ->
+                PendingIntent.getActivity(
+                    this,
+                    0,
+                    intent,
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+                )
+            }
 
         val dspProcessor = RustDspAudioProcessor().also {
             it.updateSettings(AppSettings.Default.audioEffects)
@@ -200,7 +201,7 @@ class PlaybackService : MediaLibraryService() {
         audioFocusController = PlaybackAudioFocusController(this, player).apply {
             updateMode(AppSettings.Default.audioFocusMode)
         }
-        _mediaSession = MediaLibrarySession.Builder(
+        val mediaSessionBuilder = MediaLibrarySession.Builder(
             this,
             sessionPlayer,
             object : MediaLibrarySession.Callback {
@@ -392,8 +393,13 @@ class PlaybackService : MediaLibraryService() {
                 }
             },
         )
-            .setSessionActivity(pendingIntent)
-            .build()
+        sessionActivity?.let(mediaSessionBuilder::setSessionActivity)
+            ?: AppLogger.warn(
+                DiagnosticLogCategory.Playback,
+                "PlaybackService",
+                "No launcher activity is registered for package $packageName",
+            )
+        _mediaSession = mediaSessionBuilder.build()
         lyricOutputController = AndroidLyricOutputController(
             context = this,
             settingsRepository = settingsRepository,

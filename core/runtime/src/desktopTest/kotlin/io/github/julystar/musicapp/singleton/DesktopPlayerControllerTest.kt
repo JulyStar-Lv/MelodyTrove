@@ -58,6 +58,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import okio.Path.Companion.toPath
@@ -68,6 +69,8 @@ import uniffi.app_backend.Storage
 import uniffi.app_backend.StorageId
 import uniffi.app_backend.StorageType
 import java.io.File
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -211,7 +214,10 @@ class DesktopPlayerControllerTest {
         engine = RecordingDesktopPlaybackEngine(PlaybackEngineLoadResult.Ready),
     ) { harness ->
         harness.controller.play(MusicId(TRACK_ID), PlaylistId(PLAYLIST_ID))
-        awaitUntil { harness.playerRepository.playing.value }
+        awaitUntil {
+            harness.playerRepository.playing.value &&
+                !harness.playerRepository.loading.value
+        }
 
         harness.engine.playbackCompleted = true
 
@@ -243,8 +249,7 @@ class DesktopPlayerControllerTest {
         sourceResult = SourcePlaybackResult.Success(TEST_RESOURCE),
         engine = RecordingDesktopPlaybackEngine(PlaybackEngineLoadResult.Ready),
     ) { harness ->
-        harness.playerRepository.setPlayMode(PlayMode.LIST_LOOP)
-        awaitUntil { harness.playerRepository.playMode.value == PlayMode.LIST_LOOP }
+        setPlayModeAndAwaitPersistence(harness, PlayMode.LIST_LOOP)
         harness.controller.play(MusicId(TRACK_ID), PlaylistId(PLAYLIST_ID))
         awaitUntil { harness.playerRepository.playing.value }
 
@@ -260,19 +265,26 @@ class DesktopPlayerControllerTest {
         sourceResult = SourcePlaybackResult.Success(TEST_RESOURCE),
         engine = RecordingDesktopPlaybackEngine(PlaybackEngineLoadResult.Ready),
     ) { harness ->
-        harness.playerRepository.setPlayMode(PlayMode.LIST_LOOP)
-        awaitUntil { harness.playerRepository.playMode.value == PlayMode.LIST_LOOP }
+        setPlayModeAndAwaitPersistence(harness, PlayMode.LIST_LOOP)
         harness.controller.play(MusicId(TRACK_ID), PlaylistId(PLAYLIST_ID))
-        awaitUntil { harness.playerRepository.playing.value }
+        awaitUntil {
+            harness.playerRepository.playing.value &&
+                !harness.playerRepository.loading.value &&
+                harness.playerRepository.onCompleteMusic.value?.meta?.id?.value == SECOND_TRACK_ID
+        }
 
         harness.engine.playbackCompleted = true
         awaitUntil {
-            harness.playerRepository.music.value?.meta?.id?.value == SECOND_TRACK_ID
+            harness.playerRepository.music.value?.meta?.id?.value == SECOND_TRACK_ID &&
+                harness.playerRepository.playing.value &&
+                !harness.playerRepository.loading.value &&
+                harness.playerRepository.onCompleteMusic.value?.meta?.id?.value == TRACK_ID
         }
 
         harness.engine.playbackCompleted = true
         awaitUntil {
             harness.playerRepository.music.value?.meta?.id?.value == TRACK_ID &&
+                !harness.playerRepository.loading.value &&
                 harness.engine.loadedRequests.size == 3
         }
 
@@ -287,13 +299,18 @@ class DesktopPlayerControllerTest {
         sourceResult = SourcePlaybackResult.Success(TEST_RESOURCE),
         engine = RecordingDesktopPlaybackEngine(PlaybackEngineLoadResult.Ready),
     ) { harness ->
-        harness.playerRepository.setPlayMode(PlayMode.SINGLE_LOOP)
-        awaitUntil { harness.playerRepository.playMode.value == PlayMode.SINGLE_LOOP }
+        setPlayModeAndAwaitPersistence(harness, PlayMode.SINGLE_LOOP)
         harness.controller.play(MusicId(TRACK_ID), PlaylistId(PLAYLIST_ID))
-        awaitUntil { harness.playerRepository.playing.value }
+        awaitUntil {
+            harness.playerRepository.playing.value &&
+                !harness.playerRepository.loading.value &&
+                harness.playerRepository.onCompleteMusic.value?.meta?.id?.value == TRACK_ID
+        }
 
         harness.engine.playbackCompleted = true
-        awaitUntil { harness.engine.loadedRequests.size == 2 }
+        awaitUntil {
+            !harness.playerRepository.loading.value && harness.engine.loadedRequests.size == 2
+        }
 
         assertEquals(TRACK_ID, harness.playerRepository.music.value?.meta?.id?.value)
         assertEquals(listOf(TRACK_TITLE, TRACK_TITLE), harness.engine.loadedRequests.map { it.item.title })
@@ -371,6 +388,11 @@ class DesktopPlayerControllerTest {
                 sourceAccountDao = database.sourceAccountDao(),
                 credentialStore = InMemoryCredentialStore(),
             )
+            withTimeout(5_000) {
+                while (database.sourceAccountDao().get(LOCAL_STORAGE_ID) == null) {
+                    delay(10)
+                }
+            }
             val appPreferencesRepository = AppPreferencesRepository(
                 createAppDataStore { preferencesFile.absolutePath.toPath() }
             )
@@ -410,6 +432,7 @@ class DesktopPlayerControllerTest {
                 playbackResourceResolver = playbackResourceResolver,
                 playbackEngine = engine,
                 scope = scope,
+                playbackDispatcher = Dispatchers.Default,
             )
 
             block(
@@ -587,6 +610,17 @@ class DesktopPlayerControllerTest {
         }
     }
 
+    private suspend fun setPlayModeAndAwaitPersistence(
+        harness: DesktopPlaybackHarness,
+        playMode: PlayMode,
+    ) {
+        harness.playerRepository.setPlayMode(playMode)
+        withTimeout(5_000) {
+            harness.appPreferencesRepository.playMode.first { persisted -> persisted == playMode }
+        }
+        awaitUntil { harness.playerRepository.playMode.value == playMode }
+    }
+
     private fun storage(
         id: Long,
         type: StorageType,
@@ -617,15 +651,20 @@ private data class DesktopPlaybackHarness(
 private class RecordingDesktopPlaybackEngine(
     private val loadResult: PlaybackEngineLoadResult,
 ) : DesktopPlaybackEngine {
-    val loadedRequests = mutableListOf<PlaybackEngineLoadRequest>()
-    val seekCalls = mutableListOf<Long>()
+    val loadedRequests = CopyOnWriteArrayList<PlaybackEngineLoadRequest>()
+    val seekCalls = CopyOnWriteArrayList<Long>()
     var playCalls = 0
         private set
     var pauseCalls = 0
         private set
     var stopCalls = 0
         private set
-    var playbackCompleted = false
+    private val completion = AtomicBoolean(false)
+    var playbackCompleted: Boolean
+        get() = completion.get()
+        set(value) {
+            completion.set(value)
+        }
     var positionMs = 1_000L
     val durationMs = 123_000L
 
@@ -658,9 +697,7 @@ private class RecordingDesktopPlaybackEngine(
         )
     }
 
-    override fun takePlaybackCompleted(): Boolean = playbackCompleted.also {
-        playbackCompleted = false
-    }
+    override fun takePlaybackCompleted(): Boolean = completion.getAndSet(false)
 
     override fun release() = Unit
 }
@@ -790,6 +827,7 @@ private class InMemoryCredentialStore : CredentialStore {
 }
 
 private const val STORAGE_ID = 2L
+private const val LOCAL_STORAGE_ID = 1L
 private const val TRACK_ID = 7L
 private const val TRACK_TITLE = "Moon"
 private const val TRACK_PATH = "/Music/Moon.flac"

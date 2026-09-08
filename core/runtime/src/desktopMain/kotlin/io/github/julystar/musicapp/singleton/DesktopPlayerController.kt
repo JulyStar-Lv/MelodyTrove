@@ -27,6 +27,7 @@ import io.github.julystar.musicapp.core.domain.repository.emit
 import io.github.julystar.musicapp.diagnostics.AppLogger
 import io.github.julystar.musicapp.source.api.PlaybackResource
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -57,6 +58,7 @@ class DesktopPlayerController(
     private val scope: CoroutineScope,
     private val settingsRepository: SettingsRepository? = null,
     private val networkStatusProvider: NetworkStatusProvider? = null,
+    private val playbackDispatcher: CoroutineDispatcher = Dispatchers.Main,
 ) : PlayerController {
     private val sleep = MutableStateFlow(SleepModeState())
     private var sleepJob: Job? = null
@@ -229,7 +231,7 @@ class DesktopPlayerController(
         }
 
         playbackJob?.cancel()
-        playbackJob = scope.launch(Dispatchers.Main) {
+        playbackJob = scope.launch(playbackDispatcher) {
             playerRepository.setIsLoading(true)
             val transitionDurationMs = currentSettings.playbackAdvanced.crossfadeDurationMs
             val canTransition = allowTransition &&
