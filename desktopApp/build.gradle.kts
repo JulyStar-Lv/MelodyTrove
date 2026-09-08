@@ -49,7 +49,11 @@ compose.desktop {
         buildTypes {
             release {
                 proguard {
-                    isEnabled.set(true)
+                    // Hotfix: Desktop release obfuscation currently breaks AndroidX
+                    // DataStore protobuf reflection and bundled SQLite JNI classes.
+                    // Keep ProGuard disabled until the packaged release runtime has
+                    // dedicated smoke coverage for these startup dependencies.
+                    isEnabled.set(false)
                     obfuscate.set(true)
                     // Kotlin coroutine state machines currently trigger a ProGuard
                     // stack-size calculation failure when optimization is enabled.

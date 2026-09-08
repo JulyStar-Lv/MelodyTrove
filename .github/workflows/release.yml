@@ -243,10 +243,20 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release upload "$GITHUB_REF_NAME" ${{ matrix.artifact_output }} --clobber
-      - name: Prepare desktop R8 mapping asset
+      - name: Prepare desktop ProGuard mapping asset
+        id: desktop_mapping
         shell: bash
-        run: cp desktopApp/build/compose/proguard/mapping.txt "artifacts/desktop/${{ matrix.mapping_asset }}"
-      - name: Upload desktop R8 mapping to GitHub release
+        run: |
+          mapping="desktopApp/build/compose/proguard/mapping.txt"
+          if [[ ! -f "$mapping" ]]; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "Desktop ProGuard is disabled; skipping mapping asset."
+            exit 0
+          fi
+          cp "$mapping" "artifacts/desktop/${{ matrix.mapping_asset }}"
+          echo "available=true" >> "$GITHUB_OUTPUT"
+      - name: Upload desktop ProGuard mapping to GitHub release
+        if: steps.desktop_mapping.outputs.available == 'true'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
