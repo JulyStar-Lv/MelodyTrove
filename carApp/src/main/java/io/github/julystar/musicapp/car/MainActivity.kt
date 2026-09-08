@@ -2,6 +2,7 @@ package io.github.julystar.musicapp.car
 
 import android.content.ComponentName
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -55,9 +56,11 @@ class MainActivity : ComponentActivity() {
         future.addListener(
             {
                 if (!future.isDone || future.isCancelled) return@addListener
-                runCatching {
+                try {
                     playerControllerRepository.setupMediaController(future.get())
                     controllerAttached = true
+                } catch (error: Exception) {
+                    Log.e("TidePlayerCar", "Unable to attach the media controller", error)
                 }
                 controllerFuture = null
             },

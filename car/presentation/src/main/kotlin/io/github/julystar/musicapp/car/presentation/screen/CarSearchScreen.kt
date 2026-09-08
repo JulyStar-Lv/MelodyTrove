@@ -36,6 +36,7 @@ import io.github.julystar.musicapp.service.playback.domain.PlayableItem
 import io.github.julystar.musicapp.service.playback.domain.PlaybackController
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 
 @Composable
 fun CarSearchScreen(
@@ -57,9 +58,13 @@ fun CarSearchScreen(
             return@LaunchedEffect
         }
         delay(300)
-        runCatching { repository.searchLocalLibrary(normalized).tracks }
-            .onSuccess { results = it }
-            .onFailure { error = it.message ?: "搜索失败" }
+        try {
+            results = repository.searchLocalLibrary(normalized).tracks
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            error = failure.message ?: "搜索失败"
+        }
     }
     val playable = results.mapNotNull(SearchTrackItem::toPlayableItemOrNull)
     Column(

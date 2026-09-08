@@ -26,6 +26,7 @@ import io.github.julystar.musicapp.core.domain.repository.ArtworkRepository
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarColors
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarTypography
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 
 @Composable
@@ -38,11 +39,17 @@ fun CarArtwork(
 ) {
     var bitmap by remember(artwork) { mutableStateOf<ImageBitmap?>(null) }
     LaunchedEffect(artwork) {
-        bitmap = artwork?.let { target ->
-            withContext(Dispatchers.IO) {
-                val bytes = repository.cached(target) ?: repository.load(target)
-                bytes?.let { BitmapFactory.decodeByteArray(it, 0, it.size)?.asImageBitmap() }
+        bitmap = try {
+            artwork?.let { target ->
+                withContext(Dispatchers.IO) {
+                    val bytes = repository.cached(target) ?: repository.load(target)
+                    bytes?.let { BitmapFactory.decodeByteArray(it, 0, it.size)?.asImageBitmap() }
+                }
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            null
         }
     }
     val colors = LocalCarColors.current

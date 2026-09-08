@@ -52,6 +52,7 @@ import io.github.julystar.musicapp.core.domain.repository.ArtworkRepository
 import io.github.julystar.musicapp.core.domain.repository.PlaylistRepository
 import io.github.julystar.musicapp.service.playback.domain.PlaybackController
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.catch
 import org.koin.compose.koinInject
@@ -68,8 +69,13 @@ fun CarAlbumDetailScreen(
     var retry by remember { mutableIntStateOf(0) }
     var result by remember(albumId, retry) { mutableStateOf<DetailResult<DomainAlbumDetail>>(DetailResult.Loading) }
     LaunchedEffect(albumId, retry) {
-        result = runCatching { repository.loadAlbumDetail(albumId) }
-            .fold({ DetailResult.Content(it) }, { DetailResult.Error(it.message ?: "专辑载入失败") })
+        result = try {
+            DetailResult.Content(repository.loadAlbumDetail(albumId))
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            DetailResult.Error(error.message ?: "专辑载入失败")
+        }
     }
     when (val value = result) {
         DetailResult.Loading -> CarPageState("正在载入专辑…", modifier)
@@ -100,8 +106,13 @@ fun CarArtistDetailScreen(
     var retry by remember { mutableIntStateOf(0) }
     var result by remember(artistId, retry) { mutableStateOf<DetailResult<DomainArtistDetail>>(DetailResult.Loading) }
     LaunchedEffect(artistId, retry) {
-        result = runCatching { repository.loadArtistDetail(artistId) }
-            .fold({ DetailResult.Content(it) }, { DetailResult.Error(it.message ?: "歌手载入失败") })
+        result = try {
+            DetailResult.Content(repository.loadArtistDetail(artistId))
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            DetailResult.Error(error.message ?: "歌手载入失败")
+        }
     }
     when (val value = result) {
         DetailResult.Loading -> CarPageState("正在载入歌手…", modifier)
