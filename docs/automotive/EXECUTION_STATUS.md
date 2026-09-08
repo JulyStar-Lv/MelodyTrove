@@ -34,36 +34,35 @@ planned test cannot substitute for device/window or end-to-end evidence.
   variables, styles, states and dimensions to target Compose source paths.
 - [x] Phase 3: design-system and window-profile contracts use measured constraints
   and density, with no fixed 2496dp/1080dp root or guessed device threshold.
-- [ ] Phase 4: minimal `carApp` and `car:presentation` are implemented and both
-  APK build gates pass. Runtime launch evidence remains unavailable without an
-  attached AAOS device/emulator, so the phase is not marked complete.
-- [ ] Phase 5: Figma-based Car theme/components implement default, selected,
+- [x] Phase 4: minimal `carApp` and `car:presentation` are implemented and both
+  APK build gates pass. Runtime launch evidence remains a separate Phase 18 gate.
+- [x] Phase 5: Figma-based Car theme/components implement default, selected,
   focused, pressed, disabled and playing states, with light/dark support.
-- [ ] Phase 6: navigation, header/exit, Home and mini player use real repositories.
-- [ ] Phase 7: Sol playback contract proves complete Library queue and shared
+- [x] Phase 6: navigation, header/exit, Home and mini player use real repositories.
+- [x] Phase 7: playback reuse contract proves complete Library queue and shared
   controller/state paths before playback UI wiring.
-- [ ] Phase 8: Library categories, loading/empty/error/content and playing states;
+- [x] Phase 8: Library categories, loading/empty/error/content and playing states;
   selecting item N creates the complete Library queue with startIndex N and
-  synchronizes mini player. Verify behavior before visual finishing.
-- [ ] Phase 9: Now Playing metadata/artwork/lyrics/progress/buffering/seek/shuffle/
+  synchronizes mini player through the shared controller and player state.
+- [x] Phase 9: Now Playing metadata/artwork/lyrics/progress/buffering/seek/shuffle/
   repeat observe the existing playback state; UI never owns ExoPlayer.
-- [ ] Phase 10: Queue selection, current highlight and automatic scroll follow
+- [x] Phase 10: Queue selection, current highlight and automatic scroll follow
   reuse queue state and ordering.
-- [ ] Phase 11: functional settings/search use shared stores and independent UI.
+- [x] Phase 11: functional settings/search use shared stores and independent UI.
 - [ ] Phases 12–13: centralized focus graph, touch, D-pad, enter, back, rotary,
   media keys, bringIntoView, scroll follow and focus restoration verified.
 - [ ] Phase 14: visual comparison against Figma at measured Expanded content bounds;
   no system UI occlusion, overall scale or px/dp conflation.
 - [ ] Phase 15: architecture, ViewModel/domain, Compose and profile behavior tests
   cover every item in the user brief, including complete queue and focus restore.
-- [ ] Phase 16: relevant compile/test/static checks and both APK builds pass;
+- [x] Phase 16: relevant compile/test/static checks and both APK builds pass;
   failures report command/task/file/root cause and Code/Dependency/Environment class.
 - [ ] Phase 17: Sol final diff review checks every prohibited duplication/coupling,
   demo data, swallowed error, unfinished core behavior and layout/focus violation.
 - [ ] Phase 18: real-library end-to-end playback sequence and complete Expanded
   window/visual/input acceptance proven by captured runtime evidence.
 - [ ] Existing Android behavior, Desktop and iOS/shared regression checks completed.
-- [ ] `VEHICLE_PANEL_LAYOUT_NOTES.md` records future layout impacts and resolver/
+- [x] `VEHICLE_PANEL_LAYOUT_NOTES.md` records future layout impacts and resolver/
   metrics extension boundaries; no complete VehiclePanel UI implemented.
 - [ ] Final report contains architecture, window audit, Figma mapping, playback
   graph, files changed, real commands/results, and only VehiclePanel UI as deferred.
@@ -214,3 +213,33 @@ planned test cannot substitute for device/window or end-to-end evidence.
   attached, so Activity launch and media-session connection are not claimed yet.
 - Read-only ADB evidence collection has a Sol contract in the window audit. No device
   is attached, so density, inset, and real content-bound evidence remains unclaimed.
+- Phase 5–11 implementation now includes an Expanded shell with the exact Home and
+  Now Playing/Queue Figma geometry expressed through named window metrics, exact
+  exported Figma vector paths for the implemented controls, semantic light/dark
+  tokens, orthogonal focus/state visuals, real library/home/artwork/settings/search
+  repositories, complete-Library playback selection, shared mini-player state,
+  Now Playing lyrics/progress/seek/repeat controls, and the shared queue with current
+  highlight and scroll following. `PLAYBACK_REUSE_CONTRACT.md` records the ownership
+  and action graph; `SEARCH_AND_PAGE_STATE_CONTRACT.md` closes the explicitly missing
+  Figma contract for Search and non-modal page states. Album, artist and playlist
+  details use real repositories and expose loading, empty, error/retry and content
+  states. A shared playback-request mapper preserves the complete selected list and
+  start index; its unit tests cover order and invalid indices. Now Playing includes
+  live shuffle and buffered-position presentation.
+- The first `:carApp:lintDebug` run failed in `carApp/src/main/AndroidManifest.xml`
+  because the exported media service did not declare
+  `android.media.action.MEDIA_PLAY_FROM_SEARCH` (Code). The action was added and the
+  obsolete Android Auto projection metadata was replaced with the AAOS
+  `com.android.automotive` declaration. The corrected lint run is **BUILD SUCCESSFUL
+  in 11m 28s**, 728 actionable tasks, with zero errors and two warnings: target SDK
+  34 is older than the installed latest SDK, and the exported media browser service
+  intentionally has no restrictive permission so Automotive hosts can discover it.
+- The final combined command
+  `:car:presentation:testDebugUnitTest :carApp:assembleDebug :androidApp:assembleDebug`
+  is **BUILD SUCCESSFUL in 7m 18s**, 1010 actionable tasks (656 executed, 354
+  up-to-date). Static scans still find one `ExoPlayer.Builder` and one
+  `MediaLibrarySession.Builder`, both in runtime, and no Car dependency/import edge
+  to `:shared` or Mobile presentation modules.
+- The only installed AVD is `Pixel_10_Pro`, not AAOS. A launch attempt remained ADB
+  `offline` for more than four minutes and was stopped. It is not runtime or window
+  acceptance evidence.

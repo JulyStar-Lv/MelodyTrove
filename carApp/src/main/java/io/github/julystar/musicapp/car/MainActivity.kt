@@ -32,7 +32,7 @@ class MainActivity : ComponentActivity() {
                 val metrics = remember(maxWidth, maxHeight) {
                     layoutProfileResolver.resolve(DpSize(maxWidth, maxHeight))
                 }
-                CarRoot(metrics = metrics)
+                CarRoot(metrics = metrics, onExit = ::finish)
             }
         }
     }

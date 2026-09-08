@@ -22,7 +22,7 @@ fun CarTheme(
 ) {
     CompositionLocalProvider(
         LocalCarColors provides if (darkTheme) DarkCarColors else LightCarColors,
-        LocalCarTypography provides DefaultCarTypography,
+        LocalCarTypography provides carTypography(layoutMetrics),
         LocalCarShapes provides DefaultCarShapes,
         LocalCarSpacing provides DefaultCarSpacing,
         LocalCarDimensions provides CarDimensions(),

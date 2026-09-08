@@ -12,6 +12,7 @@ data class CarSpacing(
     val content: Dp = 16.dp,
     val section: Dp = 24.dp,
     val pane: Dp = 40.dp,
+    val wide: Dp = 48.dp,
     val large: Dp = 64.dp,
     val expansive: Dp = 80.dp,
 )
