@@ -160,11 +160,16 @@ fun CarNavigationRoot(
                 tracks = tracks,
                 albums = albums,
                 artists = artists,
+                playlists = playlists,
                 statistics = statistics,
                 artworkRepository = artworkRepository,
                 playbackController = playbackController,
                 onOpenAlbums = { route = CarRoute.Albums },
                 onOpenArtists = { route = CarRoute.Artists },
+                onOpenPlaylists = { route = CarRoute.Playlists },
+                onAlbumClick = { detailTarget = CarDetailTarget.Album(it) },
+                onArtistClick = { detailTarget = CarDetailTarget.Artist(it) },
+                onPlaylistClick = { detailTarget = CarDetailTarget.Playlist(it.id, it.title) },
                 onOpenSearch = { route = CarRoute.Search },
                 modifier = contentModifier,
             )
@@ -187,7 +192,13 @@ fun CarNavigationRoot(
                 onPlaylistClick = { detailTarget = CarDetailTarget.Playlist(it.id, it.title) },
                 modifier = contentModifier,
             )
-            CarRoute.Settings -> CarSettingsScreen(safeMetrics, settings, settingsRepository, contentModifier)
+            CarRoute.Settings -> CarSettingsScreen(
+                safeMetrics,
+                settings,
+                settingsRepository,
+                focusCoordinator,
+                contentModifier,
+            )
             CarRoute.Search -> CarSearchScreen(
                 safeMetrics,
                 searchRepository,

@@ -66,7 +66,6 @@ fun CarSearchScreen(
             error = failure.message ?: "搜索失败"
         }
     }
-    val playable = results.mapNotNull(SearchTrackItem::toPlayableItemOrNull)
     Column(
         verticalArrangement = Arrangement.spacedBy(LocalCarSpacing.current.section),
         modifier = modifier.padding(
@@ -114,9 +113,8 @@ fun CarSearchScreen(
                         height = metrics.compactCardHeight,
                         enabled = item.toPlayableItemOrNull() != null,
                         onClick = {
-                            val selected = item.toPlayableItemOrNull() ?: return@CarSongRow
-                            val startIndex = playable.indexOf(selected)
-                            if (startIndex >= 0) scope.launch { playbackController.play(playable, startIndex) }
+                            val request = results.toSearchPlaybackRequest(index) ?: return@CarSongRow
+                            scope.launch { playbackController.play(request.items, request.startIndex) }
                         },
                         modifier = Modifier
                             .carFocusTarget(
@@ -132,7 +130,14 @@ fun CarSearchScreen(
     }
 }
 
-private fun SearchTrackItem.toPlayableItemOrNull(): PlayableItem? {
+internal fun List<SearchTrackItem>.toSearchPlaybackRequest(selectedIndex: Int): CarPlaybackRequest? {
+    if (selectedIndex !in indices || this[selectedIndex].toPlayableItemOrNull() == null) return null
+    val playableBeforeSelection = take(selectedIndex).count { it.toPlayableItemOrNull() != null }
+    val playableItems = mapNotNull(SearchTrackItem::toPlayableItemOrNull)
+    return CarPlaybackRequest(playableItems, playableBeforeSelection)
+}
+
+internal fun SearchTrackItem.toPlayableItemOrNull(): PlayableItem? {
     if (mediaId == null && id == null) return null
     return PlayableItem(
         mediaId = mediaId,

@@ -1,0 +1,71 @@
+package io.github.julystar.musicapp.car.presentation.focus
+
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.unit.dp
+import io.github.julystar.musicapp.car.presentation.component.CarNavigationItem
+import io.github.julystar.musicapp.car.presentation.icon.CarIcon
+import io.github.julystar.musicapp.car.presentation.theme.CarTheme
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35])
+class CarNavigationFocusComposeTest {
+    @get:Rule
+    val compose = createComposeRule()
+
+    @Test
+    fun initialNavigationFocusMovesAlongDeclaredGraph() {
+        val coordinator = CarFocusCoordinator()
+        compose.setContent {
+            CarTheme {
+                CarFocusHost(coordinator, "navigation-test", CarFocusIds.Home) {
+                    Column {
+                        CarNavigationItem(
+                            label = "首页",
+                            icon = CarIcon.Home,
+                            selected = true,
+                            enabled = true,
+                            iconSize = 40.dp,
+                            onClick = {},
+                            modifier = Modifier
+                                .testTag("home")
+                                .carFocusTarget(CarFocusIds.Home, down = CarFocusIds.Playlists)
+                                .height(72.dp),
+                        )
+                        CarNavigationItem(
+                            label = "播放列表",
+                            icon = CarIcon.Playlists,
+                            selected = false,
+                            enabled = true,
+                            iconSize = 40.dp,
+                            onClick = {},
+                            modifier = Modifier
+                                .testTag("playlists")
+                                .carFocusTarget(CarFocusIds.Playlists, up = CarFocusIds.Home)
+                                .height(72.dp),
+                        )
+                    }
+                }
+            }
+        }
+
+        compose.waitForIdle()
+        compose.onNodeWithTag("home").assertIsFocused().performKeyInput {
+            pressKey(Key.DirectionDown)
+        }
+        compose.onNodeWithTag("playlists").assertIsFocused()
+    }
+}

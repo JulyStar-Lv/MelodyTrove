@@ -95,7 +95,7 @@ fun CarNowPlayingScreen(
         if (queueVisible && queue.items.isNotEmpty()) {
             withFrameNanos { }
             val index = queue.currentIndex.takeIf { it in queue.items.indices } ?: 0
-            focusCoordinator.requestFocus(queue.items[index].queueFocusId(index))
+            focusCoordinator.requestFocus(queue.items[index].carQueueFocusId(index))
         }
     }
 
@@ -190,10 +190,9 @@ private fun PlayerPane(
                 ),
             )
             CarPlayerControl(
-                CarIcon.More, "更多", metrics.headerHeight, metrics.iconSize, false,
+                CarIcon.More, "更多（暂不支持）", metrics.headerHeight, metrics.iconSize, false,
                 focusId = CarFocusIds.NowPlayingMore,
-                left = CarFocusIds.NowPlayingShuffle,
-                down = CarFocusIds.NowPlayingQueue,
+                enabled = false,
                 onClick = {},
                 modifier = Modifier,
             )
@@ -218,7 +217,7 @@ private fun PlayerPane(
                 focusId = CarFocusIds.NowPlayingRepeat,
                 up = CarFocusIds.NowPlayingShuffle,
                 right = CarFocusIds.NowPlayingPrevious,
-                onClick = { playbackController.setRepeatMode(state.repeatMode.next()) },
+                onClick = { playbackController.setRepeatMode(state.repeatMode.nextCarMode()) },
                 modifier = Modifier,
             )
             CarPlayerControl(
@@ -252,7 +251,7 @@ private fun PlayerPane(
             CarPlayerControl(
                 CarIcon.Queue, "播放队列", LocalCarTouchTargets.current.playerControl, metrics.headerHeight, queueVisible,
                 focusId = CarFocusIds.NowPlayingQueue,
-                up = CarFocusIds.NowPlayingMore,
+                up = CarFocusIds.NowPlayingShuffle,
                 left = CarFocusIds.NowPlayingNext,
                 onClick = onToggleQueue,
                 modifier = Modifier,
@@ -268,12 +267,9 @@ private fun PlaybackProgress(
     onSeek: (Long) -> Unit,
     modifier: Modifier,
 ) {
-    val fraction = if (position.durationMs > 0) {
-        (position.positionMs.toFloat() / position.durationMs).coerceIn(0f, 1f)
-    } else 0f
-    val bufferedFraction = if (position.durationMs > 0) {
-        (position.bufferedMs.toFloat() / position.durationMs).coerceIn(fraction, 1f)
-    } else 0f
+    val progress = position.toCarProgress()
+    val fraction = progress.playedFraction
+    val bufferedFraction = progress.bufferedFraction
     val colors = LocalCarColors.current
     Box(
         modifier = modifier
@@ -383,14 +379,14 @@ private fun QueuePane(
             verticalArrangement = Arrangement.spacedBy(spacing.small),
             modifier = Modifier.fillMaxSize().padding(top = spacing.small),
         ) {
-            itemsIndexed(queue.items, key = { index, item -> item.stableQueueKey(index) }) { index, item ->
+            itemsIndexed(queue.items, key = { index, item -> item.stableCarQueueKey(index) }) { index, item ->
                 QueueRow(
                     item = item,
                     playing = index == queue.currentIndex,
                     artworkRepository = artworkRepository,
                     height = metrics.compactCardHeight * (104f / 112f),
                     artworkSize = metrics.iconSize,
-                    focusId = item.queueFocusId(index),
+                    focusId = item.carQueueFocusId(index),
                     onClick = { scope.launch { playbackController.play(queue.items, index) } },
                 )
             }
@@ -446,6 +442,7 @@ private fun CarPlayerControl(
     iconSize: Dp,
     selected: Boolean,
     focusId: CarFocusId,
+    enabled: Boolean = true,
     up: CarFocusId? = null,
     down: CarFocusId? = null,
     left: CarFocusId? = null,
@@ -460,13 +457,27 @@ private fun CarPlayerControl(
             .carFocusTarget(focusId, up = up, down = down, left = left, right = right)
             .size(size)
             .semantics { contentDescription = description }
-            .carInteractiveSurface(LocalCarShapes.current.control, selected = selected, onClick = onClick),
+            .carInteractiveSurface(
+                LocalCarShapes.current.control,
+                selected = selected,
+                enabled = enabled,
+                onClick = onClick,
+            ),
     ) {
-        IconView(icon, null, if (selected) colors.accentPrimary else colors.textPrimary, Modifier.size(iconSize))
+        IconView(
+            icon,
+            null,
+            when {
+                !enabled -> colors.textDisabled
+                selected -> colors.accentPrimary
+                else -> colors.textPrimary
+            },
+            Modifier.size(iconSize),
+        )
     }
 }
 
-private fun RepeatMode.next() = when (this) {
+internal fun RepeatMode.nextCarMode() = when (this) {
     RepeatMode.Off -> RepeatMode.All
     RepeatMode.All -> RepeatMode.One
     RepeatMode.One -> RepeatMode.Off
@@ -477,7 +488,19 @@ private fun Long?.asTime(): String {
     return "%d:%02d".format(totalSeconds / 60L, totalSeconds % 60L)
 }
 
-private fun PlayableItem.stableQueueKey(index: Int): String =
+internal data class CarPlaybackProgress(
+    val playedFraction: Float,
+    val bufferedFraction: Float,
+)
+
+internal fun PlaybackPosition.toCarProgress(): CarPlaybackProgress {
+    if (durationMs <= 0L) return CarPlaybackProgress(0f, 0f)
+    val played = (positionMs.toFloat() / durationMs).coerceIn(0f, 1f)
+    val buffered = (bufferedMs.toFloat() / durationMs).coerceIn(played, 1f)
+    return CarPlaybackProgress(played, buffered)
+}
+
+internal fun PlayableItem.stableCarQueueKey(index: Int): String =
     mediaId?.toString() ?: libraryTrackId?.let { "library:$it" } ?: "queue:$index:$title"
 
-private fun PlayableItem.queueFocusId(index: Int): CarFocusId = CarFocusIds.queue(stableQueueKey(index))
+internal fun PlayableItem.carQueueFocusId(index: Int): CarFocusId = CarFocusIds.queue(stableCarQueueKey(index))

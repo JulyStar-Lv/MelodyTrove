@@ -13,6 +13,9 @@ android {
     buildFeatures {
         compose = true
     }
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
@@ -35,7 +38,13 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.koin.core)
     implementation(libs.koin.compose)
+    implementation(libs.koin.compose.viewmodel)
     implementation(libs.kotlinx.collections.immutable)
     testImplementation(kotlin("test"))
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.ui.test.junit4)
+    testImplementation(libs.robolectric)
+    debugImplementation(libs.androidx.ui.test.manifest)
 }

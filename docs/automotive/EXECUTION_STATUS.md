@@ -58,8 +58,13 @@ planned test cannot substitute for device/window or end-to-end evidence.
   runtime evidence rather than a code-completion condition.
 - [ ] Phase 14: visual comparison against Figma at measured Expanded content bounds;
   no system UI occlusion, overall scale or px/dp conflation.
-- [ ] Phase 15: architecture, ViewModel/domain, Compose and profile behavior tests
+- [x] Phase 15: architecture, ViewModel/domain, Compose and profile behavior tests
   cover every item in the user brief, including complete queue and focus restore.
+  Automated coverage now includes the architecture boundaries, Home repository
+  states, complete queue mapping, Search duplicate/index mapping, playback progress,
+  queue identity, focus restoration, real Compose navigation focus, song-row
+  interaction/playing state, Mini Player Play/Pause/Previous/Next controls, and
+  Compose Queue open/close/Back behavior.
 - [x] Phase 16: relevant compile/test/static checks and both APK builds pass;
   failures report command/task/file/root cause and Code/Dependency/Environment class.
 - [x] Phase 17: final diff review checks every prohibited duplication/coupling,
@@ -277,3 +282,25 @@ planned test cannot substitute for device/window or end-to-end evidence.
   The corresponding final `:carApp:lintDebug` run is **BUILD SUCCESSFUL in 2m
   3s**, 728 actionable tasks (35 executed, 693 up-to-date), with zero errors and
   the same two documented warnings.
+- Final capability review removed synthetic Home recommendations. Home now obtains
+  recently added, recently played and favorites from the real shared repositories,
+  exposes independent loading/empty/error states, preserves each visible section as
+  the playback queue, and links real Album/Artist/Playlist cards to their detail
+  routes. “猜你喜欢” and “每日推荐” are disabled and explicitly reported as unsupported
+  until a recommendation contract exists. Search playback now derives the selected
+  queue index from the clicked result position, so filtered and duplicate results do
+  not start the wrong occurrence. The unsupported Now Playing “More” action is also
+  disabled, and the Settings category action moves focus into its detail pane.
+- Robolectric 4.16 local Compose tests now exercise initial navigation focus and
+  D-pad traversal, enabled/disabled song-row clicks, playing-state semantics, Mini
+  Player open and Previous/Play/Pause/Next callbacks, its empty disabled state, and
+  Now Playing Queue open/close/system-Back behavior. The Automotive suite reports
+  **34 tests, zero failures/errors**. The broad final command
+  `:core:runtime:testDebugUnitTest :car:presentation:testDebugUnitTest
+  :carApp:assembleDebug :androidApp:assembleDebug :desktopApp:compileKotlinDesktop`
+  is **BUILD SUCCESSFUL in 9m 49s**, 1153 actionable tasks; runtime reports 343
+  tests and the pre-Queue Car run reports 31. The post-Queue Car-only suite is
+  **BUILD SUCCESSFUL in 57s** with 34 tests. The final `:carApp:lintDebug` is **BUILD SUCCESSFUL in
+  5m 23s**, 728 tasks, zero errors and the same two documented warnings.
+  `:car:presentation:lintDebug` is **BUILD SUCCESSFUL in 46s**, zero errors and
+  four existing Compose modifier-parameter ordering warnings.

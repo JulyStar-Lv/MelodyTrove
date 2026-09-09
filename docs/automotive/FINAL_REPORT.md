@@ -80,6 +80,9 @@ both Dark and Light modes. The implementation includes:
   mini player;
 - Home, Songs, Albums, Artists, Playlists, album/artist/playlist details, Search,
   Settings, Now Playing, and Queue;
+- real recently-added, recently-played and favorite Home sections, plus direct real
+  Album/Artist/Playlist detail links; recommendation cards remain visibly disabled
+  because the shared runtime has no recommendation contract;
 - four-column Album and Artist grids and the 560/1424 Settings composition;
 - the 1000/1328 Now Playing and Queue composition;
 - semantic light/dark colors, typography, shapes, spacing, state visuals, and exact
@@ -170,10 +173,13 @@ All commands used `JAVA_HOME=C:/Software/Android Studio/jbr` on Windows.
 
 | Command | Result |
 |---|---|
-| `:core:runtime:testDebugUnitTest :car:presentation:testDebugUnitTest :carApp:assembleDebug :androidApp:assembleDebug` | BUILD SUCCESSFUL in 5m 37s; runtime 343 tests and Car 13 tests, zero failures/errors |
+| `:core:runtime:testDebugUnitTest :car:presentation:testDebugUnitTest :carApp:assembleDebug :androidApp:assembleDebug :desktopApp:compileKotlinDesktop` | BUILD SUCCESSFUL in 9m 49s; runtime 343 tests and Car 31 tests, zero failures/errors; both APK families rebuilt; Desktop compiled |
+| `:car:presentation:testDebugUnitTest` after final Robolectric Queue coverage | BUILD SUCCESSFUL in 57s; 34 tests, zero failures/errors |
 | `:car:presentation:testDebugUnitTest :carApp:assembleDebug` after final grid/settings correction | BUILD SUCCESSFUL in 1m 46s; 430 tasks |
 | `:carApp:lintDebug` before final grid/settings correction | BUILD SUCCESSFUL in 6m 34s; 0 errors, 2 warnings |
 | `:carApp:lintDebug` after final grid/settings correction | BUILD SUCCESSFUL in 2m 3s; 728 tasks; 0 errors, 2 warnings |
+| `:carApp:lintDebug` after Home/Search/Now Playing and Compose-test review | BUILD SUCCESSFUL in 5m 23s; 728 tasks; 0 errors, 2 warnings |
+| `:car:presentation:lintDebug` after final Compose Queue tests | BUILD SUCCESSFUL in 46s; 0 errors, 4 existing Compose parameter-order warnings |
 | `:androidApp:assembleDebug :desktopApp:compileKotlinDesktop` after runtime extraction | BUILD SUCCESSFUL in 3m 56s |
 
 The two lint warnings are the repository target SDK being below the newest installed
@@ -190,6 +196,14 @@ Final static checks report:
 - no TODO, FIXME, placeholder exception, demo data, or unfinished Car code marker;
 - cancellation is rethrown in asynchronous artwork/detail/search work, and real
   library load errors are exposed to Home and Library pages.
+
+The 34 Automotive tests include architecture dependency/ownership scans, Expanded
+profile selection, complete-list playback requests, Search filtering and duplicate
+selection, Home loading/empty/error/content refresh behavior, playback progress,
+repeat and queue identity, focus restore/fallback, and Robolectric Compose interaction
+for navigation focus, D-pad traversal, song-row clicks/playing/disabled states, and
+Mini Player open/Previous/Play/Pause/Next/disabled behavior, plus Now Playing Queue
+open/close/system-Back behavior.
 
 Generated APKs:
 

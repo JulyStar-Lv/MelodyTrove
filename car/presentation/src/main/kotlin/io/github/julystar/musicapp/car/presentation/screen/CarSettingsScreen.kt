@@ -15,6 +15,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import io.github.julystar.musicapp.car.presentation.component.CarPreference
 import io.github.julystar.musicapp.car.presentation.focus.CarFocusIds
+import io.github.julystar.musicapp.car.presentation.focus.CarFocusCoordinator
 import io.github.julystar.musicapp.car.presentation.focus.carFocusTarget
 import io.github.julystar.musicapp.car.presentation.layout.CarLayoutMetrics
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarSpacing
@@ -28,6 +29,7 @@ fun CarSettingsScreen(
     metrics: CarLayoutMetrics,
     settings: AppSettings,
     repository: SettingsRepository,
+    focusCoordinator: CarFocusCoordinator,
     modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
@@ -51,7 +53,7 @@ fun CarSettingsScreen(
                 title = "播放与外观",
                 summary = "主题、音频输出与播放恢复",
                 controlSize = metrics.iconSize,
-                onClick = {},
+                onClick = { focusCoordinator.requestFocus(CarFocusIds.item("setting", "theme")) },
                 modifier = Modifier
                     .carFocusTarget(
                         CarFocusIds.content("Settings"),
