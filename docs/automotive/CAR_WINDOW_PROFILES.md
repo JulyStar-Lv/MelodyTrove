@@ -1,6 +1,6 @@
 # Automotive window profile audit
 
-Audit date: 2026-09-07
+Audit date: 2026-09-07; Expanded runtime acceptance updated 2026-09-09
 
 Reference revision: `JulyStar-Lv/FileManager` `b6dd319ca954736bbd07d006547999c3b99fef10` (local `main`, verified against remote `main` and `HEAD` with `git ls-remote`).
 
@@ -12,6 +12,10 @@ The user explicitly selected a code-derived profile contract from the local
 `C:/WorkSpace/CodeSpace/FileManager` repository. This is sufficient to continue
 implementation. It does not turn repository constants into device measurements;
 live window, density and inset verification remains a later runtime acceptance item.
+
+That later Expanded verification is now complete on the AAOS AVD
+`TidePlayer_AAOS_Expanded` (`android-35-ext15;android-automotive;x86_64`). It does
+not establish VehiclePanel behavior on the target OEM system.
 
 The FileManager APK sources establish an OEM screen-state protocol and two internal View layout states. They do **not** establish that the Activity window changes from `2496 x 1080 px` to `1728 x 1080 px`. The app root remains `match_parent`; `MainActivity` changes a `MotionLayout` constraint set in response to `Settings.Global` keys.
 
@@ -70,20 +74,20 @@ The coordinate inference is:
 
 | Required concept | Result | Confidence |
 |---|---|---|
-| A. Physical Display | Inferred J90K design canvas width `2560`; physical display and height remain unmeasured. `1080` is the accepted product/Figma target. | Code inference only |
-| B. Expanded App Window | Unknown. No `WindowMetrics`, task bounds, or `dumpsys window` sample exists. | Not established |
-| C. Expanded Compose Content Bounds | Not applicable to FileManager, which uses Views. Its root is `match_parent`, but there is no measured root size. TidePlayer Compose bounds are unmeasured. | Not established |
+| A. Physical Display | AAOS AVD reports `2496 × 1080 px` at `160 dpi`; FileManager's inferred OEM canvas remains separate evidence. | Measured on acceptance AVD |
+| B. Expanded App Window | TidePlayer task/window bounds are `[0,0][2496,1080]`; Android app bounds are `[0,0][2496,984]`. | Measured on acceptance AVD |
+| C. Expanded Compose Content Bounds | TidePlayer `ComposeView` and `AndroidComposeView` measure `2496 × 908` and occupy `[0,76][2496,984]`. | Measured on acceptance AVD |
 | D. VehiclePanel App Window | Unknown. FileManager changes internal constraints and contains no call that resizes the Activity window. | Not established |
 | E. VehiclePanel Compose Content Bounds | Not applicable/unmeasured. The FileManager left-state background has an internal `1728` design-width derivation under a `2560dp` parent assumption. | Design evidence only |
-| F. System Bar / Dock / Safe Area | Manifest metadata and edge-to-edge code exist, but numeric insets and occlusion bounds are absent. | Behavior known; sizes unknown |
-| G. Density and px -> dp | Unknown. Resources mix `dp` and `px`; runtime `DisplayMetrics.density` and `densityDpi` were not captured. | Not established |
+| F. System Bar / Dock / Safe Area | Status bar `[0,0][2496,76]`; bottom navigation/car bar `[0,984][2496,1080]`; content `[0,76][2496,984]`. | Measured on acceptance AVD |
+| G. Density and px -> dp | Acceptance AVD is `160 dpi` (`density=1.0`), so numeric px/dp happen to match there. The resolver still consumes dp constraints and never assumes this relationship. | Measured on acceptance AVD |
 | H. 2496 -> 1728 trigger | Exact app-side trigger is known: `key_screen_show != 0` OR `key_vpa_cui_show_left == 1` selects the `left` constraint set. This semantic state is accepted as the injected TidePlayer profile hint; the SystemUI mechanism remains unknown. | Implementation signal accepted; system mechanism unknown |
 
 ## Physical Display
 
-Physical size: **unknown**.
+Acceptance AVD physical size: **2496 × 1080 px**.
 
-Physical density: **unknown**.
+Acceptance AVD physical density: **160 dpi / density 1.0**.
 
 The resource `wt_widget_dynamic_service_area_left_width = 2560px` supports the existence of a `2560`-wide OEM coordinate system. It does not say that the active display mode is `2560 x 1080`, that the Activity receives that size, or that one resource pixel equals one physical pixel.
 
@@ -93,9 +97,12 @@ The only meaningful `1080` in FileManager application code is a video sizing cap
 
 Expected visible size from the task brief: `2496 x 1080`.
 
-Application Window: **unknown**. No runtime bounds evidence exists.
+Application Window on the acceptance AVD: task/window **2496 × 1080**;
+`mAppBounds` **2496 × 984** because the bottom car system bar occupies 96 px.
 
-Compose Content Bounds: **unknown**. FileManager is View-based. Its `activity_main` root uses `match_parent x match_parent`, and no measured width/height is logged.
+Compose Content Bounds on the acceptance AVD: **2496 × 908** at window position
+`[0,76][2496,984]`. The 76 px top status bar and 96 px bottom car bar are outside
+that root, so no Compose content is occluded.
 
 Internal FileManager layout evidence:
 
@@ -103,13 +110,14 @@ Internal FileManager layout evidence:
 - `dimen_appBg_width_full` is declared as `2496dp`, but no source or XML reference consumes that dimension; it is design intent, not a runtime measurement.
 - The MotionScene `full` state uses a `32dp` start guideline, a `33dp` start margin, and a right guideline at the parent end. If the parent is `2560dp`, that particular constraint arithmetic is `2495dp`, not exactly `2496dp`. The discrepancy must be resolved by measurement rather than rounded away.
 
-Insets:
+Acceptance AVD insets:
 
 ```text
-Top    = unknown
-Bottom = unknown
-Left   = unknown
-Right  = unknown
+Top    = 76 px statusBars / mandatorySystemGestures
+Bottom = 96 px navigationBars / mandatorySystemGestures
+Left   = 0 px
+Right  = 0 px
+Cutout = none
 ```
 
 `J90KCommonUtils.decorViewShow()` explicitly shows system and navigation bars, makes them transparent, and applies legacy layout flags that allow content to lay out behind system bars. Therefore `Window bounds`, root measured bounds, visible/usable bounds, and inset-adjusted bounds can differ. Static margins cannot be relabeled as `WindowInsets`.
@@ -117,11 +125,17 @@ Right  = unknown
 Configuration:
 
 ```text
-screenWidthDp  = unknown
-screenHeightDp = unknown
-density        = unknown
-densityDpi     = unknown
+screenWidthDp  = 2496
+screenHeightDp = 984 (app configuration)
+density        = 1.0
+densityDpi     = 160
+Compose root   = 2496 x 908 dp on this density-1 AVD
 ```
+
+The acceptance screenshots retain the platform's top and bottom bars to make the
+safe-area relationship visible. Figma's 2496 × 1080 screen coordinates are applied
+as independent horizontal and vertical ratios to the measured 2496 × 908 Compose
+root. No fixed-size canvas or overall graphics scale is used.
 
 ## Profile: VehiclePanel
 
@@ -302,11 +316,11 @@ Current checklist:
 [x] App-side OEM-key trigger logic established
 [x] VehicleProbe checked for historical evidence
 [x] User accepted code inference as the Phase 0 implementation contract
-[ ] Physical display measured
-[ ] Density measured
-[ ] Expanded app window measured
-[ ] Expanded root/content bounds measured
-[ ] Expanded insets measured
+[x] Physical display measured on Expanded acceptance AVD
+[x] Density measured on Expanded acceptance AVD
+[x] Expanded app window measured
+[x] Expanded root/content bounds measured
+[x] Expanded insets measured
 [ ] VehiclePanel app window measured
 [ ] VehiclePanel root/content bounds measured
 [ ] VehiclePanel insets/occlusion measured

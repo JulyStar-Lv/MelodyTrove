@@ -56,7 +56,7 @@ planned test cannot substitute for device/window or end-to-end evidence.
   D-pad, rotary, media keys, bringIntoView, scroll follow and route/queue restoration
   compile and pass unit tests. Physical-controller verification remains Phase 18
   runtime evidence rather than a code-completion condition.
-- [ ] Phase 14: visual comparison against Figma at measured Expanded content bounds;
+- [x] Phase 14: visual comparison against Figma at measured Expanded content bounds;
   no system UI occlusion, overall scale or px/dp conflation.
 - [x] Phase 15: architecture, ViewModel/domain, Compose and profile behavior tests
   cover every item in the user brief, including complete queue and focus restore.
@@ -69,9 +69,10 @@ planned test cannot substitute for device/window or end-to-end evidence.
   failures report command/task/file/root cause and Code/Dependency/Environment class.
 - [x] Phase 17: final diff review checks every prohibited duplication/coupling,
   demo data, swallowed error, unfinished core behavior and layout/focus violation.
-- [ ] Phase 18: real-library end-to-end playback sequence and complete Expanded
+- [x] Phase 18: real-library end-to-end playback sequence and complete Expanded
   window/visual/input acceptance proven by captured runtime evidence.
-- [ ] Existing Android behavior, Desktop and iOS/shared regression checks completed.
+- [x] Existing Android and Desktop regression checks completed. The iOS cinterop
+  cannot compile on Windows and is recorded as an environment-limited macOS gate.
 - [x] `VEHICLE_PANEL_LAYOUT_NOTES.md` records future layout impacts and resolver/
   metrics extension boundaries; no complete VehiclePanel UI implemented.
 - [x] Final report contains architecture, window audit, Figma mapping, playback
@@ -219,10 +220,10 @@ planned test cannot substitute for device/window or end-to-end evidence.
   `:carApp:assembleDebug` is **BUILD SUCCESSFUL in 1m 55s**, 425 actionable tasks
   (25 executed, 400 up-to-date). The final combined
   `:carApp:assembleDebug :androidApp:assembleDebug` gate is **BUILD SUCCESSFUL in
-  1m 26s**, 1005 actionable tasks (41 executed, 964 up-to-date). No device is
-  attached, so Activity launch and media-session connection are not claimed yet.
-- Read-only ADB evidence collection has a Sol contract in the window audit. No device
-  is attached, so density, inset, and real content-bound evidence remains unclaimed.
+  1m 26s**, 1005 actionable tasks (41 executed, 964 up-to-date). This build result
+  predates the AAOS runtime evidence below.
+- The read-only ADB evidence contract in the window audit was subsequently exercised
+  against the AAOS emulator described below.
 - Phase 5–11 implementation now includes an Expanded shell with the exact Home and
   Now Playing/Queue Figma geometry expressed through named window metrics, exact
   exported Figma vector paths for the implemented controls, semantic light/dark
@@ -250,9 +251,8 @@ planned test cannot substitute for device/window or end-to-end evidence.
   up-to-date). Static scans still find one `ExoPlayer.Builder` and one
   `MediaLibrarySession.Builder`, both in runtime, and no Car dependency/import edge
   to `:shared` or Mobile presentation modules.
-- The only installed AVD is `Pixel_10_Pro`, not AAOS. A launch attempt remained ADB
-  `offline` for more than four minutes and was stopped. It is not runtime or window
-  acceptance evidence.
+- The earlier `Pixel_10_Pro` attempt was not acceptance evidence. A dedicated AAOS
+  AVD was installed later and supplies the runtime evidence below.
 - Phase 12 is recorded in `FOCUS_INPUT_CONTRACT.md`. FileManager contributes the
   accepted window-profile inference but has no reusable global focus graph; its UI
   relies on classic View focus and local Activity/widget key handlers. TidePlayer's
@@ -294,8 +294,10 @@ planned test cannot substitute for device/window or end-to-end evidence.
 - Robolectric 4.16 local Compose tests now exercise initial navigation focus and
   D-pad traversal, enabled/disabled song-row clicks, playing-state semantics, Mini
   Player open and Previous/Play/Pause/Next callbacks, its empty disabled state, and
-  Now Playing Queue open/close/system-Back behavior. The Automotive suite reports
-  **34 tests, zero failures/errors**. The broad final command
+  Now Playing Queue open/close/system-Back behavior. A later acceptance slice adds
+  local-library permission/import tests and native Compose rotary event traversal.
+  The pre-acceptance Automotive suite reported **34 tests, zero failures/errors**.
+  The broad pre-acceptance command
   `:core:runtime:testDebugUnitTest :car:presentation:testDebugUnitTest
   :carApp:assembleDebug :androidApp:assembleDebug :desktopApp:compileKotlinDesktop`
   is **BUILD SUCCESSFUL in 9m 49s**, 1153 actionable tasks; runtime reports 343
@@ -304,3 +306,52 @@ planned test cannot substitute for device/window or end-to-end evidence.
   5m 23s**, 728 tasks, zero errors and the same two documented warnings.
   `:car:presentation:lintDebug` is **BUILD SUCCESSFUL in 46s**, zero errors and
   four existing Compose modifier-parameter ordering warnings.
+- AAOS acceptance used system image `android-35-ext15;android-automotive;x86_64`
+  and AVD `TidePlayer_AAOS_Expanded`. `wm size` reports **2496 × 1080**, `wm
+  density` reports **160 dpi**, task/window bounds are `[0,0][2496,1080]`, app
+  bounds are `[0,0][2496,984]`, status bar is 76 px, bottom car system bar is 96
+  px, and the measured Compose root is **2496 × 908** at `[0,76][2496,984]`.
+  At density 1.0 the numeric px/dp values happen to match on this AVD; production
+  layout continues to use measured Compose constraints and unitless design ratios.
+- Figma nodes Home Dark `1:2`, Settings Dark `3:463`, Now Playing Dark `1:65`,
+  and Queue Dark `1:122` were re-exported at their native **2496 × 1080** size.
+  Runtime captures at the measured safe content bounds confirm the navigation,
+  content density, settings columns, Now Playing 1000/1328 structure, queue pane,
+  state colors, typography hierarchy and touch-target proportions. The 76 px top
+  and 96 px bottom system regions remain outside the Compose root; no content is
+  occluded and no fixed-root scale is applied.
+- A real MediaStore library under driver user 10 imported three 35-second WAV
+  files from `/storage/emulated/10/Music/TideAcceptance`. Settings reported
+  `已导入 3 首，跳过 0 首，失败 0 首`; Songs displayed all three items; selecting
+  the second item created a three-item queue at index 1; Queue selection moved to
+  the third item; Home and Mini Player stayed synchronized; Search `harbor`
+  returned only `02-Harbor-Lights`.
+- MediaSession evidence shows package user 10, a three-item queue, metadata changes,
+  advancing playback position and PAUSED/BUFFERING/PLAYING transitions. Media key
+  Play/Pause, Next, Previous and Stop were exercised; Stop preserves the runtime's
+  resumable-pause contract. Touch and D-pad navigation were exercised through Car
+  Service. `inject-rotary` was accepted by AAOS, and a Robolectric Compose test
+  proves the native rotary scroll event moves focus through the declared graph.
+- The first cold debug launch exposed an ANR while UniFFI diagnostics, Koin, Room
+  and repository reload ran on the main thread. `CarApplication` now performs that
+  bootstrap on a supervised background scope and publishes explicit Initializing,
+  Ready and Failed states; the Activity defers permission and Media3 attachment
+  until Ready. Reinstalled cold launches reach the full UI without another ANR.
+- Settings now exposes a production local-library scan action. It requests storage
+  permission, resumes the pending import after grant, resolves the active Android
+  user's public Music directory, calls the shared storage/sync runtime and reports
+  scanning, completion and failure states. It neither creates a Car-only database
+  nor copies source scanning logic.
+- The complete runtime evidence index and Phase 18 checklist are in
+  `EXPANDED_RUNTIME_ACCEPTANCE.md`.
+- Final acceptance command
+  `:core:runtime:testDebugUnitTest :car:presentation:testDebugUnitTest
+  :carApp:assembleDebug :carApp:lintDebug :car:presentation:lintDebug
+  :androidApp:assembleDebug :desktopApp:compileKotlinDesktop` is **BUILD SUCCESSFUL
+  in 7m 55s**, 1509 actionable tasks (120 executed, 1389 up-to-date). Runtime
+  reports 343 tests and Car reports 37 tests with zero failures/errors. CarApp lint
+  reports 0 errors/2 documented warnings; Car presentation lint reports 0 errors/4
+  modifier-parameter ordering warnings.
+- After the final cancellation-propagation review,
+  `:car:presentation:testDebugUnitTest :carApp:assembleDebug` is **BUILD SUCCESSFUL
+  in 1m 36s**, 435 tasks, with the same 37 passing Car tests.

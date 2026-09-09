@@ -30,6 +30,7 @@ kotlin {
 
 dependencies {
     implementation(project(":core:domain"))
+    implementation(project(":service:librarysync:domain"))
     implementation(project(":service:playback:domain"))
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)

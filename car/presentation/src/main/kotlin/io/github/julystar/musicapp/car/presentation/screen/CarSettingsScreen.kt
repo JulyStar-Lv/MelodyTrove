@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import io.github.julystar.musicapp.car.presentation.component.CarPreference
@@ -23,6 +25,7 @@ import io.github.julystar.musicapp.core.domain.model.AppSettings
 import io.github.julystar.musicapp.core.domain.model.AppThemeMode
 import io.github.julystar.musicapp.core.domain.repository.SettingsRepository
 import kotlinx.coroutines.launch
+import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun CarSettingsScreen(
@@ -33,6 +36,8 @@ fun CarSettingsScreen(
     modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
+    val localLibraryViewModel = koinViewModel<CarLocalLibraryViewModel>()
+    val localLibraryState by localLibraryViewModel.state.collectAsState()
     Row(
         horizontalArrangement = Arrangement.spacedBy(metrics.detailPaneGap),
         modifier = modifier
@@ -53,12 +58,12 @@ fun CarSettingsScreen(
                 title = "播放与外观",
                 summary = "主题、音频输出与播放恢复",
                 controlSize = metrics.iconSize,
-                onClick = { focusCoordinator.requestFocus(CarFocusIds.item("setting", "theme")) },
+                onClick = { focusCoordinator.requestFocus(CarFocusIds.item("setting", "local_music")) },
                 modifier = Modifier
                     .carFocusTarget(
                         CarFocusIds.content("Settings"),
                         left = CarFocusIds.Settings,
-                        right = CarFocusIds.item("setting", "theme"),
+                        right = CarFocusIds.item("setting", "local_music"),
                     )
                     .height(metrics.compactCardHeight),
             )
@@ -69,6 +74,22 @@ fun CarSettingsScreen(
             modifier = Modifier.weight(1f).fillMaxHeight(),
         ) {
             item { CarSectionTitle("播放与外观") }
+            item {
+                CarPreference(
+                    title = "扫描本地音乐",
+                    summary = localLibraryState.summary,
+                    enabled = localLibraryState != CarLocalLibraryState.Scanning,
+                    controlSize = metrics.iconSize,
+                    onClick = localLibraryViewModel::importLocalMusic,
+                    modifier = Modifier
+                        .carFocusTarget(
+                            CarFocusIds.item("setting", "local_music"),
+                            down = CarFocusIds.item("setting", "theme"),
+                            left = CarFocusIds.content("Settings"),
+                        )
+                        .height(metrics.compactCardHeight),
+                )
+            }
             item {
                 CarPreference(
                     title = "深色模式",
@@ -89,6 +110,8 @@ fun CarSettingsScreen(
                     modifier = Modifier
                         .carFocusTarget(
                             CarFocusIds.item("setting", "theme"),
+                            up = CarFocusIds.item("setting", "local_music"),
+                            down = CarFocusIds.item("setting", "pause_on_disconnect"),
                             left = CarFocusIds.content("Settings"),
                         )
                         .height(metrics.compactCardHeight),
@@ -104,6 +127,8 @@ fun CarSettingsScreen(
                     modifier = Modifier
                         .carFocusTarget(
                             CarFocusIds.item("setting", "pause_on_disconnect"),
+                            up = CarFocusIds.item("setting", "theme"),
+                            down = CarFocusIds.item("setting", "gapless"),
                             left = CarFocusIds.content("Settings"),
                         )
                         .height(metrics.compactCardHeight),
@@ -119,6 +144,8 @@ fun CarSettingsScreen(
                     modifier = Modifier
                         .carFocusTarget(
                             CarFocusIds.item("setting", "gapless"),
+                            up = CarFocusIds.item("setting", "pause_on_disconnect"),
+                            down = CarFocusIds.item("setting", "retry"),
                             left = CarFocusIds.content("Settings"),
                         )
                         .height(metrics.compactCardHeight),
@@ -134,6 +161,7 @@ fun CarSettingsScreen(
                     modifier = Modifier
                         .carFocusTarget(
                             CarFocusIds.item("setting", "retry"),
+                            up = CarFocusIds.item("setting", "gapless"),
                             left = CarFocusIds.content("Settings"),
                         )
                         .height(metrics.compactCardHeight),
@@ -142,3 +170,13 @@ fun CarSettingsScreen(
         }
     }
 }
+
+private val CarLocalLibraryState.summary: String
+    get() = when (this) {
+        CarLocalLibraryState.Idle -> "读取并导入设备 Music 文件夹"
+        CarLocalLibraryState.AwaitingPermission -> "请允许 Tide Player 访问音频文件"
+        CarLocalLibraryState.Scanning -> "正在扫描 Music 文件夹…"
+        is CarLocalLibraryState.Complete ->
+            "已导入 ${result.importedCount} 首，跳过 ${result.skippedCount} 首，失败 ${result.failedCount} 首"
+        is CarLocalLibraryState.Failed -> "扫描失败：$message"
+    }

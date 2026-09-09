@@ -4,11 +4,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performRotaryScrollInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.unit.dp
 import io.github.julystar.musicapp.car.presentation.component.CarNavigationItem
@@ -67,5 +69,60 @@ class CarNavigationFocusComposeTest {
             pressKey(Key.DirectionDown)
         }
         compose.onNodeWithTag("playlists").assertIsFocused()
+    }
+
+    @Test
+    fun rotaryScrollMovesFocusAlongDeclaredGraph() {
+        val coordinator = CarFocusCoordinator()
+        compose.setContent {
+            CarTheme {
+                val focusManager = LocalFocusManager.current
+                CarFocusHost(coordinator, "rotary-test", CarFocusIds.Home) {
+                    Column(
+                        Modifier
+                            .testTag("input-root")
+                            .carInputRouter(
+                                focusManager = focusManager,
+                                onPlayPause = {},
+                                onNext = {},
+                                onPrevious = {},
+                                onStop = {},
+                            ),
+                    ) {
+                        CarNavigationItem(
+                            label = "首页",
+                            icon = CarIcon.Home,
+                            selected = true,
+                            enabled = true,
+                            iconSize = 40.dp,
+                            onClick = {},
+                            modifier = Modifier
+                                .testTag("rotary-home")
+                                .carFocusTarget(CarFocusIds.Home, down = CarFocusIds.Playlists)
+                                .height(72.dp),
+                        )
+                        CarNavigationItem(
+                            label = "播放列表",
+                            icon = CarIcon.Playlists,
+                            selected = false,
+                            enabled = true,
+                            iconSize = 40.dp,
+                            onClick = {},
+                            modifier = Modifier
+                                .testTag("rotary-playlists")
+                                .carFocusTarget(CarFocusIds.Playlists, up = CarFocusIds.Home)
+                                .height(72.dp),
+                        )
+                    }
+                }
+            }
+        }
+
+        compose.waitForIdle()
+        compose.onNodeWithTag("rotary-home").assertIsFocused()
+        compose.onNodeWithTag("rotary-home").performRotaryScrollInput {
+            rotateToScrollVertically(1f)
+        }
+        compose.onNodeWithTag("rotary-playlists").assertIsFocused()
     }
 }

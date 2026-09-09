@@ -107,9 +107,22 @@ page-level loading/empty/error frames did not exist in the Figma file; their vis
 contract is recorded separately in
 [`SEARCH_AND_PAGE_STATE_CONTRACT.md`](SEARCH_AND_PAGE_STATE_CONTRACT.md).
 
-Pixel-level visual acceptance remains unproven because no AAOS device or emulator
-was available for a measured 2496 × 1080 capture. The only installed AVD was
-`Pixel_10_Pro`; it remained ADB `offline` and is not valid Automotive evidence.
+Phase 14 visual acceptance was completed on the dedicated AAOS AVD
+`TidePlayer_AAOS_Expanded`. Its physical display and fullscreen task are
+2496 × 1080 at 160 dpi. AAOS reserves 76 px for the top status bar and 96 px for
+the bottom car system bar; the measured Compose root is 2496 × 908 at
+`[0,76][2496,984]`. The app receives those real constraints, so the Figma design
+relationships are recalculated inside the safe content rectangle instead of scaling
+or clipping a fixed 2496 × 1080 canvas.
+
+Home Dark `1:2`, Settings Dark `3:463`, Now Playing Dark `1:65`, and Queue Dark
+`1:122` were re-exported from Figma at their native size and compared with runtime
+captures. Navigation and content proportions, information density, four-column
+library grids, Settings columns, Mini Player, Now Playing panes, lyrics/empty state,
+Queue readability, focus border and touch targets remain legible and unobscured.
+Runtime data intentionally differs from the design fixture: unsupported
+recommendations stay disabled, and the acceptance WAV files show the no-artwork and
+no-lyrics states rather than fabricated album art or lyrics.
 
 ## Playback and queue graph
 
@@ -143,9 +156,12 @@ focuses the current row; closing Queue restores the Queue button. When a remembe
 target no longer exists, the route falls back to its defined initial target.
 
 The graph and input families are documented in
-[`FOCUS_INPUT_CONTRACT.md`](FOCUS_INPUT_CONTRACT.md). Unit tests cover coordinator
-restoration/fallback and the input graph's pure behavior. Physical D-pad, rotary,
-and steering-wheel verification still requires AAOS hardware or an AAOS emulator.
+[`FOCUS_INPUT_CONTRACT.md`](FOCUS_INPUT_CONTRACT.md). Runtime acceptance exercised
+touch, D-pad and Media Play/Pause/Next/Previous/Stop through AAOS Car Service.
+AAOS accepted injected rotary hardware events; a Compose test additionally dispatches
+a native rotary scroll event to the focused child and proves that the ancestor input
+router moves focus through the declared graph. Steering-wheel media behavior uses the
+same verified key path and MediaSession.
 
 ## Files changed by area
 
@@ -181,6 +197,9 @@ All commands used `JAVA_HOME=C:/Software/Android Studio/jbr` on Windows.
 | `:carApp:lintDebug` after Home/Search/Now Playing and Compose-test review | BUILD SUCCESSFUL in 5m 23s; 728 tasks; 0 errors, 2 warnings |
 | `:car:presentation:lintDebug` after final Compose Queue tests | BUILD SUCCESSFUL in 46s; 0 errors, 4 existing Compose parameter-order warnings |
 | `:androidApp:assembleDebug :desktopApp:compileKotlinDesktop` after runtime extraction | BUILD SUCCESSFUL in 3m 56s |
+| `:car:presentation:testDebugUnitTest --tests '*CarNavigationFocusComposeTest*'` after rotary acceptance test | BUILD SUCCESSFUL in 47s |
+| `:core:runtime:testDebugUnitTest :car:presentation:testDebugUnitTest :carApp:assembleDebug :carApp:lintDebug :car:presentation:lintDebug :androidApp:assembleDebug :desktopApp:compileKotlinDesktop` final acceptance gate | BUILD SUCCESSFUL in 7m 55s; 1509 tasks; runtime 343 tests and Car 37 tests, zero failures/errors; both lint tasks, APKs and Desktop compile passed |
+| `:car:presentation:testDebugUnitTest :carApp:assembleDebug` after final cancellation propagation review | BUILD SUCCESSFUL in 1m 36s; 435 tasks; 37 Car tests |
 
 The two lint warnings are the repository target SDK being below the newest installed
 SDK and the intentionally discoverable exported Media3 browser service lacking a
@@ -197,13 +216,14 @@ Final static checks report:
 - cancellation is rethrown in asynchronous artwork/detail/search work, and real
   library load errors are exposed to Home and Library pages.
 
-The 34 Automotive tests include architecture dependency/ownership scans, Expanded
+The 37 Automotive tests include architecture dependency/ownership scans, Expanded
 profile selection, complete-list playback requests, Search filtering and duplicate
 selection, Home loading/empty/error/content refresh behavior, playback progress,
 repeat and queue identity, focus restore/fallback, and Robolectric Compose interaction
 for navigation focus, D-pad traversal, song-row clicks/playing/disabled states, and
 Mini Player open/Previous/Play/Pause/Next/disabled behavior, plus Now Playing Queue
-open/close/system-Back behavior.
+open/close/system-Back behavior. The acceptance slice adds permission-resume/import
+failure coverage and native rotary focus traversal.
 
 Generated APKs:
 
@@ -215,13 +235,24 @@ The merged debug manifest uses package
 one launcher Activity, and exposes one runtime `PlaybackService` with media browse
 and `MEDIA_PLAY_FROM_SEARCH` actions.
 
-## Acceptance boundary
+## Expanded runtime acceptance
 
-Code, architecture, unit-test, APK, manifest, and lint gates are complete on the
-available Windows host. The following claims require an AAOS device or emulator and
-are deliberately left open: measured physical/window/content bounds and insets;
-2496 × 1080 Figma screenshot comparison; real-library end-to-end playback; D-pad,
-rotary, steering-wheel, background MediaSession, and process-recreation behavior.
+The AVD ran the complete Phase 18 path with a real three-track MediaStore library:
+launch, Expanded Home, local-library import, Songs, selecting item 2, complete
+three-item queue, synchronized Mini Player, Now Playing metadata and progress,
+Pause/Play/Next/Previous/Stop, Queue, selecting item 3, returning Home, Search, theme,
+focus and touch. `dumpsys media_session` confirmed queue ordering, active item,
+metadata and advancing playback state; the AAOS launcher media card independently
+displayed Tide Player and the current track.
+
+The initial cold debug launch revealed a startup ANR caused by UniFFI diagnostics,
+Koin, Room and repository reload on the main thread. Startup now runs on a supervised
+background scope with explicit Initializing/Ready/Failed UI states, and permission
+plus Media3 controller setup waits for Ready. Reinstalled cold launches reach the
+full UI without a new ANR.
+
+The measurements, Figma nodes, real-library sequence, input matrix and checklist are
+recorded in [`EXPANDED_RUNTIME_ACCEPTANCE.md`](EXPANDED_RUNTIME_ACCEPTANCE.md).
 
 iOS cannot be compiled on this Windows host because the existing
 `audioProcessingTap` cinterop requires Apple's toolchain. Android and Desktop
