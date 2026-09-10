@@ -75,7 +75,7 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(platform(libs.androidx.compose.bom))
-    implementation("androidx.compose.animation:animation-core")
+    implementation(libs.androidx.compose.animation.core)
     implementation(libs.androidx.ui)
     implementation(libs.androidx.compose.foundation)
     implementation(libs.koin.android)
