@@ -19,9 +19,12 @@ internal class OemScreenStateMonitor(
     val profileHint: StateFlow<CarLayoutProfileHint> = mutableProfileHint.asStateFlow()
 
     private var started = false
-    private val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val refreshRunnable = Runnable(::refresh)
+    private val observer = object : ContentObserver(mainHandler) {
         override fun onChange(selfChange: Boolean) {
-            refresh()
+            mainHandler.removeCallbacks(refreshRunnable)
+            mainHandler.postDelayed(refreshRunnable, STATE_CHANGE_COALESCE_MILLIS)
         }
     }
 
@@ -47,6 +50,7 @@ internal class OemScreenStateMonitor(
     }
 
     fun stop() {
+        mainHandler.removeCallbacks(refreshRunnable)
         if (!started) return
         contentResolver.unregisterContentObserver(observer)
         started = false
@@ -70,5 +74,6 @@ internal class OemScreenStateMonitor(
         const val TAG = "TideCarWindow"
         const val KEY_SCREEN_SHOW = "key_screen_show"
         const val KEY_VPA_CUI_SHOW_LEFT = "key_vpa_cui_show_left"
+        const val STATE_CHANGE_COALESCE_MILLIS = 16L
     }
 }

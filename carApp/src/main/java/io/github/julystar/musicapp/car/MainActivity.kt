@@ -9,6 +9,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.Transition
+import androidx.compose.animation.core.animateInt
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -46,6 +52,7 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import io.github.julystar.musicapp.car.presentation.CarRoot
+import io.github.julystar.musicapp.car.presentation.layout.CarAppWindowBounds
 import io.github.julystar.musicapp.car.presentation.layout.CarAppWindowBoundsResolver
 import io.github.julystar.musicapp.car.presentation.layout.CarLayoutProfileHint
 import io.github.julystar.musicapp.car.presentation.layout.CarLayoutProfileResolver
@@ -233,8 +240,34 @@ private fun TideCarAppWindow(
         val bounds = remember(hostSizePx, profileHint) {
             CarAppWindowBoundsResolver.resolve(hostSizePx, profileHint)
         }
-        val panelWidth = with(density) { bounds.width.toDp() }
-        val panelHeight = with(density) { bounds.height.toDp() }
+        val boundsTransition = updateTransition(
+            targetState = bounds,
+            label = "car-app-window-bounds",
+        )
+        fun Transition.Segment<CarAppWindowBounds>.windowAnimationSpec() =
+            if (initialState.embeddedInCockpit && targetState.embeddedInCockpit) {
+                tween<Int>(WINDOW_TRANSITION_DURATION_MILLIS, easing = LinearEasing)
+            } else {
+                snap<Int>()
+            }
+        val animatedLeft by boundsTransition.animateInt(
+            transitionSpec = { windowAnimationSpec() },
+            label = "car-app-window-left",
+        ) { it.left }
+        val animatedTop by boundsTransition.animateInt(
+            transitionSpec = { windowAnimationSpec() },
+            label = "car-app-window-top",
+        ) { it.top }
+        val animatedRight by boundsTransition.animateInt(
+            transitionSpec = { windowAnimationSpec() },
+            label = "car-app-window-right",
+        ) { it.left + it.width }
+        val animatedBottom by boundsTransition.animateInt(
+            transitionSpec = { windowAnimationSpec() },
+            label = "car-app-window-bottom",
+        ) { it.top + it.height }
+        val panelWidth = with(density) { (animatedRight - animatedLeft).toDp() }
+        val panelHeight = with(density) { (animatedBottom - animatedTop).toDp() }
 
         LaunchedEffect(bounds) {
             Log.i(
@@ -245,7 +278,7 @@ private fun TideCarAppWindow(
         }
         BoxWithConstraints(
             Modifier
-                .offset { IntOffset(bounds.left, bounds.top) }
+                .offset { IntOffset(animatedLeft, animatedTop) }
                 .requiredSize(panelWidth, panelHeight)
                 .clip(RoundedCornerShape(8.dp)),
         ) {
@@ -272,3 +305,5 @@ private fun CarStartupMessage(message: String) {
         )
     }
 }
+
+private const val WINDOW_TRANSITION_DURATION_MILLIS = 300

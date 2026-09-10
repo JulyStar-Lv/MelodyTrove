@@ -84,6 +84,11 @@ sessions, or databases.
 The OEM adapter is isolated in `:carApp`. `:car:presentation` owns a pure,
 unit-tested bounds resolver and never reads Android global settings.
 
+Expanded ↔ VehiclePanel now follows the reference Demo's 300ms linear transition.
+Cold start and host-configuration changes jump directly to their settled bounds;
+only live OEM state changes animate. The two OEM setting notifications are
+coalesced within one frame so a single panel change cannot restart the animation.
+
 ## F. Figma to Compose
 
 - 2496/1728 Home → `CarHomeScreen`

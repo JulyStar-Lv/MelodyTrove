@@ -27,6 +27,20 @@ On a measured 1440-high 2560 driver canvas or 5120 cockpit canvas,
 page layout by width; they place the app panel. App-sized and other windows bypass
 this contract and continue through automatic constraint-based resolution.
 
+## Expanded ↔ VehiclePanel motion
+
+The reference Demo uses a MotionLayout transition with a 300ms linear
+interpolator. It jumps directly to the initial state on resume and animates only
+subsequent state changes. Tide Player mirrors that policy with one synchronized
+Compose transition over the panel's left, top, right, and bottom pixel edges.
+The fixed right edge prevents a one-pixel seam while width changes.
+
+The OEM monitor coalesces changes to the two global keys within one 16ms frame
+and `StateFlow` suppresses identical states. This prevents duplicate system
+notifications from restarting the transition. Changes between cockpit and
+ordinary window hosts snap directly because those are configuration changes, not
+the user-visible vehicle-panel motion.
+
 ## Metric variants
 
 Expanded and VehiclePanel share navigation, Home, Library, Mini Player, Settings, Search, details, Now Playing, Queue, state holders, and actions. Profile metrics select rail/content widths, pane gaps, artwork, row heights, padding, touch targets, and 4-versus-3-column media grids.
