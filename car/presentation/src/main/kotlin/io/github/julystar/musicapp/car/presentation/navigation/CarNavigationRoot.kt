@@ -28,7 +28,9 @@ import io.github.julystar.musicapp.car.presentation.focus.carFocusTarget
 import io.github.julystar.musicapp.car.presentation.focus.carInputRouter
 import io.github.julystar.musicapp.car.presentation.focus.rememberCarFocusCoordinator
 import io.github.julystar.musicapp.car.presentation.layout.CarLayoutMetrics
+import io.github.julystar.musicapp.car.presentation.layout.CarLayoutProfile
 import io.github.julystar.musicapp.car.presentation.nowplaying.CarNowPlayingScreen
+import io.github.julystar.musicapp.car.presentation.nowplaying.CarFullscreenNowPlayingScreen
 import io.github.julystar.musicapp.car.presentation.screen.CarAlbumsScreen
 import io.github.julystar.musicapp.car.presentation.screen.CarAlbumDetailScreen
 import io.github.julystar.musicapp.car.presentation.screen.CarArtistDetailScreen
@@ -62,7 +64,11 @@ fun CarNavigationRoot(
 ) {
     val safeMetrics = metrics?.takeIf { it.metricsAvailable }
     if (safeMetrics == null) {
-        CarPageState("当前窗口布局尚未完成适配", modifier)
+        CarPageState("无法读取当前窗口布局", modifier)
+        return
+    }
+    if (safeMetrics.profile == CarLayoutProfile.FullscreenCockpit) {
+        CarFullscreenNowPlayingScreen(safeMetrics, modifier)
         return
     }
     val library = koinInject<LibraryRepository>()
@@ -98,7 +104,7 @@ fun CarNavigationRoot(
         route == CarRoute.NowPlaying -> CarFocusIds.NowPlayingCollapse
         else -> route.navigationFocusId
     }
-    CarFocusHost(focusCoordinator, focusRoute, initialFocus) {
+    CarFocusHost(focusCoordinator, focusRoute, initialFocus, safeMetrics.profile) {
         if (route == CarRoute.NowPlaying) {
             CarNowPlayingScreen(
                 metrics = safeMetrics,

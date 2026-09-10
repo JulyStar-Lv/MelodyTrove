@@ -100,4 +100,5 @@ The original trace is retained locally as
 - [x] Focus is visible and touch targets meet the configured minimum.
 - [x] Real-library selection creates the complete queue and all playback surfaces stay synchronized.
 
-The complete VehiclePanel 1728 × 1080 UI remains the second-stage product scope.
+VehiclePanel and FullscreenCockpit are covered by the multi-resolution extension;
+see `RESOLUTION_ACCEPTANCE_MATRIX.md` for their implementation and runtime evidence.

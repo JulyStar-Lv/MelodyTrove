@@ -54,6 +54,10 @@ object CarFocusIds {
     val NowPlayingToggle = CarFocusId("now_playing.toggle")
     val NowPlayingNext = CarFocusId("now_playing.next")
     val NowPlayingQueue = CarFocusId("now_playing.queue")
+    val FullscreenPrevious = CarFocusId("fullscreen.previous")
+    val FullscreenToggle = CarFocusId("fullscreen.toggle")
+    val FullscreenNext = CarFocusId("fullscreen.next")
+    val FullscreenMode = CarFocusId("fullscreen.mode")
 
     fun content(route: String) = CarFocusId("content.$route")
     fun item(kind: String, stableId: Any) = CarFocusId("$kind.$stableId")
@@ -109,13 +113,14 @@ fun CarFocusHost(
     coordinator: CarFocusCoordinator,
     route: String,
     initialFocus: CarFocusId,
+    profileKey: Any? = null,
     content: @Composable () -> Unit,
 ) {
     CompositionLocalProvider(
         LocalCarFocusCoordinator provides coordinator,
         LocalCarFocusRoute provides route,
     ) {
-        LaunchedEffect(route, initialFocus) {
+        LaunchedEffect(route, initialFocus, profileKey) {
             repeat(3) {
                 withFrameNanos { }
                 val restored = coordinator.restore(route, initialFocus)

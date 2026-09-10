@@ -321,9 +321,9 @@ Current checklist:
 [x] Expanded app window measured
 [x] Expanded root/content bounds measured
 [x] Expanded insets measured
-[ ] VehiclePanel app window measured
-[ ] VehiclePanel root/content bounds measured
-[ ] VehiclePanel insets/occlusion measured
+[x] VehiclePanel app window measured on a dedicated 1728×1080 AAOS AVD
+[x] VehiclePanel root/content bounds measured on that AVD
+[x] VehiclePanel insets/occlusion measured on that AVD
 [ ] System transition mechanism established
 ```
 
@@ -335,3 +335,19 @@ Current checklist:
 - `key_screen_show` can independently select the left layout. The key name alone does not reveal which system surface is visible.
 - Edge-to-edge layout means a `1080` window height can coexist with a smaller usable viewport. Insets must be measured and policy must be explicit.
 - Decompiled source is strong evidence of app behavior but cannot reveal WindowManager/SystemUI behavior outside the APK.
+
+## Implemented profile extension (2026-09-10)
+
+| Profile | Related Figma resolution | Runtime evidence | Detection rule | Structural differences |
+|---|---|---|---|---|
+| Expanded | 2496×1080 | AAOS AVD physical/task 2496×1080 at 160 dpi; system bars 76 top/96 bottom; Compose root 2496×908 | Measured content aspect between 2.15 and 3.25, or explicit Expanded hint | 352 rail, 4-column grids, 560/1424 panes, 1000/1328 Now Playing |
+| VehiclePanel | 1728×1080 | Dedicated AAOS AVD measured physical/task/current/maximum/root 1728×1080 at 160 dpi with zero reported insets; FileManager keys and its 832 left-origin inference independently support the shape | Measured content aspect at or below 2.15, or explicit VehiclePanel hint | 240 rail, 3-column grids, 480/920 panes, 660/848–960 Now Playing |
+| FullscreenCockpit | 5120×1304 content in 5120×1440 display | FileManager `WTDialogSupport.TYPE.DEFAULT` declares 5120×1304; Figma reserves the lower 136 for HVAC | Measured content aspect at or above 3.25, or explicit FullscreenCockpit hint | No shell; minimal Now Playing and Cover Flow |
+
+VehiclePanel and FullscreenCockpit are implemented presentation profiles. Figma
+coordinates remain visual references; runtime `DpSize` comes from live Compose
+constraints after Android applies the active window and system UI. The ratio bands
+sit between the observed shapes and tolerate density, insets, and small OEM
+variations without exact pixel equality. The dedicated VehiclePanel AVD establishes
+the profile's Android window semantics. The production OEM's live Expanded ↔
+VehiclePanel transition mechanism remains a hardware-only supplemental check.

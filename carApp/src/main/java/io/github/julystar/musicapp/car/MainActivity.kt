@@ -1,7 +1,9 @@
 package io.github.julystar.musicapp.car
 
 import android.content.ComponentName
+import android.content.pm.ApplicationInfo
 import android.os.Bundle
+import android.os.Build
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -15,15 +17,22 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
@@ -47,6 +56,7 @@ class MainActivity : ComponentActivity() {
     private var controllerAttached = false
     private var permissionAttached = false
     private var startupObserver: Job? = null
+    private var lastWindowEvidence: String? = null
     private lateinit var permissionLauncher: ActivityResultLauncher<String>
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -58,9 +68,21 @@ class MainActivity : ComponentActivity() {
             val startupState by (application as CarApplication).startupState.collectAsState()
             when (val state = startupState) {
                 CarStartupState.Initializing -> CarStartupMessage("正在准备音乐库…")
-                CarStartupState.Ready -> BoxWithConstraints(Modifier.fillMaxSize()) {
+                CarStartupState.Ready -> BoxWithConstraints(
+                    Modifier
+                        .fillMaxSize()
+                        .onGloballyPositioned { coordinates ->
+                            logWindowEvidence(coordinates.size, coordinates.positionInWindow())
+                        },
+                ) {
                     val metrics = remember(maxWidth, maxHeight) {
                         layoutProfileResolver.resolve(DpSize(maxWidth, maxHeight))
+                    }
+                    LaunchedEffect(metrics.profile, metrics.contentSize) {
+                        Log.i(
+                            WINDOW_EVIDENCE_TAG,
+                            "resolvedProfile=${metrics.profile} usableDp=${metrics.usableSize} contentDp=${metrics.contentSize}",
+                        )
                     }
                     CarRoot(metrics = metrics, onExit = ::finish)
                 }
@@ -128,6 +150,50 @@ class MainActivity : ComponentActivity() {
             permissionAttached = false
         }
         super.onDestroy()
+    }
+
+    private fun logWindowEvidence(rootSize: IntSize, rootPosition: Offset) {
+        if (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE == 0) return
+        val configuration = resources.configuration
+        val display = resources.displayMetrics
+        val currentBounds = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            windowManager.currentWindowMetrics.bounds.toShortString()
+        } else {
+            "unavailable-before-api-30"
+        }
+        val maximumBounds = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            windowManager.maximumWindowMetrics.bounds.toShortString()
+        } else {
+            "unavailable-before-api-30"
+        }
+        val rootInsets = ViewCompat.getRootWindowInsets(window.decorView)
+        fun insets(typeMask: Int): String = rootInsets?.getInsets(typeMask)?.let {
+            "${it.left},${it.top},${it.right},${it.bottom}"
+        } ?: "missing"
+        val evidence = buildString {
+            append("currentWindow=").append(currentBounds)
+            append(" maximumWindow=").append(maximumBounds)
+            append(" configurationDp=").append(configuration.screenWidthDp).append('x').append(configuration.screenHeightDp)
+            append(" densityDpi=").append(configuration.densityDpi)
+            append(" displayPixels=").append(display.widthPixels).append('x').append(display.heightPixels)
+            append(" density=").append(display.density)
+            append(" composeRootPx=").append(rootSize.width).append('x').append(rootSize.height)
+            append(" composeRootPosition=").append(rootPosition.x).append(',').append(rootPosition.y)
+            append(" statusBars=").append(insets(WindowInsetsCompat.Type.statusBars()))
+            append(" navigationBars=").append(insets(WindowInsetsCompat.Type.navigationBars()))
+            append(" displayCutout=").append(insets(WindowInsetsCompat.Type.displayCutout()))
+            append(" systemGestures=").append(insets(WindowInsetsCompat.Type.systemGestures()))
+            append(" mandatoryGestures=").append(insets(WindowInsetsCompat.Type.mandatorySystemGestures()))
+            append(" ime=").append(insets(WindowInsetsCompat.Type.ime()))
+        }
+        if (evidence != lastWindowEvidence) {
+            lastWindowEvidence = evidence
+            Log.i(WINDOW_EVIDENCE_TAG, evidence)
+        }
+    }
+
+    private companion object {
+        const val WINDOW_EVIDENCE_TAG = "TideCarWindow"
     }
 }
 

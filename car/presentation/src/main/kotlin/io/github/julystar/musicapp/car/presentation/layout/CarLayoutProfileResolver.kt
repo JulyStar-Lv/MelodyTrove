@@ -4,198 +4,164 @@ import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import io.github.julystar.musicapp.car.presentation.theme.CarTouchTargets
 
-/** Resolves a car shell from measured usable bounds; it never infers a profile from pixel thresholds. */
+/** Resolves layout from measured constraints and shape contracts, never exact pixels. */
 class CarLayoutProfileResolver(
     private val profileHint: CarLayoutProfileHint = CarLayoutProfileHint.Automatic,
-    private val strategy: CarLayoutProfileStrategy = CarLayoutProfileStrategy { _, _ -> CarLayoutProfile.Expanded },
+    private val strategy: CarLayoutProfileStrategy = DefaultCarLayoutProfileStrategy,
 ) {
     fun resolve(
         usableSize: DpSize,
         insets: CarLayoutInsets = CarLayoutInsets(),
         hint: CarLayoutProfileHint = profileHint,
     ): CarLayoutMetrics {
-        require(usableSize.width.value.isFinite() && usableSize.height.value.isFinite()) {
-            "usableSize must contain finite dimensions"
-        }
-        require(usableSize.width > 0.dp && usableSize.height > 0.dp) {
-            "usableSize must be positive"
-        }
-        require(listOf(insets.left, insets.top, insets.right, insets.bottom).all { it.value.isFinite() && it >= 0.dp }) {
-            "insets must be finite and non-negative"
-        }
-
+        require(usableSize.width.value.isFinite() && usableSize.height.value.isFinite())
+        require(usableSize.width > 0.dp && usableSize.height > 0.dp)
+        require(listOf(insets.left, insets.top, insets.right, insets.bottom).all { it.value.isFinite() && it >= 0.dp })
         val contentSize = DpSize(
-            width = usableSize.width - insets.left - insets.right,
-            height = usableSize.height - insets.top - insets.bottom,
+            usableSize.width - insets.left - insets.right,
+            usableSize.height - insets.top - insets.bottom,
         )
-        require(contentSize.width > 0.dp && contentSize.height > 0.dp) {
-            "insets must leave a positive content size"
-        }
-
+        require(contentSize.width > 0.dp && contentSize.height > 0.dp)
         val profile = when (hint) {
-            CarLayoutProfileHint.Automatic -> strategy.select(usableSize, insets)
+            CarLayoutProfileHint.Automatic -> strategy.select(contentSize, insets)
             CarLayoutProfileHint.Expanded -> CarLayoutProfile.Expanded
             CarLayoutProfileHint.VehiclePanel -> CarLayoutProfile.VehiclePanel
+            CarLayoutProfileHint.FullscreenCockpit -> CarLayoutProfile.FullscreenCockpit
         }
-        if (profile == CarLayoutProfile.VehiclePanel) {
-            return CarLayoutMetrics.deferred(profile, usableSize, insets, contentSize)
-        }
-
-        // Unitless proportions are traced to the Expanded mapping's named design relationships.
-        val width = contentSize.width
-        val height = contentSize.height
-        val minAxis = minOf(width, height)
-        return CarLayoutMetrics(
-            profile = CarLayoutProfile.Expanded,
-            usableSize = usableSize,
-            contentSize = contentSize,
-            insets = insets,
-            metricsAvailable = true,
-            shellHorizontalPadding = width * ExpandedDesignRatios.shellHorizontalPadding,
-            shellVerticalPadding = height * ExpandedDesignRatios.shellVerticalPadding,
-            shellWidth = width * ExpandedDesignRatios.shellWidth,
-            headerStart = width * ExpandedDesignRatios.headerStart,
-            headerTop = height * ExpandedDesignRatios.headerTop,
-            headerHeight = height * ExpandedDesignRatios.headerHeight,
-            navigationRailStart = width * ExpandedDesignRatios.navigationRailStart,
-            navigationRailTop = height * ExpandedDesignRatios.navigationRailTop,
-            navigationRailBottom = height * ExpandedDesignRatios.navigationRailBottom,
-            navigationRailWidth = width * ExpandedDesignRatios.navigationRail,
-            navigationRailInnerPadding = width * ExpandedDesignRatios.navigationRailInnerPadding,
-            navigationPrimaryTop = height * ExpandedDesignRatios.navigationPrimaryTop,
-            navigationItemInterval = height * ExpandedDesignRatios.navigationItemInterval,
-            navigationLibraryLabelTop = height * ExpandedDesignRatios.navigationLibraryLabelTop,
-            navigationLibraryTop = height * ExpandedDesignRatios.navigationLibraryTop,
-            miniPlayerBottom = height * ExpandedDesignRatios.miniPlayerBottom,
-            contentPaneGap = width * ExpandedDesignRatios.railToPaneGap,
-            contentHorizontalPadding = width * ExpandedDesignRatios.contentHorizontalPadding,
-            contentTop = height * ExpandedDesignRatios.contentTop,
-            libraryGap = height * ExpandedDesignRatios.libraryGap,
-            navigationItemHeight = height * ExpandedDesignRatios.navigationItem,
-            miniPlayerHeight = height * ExpandedDesignRatios.miniPlayer,
-            iconSize = maxOf(CarTouchTargets.Minimum, height * ExpandedDesignRatios.iconSize),
-            albumCardHeight = height * ExpandedDesignRatios.albumCardHeight,
-            compactCardHeight = height * ExpandedDesignRatios.compactCardHeight,
-            quickActionHeight = height * ExpandedDesignRatios.quickActionHeight,
-            recommendationCardWidth = width * ExpandedDesignRatios.recommendationCardWidth,
-            recommendationCardHeight = height * ExpandedDesignRatios.recommendationCardHeight,
-            artistCardHeight = height * ExpandedDesignRatios.artistCardHeight,
-            cardGap = width * ExpandedDesignRatios.cardGap,
-            nowPlayingHorizontalMargin = width * ExpandedDesignRatios.nowPlayingHorizontalMargin,
-            nowPlayingVerticalMargin = height * ExpandedDesignRatios.nowPlayingVerticalMargin,
-            nowPlayingPlayerPaneWidth = width * ExpandedDesignRatios.nowPlayingPlayerPaneWidth,
-            nowPlayingPaneGap = width * ExpandedDesignRatios.nowPlayingPaneGap,
-            nowPlayingArtworkSize = minAxis * ExpandedDesignRatios.nowPlayingArtworkSize,
-            nowPlayingInnerPadding = width * ExpandedDesignRatios.nowPlayingInnerPadding,
-            progressTrackHeight = maxOf(4.dp, height * ExpandedDesignRatios.progressTrackHeight),
-            detailContentMargin = width * ExpandedDesignRatios.detailContentMargin,
-            detailTopBarHeight = height * ExpandedDesignRatios.detailTopBarHeight,
-            detailPaneTop = height * ExpandedDesignRatios.detailPaneTop,
-            detailHeroWidth = width * ExpandedDesignRatios.detailHeroWidth,
-            detailPaneGap = width * ExpandedDesignRatios.detailPaneGap,
-            detailRowHeight = height * ExpandedDesignRatios.detailRowHeight,
-            primaryTouchTarget = maxOf(
-                CarTouchTargets.Minimum,
-                minAxis * ExpandedDesignRatios.primaryTouchTarget,
-            ),
-        )
+        return createMetrics(profile, usableSize, contentSize, insets)
     }
 }
 
-private object ExpandedDesignRatios {
-    // Named relationships from the Expanded mapping. These are ratios, never dp or
-    // exact display thresholds; the resolver applies them to measured content bounds.
-    const val shellHorizontalPadding: Float = ExpandedReference.shellPadding / ExpandedReference.contentWidth
-    const val shellVerticalPadding: Float = ExpandedReference.shellPadding / ExpandedReference.contentHeight
-    const val shellWidth: Float = ExpandedReference.shellWidth / ExpandedReference.contentWidth
-    const val headerStart: Float = ExpandedReference.headerStart / ExpandedReference.contentWidth
-    const val headerTop: Float = ExpandedReference.headerTop / ExpandedReference.contentHeight
-    const val headerHeight: Float = ExpandedReference.header / ExpandedReference.contentHeight
-    const val navigationRailStart: Float = ExpandedReference.navigationRailStart / ExpandedReference.contentWidth
-    const val navigationRailTop: Float = ExpandedReference.navigationRailTop / ExpandedReference.contentHeight
-    const val navigationRailBottom: Float = ExpandedReference.navigationRailBottom / ExpandedReference.contentHeight
-    const val navigationRail: Float = ExpandedReference.navigationRail / ExpandedReference.contentWidth
-    const val navigationRailInnerPadding: Float = ExpandedReference.navigationRailInnerPadding / ExpandedReference.contentWidth
-    const val navigationPrimaryTop: Float = ExpandedReference.navigationPrimaryTop / ExpandedReference.contentHeight
-    const val navigationItemInterval: Float = ExpandedReference.navigationItemInterval / ExpandedReference.contentHeight
-    const val navigationLibraryLabelTop: Float = ExpandedReference.navigationLibraryLabelTop / ExpandedReference.contentHeight
-    const val navigationLibraryTop: Float = ExpandedReference.navigationLibraryTop / ExpandedReference.contentHeight
-    const val miniPlayerBottom: Float = ExpandedReference.miniPlayerBottom / ExpandedReference.contentHeight
-    const val railToPaneGap: Float = ExpandedReference.railToPaneGap / ExpandedReference.contentWidth
-    const val contentHorizontalPadding: Float = ExpandedReference.contentHorizontalPadding / ExpandedReference.contentWidth
-    const val contentTop: Float = ExpandedReference.contentTop / ExpandedReference.contentHeight
-    const val libraryGap: Float = ExpandedReference.libraryGap / ExpandedReference.contentHeight
-    const val navigationItem: Float = ExpandedReference.navigationItem / ExpandedReference.contentHeight
-    const val miniPlayer: Float = ExpandedReference.miniPlayer / ExpandedReference.contentHeight
-    const val iconSize: Float = ExpandedReference.iconSize / ExpandedReference.contentHeight
-    const val albumCardHeight: Float = ExpandedReference.albumCardHeight / ExpandedReference.contentHeight
-    const val compactCardHeight: Float = ExpandedReference.compactCardHeight / ExpandedReference.contentHeight
-    const val quickActionHeight: Float = ExpandedReference.quickActionHeight / ExpandedReference.contentHeight
-    const val recommendationCardWidth: Float = ExpandedReference.recommendationCardWidth / ExpandedReference.contentWidth
-    const val recommendationCardHeight: Float = ExpandedReference.recommendationCardHeight / ExpandedReference.contentHeight
-    const val artistCardHeight: Float = ExpandedReference.artistCardHeight / ExpandedReference.contentHeight
-    const val cardGap: Float = ExpandedReference.cardGap / ExpandedReference.contentWidth
-    const val nowPlayingHorizontalMargin: Float = ExpandedReference.nowPlayingHorizontalMargin / ExpandedReference.contentWidth
-    const val nowPlayingVerticalMargin: Float = ExpandedReference.nowPlayingVerticalMargin / ExpandedReference.contentHeight
-    const val nowPlayingPlayerPaneWidth: Float = ExpandedReference.nowPlayingPlayerPaneWidth / ExpandedReference.contentWidth
-    const val nowPlayingPaneGap: Float = ExpandedReference.nowPlayingPaneGap / ExpandedReference.contentWidth
-    const val nowPlayingArtworkSize: Float = ExpandedReference.nowPlayingArtworkSize / ExpandedReference.contentHeight
-    const val nowPlayingInnerPadding: Float = ExpandedReference.nowPlayingInnerPadding / ExpandedReference.contentWidth
-    const val progressTrackHeight: Float = ExpandedReference.progressTrackHeight / ExpandedReference.contentHeight
-    const val detailContentMargin: Float = ExpandedReference.detailContentMargin / ExpandedReference.contentWidth
-    const val detailTopBarHeight: Float = ExpandedReference.detailTopBarHeight / ExpandedReference.contentHeight
-    const val detailPaneTop: Float = ExpandedReference.detailPaneTop / ExpandedReference.contentHeight
-    const val detailHeroWidth: Float = ExpandedReference.detailHeroWidth / ExpandedReference.contentWidth
-    const val detailPaneGap: Float = ExpandedReference.detailPaneGap / ExpandedReference.contentWidth
-    const val detailRowHeight: Float = ExpandedReference.detailRowHeight / ExpandedReference.contentHeight
-    const val primaryTouchTarget: Float = ExpandedReference.primaryTouchTarget / ExpandedReference.contentHeight
+object DefaultCarLayoutProfileStrategy : CarLayoutProfileStrategy {
+    override fun select(usableSize: DpSize, insets: CarLayoutInsets): CarLayoutProfile {
+        val aspectRatio = usableSize.width.value / usableSize.height.value
+        return when {
+            aspectRatio >= 3.25f -> CarLayoutProfile.FullscreenCockpit
+            aspectRatio <= 2.15f -> CarLayoutProfile.VehiclePanel
+            else -> CarLayoutProfile.Expanded
+        }
+    }
 }
 
-private object ExpandedReference {
-    // Reference design relationships from FIGMA_EXPANDED_MAPPING and the car spacing contract.
-    const val contentWidth: Float = 2496f
-    const val contentHeight: Float = 1080f
-    const val shellPadding: Float = 24f
-    const val shellWidth: Float = 416f
-    const val headerStart: Float = 24f
-    const val headerTop: Float = 24f
-    const val header: Float = 72f
-    const val navigationRailStart: Float = 40f
-    const val navigationRailTop: Float = 112f
-    const val navigationRailBottom: Float = 48f
-    const val navigationRail: Float = 352f
-    const val navigationRailInnerPadding: Float = 16f
-    const val navigationPrimaryTop: Float = 48f
-    const val navigationItemInterval: Float = 100f
-    const val navigationLibraryLabelTop: Float = 356f
-    const val navigationLibraryTop: Float = 390f
-    const val miniPlayerBottom: Float = 24f
-    const val railToPaneGap: Float = 24f
-    const val contentHorizontalPadding: Float = 24f
-    const val contentTop: Float = 112f
-    const val libraryGap: Float = 24f
-    const val navigationItem: Float = 84f
-    const val miniPlayer: Float = 164f
-    const val iconSize: Float = 56f
-    const val albumCardHeight: Float = 248f
-    const val compactCardHeight: Float = 112f
-    const val quickActionHeight: Float = 160f
-    const val recommendationCardWidth: Float = 332f
-    const val recommendationCardHeight: Float = 400f
-    const val artistCardHeight: Float = 336f
-    const val cardGap: Float = 24f
-    const val nowPlayingHorizontalMargin: Float = 56f
-    const val nowPlayingVerticalMargin: Float = 48f
-    const val nowPlayingPlayerPaneWidth: Float = 1000f
-    const val nowPlayingPaneGap: Float = 56f
-    const val nowPlayingArtworkSize: Float = 640f
-    const val nowPlayingInnerPadding: Float = 48f
-    const val progressTrackHeight: Float = 14f
-    const val detailContentMargin: Float = 16f
-    const val detailTopBarHeight: Float = 72f
-    const val detailPaneTop: Float = 96f
-    const val detailHeroWidth: Float = 560f
-    const val detailPaneGap: Float = 40f
-    const val detailRowHeight: Float = 76f
-    const val primaryTouchTarget: Float = 128f
+private fun createMetrics(
+    profile: CarLayoutProfile,
+    usableSize: DpSize,
+    contentSize: DpSize,
+    insets: CarLayoutInsets,
+): CarLayoutMetrics {
+    val reference = when (profile) {
+        CarLayoutProfile.Expanded -> ExpandedReference
+        CarLayoutProfile.VehiclePanel -> VehiclePanelReference
+        CarLayoutProfile.FullscreenCockpit -> FullscreenReference
+    }
+    val width = contentSize.width
+    val height = contentSize.height
+    val minAxis = minOf(width, height)
+    fun wx(value: Float) = width * (value / reference.contentWidth)
+    fun hy(value: Float) = height * (value / reference.contentHeight)
+    return CarLayoutMetrics(
+        profile, usableSize, contentSize, insets, true,
+        wx(reference.shellPadding), hy(reference.shellPadding), wx(reference.shellWidth),
+        wx(reference.headerStart), hy(reference.headerTop), hy(reference.headerHeight),
+        wx(reference.navigationRailStart), hy(reference.navigationRailTop), hy(reference.navigationRailBottom),
+        wx(reference.navigationRailWidth), wx(reference.navigationRailInnerPadding),
+        hy(reference.navigationPrimaryTop), hy(reference.navigationItemInterval),
+        hy(reference.navigationLibraryLabelTop), hy(reference.navigationLibraryTop), hy(reference.miniPlayerBottom),
+        wx(reference.contentPaneGap), wx(reference.contentHorizontalPadding), hy(reference.contentTop),
+        hy(reference.libraryGap), hy(reference.navigationItemHeight), hy(reference.miniPlayerHeight),
+        maxOf(CarTouchTargets.Minimum, hy(reference.iconSize)), hy(reference.albumCardHeight),
+        hy(reference.compactCardHeight), hy(reference.quickActionHeight), wx(reference.recommendationCardWidth),
+        hy(reference.recommendationCardHeight), hy(reference.artistCardHeight), wx(reference.cardGap),
+        wx(reference.nowPlayingHorizontalMargin), hy(reference.nowPlayingVerticalMargin),
+        wx(reference.nowPlayingPlayerPaneWidth), wx(reference.nowPlayingPaneGap),
+        minAxis * (reference.nowPlayingArtworkSize / reference.contentHeight), wx(reference.nowPlayingInnerPadding),
+        maxOf(4.dp, hy(reference.progressTrackHeight)), wx(reference.detailContentMargin),
+        hy(reference.detailTopBarHeight), hy(reference.detailPaneTop), wx(reference.detailHeroWidth),
+        wx(reference.detailPaneGap), hy(reference.detailRowHeight),
+        maxOf(CarTouchTargets.Minimum, minAxis * (reference.primaryTouchTarget / reference.contentHeight)),
+        reference.mediaGridColumns,
+    )
 }
+
+private data class LayoutReference(
+    val contentWidth: Float,
+    val contentHeight: Float = 1080f,
+    val shellPadding: Float = 24f,
+    val shellWidth: Float,
+    val headerStart: Float = 24f,
+    val headerTop: Float = 24f,
+    val headerHeight: Float = 72f,
+    val navigationRailStart: Float,
+    val navigationRailTop: Float = 112f,
+    val navigationRailBottom: Float = 48f,
+    val navigationRailWidth: Float,
+    val navigationRailInnerPadding: Float = 16f,
+    val navigationPrimaryTop: Float = 48f,
+    val navigationItemInterval: Float = 100f,
+    val navigationLibraryLabelTop: Float = 356f,
+    val navigationLibraryTop: Float = 390f,
+    val miniPlayerBottom: Float = 24f,
+    val contentPaneGap: Float = 24f,
+    val contentHorizontalPadding: Float = 24f,
+    val contentTop: Float = 112f,
+    val libraryGap: Float = 24f,
+    val navigationItemHeight: Float = 84f,
+    val miniPlayerHeight: Float = 164f,
+    val iconSize: Float = 56f,
+    val albumCardHeight: Float = 248f,
+    val compactCardHeight: Float,
+    val quickActionHeight: Float = 160f,
+    val recommendationCardWidth: Float,
+    val recommendationCardHeight: Float,
+    val artistCardHeight: Float,
+    val cardGap: Float = 24f,
+    val nowPlayingHorizontalMargin: Float,
+    val nowPlayingVerticalMargin: Float = 48f,
+    val nowPlayingPlayerPaneWidth: Float,
+    val nowPlayingPaneGap: Float,
+    val nowPlayingArtworkSize: Float,
+    val nowPlayingInnerPadding: Float,
+    val progressTrackHeight: Float = 14f,
+    val detailContentMargin: Float,
+    val detailTopBarHeight: Float = 72f,
+    val detailPaneTop: Float = 96f,
+    val detailHeroWidth: Float,
+    val detailPaneGap: Float,
+    val detailRowHeight: Float,
+    val primaryTouchTarget: Float = 128f,
+    val mediaGridColumns: Int,
+)
+
+private val ExpandedReference = LayoutReference(
+    contentWidth = 2496f, shellWidth = 416f, navigationRailStart = 40f, navigationRailWidth = 352f,
+    compactCardHeight = 112f, recommendationCardWidth = 332f, recommendationCardHeight = 400f,
+    artistCardHeight = 336f, nowPlayingHorizontalMargin = 56f, nowPlayingPlayerPaneWidth = 1000f,
+    nowPlayingPaneGap = 56f, nowPlayingArtworkSize = 640f, nowPlayingInnerPadding = 48f,
+    detailContentMargin = 16f, detailHeroWidth = 560f, detailPaneGap = 40f, detailRowHeight = 76f,
+    mediaGridColumns = 4,
+)
+
+private val VehiclePanelReference = LayoutReference(
+    contentWidth = 1728f, shellWidth = 280f, navigationRailStart = 24f, navigationRailWidth = 240f,
+    compactCardHeight = 96f, recommendationCardWidth = 277.33334f, recommendationCardHeight = 400f,
+    artistCardHeight = 360f, nowPlayingHorizontalMargin = 40f, nowPlayingPlayerPaneWidth = 660f,
+    nowPlayingPaneGap = 44f, nowPlayingArtworkSize = 600f, nowPlayingInnerPadding = 40f,
+    detailContentMargin = 0f, detailHeroWidth = 480f, detailPaneGap = 24f, detailRowHeight = 96f,
+    mediaGridColumns = 3,
+)
+
+private val FullscreenReference = LayoutReference(
+    contentWidth = 5120f, contentHeight = 1304f, shellPadding = 0f, shellWidth = 0f,
+    headerStart = 0f, headerTop = 0f, navigationRailStart = 0f, navigationRailTop = 0f,
+    navigationRailBottom = 0f, navigationRailWidth = 0f, navigationRailInnerPadding = 0f,
+    navigationPrimaryTop = 0f, navigationItemInterval = 0f, navigationLibraryLabelTop = 0f,
+    navigationLibraryTop = 0f, miniPlayerBottom = 0f, contentPaneGap = 224f,
+    contentHorizontalPadding = 320f, contentTop = 0f, libraryGap = 24f, navigationItemHeight = 84f,
+    miniPlayerHeight = 164f, iconSize = 72f, albumCardHeight = 720f, compactCardHeight = 104f,
+    quickActionHeight = 160f, recommendationCardWidth = 720f, recommendationCardHeight = 720f,
+    artistCardHeight = 720f, cardGap = 72f, nowPlayingHorizontalMargin = 320f,
+    nowPlayingVerticalMargin = 0f, nowPlayingPlayerPaneWidth = 720f, nowPlayingPaneGap = 224f,
+    nowPlayingArtworkSize = 720f, nowPlayingInnerPadding = 64f, progressTrackHeight = 14f,
+    detailContentMargin = 0f, detailTopBarHeight = 72f, detailPaneTop = 0f, detailHeroWidth = 720f,
+    detailPaneGap = 224f, detailRowHeight = 104f, primaryTouchTarget = 128f, mediaGridColumns = 5,
+)

@@ -189,7 +189,7 @@ private fun CarMediaGrid(
     modifier: Modifier,
 ) {
     LazyVerticalGrid(
-        columns = GridCells.Fixed(4),
+        columns = GridCells.Fixed(metrics.mediaGridColumns),
         horizontalArrangement = Arrangement.spacedBy(metrics.cardGap),
         verticalArrangement = Arrangement.spacedBy(metrics.libraryGap),
         contentPadding = pagePadding(metrics),

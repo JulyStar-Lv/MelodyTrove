@@ -1,16 +1,14 @@
 package io.github.julystar.musicapp.car.presentation.layout
 
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class CarLayoutProfileResolverTest {
-    private val usableSize = DpSize(1000.dp, 600.dp)
+    private val usableSize = DpSize(1500.dp, 600.dp)
 
     @Test
     fun automaticResolutionUsesExpandedUntilEvidenceIsInjected() {
@@ -21,7 +19,7 @@ class CarLayoutProfileResolverTest {
 
         assertEquals(CarLayoutProfile.Expanded, metrics.profile)
         assertTrue(metrics.metricsAvailable)
-        assertEquals(960.dp, metrics.contentSize.width)
+        assertEquals(1460.dp, metrics.contentSize.width)
         assertEquals(570.dp, metrics.contentSize.height)
         assertEquals(570.dp * (24f / 1080f), metrics.shellVerticalPadding)
         assertTrue(metrics.libraryGap > 0.dp)
@@ -29,18 +27,17 @@ class CarLayoutProfileResolverTest {
     }
 
     @Test
-    fun explicitVehiclePanelIsADeferredBoundary() {
+    fun explicitVehiclePanelUsesTheCompleteCompactMetrics() {
         val metrics = CarLayoutProfileResolver().resolve(
             usableSize = usableSize,
             hint = CarLayoutProfileHint.VehiclePanel,
         )
 
         assertEquals(CarLayoutProfile.VehiclePanel, metrics.profile)
-        assertFalse(metrics.metricsAvailable)
-        assertEquals(Dp.Unspecified, metrics.shellVerticalPadding)
-        assertEquals(Dp.Unspecified, metrics.headerHeight)
-        assertEquals(Dp.Unspecified, metrics.libraryGap)
-        assertEquals(Dp.Unspecified, metrics.primaryTouchTarget)
+        assertTrue(metrics.metricsAvailable)
+        assertEquals(3, metrics.mediaGridColumns)
+        assertTrue(metrics.navigationRailWidth > 0.dp)
+        assertTrue(metrics.detailHeroWidth > 0.dp)
     }
 
     @Test
@@ -51,7 +48,7 @@ class CarLayoutProfileResolverTest {
         assertFailsWith<IllegalArgumentException> {
             CarLayoutProfileResolver().resolve(
                 usableSize = usableSize,
-                insets = CarLayoutInsets(left = 1001.dp),
+                insets = CarLayoutInsets(left = 1501.dp),
             )
         }
     }
@@ -63,14 +60,25 @@ class CarLayoutProfileResolverTest {
         ).resolve(usableSize)
 
         assertEquals(CarLayoutProfile.VehiclePanel, metrics.profile)
-        assertFalse(metrics.metricsAvailable)
+        assertTrue(metrics.metricsAvailable)
     }
 
     @Test
     fun expandedTouchTargetNeverDropsBelowAccessibilityMinimum() {
-        val metrics = CarLayoutProfileResolver().resolve(DpSize(1.dp, 1.dp))
+        val metrics = CarLayoutProfileResolver().resolve(DpSize(1.dp, 1.dp), hint = CarLayoutProfileHint.Expanded)
 
         assertEquals(48.dp, metrics.primaryTouchTarget)
+    }
+
+    @Test
+    fun automaticResolutionMapsAllObservedWindowShapesWithoutExactPixels() {
+        val resolver = CarLayoutProfileResolver()
+
+        assertEquals(CarLayoutProfile.Expanded, resolver.resolve(DpSize(2496.dp, 908.dp)).profile)
+        assertEquals(CarLayoutProfile.VehiclePanel, resolver.resolve(DpSize(1728.dp, 908.dp)).profile)
+        assertEquals(CarLayoutProfile.FullscreenCockpit, resolver.resolve(DpSize(5120.dp, 1304.dp)).profile)
+        assertEquals(4, resolver.resolve(DpSize(2400.dp, 900.dp)).mediaGridColumns)
+        assertEquals(3, resolver.resolve(DpSize(1700.dp, 900.dp)).mediaGridColumns)
     }
 
     @Test

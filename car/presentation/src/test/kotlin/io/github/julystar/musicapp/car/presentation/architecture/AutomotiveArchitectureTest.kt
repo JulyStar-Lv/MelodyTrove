@@ -49,8 +49,9 @@ class AutomotiveArchitectureTest {
     fun carLayoutDoesNotEncodeReferencePixelsAsDpOrExactWidthChecks() {
         val carSources = readKotlin(root.resolve("car/presentation/src/main")) +
             readKotlin(root.resolve("carApp/src/main"))
-        assertFalse(Regex("(2496|1728|1080)\\.dp").containsMatchIn(carSources))
-        assertFalse(Regex("screenWidth\\s*==\\s*(2496|1728)").containsMatchIn(carSources))
+        assertFalse(Regex("(2496|1728|5120|1304|1080)\\.dp").containsMatchIn(carSources))
+        assertFalse(Regex("screenWidth\\s*==\\s*(2496|1728|5120)").containsMatchIn(carSources))
+        assertFalse(Regex("Modifier\\s*\\.\\s*scale\\(").containsMatchIn(carSources))
     }
 
     private fun readKotlin(path: Path): String {
