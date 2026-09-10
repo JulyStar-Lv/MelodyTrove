@@ -21,6 +21,11 @@ Repository baseline: `45bba3c510ac4ca3425891ab750ae5ad838b85ef` (`main`). Develo
     - the platform-rendered media UI is not the custom Activity, and `automotive_app_desc.xml` does not create the custom UI.
 11. Phase 4 may proceed because the user explicitly skipped Phase 0. The resolver may define `Expanded` and reserve `VehiclePanel`, but must accept injected/measured constraints. It must not encode `2496.dp`, `1728.dp`, `1080.dp`, `widthPx == 2496`, a guessed density, guessed Insets, or a guessed switch threshold.
 
+2026-09-10 correction: the later supplied real-cockpit screenshots establish
+fixed *panel placement* inside the 5120×1440 OEM surface. They authorize the
+pixel bounds implemented by `CarAppWindowBoundsResolver`; item 11 still applies
+to automatic profile selection and page metric calculation.
+
 ### Target dependency graph
 
 ```text

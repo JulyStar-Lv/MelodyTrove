@@ -1,6 +1,6 @@
 # Automotive window profile audit
 
-Audit date: 2026-09-07; Expanded runtime acceptance updated 2026-09-09
+Audit date: 2026-09-07; real-cockpit placement corrected 2026-09-10
 
 Reference revision: `JulyStar-Lv/FileManager` `b6dd319ca954736bbd07d006547999c3b99fef10` (local `main`, verified against remote `main` and `HEAD` with `git ls-remote`).
 
@@ -13,24 +13,31 @@ The user explicitly selected a code-derived profile contract from the local
 implementation. It does not turn repository constants into device measurements;
 live window, density and inset verification remains a later runtime acceptance item.
 
-That later Expanded verification is now complete on the AAOS AVD
-`TidePlayer_AAOS_Expanded` (`android-35-ext15;android-automotive;x86_64`). It does
-not establish VehiclePanel behavior on the target OEM system.
+The dedicated 2496×1080 and 1728×1080 AAOS AVDs verify the two responsive page
+layouts. They are app-sized test surfaces, not evidence that the production
+cockpit changes its physical display or Activity window to either size.
 
-The FileManager APK sources establish an OEM screen-state protocol and two internal View layout states. They do **not** establish that the Activity window changes from `2496 x 1080 px` to `1728 x 1080 px`. The app root remains `match_parent`; `MainActivity` changes a `MotionLayout` constraint set in response to `Settings.Global` keys.
+The supplied 5120×1440 cockpit screenshots resolve the missing placement
+evidence. FileManager keeps a transparent, edge-to-edge Activity surface and
+changes an internal `MotionLayout` constraint set in response to
+`Settings.Global` keys. Its visible panel is `[64,192]–[2560,1272]`
+(2496×1080) in Expanded and `[832,192]–[2560,1272]` (1728×1080) with the vehicle
+panel visible. The right, top, and bottom edges stay fixed; only the left edge
+moves.
 
-The static resource arithmetic is useful design evidence:
+The source independently matches the screenshot geometry:
 
-- A `2560`-wide logical design canvas is strongly suggested by the OEM widget resources.
-- The initial full-state background is inset `32` on both sides, which yields `2496` only if the parent is exactly `2560` in the same unit.
-- The left-state constraint places the background start at `760dp + 72dp = 832dp`; `2560 - 832 = 1728` in that assumed logical canvas.
+- A 2560-wide driver canvas is declared by the OEM widget resources.
+- The normal panel begins at x=64 and ends at x=2560.
+- The left-state constraint places the panel at `760 + 72 = 832`, so
+  `2560 - 832 = 1728`.
+- `window_margin_top=192` and `window_margin_bottom=168` on the 1440-high canvas
+  produce y=192..1272 and a height of 1080.
 
-Those are internal layout coordinates. They are not measurements of the physical display, Android window bounds, content bounds, density, or system insets. The repository contains no captured `wm`, `dumpsys`, `WindowMetrics`, measured-root, or inset output. Current ADB discovery returned no attached device. VehicleProbe also records that it was never run on a target vehicle.
-
-The implementation contract therefore uses the OEM state as an injected semantic
-hint and always lays out inside measured runtime constraints. It does not infer a
-profile from an exact width and does not create a fixed `2496.dp`, `1728.dp`, or
-`1080.dp` root.
+These remain internal panel bounds rather than Android task/window bounds. Tide
+Player applies them only when its measured pixel surface matches the 5120×1440
+cockpit or its 2560×1440 driver canvas. On independent app-sized surfaces it
+fills the available window and continues to resolve from measured dp constraints.
 
 ## Accepted code-derived profile contract
 
@@ -45,40 +52,37 @@ FileManager state -1 / left:
   key_screen_show != 0 OR key_vpa_cui_show_left == 1
   -> CarLayoutProfile.VehiclePanel
 
-No OEM state signal available:
-  -> CarLayoutProfile.Expanded
+No OEM state signal available on the cockpit canvas:
+  -> CarLayoutProfile.Expanded (the same default as FileManager)
 ```
 
-The two settings keys belong behind an Android/OEM adapter in `:carApp` or the
-runtime platform layer. `:car:presentation` receives only
-`CarLayoutProfileHint`; it must not read `Settings.Global` directly. The resolver
-uses the injected hint plus current measured constraints and insets.
+The two settings keys are read by `OemScreenStateMonitor` in `:carApp`.
+`:car:presentation` remains Android-settings independent and receives only
+`CarLayoutProfileHint`. `CarAppWindowBoundsResolver` applies the verified pixel
+panel contract, after which the existing layout resolver consumes the resulting
+measured dp panel size.
 
-The coordinate inference is:
+The corrected coordinate contract is:
 
-- Expanded design region: the repository declares `dimen_appBg_width_full =
-  2496dp`; the base layout also uses two `32dp` side guidelines, which gives
-  `2560 - 32 - 32 = 2496` on the inferred J90K coordinate canvas.
-- The MotionScene `full` constraint adds a `33dp` start margin after its `32dp`
-  guideline, so that particular state computes to `2495` on a 2560-unit parent.
-  The one-unit discrepancy is retained as resource/rounding evidence; it is not
-  used as a runtime equality check.
-- VehiclePanel design region: the `left` state places content after `760dp +
-  72dp = 832dp`, yielding `2560 - 832 = 1728` on the same inferred canvas. The
-  independent `wt_title_bar_width_default = 1728px` corroborates the intended
-  nominal width while still mixing units.
-- The `1080` height comes from the accepted TidePlayer/Figma target, not a
-  FileManager window measurement. Runtime height and insets remain authoritative.
+- Expanded panel: `[64,192]–[2560,1272]`, measured as 2496×1080 in the supplied
+  real-cockpit screenshot.
+- VehiclePanel panel: `[832,192]–[2560,1272]`, measured as 1728×1080.
+- FileManager's `760dp + 72dp = 832dp`, 192dp top margin, 168dp bottom margin,
+  transparent window background, and 8dp panel radius corroborate those pixels on
+  the target mdpi coordinate canvas.
+- The MotionScene's alternate `32dp + 33dp` arithmetic differs by one pixel from
+  the measured x=64 edge; the real screenshot is authoritative for the settled
+  Tide Player contract.
 
 ## Window concepts and present evidence
 
 | Required concept | Result | Confidence |
 |---|---|---|
-| A. Physical Display | AAOS AVD reports `2496 × 1080 px` at `160 dpi`; FileManager's inferred OEM canvas remains separate evidence. | Measured on acceptance AVD |
-| B. Expanded App Window | TidePlayer task/window bounds are `[0,0][2496,1080]`; Android app bounds are `[0,0][2496,984]`. | Measured on acceptance AVD |
+| A. Physical Display | Production screenshot is `5120 × 1440`; dedicated AAOS AVD reports `2496 × 1080 px` at `160 dpi`. | Screenshot plus AVD measurement |
+| B. Expanded panel | Production panel is `[64,192]–[2560,1272]`; the app-sized AVD uses its full 2496×1080 surface. | Measured screenshot plus AVD |
 | C. Expanded Compose Content Bounds | TidePlayer `ComposeView` and `AndroidComposeView` measure `2496 × 908` and occupy `[0,76][2496,984]`. | Measured on acceptance AVD |
-| D. VehiclePanel App Window | Unknown. FileManager changes internal constraints and contains no call that resizes the Activity window. | Not established |
-| E. VehiclePanel Compose Content Bounds | Not applicable/unmeasured. The FileManager left-state background has an internal `1728` design-width derivation under a `2560dp` parent assumption. | Design evidence only |
+| D. VehiclePanel panel | Production panel is `[832,192]–[2560,1272]`; FileManager changes internal constraints rather than resizing its Activity. | Measured screenshot and source |
+| E. VehiclePanel Compose Content Bounds | Tide Player gives Compose the resulting 1728×1080 panel; the app-sized AVD independently exercised the same size. | Implemented and unit tested |
 | F. System Bar / Dock / Safe Area | Status bar `[0,0][2496,76]`; bottom navigation/car bar `[0,984][2496,1080]`; content `[0,76][2496,984]`. | Measured on acceptance AVD |
 | G. Density and px -> dp | Acceptance AVD is `160 dpi` (`density=1.0`), so numeric px/dp happen to match there. The resolver still consumes dp constraints and never assumes this relationship. | Measured on acceptance AVD |
 | H. 2496 -> 1728 trigger | Exact app-side trigger is known: `key_screen_show != 0` OR `key_vpa_cui_show_left == 1` selects the `left` constraint set. This semantic state is accepted as the injected TidePlayer profile hint; the SystemUI mechanism remains unknown. | Implementation signal accepted; system mechanism unknown |
@@ -141,15 +145,19 @@ root. No fixed-size canvas or overall graphics scale is used.
 
 Expected visible size from the task brief: `1728 x 1080`.
 
-Application Window: **unknown**. FileManager contains no Activity-window resize request, no width-based `onConfigurationChanged`, and no runtime bounds record.
+Application Window: its exact task bounds remain unmeasured. The visible internal
+panel is measured at `[832,192]–[2560,1272]`; FileManager contains no Activity
+resize request.
 
-Compose Content Bounds: **unknown**. FileManager is View-based and does not measure a Compose root.
+Tide Player Compose panel bounds: **1728×1080** after applying the OEM host
+contract. FileManager itself is View-based.
 
 Internal FileManager layout evidence:
 
 - In `activity_main_scene`, the `left` state moves the start guideline to `760dp`.
 - `app_bg` starts another `72dp` after that guideline and ends at the parent right edge.
-- Under the unproven assumption that the parent is a `2560dp` canvas, the internal background region is `2560 - (760 + 72) = 1728dp` wide.
+- The screenshot confirms the 2560-wide driver coordinate canvas and the internal
+  background calculation `2560 - (760 + 72) = 1728`.
 - Other screens do not all use one identical left boundary. For example, the video scene uses screen-specific guidelines/margins. `1728` therefore must not be treated as a universal Activity-window fact from these resources alone.
 
 Insets:
@@ -282,9 +290,9 @@ Create `scripts/automotive/capture_car_window_profiles.ps1` as a follow-up imple
 6. Preserve raw data and produce a small manifest/summary comparing physical/override size, density, display/task/activity/window bounds, configuration, InsetsState, focus, and the two global-key values.
 7. Mark `composeMeasurement=missing` because ADB cannot prove Compose root constraints. Default output is `artifacts/automotive/window-audit/<UTC timestamp>/{expanded,vehicle-panel}` and raw device dumps must remain uncommitted.
 
-### Required in-app measurement before unblocking
+### Production verification instrumentation
 
-A later debug-only TidePlayer probe must capture, for each state and the same timestamp:
+The debug TidePlayer probe records the following for production verification:
 
 - `WindowManager.currentWindowMetrics.bounds` and `maximumWindowMetrics.bounds`.
 - `Configuration.screenWidthDp`, `screenHeightDp`, `densityDpi`, and `Resources.displayMetrics.density/widthPixels/heightPixels`.
@@ -292,7 +300,9 @@ A later debug-only TidePlayer probe must capture, for each state and the same ti
 - `WindowInsets` separately for status bars, navigation bars, display cutout, system gestures, mandatory gestures, IME, and any OEM-provided occlusion source.
 - The effective content/usable rectangle after the app's declared inset policy.
 
-Profile selection must be based on measured usable constraints and an evidence-derived threshold/range. Do not compare exact pixel values or copy the FileManager global-key protocol as the only resolver. If the live captures show an unchanged Activity window with an overlay/occlusion, the resolver must include the measured occlusion/OEM state rather than window width alone.
+Page-profile selection remains based on measured usable constraints and the OEM
+semantic hint. Exact screenshot pixels are confined to the independently tested
+cockpit panel-placement adapter.
 
 ## Runtime validation criteria
 
@@ -324,14 +334,17 @@ Current checklist:
 [x] VehiclePanel app window measured on a dedicated 1728×1080 AAOS AVD
 [x] VehiclePanel root/content bounds measured on that AVD
 [x] VehiclePanel insets/occlusion measured on that AVD
-[ ] System transition mechanism established
+[x] Internal panel transition and OEM-key trigger established from FileManager
+[ ] Production Tide Player capture collected on target hardware
 ```
 
 ## Risks
 
-- Treating `dimen_appBg_width_full=2496dp` as `2496px` would introduce a density error and confuse an inner View rectangle with the Activity window.
-- Treating `wt_title_bar_width_default=1728px` as the VehiclePanel window would confuse a widget minimum width with app bounds.
-- A width-only resolver can fail if SystemUI keeps the Activity window full-width and overlays or occludes the left side.
+- Applying the cockpit bounds on unrelated displays would crop the app; the host
+  matcher limits them to the verified 1440-high driver/cockpit shapes.
+- Treating the panel bounds as Activity/task bounds would still be incorrect.
+- A width-only resolver can fail when the vehicle panel is overlaid; Tide Player
+  observes the same semantic OEM keys as FileManager.
 - `key_screen_show` can independently select the left layout. The key name alone does not reveal which system surface is visible.
 - Edge-to-edge layout means a `1080` window height can coexist with a smaller usable viewport. Insets must be measured and policy must be explicit.
 - Decompiled source is strong evidence of app behavior but cannot reveal WindowManager/SystemUI behavior outside the APK.
@@ -340,14 +353,14 @@ Current checklist:
 
 | Profile | Related Figma resolution | Runtime evidence | Detection rule | Structural differences |
 |---|---|---|---|---|
-| Expanded | 2496×1080 | AAOS AVD physical/task 2496×1080 at 160 dpi; system bars 76 top/96 bottom; Compose root 2496×908 | Measured content aspect between 2.15 and 3.25, or explicit Expanded hint | 352 rail, 4-column grids, 560/1424 panes, 1000/1328 Now Playing |
-| VehiclePanel | 1728×1080 | Dedicated AAOS AVD measured physical/task/current/maximum/root 1728×1080 at 160 dpi with zero reported insets; FileManager keys and its 832 left-origin inference independently support the shape | Measured content aspect at or below 2.15, or explicit VehiclePanel hint | 240 rail, 3-column grids, 480/920 panes, 660/848–960 Now Playing |
+| Expanded | 2496×1080 | Real screenshot panel `[64,192]–[2560,1272]`; app-sized AVD validates page behavior | OEM expanded state on cockpit, otherwise measured content aspect between 2.15 and 3.25 | 352 rail, 4-column grids, 560/1424 panes, 1000/1328 Now Playing |
+| VehiclePanel | 1728×1080 | Real screenshot panel `[832,192]–[2560,1272]`; app-sized AVD validates page behavior | OEM vehicle-panel state on cockpit, otherwise measured content aspect at or below 2.15 | 240 rail, 3-column grids, 480/920 panes, 660/848–960 Now Playing |
 | FullscreenCockpit | 5120×1304 content in 5120×1440 display | FileManager `WTDialogSupport.TYPE.DEFAULT` declares 5120×1304; Figma reserves the lower 136 for HVAC | Measured content aspect at or above 3.25, or explicit FullscreenCockpit hint | No shell; minimal Now Playing and Cover Flow |
 
 VehiclePanel and FullscreenCockpit are implemented presentation profiles. Figma
 coordinates remain visual references; runtime `DpSize` comes from live Compose
 constraints after Android applies the active window and system UI. The ratio bands
 sit between the observed shapes and tolerate density, insets, and small OEM
-variations without exact pixel equality. The dedicated VehiclePanel AVD establishes
-the profile's Android window semantics. The production OEM's live Expanded ↔
-VehiclePanel transition mechanism remains a hardware-only supplemental check.
+variations without exact pixel equality. The fixed pixels belong only to the
+verified cockpit panel-placement contract. A production Tide Player screenshot
+remains the final target-hardware verification.

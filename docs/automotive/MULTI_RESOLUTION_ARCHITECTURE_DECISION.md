@@ -20,6 +20,13 @@ Window/Compose bounds + insets
 
 The automatic resolver uses aspect-ratio bands from measured content constraints. It never checks exact width or height, never treats Figma px as dp, and never scales an entire root. An OEM state hint can still override automatic selection through the existing pure `carLayoutHintFromOemState` contract.
 
+The verified FileManager cockpit placement is a separate host-window contract.
+On a measured 1440-high 2560 driver canvas or 5120 cockpit canvas,
+`CarAppWindowBoundsResolver` uses the supplied real-screen pixel bounds
+`[64,192]–[2560,1272]` and `[832,192]–[2560,1272]`. Those constants do not select
+page layout by width; they place the app panel. App-sized and other windows bypass
+this contract and continue through automatic constraint-based resolution.
+
 ## Metric variants
 
 Expanded and VehiclePanel share navigation, Home, Library, Mini Player, Settings, Search, details, Now Playing, Queue, state holders, and actions. Profile metrics select rail/content widths, pane gaps, artwork, row heights, padding, touch targets, and 4-versus-3-column media grids.

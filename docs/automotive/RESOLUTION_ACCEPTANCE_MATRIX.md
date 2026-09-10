@@ -15,9 +15,26 @@ mini-player frame at that resolution.
 
 ## Evidence by profile
 
+### Production cockpit placement
+
+The supplied real 5120×1440 screenshots show that 2496×1080 and 1728×1080 are
+visible panel sizes inside the cockpit, not two physical display modes. Tide
+Player now matches FileManager's settled bounds:
+
+| State | Panel bounds on cockpit | Size |
+|---|---:|---:|
+| Expanded | `[64,192]–[2560,1272]` | 2496×1080 |
+| VehiclePanel | `[832,192]–[2560,1272]` | 1728×1080 |
+
+`OemScreenStateMonitor` observes the same two global keys as FileManager.
+`CarAppWindowBoundsResolver` applies these bounds only on a matching 1440-high
+cockpit/driver canvas. The window theme and root outside the panel are transparent,
+and the panel uses FileManager's 8dp corner radius. Dedicated app-sized AVDs keep
+their full surface.
+
 ### Expanded
 
-The physical AAOS AVD, task/window, app bounds, Compose root, density, insets,
+The dedicated AAOS AVD, task/window, app bounds, Compose root, density, insets,
 real three-track library, complete queue, playback controls, MediaSession,
 D-pad, rotary, touch, media keys, dark/light switching, Search, Settings, and
 Figma comparisons are recorded in `EXPANDED_RUNTIME_ACCEPTANCE.md`. The measured
@@ -25,7 +42,7 @@ Compose root was 2496×908 at density 1.0 inside a 2496×1080 physical/task surf
 
 ### VehiclePanel
 
-The dedicated `TidePlayer_AAOS_VehiclePanel` AVD was created with a physical
+The layout-validation `TidePlayer_AAOS_VehiclePanel` AVD was created with a physical
 1728×1080 display at 160 dpi; no `wm size` override was used. Debug runtime
 evidence recorded:
 
@@ -44,7 +61,9 @@ usableDp=1728x1080
 contentDp=1728x1080
 ```
 
-The Activity remained top-resumed and reached the shared backend, playback
+This AVD proves the page at 1728×1080, while the real screenshot and FileManager
+source establish where that panel belongs in the cockpit. The Activity remained
+top-resumed and reached the shared backend, playback
 service, single Media3 controller/session, and repository state. The installed
 AAOS image repeatedly crashed its own Car/SystemUI services and headless
 SurfaceFlinger capture returned the black cluster surface; the raw activity,
@@ -84,4 +103,3 @@ by the task's Deferred rule; no Figma frame or implementation is deferred.
   creates a player, repository, queue store, database, or session.
 - Touch targets clamp to at least 48 dp; the 5120 design uses its 128-unit profile
   touch target and 72-unit icon metric after runtime constraint conversion.
-

@@ -30,6 +30,13 @@
         android:usesCleartextTraffic="true">
 
         <meta-data
+            android:name="dockUiVisibility"
+            android:value="1" />
+        <meta-data
+            android:name="KEY_HIDE_SYSTEMBAR"
+            android:value="true" />
+
+        <meta-data
             android:name="com.android.automotive"
             android:resource="@xml/automotive_app_desc" />
 

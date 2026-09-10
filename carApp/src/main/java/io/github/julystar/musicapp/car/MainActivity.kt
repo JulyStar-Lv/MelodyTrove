@@ -14,8 +14,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -24,20 +28,26 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import io.github.julystar.musicapp.car.presentation.CarRoot
+import io.github.julystar.musicapp.car.presentation.layout.CarAppWindowBoundsResolver
+import io.github.julystar.musicapp.car.presentation.layout.CarLayoutProfileHint
 import io.github.julystar.musicapp.car.presentation.layout.CarLayoutProfileResolver
 import io.github.julystar.musicapp.core.PlaybackService
 import io.github.julystar.musicapp.singleton.PlayerControllerRepository
@@ -58,43 +68,48 @@ class MainActivity : ComponentActivity() {
     private var startupObserver: Job? = null
     private var lastWindowEvidence: String? = null
     private lateinit var permissionLauncher: ActivityResultLauncher<String>
+    private lateinit var oemScreenStateMonitor: OemScreenStateMonitor
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.isNavigationBarContrastEnforced = false
+        oemScreenStateMonitor = OemScreenStateMonitor(contentResolver)
         permissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) {
             permissionRepository.triggerPermissionChanged()
         }
         setContent {
             val startupState by (application as CarApplication).startupState.collectAsState()
-            when (val state = startupState) {
-                CarStartupState.Initializing -> CarStartupMessage("正在准备音乐库…")
-                CarStartupState.Ready -> BoxWithConstraints(
-                    Modifier
-                        .fillMaxSize()
-                        .onGloballyPositioned { coordinates ->
-                            logWindowEvidence(coordinates.size, coordinates.positionInWindow())
-                        },
-                ) {
-                    val metrics = remember(maxWidth, maxHeight) {
-                        layoutProfileResolver.resolve(DpSize(maxWidth, maxHeight))
+            val profileHint by oemScreenStateMonitor.profileHint.collectAsState()
+            TideCarAppWindow(
+                profileHint = profileHint,
+                onRootPositioned = ::logWindowEvidence,
+            ) { panelSize, effectiveHint ->
+                when (val state = startupState) {
+                    CarStartupState.Initializing -> CarStartupMessage("正在准备音乐库…")
+                    CarStartupState.Ready -> {
+                        val metrics = remember(panelSize, effectiveHint) {
+                            layoutProfileResolver.resolve(panelSize, hint = effectiveHint)
+                        }
+                        LaunchedEffect(metrics.profile, metrics.contentSize) {
+                            Log.i(
+                                WINDOW_EVIDENCE_TAG,
+                                "resolvedProfile=${metrics.profile} usableDp=${metrics.usableSize} contentDp=${metrics.contentSize}",
+                            )
+                        }
+                        CarRoot(metrics = metrics, onExit = ::finish)
                     }
-                    LaunchedEffect(metrics.profile, metrics.contentSize) {
-                        Log.i(
-                            WINDOW_EVIDENCE_TAG,
-                            "resolvedProfile=${metrics.profile} usableDp=${metrics.usableSize} contentDp=${metrics.contentSize}",
-                        )
-                    }
-                    CarRoot(metrics = metrics, onExit = ::finish)
+                    is CarStartupState.Failed -> CarStartupMessage(
+                        message = "Tide Player 启动失败\n请重新打开应用",
+                    )
                 }
-                is CarStartupState.Failed -> CarStartupMessage(
-                    message = "Tide Player 启动失败\n请重新打开应用",
-                )
             }
         }
     }
 
     override fun onStart() {
         super.onStart()
+        oemScreenStateMonitor.start()
         startupObserver = lifecycleScope.launch {
             (application as CarApplication).startupState
                 .filterIsInstance<CarStartupState.Ready>()
@@ -110,6 +125,7 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         startupObserver?.cancel()
         startupObserver = null
+        oemScreenStateMonitor.stop()
         super.onStop()
     }
 
@@ -197,7 +213,48 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@androidx.compose.runtime.Composable
+@Composable
+private fun TideCarAppWindow(
+    profileHint: CarLayoutProfileHint,
+    onRootPositioned: (IntSize, Offset) -> Unit,
+    content: @Composable (DpSize, CarLayoutProfileHint) -> Unit,
+) {
+    BoxWithConstraints(
+        Modifier
+            .fillMaxSize()
+            .onGloballyPositioned { coordinates ->
+                onRootPositioned(coordinates.size, coordinates.positionInWindow())
+            },
+    ) {
+        val density = LocalDensity.current
+        val hostSizePx = with(density) {
+            IntSize(maxWidth.roundToPx(), maxHeight.roundToPx())
+        }
+        val bounds = remember(hostSizePx, profileHint) {
+            CarAppWindowBoundsResolver.resolve(hostSizePx, profileHint)
+        }
+        val panelWidth = with(density) { bounds.width.toDp() }
+        val panelHeight = with(density) { bounds.height.toDp() }
+
+        LaunchedEffect(bounds) {
+            Log.i(
+                "TideCarWindow",
+                "panelPx=[${bounds.left},${bounds.top} ${bounds.width}x${bounds.height}] " +
+                    "embedded=${bounds.embeddedInCockpit} hint=${bounds.profileHint}",
+            )
+        }
+        BoxWithConstraints(
+            Modifier
+                .offset { IntOffset(bounds.left, bounds.top) }
+                .requiredSize(panelWidth, panelHeight)
+                .clip(RoundedCornerShape(8.dp)),
+        ) {
+            content(DpSize(maxWidth, maxHeight), bounds.profileHint)
+        }
+    }
+}
+
+@Composable
 private fun CarStartupMessage(message: String) {
     Box(
         modifier = Modifier

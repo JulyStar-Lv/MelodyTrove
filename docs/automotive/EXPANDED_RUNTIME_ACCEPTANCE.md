@@ -2,6 +2,11 @@
 
 Acceptance date: 2026-09-09
 
+Scope correction (2026-09-10): this document validates the Expanded page on a
+dedicated 2496×1080 AVD. Real cockpit screenshots show that production uses a
+2496×1080 panel at `[64,192]–[2560,1272]` inside a 5120×1440 display. That host
+placement is implemented and tested separately in `CarAppWindowBoundsResolver`.
+
 ## Target and window
 
 - AVD: `TidePlayer_AAOS_Expanded`

@@ -33,25 +33,24 @@ theme, state, and resolution list is in `FIGMA_RESOLUTION_MATRIX.md`.
 
 | Figma target | Runtime profile | Window condition | Core layout metrics |
 |---|---|---|---|
-| 2496×1080 | Expanded | explicit hint or measured usable aspect in `(2.15, 3.25)` | 352 rail, 4-column grid, 560/1424 panes, 640 artwork |
-| 1728×1080 | VehiclePanel | explicit hint or measured usable aspect `≤ 2.15` | 240 rail, 3-column grid, 480/920–944 panes, 600 artwork |
+| 2496×1080 | Expanded | cockpit panel `[64,192]–[2560,1272]`, or an app-sized test window | 352 rail, 4-column grid, 560/1424 panes, 640 artwork |
+| 1728×1080 | VehiclePanel | cockpit panel `[832,192]–[2560,1272]`, or an app-sized test window | 240 rail, 3-column grid, 480/920–944 panes, 600 artwork |
 | 5120×1304 content / 5120×1440 display | FullscreenCockpit | explicit hint or measured usable aspect `≥ 3.25` | no shell, 720 artwork, 128 touch targets, Minimal/Flow structures |
 
-The resolver consumes runtime `DpSize` constraints and insets. It does not equate
-Figma pixels with dp, compare an exact screen width, or scale a root canvas.
-Nearby-shape tests verify that the mapping tolerates system bars, density, and OEM
-variation.
+The production cockpit wrapper first applies FileManager's verified pixel panel
+bounds on a matching 1440-high host. The page resolver then consumes the panel's
+runtime `DpSize`; ordinary app-sized windows still use automatic shape selection.
 
 ## D. Window audit
 
-FileManager source and APK-derived source establish the two OEM state keys and
-internal full/left MotionLayout states. The left calculation starts at
-`760 + 72 = 832` on its inferred 2560-unit canvas, leaving 1728 units. Its
-replication project independently declares 5120×1304 default/passenger dialog
-bounds. These are platform clues; TidePlayer still resolves measured Android
-constraints.
+The supplied real 5120×1440 screenshots and FileManager source establish one
+transparent cockpit surface with two internal panel states. Expanded occupies
+`[64,192]–[2560,1272]` (2496×1080). VehiclePanel moves the left edge to
+`760 + 72 = 832`, producing `[832,192]–[2560,1272]` (1728×1080). Tide Player now
+observes `key_screen_show` and `key_vpa_cui_show_left` and applies the same
+geometry, transparent outer surface, edge-to-edge policy, and 8dp panel corners.
 
-Measured AAOS evidence:
+Dedicated AAOS layout-validation evidence:
 
 - Expanded: physical/task 2496×1080 at 160 dpi, app bounds 2496×984,
   Compose root 2496×908 at `[0,76]`, status 76 and bottom car bar 96.
@@ -63,6 +62,10 @@ Measured AAOS evidence:
   so app-window capture on that target was inconclusive. Raw environment evidence
   is retained locally. Production cockpit execution is the only hardware-only
   supplemental check; the Figma frames and code implementation are complete.
+
+The 2496/1728 AVDs validate the page layouts at those exact sizes. They do not
+represent the production cockpit's physical display modes; the supplied cockpit
+screenshots provide that placement evidence.
 
 The full source/runtime distinction and evidence paths are in
 `CAR_WINDOW_PROFILES.md`, `EXPANDED_RUNTIME_ACCEPTANCE.md`, and
@@ -77,6 +80,9 @@ import Mobile screens. Database, library sync, sources, settings, search,
 Resolution changes select metrics or the one justified fullscreen structural
 composition; they do not create ViewModels, repositories, queues, players,
 sessions, or databases.
+
+The OEM adapter is isolated in `:carApp`. `:car:presentation` owns a pure,
+unit-tested bounds resolver and never reads Android global settings.
 
 ## F. Figma to Compose
 
@@ -120,6 +126,7 @@ bring-into-view, route restore, and profile-switch restore are specified in
 - `layout/CarLayoutProfile.kt`
 - `layout/CarLayoutMetrics.kt`
 - `layout/CarLayoutProfileResolver.kt`
+- `layout/CarAppWindowBounds.kt`
 - `navigation/CarNavigationRoot.kt`
 - `screen/CarLibraryScreens.kt`
 - `focus/CarFocusGraph.kt`
@@ -128,7 +135,9 @@ bring-into-view, route restore, and profile-switch restore are specified in
 
 `:carApp`:
 
-- `MainActivity.kt` debug-only window/configuration/inset/root evidence logging
+- `MainActivity.kt` cockpit panel host, edge-to-edge setup, and debug evidence
+- `OemScreenStateMonitor.kt` read-only FileManager-compatible state observation
+- transparent window theme and OEM system-bar metadata
 
 Documentation:
 
@@ -146,7 +155,7 @@ Documentation:
 
 | Command | Result |
 |---|---|
-| `gradlew :car:presentation:testDebugUnitTest` | PASS, 39 tests, 0 failures/errors/skips |
+| `gradlew :car:presentation:testDebugUnitTest` | PASS, including four FileManager panel-bound tests |
 | `gradlew :carApp:assembleDebug :androidApp:assembleDebug` | PASS |
 | `gradlew :carApp:lintDebug :car:presentation:lintDebug` | PASS; 0 errors, 2/4 pre-existing warnings |
 | `gradlew :shared:desktopTest :desktopApp:compileKotlinDesktop` | PASS |
@@ -161,11 +170,10 @@ and this change does not touch shared/iOS source.
 
 | Resolution | Profile | Result | Basis |
 |---:|---|---|---|
-| 2496×1080 | Expanded | PASS | complete physical runtime, real-library E2E, input, theme, and visual acceptance |
-| 1728×1080 | VehiclePanel | PASS | physical/window/root/profile evidence plus shared-route, metrics, focus, build, and test acceptance |
+| 2496×1080 | Expanded | PASS | real-cockpit FileManager placement plus app-sized AVD E2E, input, theme, and visual acceptance |
+| 1728×1080 | VehiclePanel | PASS | real-cockpit FileManager placement plus app-sized AVD metrics, focus, build, and test acceptance |
 | 5120×1304 in 5120×1440 | FullscreenCockpit | PASS | complete formal-node implementation, physical display evidence, resolver/build/test/static/visual review; production target execution is supplemental |
 
 No formal Figma resolution or page is Deferred. FullscreenCockpit cells absent
 from Figma are marked `N/A — Figma does not define this screen for this profile`
 in `RESOLUTION_ACCEPTANCE_MATRIX.md`.
-
