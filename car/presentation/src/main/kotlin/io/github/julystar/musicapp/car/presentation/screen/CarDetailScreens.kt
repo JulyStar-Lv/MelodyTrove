@@ -11,8 +11,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
@@ -27,11 +29,18 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import io.github.julystar.musicapp.car.presentation.component.CarAlbumCard
 import io.github.julystar.musicapp.car.presentation.component.CarArtwork
 import io.github.julystar.musicapp.car.presentation.component.CarQuickActionCard
 import io.github.julystar.musicapp.car.presentation.component.CarSongRow
+import io.github.julystar.musicapp.car.presentation.component.carInteractiveSurface
 import io.github.julystar.musicapp.car.presentation.icon.CarIcon
+import io.github.julystar.musicapp.car.presentation.icon.CarIcon as CarIconView
 import io.github.julystar.musicapp.car.presentation.focus.CarFocusId
 import io.github.julystar.musicapp.car.presentation.focus.CarFocusIds
 import io.github.julystar.musicapp.car.presentation.focus.carFocusTarget
@@ -42,13 +51,16 @@ import io.github.julystar.musicapp.car.presentation.theme.LocalCarSpacing
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarTypography
 import io.github.julystar.musicapp.core.domain.model.Artwork
 import io.github.julystar.musicapp.core.domain.model.DomainAlbumDetail
+import io.github.julystar.musicapp.core.domain.model.DomainArtistAlbum
 import io.github.julystar.musicapp.core.domain.model.DomainArtistDetail
 import io.github.julystar.musicapp.core.domain.model.DomainPlaylistTrack
 import io.github.julystar.musicapp.core.domain.model.DomainTrackBrowserItem
 import io.github.julystar.musicapp.core.domain.model.LibraryTrackItem
+import io.github.julystar.musicapp.core.domain.model.LibraryAlbumItem
 import io.github.julystar.musicapp.core.domain.repository.AlbumDetailRepository
 import io.github.julystar.musicapp.core.domain.repository.ArtistDetailRepository
 import io.github.julystar.musicapp.core.domain.repository.ArtworkRepository
+import io.github.julystar.musicapp.core.domain.repository.FavoritesRepository
 import io.github.julystar.musicapp.core.domain.repository.PlaylistRepository
 import io.github.julystar.musicapp.service.playback.domain.PlaybackController
 import kotlinx.coroutines.launch
@@ -100,6 +112,7 @@ fun CarArtistDetailScreen(
     metrics: CarLayoutMetrics,
     navigationFocusId: CarFocusId,
     onBack: () -> Unit,
+    onAlbumClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val repository = koinInject<ArtistDetailRepository>()
@@ -117,15 +130,12 @@ fun CarArtistDetailScreen(
     when (val value = result) {
         DetailResult.Loading -> CarPageState("正在载入歌手…", modifier)
         is DetailResult.Error -> ErrorDetail(value.message, metrics, navigationFocusId, { retry++ }, onBack, modifier)
-        is DetailResult.Content -> DetailLayout(
-            title = value.value.name ?: "未知歌手",
-            subtitle = "${value.value.albums.size} 张专辑 · ${value.value.tracks.size} 首歌曲",
-            artwork = value.value.albums.firstOrNull()?.id?.let { Artwork.LibraryAlbum(it) },
-            tracks = value.value.tracks.map(DomainTrackBrowserItem::toLibraryTrackItem),
-            playlistId = null,
+        is DetailResult.Content -> ArtistDetailLayout(
+            detail = value.value,
             metrics = metrics,
             navigationFocusId = navigationFocusId,
             onBack = onBack,
+            onAlbumClick = onAlbumClick,
             modifier = modifier,
         )
     }
@@ -185,96 +195,245 @@ private fun DetailLayout(
 ) {
     val artworkRepository = koinInject<ArtworkRepository>()
     val playbackController = koinInject<PlaybackController>()
+    val favoritesRepository = koinInject<FavoritesRepository>()
     val playerState by playbackController.state.collectAsState()
+    val favoriteTrackIds by favoritesRepository.favoriteTrackIds.collectAsState(emptySet())
     val scope = rememberCoroutineScope()
-    val queue = if (tracks.isEmpty()) emptyList() else tracks.toCarPlaybackRequest(0, playlistId).items
-    Column(
-        modifier = modifier.padding(
-            start = metrics.detailContentMargin,
-            top = metrics.detailContentMargin,
-            end = metrics.detailContentMargin,
-            bottom = metrics.navigationRailBottom,
-        ),
+    val queue = remember(tracks, playlistId) {
+        if (tracks.isEmpty()) emptyList() else tracks.toCarPlaybackRequest(0, playlistId).items
+    }
+    DetailScaffold(
+        metrics = metrics,
+        title = title,
+        subtitle = subtitle,
+        secondary = "${tracks.size} 首歌曲",
+        artwork = artwork,
+        artworkRepository = artworkRepository,
+        navigationFocusId = navigationFocusId,
+        onBack = onBack,
+        onPlayAll = { if (queue.isNotEmpty()) scope.launch { playbackController.play(queue, 0) } },
+        onShuffle = {
+            if (queue.isNotEmpty()) scope.launch { playbackController.play(queue.shuffled(), 0) }
+        },
+        playEnabled = queue.isNotEmpty(),
+        modifier = modifier,
     ) {
-        CarQuickActionCard(
-            title = "返回",
-            summary = title,
-            icon = CarIcon.Back,
-            tileSize = metrics.headerHeight,
-            iconSize = metrics.iconSize,
-            onClick = onBack,
-            modifier = Modifier
-                .carFocusTarget(CarFocusIds.DetailBack, left = navigationFocusId, down = CarFocusIds.DetailPlayAll)
-                .width(metrics.detailHeroWidth)
-                .height(metrics.detailTopBarHeight),
+        DetailTrackList(
+            tracks = tracks,
+            currentTrackId = playerState.currentItem?.libraryTrackId,
+            metrics = metrics,
+            artworkRepository = artworkRepository,
+            favoriteTrackIds = favoriteTrackIds,
+            onToggleFavorite = { trackId -> scope.launch { favoritesRepository.toggleFavorite(trackId) } },
+            onPlay = { index -> scope.launch { playbackController.play(queue, index) } },
+            modifier = Modifier.fillMaxSize(),
         )
-        Spacer(Modifier.height(metrics.detailContentMargin))
-        Row(horizontalArrangement = Arrangement.spacedBy(metrics.detailPaneGap), modifier = Modifier.fillMaxSize()) {
-            Column(
-                horizontalAlignment = Alignment.Start,
-                modifier = Modifier
-                    .width(metrics.detailHeroWidth)
-                    .fillMaxHeight()
-                    .background(LocalCarColors.current.backgroundSubtle, LocalCarShapes.current.panel)
-                    .padding(LocalCarSpacing.current.pane),
-            ) {
-                CarArtwork(
-                    artwork = artwork,
-                    repository = artworkRepository,
-                    size = metrics.detailHeroWidth - LocalCarSpacing.current.expansive,
-                    shape = LocalCarShapes.current.panel,
-                )
-                Spacer(Modifier.height(LocalCarSpacing.current.pane))
-                BasicText(
-                    title,
-                    style = LocalCarTypography.current.titleLarge.copy(color = LocalCarColors.current.textPrimary),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                BasicText(subtitle, style = LocalCarTypography.current.body.copy(color = LocalCarColors.current.textSecondary))
-                Spacer(Modifier.height(LocalCarSpacing.current.section))
-                CarQuickActionCard(
-                    title = "播放全部",
-                    summary = "${tracks.size} 首歌曲",
-                    icon = CarIcon.Play,
-                    tileSize = metrics.iconSize,
-                    iconSize = metrics.iconSize * 0.6f,
-                    enabled = queue.isNotEmpty(),
-                    onClick = { if (queue.isNotEmpty()) scope.launch { playbackController.play(queue, 0) } },
-                    modifier = Modifier
-                        .carFocusTarget(CarFocusIds.DetailPlayAll, up = CarFocusIds.DetailBack, left = navigationFocusId)
-                        .fillMaxWidth()
-                        .height(metrics.headerHeight),
-                )
-            }
-            if (tracks.isEmpty()) {
-                CarPageState("这里还没有歌曲", Modifier.weight(1f).fillMaxHeight())
+    }
+}
+
+@Composable
+private fun ArtistDetailLayout(
+    detail: DomainArtistDetail,
+    metrics: CarLayoutMetrics,
+    navigationFocusId: CarFocusId,
+    onBack: () -> Unit,
+    onAlbumClick: (Long) -> Unit,
+    modifier: Modifier,
+) {
+    val artworkRepository = koinInject<ArtworkRepository>()
+    val playbackController = koinInject<PlaybackController>()
+    val favoritesRepository = koinInject<FavoritesRepository>()
+    val playerState by playbackController.state.collectAsState()
+    val favoriteTrackIds by favoritesRepository.favoriteTrackIds.collectAsState(emptySet())
+    val scope = rememberCoroutineScope()
+    val tracks = remember(detail.tracks) { detail.tracks.map(DomainTrackBrowserItem::toLibraryTrackItem) }
+    val queue = remember(tracks) {
+        if (tracks.isEmpty()) emptyList() else tracks.toCarPlaybackRequest(0).items
+    }
+    DetailScaffold(
+        metrics = metrics,
+        title = detail.name ?: "未知歌手",
+        subtitle = "${tracks.size} 首歌曲 · ${detail.albums.size} 张专辑",
+        secondary = "本地乐库",
+        artwork = detail.albums.firstOrNull()?.id?.let(Artwork::LibraryAlbum),
+        artworkRepository = artworkRepository,
+        navigationFocusId = navigationFocusId,
+        onBack = onBack,
+        onPlayAll = { if (queue.isNotEmpty()) scope.launch { playbackController.play(queue, 0) } },
+        onShuffle = {
+            if (queue.isNotEmpty()) scope.launch { playbackController.play(queue.shuffled(), 0) }
+        },
+        playEnabled = queue.isNotEmpty(),
+        modifier = modifier,
+    ) {
+        Column(Modifier.fillMaxSize()) {
+            BasicText("歌曲  ›", style = LocalCarTypography.current.titleLarge.copy(color = LocalCarColors.current.textPrimary))
+            Spacer(Modifier.height(LocalCarSpacing.current.small))
+            DetailTrackList(
+                tracks = tracks.take(5),
+                currentTrackId = playerState.currentItem?.libraryTrackId,
+                metrics = metrics,
+                artworkRepository = artworkRepository,
+                favoriteTrackIds = favoriteTrackIds,
+                onToggleFavorite = { trackId -> scope.launch { favoritesRepository.toggleFavorite(trackId) } },
+                onPlay = { index -> scope.launch { playbackController.play(queue, index) } },
+                modifier = Modifier.weight(1f),
+            )
+            Spacer(Modifier.height(LocalCarSpacing.current.section))
+            BasicText("专辑  ›", style = LocalCarTypography.current.titleLarge.copy(color = LocalCarColors.current.textPrimary))
+            Spacer(Modifier.height(LocalCarSpacing.current.small))
+            if (detail.albums.isEmpty()) {
+                BasicText("暂无专辑", style = LocalCarTypography.current.body.copy(color = LocalCarColors.current.textSecondary))
             } else {
-                LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(LocalCarSpacing.current.xSmall),
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .background(LocalCarColors.current.panel, LocalCarShapes.current.panel)
-                        .padding(LocalCarSpacing.current.wide),
+                LazyRow(
+                    horizontalArrangement = Arrangement.spacedBy(metrics.cardGap),
+                    modifier = Modifier.height(metrics.recommendationCardHeight * 0.72f),
                 ) {
-                    itemsIndexed(tracks, key = { _, track -> track.id }) { index, track ->
-                        CarSongRow(
-                            track = track,
-                            index = index,
-                            playing = playerState.currentItem?.libraryTrackId == track.id,
-                            height = metrics.detailRowHeight,
-                            onClick = { scope.launch { playbackController.play(queue, index) } },
-                            modifier = Modifier
-                                .carFocusTarget(
-                                    CarFocusIds.item("detail_track", track.id),
-                                    left = CarFocusIds.DetailPlayAll,
-                                )
-                                .height(metrics.detailRowHeight),
+                    itemsIndexed(detail.albums, key = { _, album -> album.id }) { _, album ->
+                        CarAlbumCard(
+                            album = album.toLibraryAlbumItem(detail.name),
+                            artworkRepository = artworkRepository,
+                            artworkSize = metrics.recommendationCardWidth * 0.5f,
+                            onClick = { onAlbumClick(album.id) },
+                            modifier = Modifier.width(metrics.recommendationCardWidth * 0.72f).fillMaxHeight(),
                         )
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun DetailScaffold(
+    metrics: CarLayoutMetrics,
+    title: String,
+    subtitle: String,
+    secondary: String,
+    artwork: Artwork?,
+    artworkRepository: ArtworkRepository,
+    navigationFocusId: CarFocusId,
+    onBack: () -> Unit,
+    onPlayAll: () -> Unit,
+    onShuffle: () -> Unit,
+    playEnabled: Boolean,
+    modifier: Modifier,
+    content: @Composable () -> Unit,
+) {
+    val colors = LocalCarColors.current
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(metrics.detailPaneGap),
+        modifier = modifier.fillMaxSize().padding(
+            start = metrics.detailContentMargin,
+            top = metrics.contentTop,
+            end = metrics.contentHorizontalPadding,
+            bottom = metrics.navigationRailBottom,
+        ),
+    ) {
+        Box(
+            modifier = Modifier.width(metrics.detailHeroWidth).fillMaxHeight()
+                .clip(LocalCarShapes.current.panel).background(colors.backgroundSubtle),
+        ) {
+            CarArtwork(artwork, artworkRepository, metrics.detailHeroWidth, LocalCarShapes.current.panel)
+            Box(
+                Modifier.fillMaxWidth().height(metrics.detailHeroWidth * 0.62f).align(Alignment.Center)
+                    .background(Brush.verticalGradient(listOf(Color.Transparent, colors.backgroundSubtle.copy(alpha = 0.72f)))),
+            )
+            Box(
+                Modifier.fillMaxWidth().fillMaxHeight(0.46f).align(Alignment.BottomCenter)
+                    .background(Brush.verticalGradient(listOf(colors.backgroundSubtle.copy(alpha = 0.68f), colors.backgroundSubtle))),
+            )
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.padding(LocalCarSpacing.current.content).size(metrics.headerHeight)
+                    .carFocusTarget(CarFocusIds.DetailBack, left = navigationFocusId, down = CarFocusIds.DetailPlayAll)
+                    .carInteractiveSurface(LocalCarShapes.current.control, defaultColor = Color.Black.copy(alpha = 0.5f), onClick = onBack),
+            ) {
+                CarIconView(CarIcon.Back, "返回", Color.White, Modifier.size(metrics.iconSize * 0.7f))
+            }
+            Column(
+                modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(LocalCarSpacing.current.pane),
+            ) {
+                BasicText(title, style = LocalCarTypography.current.pageTitle.copy(color = colors.textPrimary), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Spacer(Modifier.height(LocalCarSpacing.current.section))
+                BasicText(subtitle, style = LocalCarTypography.current.body.copy(color = colors.textPrimary), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Spacer(Modifier.height(LocalCarSpacing.current.small))
+                BasicText(secondary, style = LocalCarTypography.current.body.copy(color = colors.textSecondary))
+                Spacer(Modifier.height(LocalCarSpacing.current.section))
+                Row(horizontalArrangement = Arrangement.spacedBy(LocalCarSpacing.current.small)) {
+                    DetailAction("播放全部", CarIcon.Play, playEnabled, onPlayAll, Modifier.width(176.dp))
+                    DetailAction("随机", CarIcon.Shuffle, playEnabled, onShuffle, Modifier.width(metrics.headerHeight))
+                    DetailAction("收藏", CarIcon.Heart, false, {}, Modifier.width(metrics.headerHeight))
+                    DetailAction("更多", CarIcon.More, false, {}, Modifier.width(metrics.headerHeight))
+                }
+            }
+        }
+        Box(
+            modifier = Modifier.weight(1f).fillMaxHeight().clip(LocalCarShapes.current.panel)
+                .background(colors.backgroundSubtle).padding(LocalCarSpacing.current.section),
+        ) { content() }
+    }
+}
+
+@Composable
+private fun DetailAction(
+    title: String,
+    icon: CarIcon,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier,
+) {
+    val colors = LocalCarColors.current
+    Row(
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier.height(72.dp).carInteractiveSurface(
+            LocalCarShapes.current.control, enabled = enabled, defaultColor = colors.surfaceContainerHigh, onClick = onClick,
+        ),
+    ) {
+        CarIconView(icon, title, if (enabled) colors.accentPrimary else colors.textDisabled, Modifier.size(28.dp))
+        if (title == "播放全部") {
+            Spacer(Modifier.width(LocalCarSpacing.current.small))
+            BasicText(
+                title,
+                style = LocalCarTypography.current.body.copy(
+                    color = if (enabled) colors.accentPrimary else colors.textDisabled,
+                ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun DetailTrackList(
+    tracks: List<LibraryTrackItem>,
+    currentTrackId: Long?,
+    metrics: CarLayoutMetrics,
+    artworkRepository: ArtworkRepository,
+    favoriteTrackIds: Set<Long>,
+    onToggleFavorite: (Long) -> Unit,
+    onPlay: (Int) -> Unit,
+    modifier: Modifier,
+) {
+    if (tracks.isEmpty()) return CarPageState("这里还没有歌曲", modifier)
+    LazyColumn(verticalArrangement = Arrangement.spacedBy(1.dp), modifier = modifier) {
+        itemsIndexed(tracks, key = { _, track -> track.id }) { index, track ->
+            CarSongRow(
+                track = track,
+                index = index,
+                playing = currentTrackId == track.id,
+                height = metrics.detailRowHeight,
+                artworkRepository = artworkRepository,
+                showArtwork = track.albumId != null,
+                showAlbum = track.albumName != null,
+                showActions = true,
+                favorite = track.id in favoriteTrackIds,
+                onToggleFavorite = { onToggleFavorite(track.id) },
+                onClick = { onPlay(index) },
+                modifier = Modifier
+                    .carFocusTarget(CarFocusIds.item("detail_track", track.id), left = CarFocusIds.DetailPlayAll)
+                    .height(metrics.detailRowHeight),
+            )
         }
     }
 }
@@ -303,5 +462,11 @@ private sealed interface DetailResult<out T> {
     data class Error(val message: String) : DetailResult<Nothing>
 }
 
-private fun DomainTrackBrowserItem.toLibraryTrackItem() = LibraryTrackItem(id, title, artist, durationMs, mediaId)
-private fun DomainPlaylistTrack.toLibraryTrackItem() = LibraryTrackItem(trackId, title, artist, durationMs, mediaId)
+private fun DomainTrackBrowserItem.toLibraryTrackItem() =
+    LibraryTrackItem(id, title, artist, durationMs, mediaId, albumName, albumId)
+
+private fun DomainPlaylistTrack.toLibraryTrackItem() =
+    LibraryTrackItem(trackId, title, artist, durationMs, mediaId, albumName)
+
+private fun DomainArtistAlbum.toLibraryAlbumItem(artist: String?) =
+    LibraryAlbumItem(id, name ?: "未知专辑", year, artist)

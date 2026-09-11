@@ -23,10 +23,13 @@ import io.github.julystar.musicapp.car.presentation.theme.LocalCarTypography
 @Composable
 fun CarPreference(
     title: String,
-    summary: String,
+    summary: String? = null,
     checked: Boolean? = null,
     enabled: Boolean = true,
+    interactive: Boolean = true,
     controlSize: Dp,
+    containerColor: Color? = null,
+    highlightWhenChecked: Boolean = true,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -37,9 +40,9 @@ fun CarPreference(
             .fillMaxWidth()
             .carInteractiveSurface(
                 shape = LocalCarShapes.current.navigationItem,
-                selected = checked == true,
-                enabled = enabled,
-                defaultColor = colors.backgroundSubtle,
+                selected = highlightWhenChecked && checked == true,
+                enabled = enabled && interactive,
+                defaultColor = containerColor ?: colors.backgroundSubtle,
                 onClick = onClick,
             )
             .padding(horizontal = LocalCarSpacing.current.section),
@@ -47,16 +50,18 @@ fun CarPreference(
         Column(Modifier.weight(1f)) {
             BasicText(
                 text = title,
-                style = LocalCarTypography.current.bodyLarge.copy(
+                style = LocalCarTypography.current.title.copy(
                     color = if (enabled) colors.textPrimary else colors.textDisabled,
                 ),
             )
-            BasicText(
-                text = summary,
-                style = LocalCarTypography.current.body.copy(
-                    color = if (enabled) colors.textSecondary else colors.textDisabled,
-                ),
-            )
+            summary?.takeIf(String::isNotBlank)?.let {
+                BasicText(
+                    text = it,
+                    style = LocalCarTypography.current.body.copy(
+                        color = if (enabled) colors.textSecondary else colors.textDisabled,
+                    ),
+                )
+            }
         }
         checked?.let {
             Spacer(Modifier.size(LocalCarSpacing.current.section))
@@ -76,16 +81,20 @@ private fun CarSwitch(checked: Boolean, enabled: Boolean, size: Dp) {
     Box(
         contentAlignment = if (checked) Alignment.CenterEnd else Alignment.CenterStart,
         modifier = Modifier
-            .size(width = size, height = size * 0.55f)
+            .size(width = size, height = size * SWITCH_HEIGHT_RATIO)
             .clip(LocalCarShapes.current.control)
             .background(trackColor)
-            .padding(size * 0.08f),
+            .padding(size * SWITCH_PADDING_RATIO),
     ) {
         Box(
             Modifier
-                .size(size * 0.39f)
+                .size(size * SWITCH_THUMB_RATIO)
                 .clip(LocalCarShapes.current.control)
                 .background(if (enabled) Color.White else colors.textDisabled),
         )
     }
 }
+
+private const val SWITCH_HEIGHT_RATIO = 48f / 104f
+private const val SWITCH_PADDING_RATIO = 4f / 104f
+private const val SWITCH_THUMB_RATIO = 40f / 104f

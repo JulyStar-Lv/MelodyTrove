@@ -40,7 +40,7 @@ private val LightCarColors = DarkCarColors.copy(
     surface = androidx.compose.ui.graphics.Color.White,
     surfaceContainerHigh = androidx.compose.ui.graphics.Color(0xFFE8E8E8),
     surfaceContainerHighest = androidx.compose.ui.graphics.Color(0xFFE8E8E8),
-    surfaceSelected = androidx.compose.ui.graphics.Color(0xFFEDF0F2),
+    surfaceSelected = androidx.compose.ui.graphics.Color(0xFFE8EBED),
     surfacePressed = androidx.compose.ui.graphics.Color(0xFFE8E8E8),
     textPrimary = androidx.compose.ui.graphics.Color.Black,
     textSecondary = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.8f),

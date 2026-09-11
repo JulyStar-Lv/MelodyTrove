@@ -29,6 +29,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
@@ -36,6 +40,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import io.github.julystar.musicapp.car.presentation.component.CarArtwork
 import io.github.julystar.musicapp.car.presentation.component.carInteractiveSurface
 import io.github.julystar.musicapp.car.presentation.icon.CarIcon
@@ -50,6 +55,7 @@ import io.github.julystar.musicapp.car.presentation.theme.LocalCarTypography
 import io.github.julystar.musicapp.core.domain.model.Artwork
 import io.github.julystar.musicapp.core.domain.model.CurrentTrackInfo
 import io.github.julystar.musicapp.core.domain.repository.ArtworkRepository
+import io.github.julystar.musicapp.core.domain.repository.FavoritesRepository
 import io.github.julystar.musicapp.service.playback.domain.NowPlayingRepository
 import io.github.julystar.musicapp.service.playback.domain.PlayableItem
 import io.github.julystar.musicapp.service.playback.domain.PlaybackController
@@ -77,12 +83,15 @@ fun CarNowPlayingScreen(
     val playbackController = koinInject<PlaybackController>()
     val nowPlayingRepository = koinInject<NowPlayingRepository>()
     val artworkRepository = koinInject<ArtworkRepository>()
+    val favoritesRepository = koinInject<FavoritesRepository>()
     val state by playbackController.state.collectAsState()
     val position by playbackController.position.collectAsState()
     val queue by playbackController.queue.collectAsState()
     val trackInfo by nowPlayingRepository.currentTrackInfo.collectAsState()
+    val favoriteTrackIds by favoritesRepository.favoriteTrackIds.collectAsState(emptySet())
     var queueVisible by remember { mutableStateOf(false) }
     val focusScope = rememberCoroutineScope()
+    val currentTrackId = state.currentItem?.libraryTrackId
     fun closeQueue() {
         queueVisible = false
         focusScope.launch {
@@ -99,7 +108,32 @@ fun CarNowPlayingScreen(
         }
     }
 
-    Box(modifier.fillMaxSize().background(LocalCarColors.current.backgroundBase)) {
+    val backdropArtwork = trackInfo?.artwork
+        ?: state.currentItem?.libraryTrackId?.let { Artwork.LibraryTrack(it, true) }
+    val colors = LocalCarColors.current
+    Box(modifier.fillMaxSize().background(colors.backgroundBase)) {
+        CarArtwork(
+            artwork = backdropArtwork,
+            repository = artworkRepository,
+            size = metrics.contentSize.height,
+            shape = RectangleShape,
+            fillBounds = true,
+            modifier = Modifier.fillMaxSize().graphicsLayer {
+                scaleX = 1.15f
+                scaleY = 1.15f
+            }.blur(60.dp),
+        )
+        Box(
+            Modifier.fillMaxSize().background(
+                Brush.verticalGradient(
+                    listOf(
+                        colors.backgroundBase.copy(alpha = 0.72f),
+                        colors.backgroundBase.copy(alpha = 0.62f),
+                        colors.accentSubtle.copy(alpha = 0.48f),
+                    ),
+                ),
+            ),
+        )
         Row(
             horizontalArrangement = Arrangement.spacedBy(metrics.nowPlayingPaneGap),
             modifier = Modifier
@@ -116,6 +150,12 @@ fun CarNowPlayingScreen(
                 trackInfo,
                 artworkRepository,
                 playbackController,
+                isFavorite = currentTrackId != null && currentTrackId in favoriteTrackIds,
+                onToggleFavorite = {
+                    currentTrackId?.let { trackId ->
+                        focusScope.launch { favoritesRepository.toggleFavorite(trackId) }
+                    }
+                },
                 queueVisible,
                 onToggleQueue = { if (queueVisible) closeQueue() else queueVisible = true },
                 modifier = Modifier.width(metrics.nowPlayingPlayerPaneWidth).fillMaxHeight(),
@@ -151,6 +191,8 @@ private fun PlayerPane(
     trackInfo: CurrentTrackInfo?,
     artworkRepository: ArtworkRepository,
     playbackController: PlaybackController,
+    isFavorite: Boolean,
+    onToggleFavorite: () -> Unit,
     queueVisible: Boolean,
     onToggleQueue: () -> Unit,
     modifier: Modifier,
@@ -172,15 +214,16 @@ private fun PlayerPane(
             modifier = Modifier.width(metrics.nowPlayingArtworkSize),
         ) {
             CarPlayerControl(
-                CarIcon.Shuffle,
-                if (state.shuffleEnabled) "关闭随机播放" else "开启随机播放",
+                CarIcon.Heart,
+                "收藏",
                 metrics.headerHeight,
                 metrics.iconSize,
-                state.shuffleEnabled,
+                isFavorite,
                 focusId = CarFocusIds.NowPlayingShuffle,
                 right = CarFocusIds.NowPlayingMore,
                 down = CarFocusIds.NowPlayingRepeat,
-                onClick = { playbackController.setShuffle(!state.shuffleEnabled) },
+                enabled = state.currentItem?.libraryTrackId != null,
+                onClick = onToggleFavorite,
                 modifier = Modifier,
             )
             BasicText(
@@ -414,6 +457,8 @@ private fun QueueRow(
             .carInteractiveSurface(LocalCarShapes.current.navigationItem, playing = playing, onClick = onClick)
             .padding(horizontal = LocalCarSpacing.current.compact),
     ) {
+        BasicText("⋮⋮", style = LocalCarTypography.current.body.copy(color = colors.textSummary))
+        Spacer(Modifier.width(LocalCarSpacing.current.small))
         CarArtwork(
             artwork = item.libraryTrackId?.let { Artwork.LibraryTrack(it, true) },
             repository = artworkRepository,
@@ -431,6 +476,8 @@ private fun QueueRow(
             BasicText(item.artist.orEmpty(), style = LocalCarTypography.current.body.copy(color = colors.textSecondary))
         }
         BasicText(item.durationMs.asTime(), style = LocalCarTypography.current.body.copy(color = colors.textSecondary))
+        Spacer(Modifier.width(LocalCarSpacing.current.section))
+        IconView(CarIcon.More, "更多", colors.textSecondary, Modifier.size(32.dp))
     }
 }
 

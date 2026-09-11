@@ -1,29 +1,49 @@
 package io.github.julystar.musicapp.car.presentation.screen
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import io.github.julystar.musicapp.car.presentation.component.CarPreference
+import io.github.julystar.musicapp.car.presentation.component.carInteractiveSurface
+import io.github.julystar.musicapp.car.presentation.focus.CarFocusId
 import io.github.julystar.musicapp.car.presentation.focus.CarFocusIds
-import io.github.julystar.musicapp.car.presentation.focus.CarFocusCoordinator
 import io.github.julystar.musicapp.car.presentation.focus.carFocusTarget
+import io.github.julystar.musicapp.car.presentation.icon.CarIcon
+import io.github.julystar.musicapp.car.presentation.icon.CarIcon as CarIconView
 import io.github.julystar.musicapp.car.presentation.layout.CarLayoutMetrics
+import io.github.julystar.musicapp.car.presentation.theme.LocalCarColors
+import io.github.julystar.musicapp.car.presentation.theme.LocalCarShapes
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarSpacing
+import io.github.julystar.musicapp.car.presentation.theme.LocalCarTypography
 import io.github.julystar.musicapp.core.domain.model.AppSettings
+import io.github.julystar.musicapp.core.domain.model.AppLanguageMode
 import io.github.julystar.musicapp.core.domain.model.AppThemeMode
+import io.github.julystar.musicapp.core.domain.model.AudioFocusMode
 import io.github.julystar.musicapp.core.domain.repository.SettingsRepository
+import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
@@ -32,12 +52,13 @@ fun CarSettingsScreen(
     metrics: CarLayoutMetrics,
     settings: AppSettings,
     repository: SettingsRepository,
-    focusCoordinator: CarFocusCoordinator,
     modifier: Modifier = Modifier,
 ) {
-    val scope = rememberCoroutineScope()
+    val colors = LocalCarColors.current
     val localLibraryViewModel = koinViewModel<CarLocalLibraryViewModel>()
     val localLibraryState by localLibraryViewModel.state.collectAsState()
+    var selectedSection by rememberSaveable { mutableStateOf(CarSettingsSection.Playback) }
+
     Row(
         horizontalArrangement = Arrangement.spacedBy(metrics.detailPaneGap),
         modifier = modifier
@@ -50,125 +71,430 @@ fun CarSettingsScreen(
             ),
     ) {
         Column(
-            verticalArrangement = Arrangement.spacedBy(LocalCarSpacing.current.compact),
-            modifier = Modifier.width(metrics.detailHeroWidth).fillMaxHeight(),
+            modifier = Modifier
+                .width(metrics.detailHeroWidth)
+                .fillMaxHeight()
+                .clip(LocalCarShapes.current.panel)
+                .background(colors.backgroundSubtle)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = LocalCarSpacing.current.section, vertical = 28.dp),
         ) {
-            CarSectionTitle("设置")
-            CarPreference(
-                title = "播放与外观",
-                summary = "主题、音频输出与播放恢复",
-                controlSize = metrics.iconSize,
-                onClick = { focusCoordinator.requestFocus(CarFocusIds.item("setting", "local_music")) },
-                modifier = Modifier
-                    .carFocusTarget(
-                        CarFocusIds.content("Settings"),
-                        left = CarFocusIds.Settings,
-                        right = CarFocusIds.item("setting", "local_music"),
-                    )
-                    .height(metrics.compactCardHeight),
-            )
+            SettingsPanelTitle("设置")
+            Spacer(Modifier.height(LocalCarSpacing.current.section))
+            SettingsGroupLabel("个性化")
+            SettingsNavItem("外观与语言", CarIcon.Settings, CarSettingsSection.Appearance, selectedSection) { selectedSection = it }
+            SettingsNavItem("歌词设置", CarIcon.Songs, CarSettingsSection.Lyrics, selectedSection) { selectedSection = it }
+            Spacer(Modifier.height(20.dp))
+            SettingsGroupLabel("播放")
+            SettingsNavItem("播放设置", CarIcon.Play, CarSettingsSection.Playback, selectedSection) { selectedSection = it }
+            Spacer(Modifier.height(20.dp))
+            SettingsGroupLabel("音乐库与数据")
+            SettingsNavItem("音源设置", CarIcon.Albums, CarSettingsSection.Source, selectedSection) { selectedSection = it }
+            SettingsNavItem("元数据插件", CarIcon.Artists, CarSettingsSection.Metadata, selectedSection) { selectedSection = it }
+            SettingsNavItem("网络与缓存", CarIcon.Search, CarSettingsSection.Network, selectedSection) { selectedSection = it }
+            SettingsNavItem("存储与数据", CarIcon.Playlists, CarSettingsSection.Storage, selectedSection) { selectedSection = it }
         }
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(LocalCarSpacing.current.compact),
-            contentPadding = PaddingValues(bottom = LocalCarSpacing.current.wide),
-            modifier = Modifier.weight(1f).fillMaxHeight(),
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+                .clip(LocalCarShapes.current.panel)
+                .background(colors.backgroundSubtle)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 32.dp, vertical = 28.dp),
         ) {
-            item { CarSectionTitle("播放与外观") }
-            item {
-                CarPreference(
-                    title = "扫描本地音乐",
-                    summary = localLibraryState.summary,
-                    enabled = localLibraryState != CarLocalLibraryState.Scanning,
-                    controlSize = metrics.iconSize,
-                    onClick = localLibraryViewModel::importLocalMusic,
-                    modifier = Modifier
-                        .carFocusTarget(
-                            CarFocusIds.item("setting", "local_music"),
-                            down = CarFocusIds.item("setting", "theme"),
-                            left = CarFocusIds.content("Settings"),
-                        )
-                        .height(metrics.compactCardHeight),
+            when (selectedSection) {
+                CarSettingsSection.Appearance -> AppearanceSettings(
+                    metrics = metrics,
+                    settings = settings,
+                    repository = repository,
+                    leftFocus = CarFocusIds.item("settings_nav", "Appearance"),
                 )
-            }
-            item {
-                CarPreference(
-                    title = "深色模式",
-                    summary = when (settings.themeMode) {
-                        AppThemeMode.Dark -> "已开启"
-                        AppThemeMode.Light -> "已关闭"
-                        AppThemeMode.System -> "跟随系统"
-                    },
-                    checked = settings.themeMode == AppThemeMode.Dark,
-                    controlSize = metrics.iconSize,
-                    onClick = {
-                        scope.launch {
-                            repository.setThemeMode(
-                                if (settings.themeMode == AppThemeMode.Dark) AppThemeMode.Light else AppThemeMode.Dark,
-                            )
-                        }
-                    },
-                    modifier = Modifier
-                        .carFocusTarget(
-                            CarFocusIds.item("setting", "theme"),
-                            up = CarFocusIds.item("setting", "local_music"),
-                            down = CarFocusIds.item("setting", "pause_on_disconnect"),
-                            left = CarFocusIds.content("Settings"),
-                        )
-                        .height(metrics.compactCardHeight),
+                CarSettingsSection.Lyrics -> LyricsSettings(metrics, settings, repository)
+                CarSettingsSection.Playback -> PlaybackSettings(
+                    metrics = metrics,
+                    settings = settings,
+                    repository = repository,
+                    leftFocus = CarFocusIds.item("settings_nav", "Playback"),
                 )
-            }
-            item {
-                CarPreference(
-                    title = "设备断开时暂停",
-                    summary = "蓝牙或音频输出断开后暂停播放",
-                    checked = settings.pauseOnDisconnect,
-                    controlSize = metrics.iconSize,
-                    onClick = { scope.launch { repository.setPauseOnDisconnect(!settings.pauseOnDisconnect) } },
-                    modifier = Modifier
-                        .carFocusTarget(
-                            CarFocusIds.item("setting", "pause_on_disconnect"),
-                            up = CarFocusIds.item("setting", "theme"),
-                            down = CarFocusIds.item("setting", "gapless"),
-                            left = CarFocusIds.content("Settings"),
-                        )
-                        .height(metrics.compactCardHeight),
+                CarSettingsSection.Source -> SourceSettings(
+                    metrics = metrics,
+                    state = localLibraryState,
+                    onImport = localLibraryViewModel::importLocalMusic,
+                    leftFocus = CarFocusIds.item("settings_nav", "Source"),
                 )
-            }
-            item {
-                CarPreference(
-                    title = "无缝播放",
-                    summary = "支持时减少曲目切换间隔",
-                    checked = settings.gaplessPlaybackEnabled,
-                    controlSize = metrics.iconSize,
-                    onClick = { scope.launch { repository.setGaplessPlaybackEnabled(!settings.gaplessPlaybackEnabled) } },
-                    modifier = Modifier
-                        .carFocusTarget(
-                            CarFocusIds.item("setting", "gapless"),
-                            up = CarFocusIds.item("setting", "pause_on_disconnect"),
-                            down = CarFocusIds.item("setting", "retry"),
-                            left = CarFocusIds.content("Settings"),
-                        )
-                        .height(metrics.compactCardHeight),
-                )
-            }
-            item {
-                CarPreference(
-                    title = "播放失败后重试",
-                    summary = "临时网络错误时自动重新尝试",
-                    checked = settings.retryPlaybackOnFailure,
-                    controlSize = metrics.iconSize,
-                    onClick = { scope.launch { repository.setRetryPlaybackOnFailure(!settings.retryPlaybackOnFailure) } },
-                    modifier = Modifier
-                        .carFocusTarget(
-                            CarFocusIds.item("setting", "retry"),
-                            up = CarFocusIds.item("setting", "gapless"),
-                            left = CarFocusIds.content("Settings"),
-                        )
-                        .height(metrics.compactCardHeight),
-                )
+                CarSettingsSection.Metadata -> MetadataSettings(metrics, settings)
+                CarSettingsSection.Network -> NetworkSettings(metrics, settings, repository)
+                CarSettingsSection.Storage -> StorageSettings(metrics, settings, repository)
             }
         }
     }
+}
+
+@Composable
+private fun AppearanceSettings(
+    metrics: CarLayoutMetrics,
+    settings: AppSettings,
+    repository: SettingsRepository,
+    leftFocus: CarFocusId,
+) {
+    val scope = rememberCoroutineScope()
+    SettingsPanelTitle("外观与语言")
+    Spacer(Modifier.height(LocalCarSpacing.current.section))
+    SettingsGroupLabel("个性化")
+    Spacer(Modifier.height(LocalCarSpacing.current.small))
+    CarPreference(
+        title = "深色模式",
+        summary = when (settings.themeMode) {
+            AppThemeMode.Dark -> "已开启"
+            AppThemeMode.Light -> "已关闭"
+            AppThemeMode.System -> "跟随系统"
+        },
+        checked = settings.themeMode == AppThemeMode.Dark,
+        controlSize = metrics.primaryTouchTarget * 0.8125f,
+        containerColor = LocalCarColors.current.panel,
+        highlightWhenChecked = false,
+        onClick = {
+            scope.launch {
+                repository.setThemeMode(
+                    if (settings.themeMode == AppThemeMode.Dark) AppThemeMode.Light else AppThemeMode.Dark,
+                )
+            }
+        },
+        modifier = Modifier
+            .carFocusTarget(CarFocusIds.item("setting", "theme"), left = leftFocus)
+            .height(metrics.compactCardHeight),
+    )
+    CarPreference(
+        title = "跟随封面配色",
+        summary = "使用当前歌曲封面生成界面色彩",
+        checked = settings.artworkThemeEnabled,
+        controlSize = metrics.primaryTouchTarget * 0.8125f,
+        containerColor = LocalCarColors.current.panel,
+        highlightWhenChecked = false,
+        onClick = { scope.launch { repository.setArtworkThemeEnabled(!settings.artworkThemeEnabled) } },
+        modifier = Modifier.height(metrics.compactCardHeight),
+    )
+    CarPreference(
+        title = "界面语言",
+        summary = when (settings.languageMode) {
+            AppLanguageMode.System -> "跟随系统"
+            AppLanguageMode.Chinese -> "简体中文"
+            AppLanguageMode.English -> "English"
+        },
+        controlSize = metrics.primaryTouchTarget * 0.8125f,
+        containerColor = LocalCarColors.current.panel,
+        onClick = {
+            val next = when (settings.languageMode) {
+                AppLanguageMode.System -> AppLanguageMode.Chinese
+                AppLanguageMode.Chinese -> AppLanguageMode.English
+                AppLanguageMode.English -> AppLanguageMode.System
+            }
+            scope.launch { repository.setLanguageMode(next) }
+        },
+        modifier = Modifier.height(metrics.compactCardHeight),
+    )
+}
+
+@Composable
+private fun LyricsSettings(metrics: CarLayoutMetrics, settings: AppSettings, repository: SettingsRepository) {
+    val scope = rememberCoroutineScope()
+    SettingsPanelTitle("歌词设置")
+    Spacer(Modifier.height(LocalCarSpacing.current.section))
+    SettingsGroupLabel("显示与交互")
+    Spacer(Modifier.height(LocalCarSpacing.current.small))
+    SettingsToggle("显示翻译", settings.lyrics.showTranslation, metrics) {
+        scope.launch { repository.setLyricTranslationVisible(!settings.lyrics.showTranslation) }
+    }
+    SettingsToggle("逐字歌词动效", settings.lyrics.wordLiftEnabled, metrics) {
+        scope.launch { repository.setLyricWordLiftEnabled(!settings.lyrics.wordLiftEnabled) }
+    }
+    SettingsToggle("歌词模糊效果", settings.lyrics.blurEffectEnabled, metrics) {
+        scope.launch { repository.setLyricBlurEffectEnabled(!settings.lyrics.blurEffectEnabled) }
+    }
+    SettingsToggle("点击歌词跳转", settings.lyrics.tapToSeekEnabled, metrics) {
+        scope.launch { repository.setLyricTapToSeekEnabled(!settings.lyrics.tapToSeekEnabled) }
+    }
+}
+
+@Composable
+private fun PlaybackSettings(
+    metrics: CarLayoutMetrics,
+    settings: AppSettings,
+    repository: SettingsRepository,
+    leftFocus: CarFocusId,
+) {
+    val scope = rememberCoroutineScope()
+    val colors = LocalCarColors.current
+    val switchWidth = metrics.primaryTouchTarget * 0.8125f
+    SettingsPanelTitle("播放设置")
+    Spacer(Modifier.height(LocalCarSpacing.current.section))
+    SettingsGroupLabel("音频输出")
+    Spacer(Modifier.height(LocalCarSpacing.current.small))
+    SettingsInfo("当前输出", "默认输出", metrics)
+    SettingsInfo("选择输出设备", "跟随系统音频路由", metrics)
+    Spacer(Modifier.height(LocalCarSpacing.current.section))
+    SettingsGroupLabel("音频焦点")
+    Spacer(Modifier.height(LocalCarSpacing.current.small))
+    SettingsInfo(
+        title = "音频焦点处理",
+        summary = when (settings.audioFocusMode) {
+            AudioFocusMode.Pause -> "暂停播放"
+            AudioFocusMode.Duck -> "降低音量"
+            AudioFocusMode.Mix -> "允许混音"
+        },
+        metrics = metrics,
+        onClick = {
+            val next = when (settings.audioFocusMode) {
+                AudioFocusMode.Pause -> AudioFocusMode.Duck
+                AudioFocusMode.Duck -> AudioFocusMode.Mix
+                AudioFocusMode.Mix -> AudioFocusMode.Pause
+            }
+            scope.launch { repository.setAudioFocusMode(next) }
+        },
+    )
+    Spacer(Modifier.height(LocalCarSpacing.current.section))
+    SettingsGroupLabel("播放行为")
+    Spacer(Modifier.height(LocalCarSpacing.current.small))
+    CarPreference(
+        title = "设备断开时暂停",
+        checked = settings.pauseOnDisconnect,
+        controlSize = switchWidth,
+        containerColor = colors.panel,
+        highlightWhenChecked = false,
+        onClick = { scope.launch { repository.setPauseOnDisconnect(!settings.pauseOnDisconnect) } },
+        modifier = Modifier
+            .carFocusTarget(
+                CarFocusIds.item("setting", "pause_on_disconnect"),
+                down = CarFocusIds.item("setting", "gapless"),
+                left = leftFocus,
+            )
+            .height(metrics.compactCardHeight),
+    )
+    CarPreference(
+        title = "无缝播放",
+        checked = settings.gaplessPlaybackEnabled,
+        controlSize = switchWidth,
+        containerColor = colors.panel,
+        highlightWhenChecked = false,
+        onClick = { scope.launch { repository.setGaplessPlaybackEnabled(!settings.gaplessPlaybackEnabled) } },
+        modifier = Modifier
+            .carFocusTarget(
+                CarFocusIds.item("setting", "gapless"),
+                up = CarFocusIds.item("setting", "pause_on_disconnect"),
+                down = CarFocusIds.item("setting", "retry"),
+                left = leftFocus,
+            )
+            .height(metrics.compactCardHeight),
+    )
+    CarPreference(
+        title = "播放失败后重试",
+        checked = settings.retryPlaybackOnFailure,
+        controlSize = switchWidth,
+        containerColor = colors.panel,
+        highlightWhenChecked = false,
+        onClick = { scope.launch { repository.setRetryPlaybackOnFailure(!settings.retryPlaybackOnFailure) } },
+        modifier = Modifier
+            .carFocusTarget(
+                CarFocusIds.item("setting", "retry"),
+                up = CarFocusIds.item("setting", "gapless"),
+                left = leftFocus,
+            )
+            .height(metrics.compactCardHeight),
+    )
+    CarPreference(
+        title = "网络恢复后继续播放",
+        checked = settings.resumePlaybackAfterNetworkRecovery,
+        controlSize = switchWidth,
+        containerColor = colors.panel,
+        highlightWhenChecked = false,
+        onClick = { scope.launch { repository.setResumePlaybackAfterNetworkRecovery(!settings.resumePlaybackAfterNetworkRecovery) } },
+        modifier = Modifier.height(metrics.compactCardHeight),
+    )
+}
+
+@Composable
+private fun SourceSettings(
+    metrics: CarLayoutMetrics,
+    state: CarLocalLibraryState,
+    onImport: () -> Unit,
+    leftFocus: CarFocusId,
+) {
+    SettingsPanelTitle("音源设置")
+    Spacer(Modifier.height(LocalCarSpacing.current.section))
+    SettingsGroupLabel("本地音乐")
+    Spacer(Modifier.height(LocalCarSpacing.current.small))
+    CarPreference(
+        title = "扫描本地音乐",
+        summary = state.summary,
+        enabled = state != CarLocalLibraryState.Scanning,
+        controlSize = metrics.primaryTouchTarget * 0.8125f,
+        containerColor = LocalCarColors.current.panel,
+        onClick = onImport,
+        modifier = Modifier
+            .carFocusTarget(CarFocusIds.item("setting", "local_music"), left = leftFocus)
+            .height(metrics.compactCardHeight),
+    )
+}
+
+@Composable
+private fun MetadataSettings(metrics: CarLayoutMetrics, settings: AppSettings) {
+    SettingsPanelTitle("元数据插件")
+    Spacer(Modifier.height(LocalCarSpacing.current.section))
+    SettingsGroupLabel("扫描与解析")
+    Spacer(Modifier.height(LocalCarSpacing.current.small))
+    SettingsInfo("标签解析", "优先读取文件内嵌元数据", metrics)
+    SettingsInfo("封面与歌词", "允许插件补全缺失内容", metrics)
+    SettingsInfo("WebDAV 扫描", settings.webDavMetadataScanMode.name, metrics)
+}
+
+@Composable
+private fun NetworkSettings(metrics: CarLayoutMetrics, settings: AppSettings, repository: SettingsRepository) {
+    val scope = rememberCoroutineScope()
+    SettingsPanelTitle("网络与缓存")
+    Spacer(Modifier.height(LocalCarSpacing.current.section))
+    SettingsGroupLabel("网络")
+    Spacer(Modifier.height(LocalCarSpacing.current.small))
+    SettingsToggle("允许使用计费网络", settings.allowMeteredNetworkUsage, metrics) {
+        scope.launch { repository.setAllowMeteredNetworkUsage(!settings.allowMeteredNetworkUsage) }
+    }
+    SettingsToggle("边听边缓存", settings.listenAndCacheEnabled, metrics) {
+        scope.launch { repository.setListenAndCacheEnabled(!settings.listenAndCacheEnabled) }
+    }
+    SettingsInfo("连接超时", "${settings.connectionTimeoutSeconds} 秒", metrics)
+    SettingsInfo("音频缓存上限", settings.audioCacheLimitBytes.asStorageSize(), metrics)
+    SettingsInfo("图片缓存上限", settings.imageCacheLimitBytes.asStorageSize(), metrics)
+}
+
+@Composable
+private fun StorageSettings(metrics: CarLayoutMetrics, settings: AppSettings, repository: SettingsRepository) {
+    val scope = rememberCoroutineScope()
+    SettingsPanelTitle("存储与数据")
+    Spacer(Modifier.height(LocalCarSpacing.current.section))
+    SettingsGroupLabel("音乐库")
+    Spacer(Modifier.height(LocalCarSpacing.current.small))
+    SettingsToggle("扫描子目录", settings.scanSubdirectories, metrics) {
+        scope.launch { repository.setScanSubdirectories(!settings.scanSubdirectories) }
+    }
+    SettingsInfo("自动扫描", settings.autoScanMode.name, metrics)
+    SettingsInfo("缺失文件策略", settings.missingFilePolicy.name, metrics)
+    SettingsInfo("最低音频时长", "${settings.minimumAudioDurationMs / 1000} 秒", metrics)
+}
+
+@Composable
+private fun SettingsToggle(title: String, checked: Boolean, metrics: CarLayoutMetrics, onClick: () -> Unit) {
+    CarPreference(
+        title = title,
+        checked = checked,
+        controlSize = metrics.primaryTouchTarget * 0.8125f,
+        containerColor = LocalCarColors.current.panel,
+        highlightWhenChecked = false,
+        onClick = onClick,
+        modifier = Modifier.height(metrics.compactCardHeight),
+    )
+}
+
+@Composable
+private fun SettingsInfo(
+    title: String,
+    summary: String,
+    metrics: CarLayoutMetrics,
+    onClick: (() -> Unit)? = null,
+) {
+    CarPreference(
+        title = title,
+        summary = summary,
+        interactive = onClick != null,
+        controlSize = metrics.primaryTouchTarget * 0.8125f,
+        containerColor = LocalCarColors.current.panel,
+        onClick = onClick ?: {},
+        modifier = Modifier.height(metrics.compactCardHeight),
+    )
+}
+
+@Composable
+private fun SettingsNavItem(
+    title: String,
+    icon: CarIcon,
+    section: CarSettingsSection,
+    selected: CarSettingsSection,
+    onSelect: (CarSettingsSection) -> Unit,
+) {
+    Spacer(Modifier.height(LocalCarSpacing.current.small))
+    SettingsNavigationRow(
+        title = title,
+        icon = icon,
+        selected = selected == section,
+        onClick = { onSelect(section) },
+        modifier = Modifier
+            .carFocusTarget(
+                id = CarFocusIds.item("settings_nav", section.name),
+                left = CarFocusIds.Settings,
+            )
+            .height(88.dp),
+    )
+}
+
+@Composable
+private fun SettingsNavigationRow(
+    title: String,
+    icon: CarIcon,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalCarColors.current
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .fillMaxWidth()
+            .carInteractiveSurface(
+                shape = LocalCarShapes.current.navigationItem,
+                defaultColor = if (selected) colors.accentSubtle else colors.panel,
+                onClick = onClick,
+            )
+            .padding(horizontal = 18.dp),
+    ) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(48.dp)) {
+            CarIconView(
+                icon = icon,
+                contentDescription = null,
+                tint = if (selected) colors.accentPrimary else colors.textPrimary,
+                modifier = Modifier.size(24.dp),
+            )
+        }
+        Spacer(Modifier.width(20.dp))
+        BasicText(
+            text = title,
+            style = LocalCarTypography.current.title.copy(
+                color = if (selected) colors.accentPrimary else colors.textPrimary,
+            ),
+        )
+    }
+}
+
+@Composable
+private fun SettingsPanelTitle(title: String) {
+    BasicText(
+        text = title,
+        style = LocalCarTypography.current.titleLarge.copy(color = LocalCarColors.current.textPrimary),
+    )
+}
+
+@Composable
+private fun SettingsGroupLabel(title: String) {
+    BasicText(
+        text = title,
+        style = LocalCarTypography.current.body.copy(color = LocalCarColors.current.textSecondary),
+    )
+}
+
+private enum class CarSettingsSection { Appearance, Lyrics, Playback, Source, Metadata, Network, Storage }
+
+private fun Long.asStorageSize(): String = when {
+    this >= 1024L * 1024L * 1024L -> "${this / (1024L * 1024L * 1024L)} GB"
+    this >= 1024L * 1024L -> "${this / (1024L * 1024L)} MB"
+    else -> "$this B"
 }
 
 private val CarLocalLibraryState.summary: String

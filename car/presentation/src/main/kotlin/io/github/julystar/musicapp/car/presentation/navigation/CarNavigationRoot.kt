@@ -1,23 +1,27 @@
 package io.github.julystar.musicapp.car.presentation.navigation
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicText
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.unit.dp
 import io.github.julystar.musicapp.car.presentation.component.CarAppWindowHeader
 import io.github.julystar.musicapp.car.presentation.component.CarMiniPlayer
 import io.github.julystar.musicapp.car.presentation.component.CarNavigationItem
@@ -43,10 +47,7 @@ import io.github.julystar.musicapp.car.presentation.screen.CarSearchScreen
 import io.github.julystar.musicapp.car.presentation.screen.CarSettingsScreen
 import io.github.julystar.musicapp.car.presentation.screen.CarSongsScreen
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarColors
-import io.github.julystar.musicapp.car.presentation.theme.LocalCarSpacing
-import io.github.julystar.musicapp.car.presentation.theme.LocalCarTypography
 import io.github.julystar.musicapp.core.domain.repository.ArtworkRepository
-import io.github.julystar.musicapp.core.domain.repository.HomeStatisticsRepository
 import io.github.julystar.musicapp.core.domain.repository.LibraryRepository
 import io.github.julystar.musicapp.core.domain.repository.PlaylistRepository
 import io.github.julystar.musicapp.core.domain.repository.SettingsRepository
@@ -75,7 +76,6 @@ fun CarNavigationRoot(
     val playlistsRepository = koinInject<PlaylistRepository>()
     val artworkRepository = koinInject<ArtworkRepository>()
     val playbackController = koinInject<PlaybackController>()
-    val statisticsRepository = koinInject<HomeStatisticsRepository>()
     val settingsRepository = koinInject<SettingsRepository>()
     val searchRepository = koinInject<SearchRepository>()
     val initialized by library.initialLoadComplete.collectAsState()
@@ -85,16 +85,27 @@ fun CarNavigationRoot(
     val artists by library.artists.collectAsState()
     val playlists by playlistsRepository.playlistSummaries.collectAsState()
     val playerState by playbackController.state.collectAsState()
-    val statistics by statisticsRepository.statistics.collectAsState()
     val settings by settingsRepository.settings.collectAsState(AppSettings())
-    var route by remember { mutableStateOf(CarRoute.Home) }
-    var previousRootRoute by remember { mutableStateOf(CarRoute.Home) }
+    var route by rememberSaveable { mutableStateOf(CarRoute.Home) }
+    var previousRootRoute by rememberSaveable { mutableStateOf(CarRoute.Home) }
     var detailTarget by remember { mutableStateOf<CarDetailTarget?>(null) }
+    var parentDetailTarget by remember { mutableStateOf<CarDetailTarget?>(null) }
+    val screenStateHolder = rememberSaveableStateHolder()
     val focusCoordinator = rememberCarFocusCoordinator()
     val focusManager = LocalFocusManager.current
 
+    fun openDetail(target: CarDetailTarget) {
+        parentDetailTarget = null
+        detailTarget = target
+    }
+
+    fun closeDetail() {
+        detailTarget = parentDetailTarget
+        parentDetailTarget = null
+    }
+
     BackHandler(enabled = detailTarget != null || route != CarRoute.Home) {
-        if (detailTarget != null) detailTarget = null
+        if (detailTarget != null) closeDetail()
         else route = if (route == CarRoute.NowPlaying) previousRootRoute else CarRoute.Home
     }
 
@@ -129,7 +140,7 @@ fun CarNavigationRoot(
             onExit = onExit,
             modifier = Modifier
                 .offset(safeMetrics.headerStart, safeMetrics.headerTop)
-                .width(safeMetrics.navigationRailWidth)
+                .widthIn(min = safeMetrics.navigationRailWidth)
                 .height(safeMetrics.headerHeight),
         )
         NavigationRail(
@@ -138,7 +149,18 @@ fun CarNavigationRoot(
             playerState = playerState,
             artworkRepository = artworkRepository,
             playbackController = playbackController,
-            onRoute = { route = it },
+            contentFocusId = if (detailTarget != null) {
+                CarFocusIds.DetailBack
+            } else if (route == CarRoute.Settings) {
+                CarFocusIds.item("settings_nav", "Playback")
+            } else {
+                CarFocusIds.content(route.name)
+            },
+            onRoute = {
+                parentDetailTarget = null
+                detailTarget = null
+                route = it
+            },
             onOpenNowPlaying = {
                 previousRootRoute = route
                 route = CarRoute.NowPlaying
@@ -155,10 +177,34 @@ fun CarNavigationRoot(
             .width(safeMetrics.contentSize.width - safeMetrics.shellWidth)
             .fillMaxHeight()
         when (val detail = detailTarget) {
-            is CarDetailTarget.Album -> CarAlbumDetailScreen(detail.id, safeMetrics, route.navigationFocusId, { detailTarget = null }, contentModifier)
-            is CarDetailTarget.Artist -> CarArtistDetailScreen(detail.id, safeMetrics, route.navigationFocusId, { detailTarget = null }, contentModifier)
-            is CarDetailTarget.Playlist -> CarPlaylistDetailScreen(detail.id, detail.title, safeMetrics, route.navigationFocusId, { detailTarget = null }, contentModifier)
-            null -> when (route) {
+            is CarDetailTarget.Album -> CarAlbumDetailScreen(
+                detail.id,
+                safeMetrics,
+                route.navigationFocusId,
+                ::closeDetail,
+                contentModifier,
+            )
+            is CarDetailTarget.Artist -> CarArtistDetailScreen(
+                detail.id,
+                safeMetrics,
+                route.navigationFocusId,
+                ::closeDetail,
+                {
+                    parentDetailTarget = detail
+                    detailTarget = CarDetailTarget.Album(it)
+                },
+                contentModifier,
+            )
+            is CarDetailTarget.Playlist -> CarPlaylistDetailScreen(
+                detail.id,
+                detail.title,
+                safeMetrics,
+                route.navigationFocusId,
+                ::closeDetail,
+                contentModifier,
+            )
+            null -> screenStateHolder.SaveableStateProvider(route.name) {
+                when (route) {
             CarRoute.Home -> CarHomeScreen(
                 metrics = safeMetrics,
                 loading = !initialized,
@@ -167,42 +213,43 @@ fun CarNavigationRoot(
                 albums = albums,
                 artists = artists,
                 playlists = playlists,
-                statistics = statistics,
                 artworkRepository = artworkRepository,
                 playbackController = playbackController,
-                onOpenAlbums = { route = CarRoute.Albums },
-                onOpenArtists = { route = CarRoute.Artists },
-                onOpenPlaylists = { route = CarRoute.Playlists },
-                onAlbumClick = { detailTarget = CarDetailTarget.Album(it) },
-                onArtistClick = { detailTarget = CarDetailTarget.Artist(it) },
-                onPlaylistClick = { detailTarget = CarDetailTarget.Playlist(it.id, it.title) },
+                onAlbumClick = { openDetail(CarDetailTarget.Album(it)) },
+                onArtistClick = { openDetail(CarDetailTarget.Artist(it)) },
+                onPlaylistClick = { openDetail(CarDetailTarget.Playlist(it.id, it.title)) },
                 onOpenSearch = { route = CarRoute.Search },
                 modifier = contentModifier,
             )
             CarRoute.Songs -> CarSongsScreen(
                 safeMetrics, !initialized, libraryError, tracks, playerState.currentItem?.libraryTrackId,
-                playbackController, contentModifier,
+                artworkRepository, playbackController,
+                onOpenAlbums = { route = CarRoute.Albums },
+                onOpenArtists = { route = CarRoute.Artists },
+                modifier = contentModifier,
             )
             CarRoute.Albums -> CarAlbumsScreen(
-                safeMetrics, !initialized, libraryError, albums, artworkRepository,
-                onAlbumClick = { detailTarget = CarDetailTarget.Album(it) },
+                safeMetrics, !initialized, libraryError, albums, tracks, artworkRepository,
+                onOpenSongs = { route = CarRoute.Songs },
+                onOpenArtists = { route = CarRoute.Artists },
+                onAlbumClick = { openDetail(CarDetailTarget.Album(it)) },
                 modifier = contentModifier,
             )
             CarRoute.Artists -> CarArtistsScreen(
-                safeMetrics, !initialized, libraryError, artists, albums, artworkRepository,
-                onArtistClick = { detailTarget = CarDetailTarget.Artist(it) },
+                safeMetrics, !initialized, libraryError, artists, albums, tracks, artworkRepository,
+                onOpenSongs = { route = CarRoute.Songs },
+                onOpenAlbums = { route = CarRoute.Albums },
+                onArtistClick = { openDetail(CarDetailTarget.Artist(it)) },
                 modifier = contentModifier,
             )
             CarRoute.Playlists -> CarPlaylistsScreen(
                 safeMetrics, !initialized, playlists,
-                onPlaylistClick = { detailTarget = CarDetailTarget.Playlist(it.id, it.title) },
                 modifier = contentModifier,
             )
             CarRoute.Settings -> CarSettingsScreen(
                 safeMetrics,
                 settings,
                 settingsRepository,
-                focusCoordinator,
                 contentModifier,
             )
             CarRoute.Search -> CarSearchScreen(
@@ -213,6 +260,7 @@ fun CarNavigationRoot(
                 contentModifier,
             )
             CarRoute.NowPlaying -> Unit
+                }
             }
         }
         }
@@ -238,8 +286,7 @@ private val CarRoute.navigationFocusId: CarFocusId
         CarRoute.Playlists -> CarFocusIds.Playlists
         CarRoute.Settings -> CarFocusIds.Settings
         CarRoute.Songs -> CarFocusIds.Songs
-        CarRoute.Albums -> CarFocusIds.Albums
-        CarRoute.Artists -> CarFocusIds.Artists
+        CarRoute.Albums, CarRoute.Artists -> CarFocusIds.Songs
         CarRoute.Search -> CarFocusIds.SearchField
         CarRoute.NowPlaying -> CarFocusIds.NowPlayingCollapse
     }
@@ -251,77 +298,41 @@ private fun NavigationRail(
     playerState: PlayerState,
     artworkRepository: ArtworkRepository,
     playbackController: PlaybackController,
+    contentFocusId: CarFocusId,
     onRoute: (CarRoute) -> Unit,
     onOpenNowPlaying: () -> Unit,
     modifier: Modifier,
 ) {
     val colors = LocalCarColors.current
-    Box(modifier = modifier.background(colors.backgroundSubtle, RoundedCornerShape(metrics.cardGap))) {
-        listOf(CarRoute.Home, CarRoute.Playlists, CarRoute.Settings).forEachIndexed { index, item ->
+    val railShape = RoundedCornerShape(26.dp)
+    Box(
+        modifier = modifier
+            .background(colors.backgroundSubtle, railShape)
+            .border(1.dp, colors.borderSubtle, railShape),
+    ) {
+        val primaryRoutes = listOf(CarRoute.Home, CarRoute.Songs, CarRoute.Playlists, CarRoute.Settings)
+        val selectedRoot = when (route) {
+            CarRoute.Albums, CarRoute.Artists -> CarRoute.Songs
+            else -> route
+        }
+        primaryRoutes.forEachIndexed { index, item ->
             CarNavigationItem(
                 label = item.label,
                 icon = item.icon,
-                selected = route == item,
+                selected = selectedRoot == item,
                 enabled = true,
                 iconSize = metrics.iconSize,
                 onClick = { onRoute(item) },
                 modifier = Modifier
                     .carFocusTarget(
                         id = item.navigationFocusId,
-                        up = if (index == 0) CarFocusIds.Exit else null,
-                        down = when (item) {
-                            CarRoute.Home -> CarFocusIds.Playlists
-                            CarRoute.Playlists -> CarFocusIds.Settings
-                            CarRoute.Settings -> CarFocusIds.Songs
-                            else -> null
-                        },
-                        right = if (route == item) CarFocusIds.content(item.name) else null,
+                        up = primaryRoutes.getOrNull(index - 1)?.navigationFocusId ?: CarFocusIds.Exit,
+                        down = primaryRoutes.getOrNull(index + 1)?.navigationFocusId ?: CarFocusIds.MiniPlayer,
+                        right = if (selectedRoot == item) contentFocusId else null,
                     )
                     .offset(
                         x = metrics.navigationRailInnerPadding,
                         y = metrics.navigationPrimaryTop + metrics.navigationItemInterval * index.toFloat(),
-                    )
-                    .width(metrics.navigationRailWidth - metrics.navigationRailInnerPadding * 2f)
-                    .height(metrics.navigationItemHeight),
-            )
-        }
-        BasicText(
-            text = "音乐库",
-            style = LocalCarTypography.current.body.copy(color = colors.textSummary),
-            modifier = Modifier.offset(
-                x = metrics.navigationRailInnerPadding * 2f,
-                y = metrics.navigationLibraryLabelTop,
-            ),
-        )
-        listOf(CarRoute.Songs, CarRoute.Albums, CarRoute.Artists).forEachIndexed { index, item ->
-            CarNavigationItem(
-                label = item.label,
-                icon = item.icon,
-                selected = route == item,
-                enabled = true,
-                iconSize = metrics.iconSize,
-                onClick = { onRoute(item) },
-                modifier = Modifier
-                    .carFocusTarget(
-                        id = item.navigationFocusId,
-                        up = when (item) {
-                            CarRoute.Songs -> CarFocusIds.Settings
-                            CarRoute.Albums -> CarFocusIds.Songs
-                            CarRoute.Artists -> CarFocusIds.Albums
-                            else -> null
-                        },
-                        down = when (item) {
-                            CarRoute.Songs -> CarFocusIds.Albums
-                            CarRoute.Albums -> CarFocusIds.Artists
-                            CarRoute.Artists -> CarFocusIds.MiniPlayer
-                            else -> null
-                        },
-                        right = if (route == item) CarFocusIds.content(item.name) else null,
-                    )
-                    .offset(
-                        x = metrics.navigationRailInnerPadding,
-                        y = metrics.navigationLibraryTop + metrics.navigationItemHeight * index.toFloat() +
-                            LocalCarSpacing.current.small * index.toFloat(),
                     )
                     .width(metrics.navigationRailWidth - metrics.navigationRailInnerPadding * 2f)
                     .height(metrics.navigationItemHeight),
@@ -333,6 +344,7 @@ private fun NavigationRail(
             artworkRepository = artworkRepository,
             height = metrics.miniPlayerHeight,
             controlSize = metrics.iconSize,
+            compact = metrics.profile == CarLayoutProfile.VehiclePanel,
             onOpen = onOpenNowPlaying,
             onPrevious = playbackController::skipPrevious,
             onToggle = playbackController::togglePlayPause,
@@ -340,8 +352,8 @@ private fun NavigationRail(
             modifier = Modifier
                 .carFocusTarget(
                     id = CarFocusIds.MiniPlayer,
-                    up = CarFocusIds.Artists,
-                    right = CarFocusIds.content(route.name),
+                    up = CarFocusIds.Settings,
+                    right = contentFocusId,
                 )
                 .offset(
                     x = metrics.navigationRailInnerPadding,

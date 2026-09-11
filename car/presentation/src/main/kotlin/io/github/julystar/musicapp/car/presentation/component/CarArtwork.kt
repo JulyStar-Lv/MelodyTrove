@@ -36,6 +36,7 @@ fun CarArtwork(
     size: Dp,
     shape: Shape,
     modifier: Modifier = Modifier,
+    fillBounds: Boolean = false,
 ) {
     var bitmap by remember(artwork) { mutableStateOf<ImageBitmap?>(null) }
     LaunchedEffect(artwork) {
@@ -55,7 +56,10 @@ fun CarArtwork(
     val colors = LocalCarColors.current
     Box(
         contentAlignment = Alignment.Center,
-        modifier = modifier.size(size).clip(shape).background(colors.surfaceContainerHighest),
+        modifier = modifier
+            .then(if (fillBounds) Modifier.fillMaxSize() else Modifier.size(size))
+            .clip(shape)
+            .background(colors.surfaceContainerHighest),
     ) {
         bitmap?.let {
             Image(

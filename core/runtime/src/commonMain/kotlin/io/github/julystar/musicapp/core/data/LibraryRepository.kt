@@ -14,6 +14,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 class LibraryRepositoryImpl(
@@ -36,7 +37,11 @@ class LibraryRepositoryImpl(
 
     init {
         scope.launch {
-            trackDao.observeAll().catch { error -> recordLoadError("tracks", error) }.collect { entities ->
+            trackDao.observeAll()
+                .combine(metadataDao.observeAlbumsWithTracks()) { entities, albumRows -> entities to albumRows }
+                .catch { error -> recordLoadError("tracks", error) }
+                .collect { (entities, albumRows) ->
+                val albumNames = albumRows.associate { it.album.id to it.album.name }
                 val mediaIds = if (entities.isEmpty()) {
                     emptyMap()
                 } else {
@@ -50,6 +55,7 @@ class LibraryRepositoryImpl(
                 _tracks.value = entities.map { track ->
                     track.toLibraryTrackItem(
                         mediaId = mediaIds[track.id],
+                        albumName = track.albumId?.let(albumNames::get),
                     )
                 }
                 _initialLoadComplete.value = true
@@ -82,6 +88,7 @@ class LibraryRepositoryImpl(
 
 internal fun TrackEntity.toLibraryTrackItem(
     mediaId: MediaId? = null,
+    albumName: String? = null,
 ): LibraryTrackItem {
     return LibraryTrackItem(
         id = id,
@@ -91,5 +98,7 @@ internal fun TrackEntity.toLibraryTrackItem(
             ?: composer?.takeIf { it.isNotBlank() },
         durationMs = durationMs,
         mediaId = mediaId,
+        albumName = albumName,
+        albumId = albumId,
     )
 }

@@ -10,4 +10,6 @@ data class LibraryTrackItem(
     val artist: String?,
     val durationMs: Long?,
     val mediaId: MediaId? = null,
+    val albumName: String? = null,
+    val albumId: Long? = null,
 )

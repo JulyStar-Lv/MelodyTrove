@@ -32,6 +32,18 @@ class LibraryRepositoryTest {
         assertEquals("Composer", item.artist)
     }
 
+    @Test
+    fun carriesAlbumMetadataForAutomotiveTableRows() {
+        val item = track(
+            artist = "Artist",
+            albumArtist = null,
+            composer = null,
+        ).toLibraryTrackItem(albumName = "Album")
+
+        assertEquals("Album", item.albumName)
+        assertNull(item.albumId)
+    }
+
     private fun track(
         artist: String?,
         albumArtist: String?,

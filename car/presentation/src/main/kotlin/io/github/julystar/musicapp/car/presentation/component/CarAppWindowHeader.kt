@@ -2,7 +2,6 @@ package io.github.julystar.musicapp.car.presentation.component
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.text.BasicText
@@ -51,7 +50,8 @@ fun CarAppWindowHeader(
         BasicText(
             text = "Tide Player",
             style = LocalCarTypography.current.pageTitle.copy(color = colors.textPrimary),
-            modifier = Modifier.fillMaxHeight().widthIn(min = touchTargets.minimum),
+            modifier = Modifier.widthIn(min = touchTargets.minimum),
+            maxLines = 1,
         )
     }
 }

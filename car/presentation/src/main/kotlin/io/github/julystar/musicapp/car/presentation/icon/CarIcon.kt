@@ -11,6 +11,7 @@ import io.github.julystar.musicapp.car.presentation.R
 
 enum class CarIcon(@DrawableRes val resourceId: Int) {
     Home(R.drawable.car_ic_home),
+    Library(R.drawable.car_ic_library),
     Playlists(R.drawable.car_ic_playlists),
     Settings(R.drawable.car_ic_settings),
     Songs(R.drawable.car_ic_songs),

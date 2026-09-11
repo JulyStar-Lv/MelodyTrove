@@ -13,10 +13,12 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -24,12 +26,15 @@ import androidx.compose.ui.graphics.SolidColor
 import io.github.julystar.musicapp.car.presentation.component.CarSongRow
 import io.github.julystar.musicapp.car.presentation.focus.CarFocusIds
 import io.github.julystar.musicapp.car.presentation.focus.carFocusTarget
+import io.github.julystar.musicapp.car.presentation.icon.CarIcon
 import io.github.julystar.musicapp.car.presentation.layout.CarLayoutMetrics
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarColors
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarShapes
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarSpacing
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarTypography
 import io.github.julystar.musicapp.core.domain.model.LibraryTrackItem
+import io.github.julystar.musicapp.core.domain.repository.ArtworkRepository
+import io.github.julystar.musicapp.core.domain.repository.FavoritesRepository
 import io.github.julystar.musicapp.core.domain.search.SearchRepository
 import io.github.julystar.musicapp.core.domain.search.SearchTrackItem
 import io.github.julystar.musicapp.service.playback.domain.PlayableItem
@@ -46,9 +51,12 @@ fun CarSearchScreen(
     currentTrackId: Long?,
     modifier: Modifier = Modifier,
 ) {
-    var query by remember { mutableStateOf("") }
+    var query by rememberSaveable { mutableStateOf("") }
     var results by remember { mutableStateOf<List<SearchTrackItem>>(emptyList()) }
     var error by remember { mutableStateOf<String?>(null) }
+    val artworkRepository = org.koin.compose.koinInject<ArtworkRepository>()
+    val favoritesRepository = org.koin.compose.koinInject<FavoritesRepository>()
+    val favoriteTrackIds by favoritesRepository.favoriteTrackIds.collectAsState(emptySet())
     val scope = rememberCoroutineScope()
     LaunchedEffect(query) {
         error = null
@@ -74,7 +82,7 @@ fun CarSearchScreen(
             end = metrics.contentHorizontalPadding,
         ),
     ) {
-        CarSectionTitle("搜索音乐")
+        CarSectionTitle("搜索音乐", CarIcon.Search)
         BasicTextField(
             value = query,
             onValueChange = { query = it },
@@ -112,6 +120,13 @@ fun CarSearchScreen(
                         playing = item.id != null && currentTrackId == item.id,
                         height = metrics.compactCardHeight,
                         enabled = item.toPlayableItemOrNull() != null,
+                        artworkRepository = artworkRepository,
+                        showArtwork = item.id != null,
+                        showActions = item.id != null,
+                        favorite = item.id != null && item.id in favoriteTrackIds,
+                        onToggleFavorite = item.id?.let { trackId ->
+                            { scope.launch { favoritesRepository.toggleFavorite(trackId) } }
+                        },
                         onClick = {
                             val request = results.toSearchPlaybackRequest(index) ?: return@CarSongRow
                             scope.launch { playbackController.play(request.items, request.startIndex) }

@@ -20,7 +20,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,12 +31,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.DpSize
@@ -250,24 +252,29 @@ private fun TideCarAppWindow(
             } else {
                 snap<Int>()
             }
-        val animatedLeft by boundsTransition.animateInt(
+        val animatedLeft = boundsTransition.animateInt(
             transitionSpec = { windowAnimationSpec() },
             label = "car-app-window-left",
         ) { it.left }
-        val animatedTop by boundsTransition.animateInt(
+        val animatedTop = boundsTransition.animateInt(
             transitionSpec = { windowAnimationSpec() },
             label = "car-app-window-top",
         ) { it.top }
-        val animatedRight by boundsTransition.animateInt(
+        val animatedRight = boundsTransition.animateInt(
             transitionSpec = { windowAnimationSpec() },
             label = "car-app-window-right",
         ) { it.left + it.width }
-        val animatedBottom by boundsTransition.animateInt(
+        val animatedBottom = boundsTransition.animateInt(
             transitionSpec = { windowAnimationSpec() },
             label = "car-app-window-bottom",
         ) { it.top + it.height }
-        val panelWidth = with(density) { (animatedRight - animatedLeft).toDp() }
-        val panelHeight = with(density) { (animatedBottom - animatedTop).toDp() }
+        // Switch the responsive layout once, at transition start, then scale that stable
+        // target layout with the animated frame. This avoids both transparent edge gaps
+        // while expanding and the delayed layout jump at the transition endpoint.
+        val contentBounds = boundsTransition.targetState
+        val contentSize = with(density) {
+            DpSize(contentBounds.width.toDp(), contentBounds.height.toDp())
+        }
 
         LaunchedEffect(bounds) {
             Log.i(
@@ -276,13 +283,24 @@ private fun TideCarAppWindow(
                     "embedded=${bounds.embeddedInCockpit} hint=${bounds.profileHint}",
             )
         }
-        BoxWithConstraints(
-            Modifier
-                .offset { IntOffset(animatedLeft, animatedTop) }
-                .requiredSize(panelWidth, panelHeight)
+        Layout(
+            content = { content(contentSize, contentBounds.profileHint) },
+            modifier = Modifier
+                .offset { IntOffset(animatedLeft.value, animatedTop.value) }
                 .clip(RoundedCornerShape(8.dp)),
-        ) {
-            content(DpSize(maxWidth, maxHeight), bounds.profileHint)
+        ) { measurables, _ ->
+            val placeable = measurables.single().measure(
+                Constraints.fixed(contentBounds.width, contentBounds.height),
+            )
+            val frameWidth = (animatedRight.value - animatedLeft.value).coerceAtLeast(1)
+            val frameHeight = (animatedBottom.value - animatedTop.value).coerceAtLeast(1)
+            layout(frameWidth, frameHeight) {
+                placeable.placeWithLayer(0, 0) {
+                    transformOrigin = TransformOrigin(0f, 0f)
+                    scaleX = frameWidth.toFloat() / contentBounds.width
+                    scaleY = frameHeight.toFloat() / contentBounds.height
+                }
+            }
         }
     }
 }

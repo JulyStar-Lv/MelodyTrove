@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
 import io.github.julystar.musicapp.car.presentation.theme.CarTheme
@@ -112,6 +113,41 @@ class CarMiniPlayerComposeTest {
         compose.onNodeWithContentDescription("播放").assertIsNotEnabled().performClick()
         compose.onNodeWithContentDescription("下一首").assertIsNotEnabled().performClick()
         assertEquals(0, actionCount)
+    }
+
+    @Test
+    fun compactVehiclePlayerShowsArtworkSurfaceWithoutTextOrTransportControls() {
+        var openCount = 0
+        compose.setContent {
+            CarTheme {
+                CarMiniPlayer(
+                    state = PlayerState(
+                        currentItem = PlayableItem(
+                            title = "Vehicle Track",
+                            artist = "Vehicle Artist",
+                            libraryTrackId = 44,
+                        ),
+                        status = PlaybackStatus.Paused,
+                    ),
+                    artworkRepository = EmptyArtworkRepository,
+                    height = 164.dp,
+                    controlSize = 48.dp,
+                    compact = true,
+                    onOpen = { openCount++ },
+                    onPrevious = {},
+                    onToggle = {},
+                    onNext = {},
+                    modifier = Modifier.testTag("compact-mini-player"),
+                )
+            }
+        }
+
+        compose.onNodeWithTag("compact-mini-player").performClick()
+        compose.onNodeWithContentDescription("上一首").assertDoesNotExist()
+        compose.onNodeWithContentDescription("播放").assertDoesNotExist()
+        compose.onNodeWithContentDescription("下一首").assertDoesNotExist()
+        compose.onNodeWithText("Vehicle Track").assertDoesNotExist()
+        assertEquals(1, openCount)
     }
 }
 

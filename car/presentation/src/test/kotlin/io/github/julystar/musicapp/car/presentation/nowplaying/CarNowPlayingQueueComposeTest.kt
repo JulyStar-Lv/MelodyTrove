@@ -19,7 +19,12 @@ import io.github.julystar.musicapp.car.presentation.theme.CarTheme
 import io.github.julystar.musicapp.core.domain.model.Artwork
 import io.github.julystar.musicapp.core.domain.model.ArtworkCacheKey
 import io.github.julystar.musicapp.core.domain.model.CurrentTrackInfo
+import io.github.julystar.musicapp.core.domain.model.FilterCriteria
+import io.github.julystar.musicapp.core.domain.model.LibraryTrackItem
+import io.github.julystar.musicapp.core.domain.model.RepositoryState
+import io.github.julystar.musicapp.core.domain.model.SortCriteria
 import io.github.julystar.musicapp.core.domain.repository.ArtworkRepository
+import io.github.julystar.musicapp.core.domain.repository.FavoritesRepository
 import io.github.julystar.musicapp.service.playback.domain.NowPlayingRepository
 import io.github.julystar.musicapp.service.playback.domain.PlayableItem
 import io.github.julystar.musicapp.service.playback.domain.PlaybackController
@@ -29,6 +34,7 @@ import io.github.julystar.musicapp.service.playback.domain.PlaybackStatus
 import io.github.julystar.musicapp.service.playback.domain.PlayerState
 import io.github.julystar.musicapp.service.playback.domain.RepeatMode
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import org.junit.After
 import org.junit.Before
@@ -57,6 +63,7 @@ class CarNowPlayingQueueComposeTest {
                 single<PlaybackController> { controller }
                 single<NowPlayingRepository> { QueueTestNowPlayingRepository }
                 single<ArtworkRepository> { QueueTestArtworkRepository }
+                single<FavoritesRepository> { QueueTestFavoritesRepository }
             })
         }
     }
@@ -152,4 +159,17 @@ private object QueueTestArtworkRepository : ArtworkRepository {
     override fun cached(artwork: Artwork): ByteArray? = null
     override suspend fun cacheKey(artwork: Artwork): ArtworkCacheKey? = null
     override suspend fun load(artwork: Artwork): ByteArray? = null
+}
+
+private object QueueTestFavoritesRepository : FavoritesRepository {
+    override val favoriteTrackIds: Flow<Set<Long>> = MutableStateFlow(emptySet())
+    override val favoriteCount: Flow<Int> = MutableStateFlow(0)
+
+    override fun favoriteTracks(
+        sort: SortCriteria,
+        filter: FilterCriteria.FavoritesFilter,
+    ): Flow<RepositoryState<List<LibraryTrackItem>>> = MutableStateFlow(RepositoryState.Empty())
+
+    override suspend fun isFavorite(trackId: Long) = false
+    override suspend fun toggleFavorite(trackId: Long) = true
 }

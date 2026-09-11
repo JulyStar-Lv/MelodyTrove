@@ -2,7 +2,6 @@ package io.github.julystar.musicapp.car.presentation.component
 
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -16,9 +15,9 @@ import io.github.julystar.musicapp.car.presentation.icon.CarIcon
 import io.github.julystar.musicapp.car.presentation.icon.CarIcon as IconView
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarColors
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarShapes
-import io.github.julystar.musicapp.car.presentation.theme.LocalCarSpacing
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarTypography
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 
 @Composable
 fun CarNavigationItem(
@@ -48,13 +47,12 @@ fun CarNavigationItem(
                 onClick = onClick,
             ),
     ) {
-        Spacer(Modifier.width(LocalCarSpacing.current.content))
+        Spacer(Modifier.width(20.dp))
         IconView(icon, null, contentColor, Modifier.size(iconSize))
-        Spacer(Modifier.width(LocalCarSpacing.current.content))
+        Spacer(Modifier.width(18.dp))
         BasicText(
             text = label,
-            style = LocalCarTypography.current.title.copy(color = contentColor),
-            modifier = Modifier.fillMaxHeight(),
+            style = LocalCarTypography.current.navigation.copy(color = contentColor),
         )
     }
 }

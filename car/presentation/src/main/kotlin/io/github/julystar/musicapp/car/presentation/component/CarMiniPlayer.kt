@@ -36,6 +36,7 @@ fun CarMiniPlayer(
     artworkRepository: ArtworkRepository,
     height: Dp,
     controlSize: Dp,
+    compact: Boolean = false,
     onOpen: () -> Unit,
     onPrevious: () -> Unit,
     onToggle: () -> Unit,
@@ -46,7 +47,25 @@ fun CarMiniPlayer(
     val shapes = LocalCarShapes.current
     val spacing = LocalCarSpacing.current
     val item = state.currentItem
-    val artworkSize = height * (72f / 164f)
+    val artworkSize = height * (if (compact) 112f else 72f) / 164f
+    if (compact) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = modifier
+                .height(height)
+                .clip(shapes.panel)
+                .border(1.dp, colors.borderDefault, shapes.panel)
+                .carInteractiveSurface(shapes.panel, enabled = item != null, onClick = onOpen),
+        ) {
+            CarArtwork(
+                artwork = item?.libraryTrackId?.let { Artwork.LibraryTrack(it, true) },
+                repository = artworkRepository,
+                size = artworkSize,
+                shape = shapes.artwork,
+            )
+        }
+        return
+    }
     Column(
         modifier = modifier
             .height(height)
@@ -66,7 +85,10 @@ fun CarMiniPlayer(
             Column(Modifier.weight(1f)) {
                 BasicText(
                     text = item?.title ?: "尚未播放",
-                    style = LocalCarTypography.current.body.copy(color = colors.textPrimary),
+                    style = LocalCarTypography.current.body.copy(
+                        color = colors.textPrimary,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                    ),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -80,19 +102,24 @@ fun CarMiniPlayer(
         }
         Spacer(Modifier.weight(1f))
         Row(
-            horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            MiniControl(CarIcon.Previous, "上一首", controlSize, item != null, onPrevious)
-            MiniControl(
-                if (state.status == PlaybackStatus.Playing) CarIcon.Pause else CarIcon.Play,
-                if (state.status == PlaybackStatus.Playing) "暂停" else "播放",
-                controlSize,
-                item != null,
-                onToggle,
-            )
-            MiniControl(CarIcon.Next, "下一首", controlSize, item != null, onNext)
+            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                MiniControl(CarIcon.Previous, "上一首", controlSize, item != null, onPrevious)
+            }
+            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                MiniControl(
+                    if (state.status == PlaybackStatus.Playing) CarIcon.Pause else CarIcon.Play,
+                    if (state.status == PlaybackStatus.Playing) "暂停" else "播放",
+                    controlSize,
+                    item != null,
+                    onToggle,
+                )
+            }
+            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                MiniControl(CarIcon.Next, "下一首", controlSize, item != null, onNext)
+            }
         }
     }
 }

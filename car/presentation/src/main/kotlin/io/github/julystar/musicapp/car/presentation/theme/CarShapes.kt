@@ -15,7 +15,7 @@ data class CarShapes(
 )
 
 val DefaultCarShapes = CarShapes(
-    navigationItem = RoundedCornerShape(16.dp),
+    navigationItem = RoundedCornerShape(18.dp),
     panel = RoundedCornerShape(24.dp),
     card = RoundedCornerShape(20.dp),
     artwork = RoundedCornerShape(18.dp),
