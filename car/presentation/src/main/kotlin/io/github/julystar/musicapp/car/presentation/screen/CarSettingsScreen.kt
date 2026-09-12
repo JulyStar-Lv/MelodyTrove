@@ -21,7 +21,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -45,21 +44,18 @@ import io.github.julystar.musicapp.core.domain.model.AppSettings
 import io.github.julystar.musicapp.core.domain.model.AppLanguageMode
 import io.github.julystar.musicapp.core.domain.model.AppThemeMode
 import io.github.julystar.musicapp.core.domain.model.AudioFocusMode
-import io.github.julystar.musicapp.core.domain.repository.SettingsRepository
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun CarSettingsScreen(
     metrics: CarLayoutMetrics,
-    settings: AppSettings,
-    repository: SettingsRepository,
     modifier: Modifier = Modifier,
 ) {
     val colors = LocalCarColors.current
-    val localLibraryViewModel = koinViewModel<CarLocalLibraryViewModel>()
-    val localLibraryState by localLibraryViewModel.state.collectAsState()
+    val viewModel = koinViewModel<CarSettingsViewModel>()
+    val uiState by viewModel.state.collectAsState()
+    val settings = uiState.settings
     var selectedSection by rememberSaveable { mutableStateOf(CarSettingsSection.Playback) }
 
     Row(
@@ -119,25 +115,25 @@ fun CarSettingsScreen(
                 CarSettingsSection.Appearance -> AppearanceSettings(
                     metrics = metrics,
                     settings = settings,
-                    repository = repository,
+                    onAction = viewModel::onAction,
                     leftFocus = CarFocusIds.item("settings_nav", "Appearance"),
                 )
-                CarSettingsSection.Lyrics -> LyricsSettings(metrics, settings, repository)
+                CarSettingsSection.Lyrics -> LyricsSettings(metrics, settings, viewModel::onAction)
                 CarSettingsSection.Playback -> PlaybackSettings(
                     metrics = metrics,
                     settings = settings,
-                    repository = repository,
+                    onAction = viewModel::onAction,
                     leftFocus = CarFocusIds.item("settings_nav", "Playback"),
                 )
                 CarSettingsSection.Source -> SourceSettings(
                     metrics = metrics,
-                    state = localLibraryState,
-                    onImport = localLibraryViewModel::importLocalMusic,
+                    state = uiState.localLibraryState,
+                    onImport = { viewModel.onAction(CarSettingsAction.ImportLocalMusic) },
                     leftFocus = CarFocusIds.item("settings_nav", "Source"),
                 )
                 CarSettingsSection.Metadata -> MetadataSettings(metrics, settings)
-                CarSettingsSection.Network -> NetworkSettings(metrics, settings, repository)
-                CarSettingsSection.Storage -> StorageSettings(metrics, settings, repository)
+                CarSettingsSection.Network -> NetworkSettings(metrics, settings, viewModel::onAction)
+                CarSettingsSection.Storage -> StorageSettings(metrics, settings, viewModel::onAction)
             }
         }
     }
@@ -147,10 +143,9 @@ fun CarSettingsScreen(
 private fun AppearanceSettings(
     metrics: CarLayoutMetrics,
     settings: AppSettings,
-    repository: SettingsRepository,
+    onAction: (CarSettingsAction) -> Unit,
     leftFocus: CarFocusId,
 ) {
-    val scope = rememberCoroutineScope()
     SettingsPanelTitle("外观与语言")
     Spacer(Modifier.height(LocalCarSpacing.current.section))
     SettingsGroupLabel("个性化")
@@ -168,13 +163,7 @@ private fun AppearanceSettings(
             containerColor = Color.Transparent,
             shape = RectangleShape,
             highlightWhenChecked = false,
-            onClick = {
-                scope.launch {
-                    repository.setThemeMode(
-                        if (settings.themeMode == AppThemeMode.Dark) AppThemeMode.Light else AppThemeMode.Dark,
-                    )
-                }
-            },
+            onClick = { onAction(CarSettingsAction.ToggleTheme) },
             modifier = Modifier
                 .carFocusTarget(CarFocusIds.item("setting", "theme"), left = leftFocus)
                 .height(metrics.compactCardHeight),
@@ -187,7 +176,7 @@ private fun AppearanceSettings(
             containerColor = Color.Transparent,
             shape = RectangleShape,
             highlightWhenChecked = false,
-            onClick = { scope.launch { repository.setArtworkThemeEnabled(!settings.artworkThemeEnabled) } },
+            onClick = { onAction(CarSettingsAction.ToggleArtworkTheme) },
             modifier = Modifier.height(metrics.compactCardHeight),
         )
         CarPreference(
@@ -200,38 +189,34 @@ private fun AppearanceSettings(
             controlSize = metrics.primaryTouchTarget * 0.8125f,
             containerColor = Color.Transparent,
             shape = RectangleShape,
-            onClick = {
-                val next = when (settings.languageMode) {
-                    AppLanguageMode.System -> AppLanguageMode.Chinese
-                    AppLanguageMode.Chinese -> AppLanguageMode.English
-                    AppLanguageMode.English -> AppLanguageMode.System
-                }
-                scope.launch { repository.setLanguageMode(next) }
-            },
+            onClick = { onAction(CarSettingsAction.CycleLanguage) },
             modifier = Modifier.height(metrics.compactCardHeight),
         )
     }
 }
 
 @Composable
-private fun LyricsSettings(metrics: CarLayoutMetrics, settings: AppSettings, repository: SettingsRepository) {
-    val scope = rememberCoroutineScope()
+private fun LyricsSettings(
+    metrics: CarLayoutMetrics,
+    settings: AppSettings,
+    onAction: (CarSettingsAction) -> Unit,
+) {
     SettingsPanelTitle("歌词设置")
     Spacer(Modifier.height(LocalCarSpacing.current.section))
     SettingsGroupLabel("显示与交互")
     Spacer(Modifier.height(LocalCarSpacing.current.small))
     SettingsGroupSurface {
         SettingsToggle("显示翻译", settings.lyrics.showTranslation, metrics) {
-            scope.launch { repository.setLyricTranslationVisible(!settings.lyrics.showTranslation) }
+            onAction(CarSettingsAction.ToggleLyricTranslation)
         }
         SettingsToggle("逐字歌词动效", settings.lyrics.wordLiftEnabled, metrics) {
-            scope.launch { repository.setLyricWordLiftEnabled(!settings.lyrics.wordLiftEnabled) }
+            onAction(CarSettingsAction.ToggleLyricWordLift)
         }
         SettingsToggle("歌词模糊效果", settings.lyrics.blurEffectEnabled, metrics) {
-            scope.launch { repository.setLyricBlurEffectEnabled(!settings.lyrics.blurEffectEnabled) }
+            onAction(CarSettingsAction.ToggleLyricBlur)
         }
         SettingsToggle("点击歌词跳转", settings.lyrics.tapToSeekEnabled, metrics) {
-            scope.launch { repository.setLyricTapToSeekEnabled(!settings.lyrics.tapToSeekEnabled) }
+            onAction(CarSettingsAction.ToggleLyricTapToSeek)
         }
     }
 }
@@ -240,10 +225,9 @@ private fun LyricsSettings(metrics: CarLayoutMetrics, settings: AppSettings, rep
 private fun PlaybackSettings(
     metrics: CarLayoutMetrics,
     settings: AppSettings,
-    repository: SettingsRepository,
+    onAction: (CarSettingsAction) -> Unit,
     leftFocus: CarFocusId,
 ) {
-    val scope = rememberCoroutineScope()
     val colors = LocalCarColors.current
     val switchWidth = metrics.primaryTouchTarget * 0.8125f
     SettingsPanelTitle("播放设置")
@@ -266,14 +250,7 @@ private fun PlaybackSettings(
                 AudioFocusMode.Mix -> "允许混音"
             },
             metrics = metrics,
-            onClick = {
-                val next = when (settings.audioFocusMode) {
-                    AudioFocusMode.Pause -> AudioFocusMode.Duck
-                    AudioFocusMode.Duck -> AudioFocusMode.Mix
-                    AudioFocusMode.Mix -> AudioFocusMode.Pause
-                }
-                scope.launch { repository.setAudioFocusMode(next) }
-            },
+            onClick = { onAction(CarSettingsAction.CycleAudioFocus) },
         )
     }
     Spacer(Modifier.height(LocalCarSpacing.current.section))
@@ -287,7 +264,7 @@ private fun PlaybackSettings(
         containerColor = Color.Transparent,
         shape = RectangleShape,
         highlightWhenChecked = false,
-        onClick = { scope.launch { repository.setPauseOnDisconnect(!settings.pauseOnDisconnect) } },
+        onClick = { onAction(CarSettingsAction.TogglePauseOnDisconnect) },
         modifier = Modifier
             .carFocusTarget(
                 CarFocusIds.item("setting", "pause_on_disconnect"),
@@ -303,7 +280,7 @@ private fun PlaybackSettings(
         containerColor = Color.Transparent,
         shape = RectangleShape,
         highlightWhenChecked = false,
-        onClick = { scope.launch { repository.setGaplessPlaybackEnabled(!settings.gaplessPlaybackEnabled) } },
+        onClick = { onAction(CarSettingsAction.ToggleGaplessPlayback) },
         modifier = Modifier
             .carFocusTarget(
                 CarFocusIds.item("setting", "gapless"),
@@ -320,7 +297,7 @@ private fun PlaybackSettings(
         containerColor = Color.Transparent,
         shape = RectangleShape,
         highlightWhenChecked = false,
-        onClick = { scope.launch { repository.setRetryPlaybackOnFailure(!settings.retryPlaybackOnFailure) } },
+        onClick = { onAction(CarSettingsAction.TogglePlaybackRetry) },
         modifier = Modifier
             .carFocusTarget(
                 CarFocusIds.item("setting", "retry"),
@@ -336,7 +313,7 @@ private fun PlaybackSettings(
         containerColor = Color.Transparent,
         shape = RectangleShape,
         highlightWhenChecked = false,
-        onClick = { scope.launch { repository.setResumePlaybackAfterNetworkRecovery(!settings.resumePlaybackAfterNetworkRecovery) } },
+        onClick = { onAction(CarSettingsAction.ToggleResumeAfterNetworkRecovery) },
         modifier = Modifier.height(metrics.compactCardHeight),
     )
     }
@@ -383,18 +360,21 @@ private fun MetadataSettings(metrics: CarLayoutMetrics, settings: AppSettings) {
 }
 
 @Composable
-private fun NetworkSettings(metrics: CarLayoutMetrics, settings: AppSettings, repository: SettingsRepository) {
-    val scope = rememberCoroutineScope()
+private fun NetworkSettings(
+    metrics: CarLayoutMetrics,
+    settings: AppSettings,
+    onAction: (CarSettingsAction) -> Unit,
+) {
     SettingsPanelTitle("网络与缓存")
     Spacer(Modifier.height(LocalCarSpacing.current.section))
     SettingsGroupLabel("网络")
     Spacer(Modifier.height(LocalCarSpacing.current.small))
     SettingsGroupSurface {
         SettingsToggle("允许使用计费网络", settings.allowMeteredNetworkUsage, metrics) {
-            scope.launch { repository.setAllowMeteredNetworkUsage(!settings.allowMeteredNetworkUsage) }
+            onAction(CarSettingsAction.ToggleMeteredNetwork)
         }
         SettingsToggle("边听边缓存", settings.listenAndCacheEnabled, metrics) {
-            scope.launch { repository.setListenAndCacheEnabled(!settings.listenAndCacheEnabled) }
+            onAction(CarSettingsAction.ToggleListenAndCache)
         }
         SettingsInfo("连接超时", "${settings.connectionTimeoutSeconds} 秒", metrics)
         SettingsInfo("音频缓存上限", settings.audioCacheLimitBytes.asStorageSize(), metrics)
@@ -403,15 +383,18 @@ private fun NetworkSettings(metrics: CarLayoutMetrics, settings: AppSettings, re
 }
 
 @Composable
-private fun StorageSettings(metrics: CarLayoutMetrics, settings: AppSettings, repository: SettingsRepository) {
-    val scope = rememberCoroutineScope()
+private fun StorageSettings(
+    metrics: CarLayoutMetrics,
+    settings: AppSettings,
+    onAction: (CarSettingsAction) -> Unit,
+) {
     SettingsPanelTitle("存储与数据")
     Spacer(Modifier.height(LocalCarSpacing.current.section))
     SettingsGroupLabel("音乐库")
     Spacer(Modifier.height(LocalCarSpacing.current.small))
     SettingsGroupSurface {
         SettingsToggle("扫描子目录", settings.scanSubdirectories, metrics) {
-            scope.launch { repository.setScanSubdirectories(!settings.scanSubdirectories) }
+            onAction(CarSettingsAction.ToggleScanSubdirectories)
         }
         SettingsInfo("自动扫描", settings.autoScanMode.name, metrics)
         SettingsInfo("缺失文件策略", settings.missingFilePolicy.name, metrics)

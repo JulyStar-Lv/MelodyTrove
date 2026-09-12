@@ -24,7 +24,6 @@ dependencyResolutionManagement {
 rootProject.name = "MusicApp"
 include(":shared")
 include(":core:domain")
-include(":core:data")
 include(":core:presentation")
 include(":core:runtime")
 include(":car:presentation")

@@ -31,7 +31,6 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -47,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import io.github.julystar.musicapp.car.presentation.component.CarArtwork
@@ -60,13 +60,12 @@ import io.github.julystar.musicapp.car.presentation.focus.rememberCarFocusCoordi
 import io.github.julystar.musicapp.car.presentation.icon.CarIcon
 import io.github.julystar.musicapp.car.presentation.icon.CarIcon as IconView
 import io.github.julystar.musicapp.car.presentation.layout.CarLayoutMetrics
+import io.github.julystar.musicapp.car.presentation.layout.CarFullscreenMetrics
 import io.github.julystar.musicapp.core.domain.model.Artwork
 import io.github.julystar.musicapp.core.domain.repository.ArtworkRepository
-import io.github.julystar.musicapp.service.playback.domain.NowPlayingRepository
 import io.github.julystar.musicapp.service.playback.domain.PlayableItem
-import io.github.julystar.musicapp.service.playback.domain.PlaybackController
-import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 import kotlin.math.absoluteValue
 import kotlin.math.floor
 import kotlin.math.roundToInt
@@ -79,15 +78,15 @@ fun CarFullscreenNowPlayingScreen(
     onExitFullscreen: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val controller = koinInject<PlaybackController>()
-    val nowPlaying = koinInject<NowPlayingRepository>()
+    val viewModel = koinViewModel<CarNowPlayingViewModel>()
     val artworkRepository = koinInject<ArtworkRepository>()
-    val state by controller.state.collectAsState()
-    val position by controller.position.collectAsState()
-    val queue by controller.queue.collectAsState()
-    val trackInfo by nowPlaying.currentTrackInfo.collectAsState()
+    val uiState by viewModel.state.collectAsState()
+    val state = uiState.player
+    val position = uiState.position
+    val queue = uiState.queue
+    val trackInfo = uiState.trackInfo
+    val fullscreen = metrics.fullscreen
     var coverFlow by rememberSaveable { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
     val focusCoordinator = rememberCarFocusCoordinator()
     val focusManager = LocalFocusManager.current
     val currentIndex = queue.currentIndex.takeIf { it in queue.items.indices } ?: 0
@@ -113,19 +112,28 @@ fun CarFullscreenNowPlayingScreen(
                 .background(Color.Black)
                 .carInputRouter(
                     focusManager = focusManager,
-                    onPlayPause = controller::togglePlayPause,
-                    onNext = controller::skipNext,
-                    onPrevious = controller::skipPrevious,
-                    onStop = controller::pause,
+                    onPlayPause = { viewModel.onAction(CarNowPlayingAction.PlayPause) },
+                    onNext = { viewModel.onAction(CarNowPlayingAction.Next) },
+                    onPrevious = { viewModel.onAction(CarNowPlayingAction.Previous) },
+                    onStop = { viewModel.onAction(CarNowPlayingAction.Pause) },
                 ),
         ) {
-            FullscreenArtworkBackground(currentArtwork, artworkRepository)
-            FullscreenExitPlaybackButton(onExitPlayback, Modifier.offset(96.dp, 216.dp))
-            FullscreenExitButton(onExitFullscreen, Modifier.offset(184.dp, 216.dp))
+            FullscreenArtworkBackground(currentArtwork, artworkRepository, fullscreen)
+            FullscreenExitPlaybackButton(
+                fullscreen,
+                onExitPlayback,
+                Modifier.offset(fullscreen.exitPlaybackOffset.x, fullscreen.exitPlaybackOffset.y),
+            )
+            FullscreenExitButton(
+                fullscreen,
+                onExitFullscreen,
+                Modifier.offset(fullscreen.exitFullscreenOffset.x, fullscreen.exitFullscreenOffset.y),
+            )
             FullscreenTrackMeta(
+                fullscreen = fullscreen,
                 title = state.currentItem?.title ?: "尚未播放",
                 artist = trackInfo?.artist?.takeIf(String::isNotBlank) ?: state.currentItem?.artist.orEmpty(),
-                modifier = Modifier.offset(280.dp, 228.5.dp),
+                modifier = Modifier.offset(fullscreen.metadataOffset.x, fullscreen.metadataOffset.y),
             )
 
             if (coverFlow) {
@@ -139,25 +147,32 @@ fun CarFullscreenNowPlayingScreen(
                     FullscreenCoverFlow(
                         items = queue.items,
                         currentIndex = currentIndex,
+                        fullscreen = fullscreen,
                         artworkRepository = artworkRepository,
-                        onPlay = { queueIndex -> scope.launch { controller.play(queue.items, queueIndex) } },
-                        modifier = Modifier.fillMaxWidth().height(820.dp).offset(y = 380.dp),
+                        onPlay = { queueIndex ->
+                            viewModel.onAction(CarNowPlayingAction.PlayQueueItem(queueIndex))
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(fullscreen.coverFlowHeight)
+                            .offset(y = fullscreen.coverFlowTop),
                     )
                     Box(
                         Modifier
-                            .offset(2518.dp, 1260.dp)
-                            .size(width = 84.dp, height = 8.dp)
+                            .offset(fullscreen.indicatorOffset.x, fullscreen.indicatorOffset.y)
+                            .size(fullscreen.indicatorSize)
                             .background(Color.White.copy(alpha = 0.78f), RoundedCornerShape(4.dp)),
                     )
                 }
             } else {
                 FullscreenMinimalContent(
+                    fullscreen = fullscreen,
                     artwork = currentArtwork,
                     artworkRepository = artworkRepository,
                     currentLyric = lyricLines.getOrNull(lyricIndex)?.text,
                     nextLyric = lyricLines.getOrNull(lyricIndex + 1)?.text,
                     onOpenCoverFlow = { coverFlow = true },
-                    modifier = Modifier.offset(320.dp, 394.25.dp),
+                    modifier = Modifier.offset(fullscreen.minimalOffset.x, fullscreen.minimalOffset.y),
                 )
             }
         }
@@ -168,6 +183,7 @@ fun CarFullscreenNowPlayingScreen(
 private fun FullscreenArtworkBackground(
     artwork: Artwork?,
     artworkRepository: ArtworkRepository,
+    fullscreen: CarFullscreenMetrics,
 ) {
     CarArtwork(
         artwork = artwork,
@@ -176,8 +192,8 @@ private fun FullscreenArtworkBackground(
         shape = RectangleShape,
         fillBounds = true,
         modifier = Modifier.fillMaxSize().graphicsLayer {
-            scaleX = 5600f / 5120f
-            scaleY = 1784f / 1304f
+            scaleX = fullscreen.backgroundScaleX
+            scaleY = fullscreen.backgroundScaleY
         }.blur(120.dp),
     )
     Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.64f)))
@@ -185,6 +201,7 @@ private fun FullscreenArtworkBackground(
 
 @Composable
 private fun FullscreenExitPlaybackButton(
+    fullscreen: CarFullscreenMetrics,
     onExitPlayback: () -> Unit,
     modifier: Modifier,
 ) {
@@ -192,20 +209,21 @@ private fun FullscreenExitPlaybackButton(
         contentAlignment = Alignment.Center,
         modifier = modifier
             .carFocusTarget(CarFocusIds.NowPlayingCollapse, right = CarFocusIds.FullscreenExit)
-            .size(72.dp)
-            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(20.dp))
+            .size(fullscreen.controlSize)
+            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(fullscreen.controlCornerRadius))
             .carInteractiveSurface(
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(fullscreen.controlCornerRadius),
                 defaultColor = Color.Black.copy(alpha = 0.22f),
                 onClick = onExitPlayback,
             ),
     ) {
-        IconView(CarIcon.Collapse, "退出播放界面", Color.White, Modifier.size(56.dp))
+        IconView(CarIcon.Collapse, "退出播放界面", Color.White, Modifier.size(fullscreen.controlIconSize))
     }
 }
 
 @Composable
 private fun FullscreenExitButton(
+    fullscreen: CarFullscreenMetrics,
     onExitFullscreen: () -> Unit,
     modifier: Modifier,
 ) {
@@ -217,25 +235,26 @@ private fun FullscreenExitButton(
                 left = CarFocusIds.NowPlayingCollapse,
                 right = CarFocusIds.FullscreenCoverFlow,
             )
-            .size(72.dp)
-            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(20.dp))
+            .size(fullscreen.controlSize)
+            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(fullscreen.controlCornerRadius))
             .carInteractiveSurface(
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(fullscreen.controlCornerRadius),
                 defaultColor = Color.Black.copy(alpha = 0.22f),
                 onClick = onExitFullscreen,
             ),
     ) {
-        IconView(CarIcon.ExitFullscreen, "退出全屏", Color.White, Modifier.size(56.dp))
+        IconView(CarIcon.ExitFullscreen, "退出全屏", Color.White, Modifier.size(fullscreen.controlIconSize))
     }
 }
 
 @Composable
 private fun FullscreenTrackMeta(
+    fullscreen: CarFullscreenMetrics,
     title: String,
     artist: String,
     modifier: Modifier,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = modifier.width(1600.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp), modifier = modifier.width(fullscreen.metadataWidth)) {
         BasicText(
             title,
             style = TextStyle(
@@ -258,6 +277,7 @@ private fun FullscreenTrackMeta(
 
 @Composable
 private fun FullscreenMinimalContent(
+    fullscreen: CarFullscreenMetrics,
     artwork: Artwork?,
     artworkRepository: ArtworkRepository,
     currentLyric: String?,
@@ -266,26 +286,33 @@ private fun FullscreenMinimalContent(
     modifier: Modifier,
 ) {
     Row(
-        horizontalArrangement = Arrangement.spacedBy(224.dp),
+        horizontalArrangement = Arrangement.spacedBy(fullscreen.minimalGap),
         verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier.width(4544.dp).height(840.dp),
+        modifier = modifier.size(fullscreen.minimalSize),
     ) {
         Box(
             contentAlignment = Alignment.Center,
             modifier = Modifier
                 .carFocusTarget(CarFocusIds.FullscreenCoverFlow, left = CarFocusIds.FullscreenExit)
-                .size(720.dp)
-                .carInteractiveSurface(RoundedCornerShape(36.dp), defaultColor = Color.Transparent, onClick = onOpenCoverFlow),
+                .size(fullscreen.artworkSize)
+                .carInteractiveSurface(
+                    RoundedCornerShape(fullscreen.artworkCornerRadius),
+                    defaultColor = Color.Transparent,
+                    onClick = onOpenCoverFlow,
+                ),
         ) {
             CarArtwork(
                 artwork = artwork,
                 repository = artworkRepository,
-                size = 720.dp,
-                shape = RoundedCornerShape(36.dp),
+                size = fullscreen.artworkSize,
+                shape = RoundedCornerShape(fullscreen.artworkCornerRadius),
                 modifier = Modifier,
             )
         }
-        Column(verticalArrangement = Arrangement.spacedBy(28.dp), modifier = Modifier.width(3528.dp).height(558.dp)) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(28.dp),
+            modifier = Modifier.size(fullscreen.lyricsSize),
+        ) {
             BasicText(
                 currentLyric ?: "暂无歌词",
                 style = TextStyle(
@@ -296,7 +323,7 @@ private fun FullscreenMinimalContent(
                 ),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth().height(380.dp),
+                modifier = Modifier.fillMaxWidth().height(fullscreen.currentLyricHeight),
             )
             BasicText(
                 nextLyric.orEmpty(),
@@ -307,7 +334,7 @@ private fun FullscreenMinimalContent(
                 ),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.fillMaxWidth().height(150.dp),
+                modifier = Modifier.fillMaxWidth().height(fullscreen.nextLyricHeight),
             )
         }
     }
@@ -317,34 +344,38 @@ private fun FullscreenMinimalContent(
 private fun CoverFlowItem(
     item: PlayableItem,
     distanceFromCenter: Float,
+    fullscreen: CarFullscreenMetrics,
     artworkRepository: ArtworkRepository,
     focusId: CarFocusId,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val absoluteDistance = distanceFromCenter.absoluteValue
-    val artworkWidth = coverFlowArtworkWidth(absoluteDistance)
-    val artworkHeight = coverFlowArtworkHeight(absoluteDistance)
+    val artworkWidth = coverFlowArtworkWidth(absoluteDistance, fullscreen)
+    val artworkHeight = coverFlowArtworkHeight(absoluteDistance, fullscreen)
     val selected = absoluteDistance < 0.5f
-    val artworkShape = RoundedCornerShape(COVER_FLOW_ARTWORK_CORNER_RADIUS.dp)
-    val infoTop = coverFlowInfoTop(absoluteDistance)
-    val infoWidth = (artworkWidth - 40f).coerceAtLeast(320f).dp
-    Box(modifier = modifier.width(720.dp).height(832.dp)) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().height(720.dp)) {
+    val artworkShape = RoundedCornerShape(fullscreen.coverFlowArtworkCornerRadius)
+    val infoTop = coverFlowInfoTop(absoluteDistance, fullscreen)
+    val infoWidth = maxOf(
+        artworkWidth - fullscreen.coverFlowInfoWidthInset,
+        fullscreen.coverFlowInfoMinimumWidth,
+    )
+    Box(modifier = modifier.size(fullscreen.coverFlowItemSize)) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().height(fullscreen.artworkSize)) {
             CarArtwork(
                 artwork = item.libraryTrackId?.let { Artwork.LibraryTrack(it, true) },
                 repository = artworkRepository,
-                size = 720.dp,
+                size = fullscreen.artworkSize,
                 shape = artworkShape,
                 modifier = Modifier
-                    .requiredSize(720.dp)
+                    .requiredSize(fullscreen.artworkSize)
                     .graphicsLayer {
-                        scaleX = artworkWidth / 720f
-                        scaleY = artworkHeight / 720f
+                        scaleX = artworkWidth / fullscreen.artworkSize
+                        scaleY = artworkHeight / fullscreen.artworkSize
                         rotationY = if (absoluteDistance < 0.01f) 0f else {
                             -distanceFromCenter.coerceIn(-1f, 1f) * 13f
                         }
-                        cameraDistance = COVER_FLOW_CAMERA_DISTANCE * density
+                        cameraDistance = fullscreen.coverFlowCameraDistance * density
                         alpha = coverFlowArtworkAlpha(absoluteDistance)
                         shape = artworkShape
                         clip = true
@@ -360,7 +391,7 @@ private fun CoverFlowItem(
         }
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.align(Alignment.TopCenter).offset(y = infoTop.dp).width(infoWidth),
+            modifier = Modifier.align(Alignment.TopCenter).offset(y = infoTop).width(infoWidth),
         ) {
             BasicText(
                 item.title,
@@ -396,6 +427,7 @@ private fun CoverFlowItem(
 private fun FullscreenCoverFlow(
     items: List<PlayableItem>,
     currentIndex: Int,
+    fullscreen: CarFullscreenMetrics,
     artworkRepository: ArtworkRepository,
     onPlay: (Int) -> Unit,
     modifier: Modifier = Modifier,
@@ -403,7 +435,7 @@ private fun FullscreenCoverFlow(
     val density = LocalDensity.current
     val anchor = items.size * COVER_FLOW_ANCHOR_REPEAT + currentIndex
     var position by remember(items.size) { mutableFloatStateOf(anchor.toFloat()) }
-    val dragIntervalPx = with(density) { COVER_FLOW_DRAG_INTERVAL.dp.toPx() }
+    val dragIntervalPx = with(density) { fullscreen.coverFlowDragInterval.toPx() }
     val draggableState = rememberDraggableState { deltaPx ->
         position -= deltaPx / dragIntervalPx
     }
@@ -439,11 +471,12 @@ private fun FullscreenCoverFlow(
             val distance = virtualIndex - position
             if (distance.absoluteValue > COVER_FLOW_SIDE_ITEMS + 0.75f) continue
             val queueIndex = virtualIndex.floorMod(items.size)
-            val centerOffset = coverFlowCenterOffset(distance)
+            val centerOffset = coverFlowCenterOffset(distance, fullscreen)
             key(virtualIndex) {
                 CoverFlowItem(
                     item = items[queueIndex],
                     distanceFromCenter = distance,
+                    fullscreen = fullscreen,
                     artworkRepository = artworkRepository,
                     focusId = CarFocusIds.item("fullscreen_cover", virtualIndex),
                     onClick = {
@@ -451,7 +484,7 @@ private fun FullscreenCoverFlow(
                         position = virtualIndex.toFloat()
                     },
                     modifier = Modifier
-                        .offset(x = 2200.dp + centerOffset.dp)
+                        .offset(x = fullscreen.coverFlowCenterX + centerOffset)
                         .zIndex(COVER_FLOW_SIDE_ITEMS + 1f - distance.absoluteValue),
                 )
             }
@@ -459,27 +492,36 @@ private fun FullscreenCoverFlow(
     }
 }
 
-private fun coverFlowCenterOffset(distance: Float): Float {
+private fun coverFlowCenterOffset(distance: Float, fullscreen: CarFullscreenMetrics): Dp {
     val absolute = distance.absoluteValue.coerceAtMost(COVER_FLOW_SIDE_ITEMS.toFloat())
     val lower = floor(absolute).toInt()
     val upper = (lower + 1).coerceAtMost(COVER_FLOW_SIDE_ITEMS)
     val fraction = absolute - lower
-    val offset = COVER_FLOW_CENTER_OFFSETS[lower] +
-        (COVER_FLOW_CENTER_OFFSETS[upper] - COVER_FLOW_CENTER_OFFSETS[lower]) * fraction
+    val offset = fullscreen.coverFlowCenterOffsets[lower] +
+        (fullscreen.coverFlowCenterOffsets[upper] - fullscreen.coverFlowCenterOffsets[lower]) * fraction
     return if (distance < 0f) -offset else offset
 }
 
-private fun coverFlowArtworkWidth(distance: Float): Float =
-    coverFlowInterpolated(distance, COVER_FLOW_ARTWORK_WIDTHS)
+private fun coverFlowArtworkWidth(distance: Float, fullscreen: CarFullscreenMetrics): Dp =
+    coverFlowInterpolated(distance, fullscreen.coverFlowArtworkWidths)
 
-private fun coverFlowArtworkHeight(distance: Float): Float =
-    coverFlowInterpolated(distance, COVER_FLOW_ARTWORK_HEIGHTS)
+private fun coverFlowArtworkHeight(distance: Float, fullscreen: CarFullscreenMetrics): Dp =
+    coverFlowInterpolated(distance, fullscreen.coverFlowArtworkHeights)
 
 private fun coverFlowArtworkAlpha(distance: Float): Float =
     coverFlowInterpolated(distance, COVER_FLOW_ARTWORK_ALPHAS)
 
-private fun coverFlowInfoTop(distance: Float): Float =
-    750f + (684f - 750f) * distance.coerceIn(0f, 1f)
+private fun coverFlowInfoTop(distance: Float, fullscreen: CarFullscreenMetrics): Dp =
+    fullscreen.coverFlowInfoTopCentered +
+        (fullscreen.coverFlowInfoTopNear - fullscreen.coverFlowInfoTopCentered) * distance.coerceIn(0f, 1f)
+
+private fun coverFlowInterpolated(distance: Float, values: List<Dp>): Dp {
+    val absolute = distance.coerceIn(0f, COVER_FLOW_SIDE_ITEMS.toFloat())
+    val lower = floor(absolute).toInt()
+    val upper = (lower + 1).coerceAtMost(COVER_FLOW_SIDE_ITEMS)
+    val fraction = absolute - lower
+    return values[lower] + (values[upper] - values[lower]) * fraction
+}
 
 private fun coverFlowInterpolated(distance: Float, values: FloatArray): Float {
     val absolute = distance.coerceIn(0f, COVER_FLOW_SIDE_ITEMS.toFloat())
@@ -493,12 +535,6 @@ private fun Int.floorMod(divisor: Int): Int = ((this % divisor) + divisor) % div
 
 private const val COVER_FLOW_SIDE_ITEMS = 5
 private const val COVER_FLOW_ANCHOR_REPEAT = 100
-private const val COVER_FLOW_DRAG_INTERVAL = 463f
 private const val COVER_FLOW_FLING_SECONDS = 0.12f
 private const val COVER_FLOW_SETTLE_MILLIS = 220
-private const val COVER_FLOW_CAMERA_DISTANCE = 2400f
-private const val COVER_FLOW_ARTWORK_CORNER_RADIUS = 28f
-private val COVER_FLOW_CENTER_OFFSETS = floatArrayOf(0f, 582.5f, 1045.5f, 1461f, 1847f, 2194f)
-private val COVER_FLOW_ARTWORK_WIDTHS = floatArrayOf(720f, 517f, 441f, 430f, 400f, 360f)
-private val COVER_FLOW_ARTWORK_HEIGHTS = floatArrayOf(720f, 586f, 584f, 583f, 582f, 581f)
 private val COVER_FLOW_ARTWORK_ALPHAS = floatArrayOf(1f, 1f, 0.96f, 0.92f, 0.88f, 0.84f)

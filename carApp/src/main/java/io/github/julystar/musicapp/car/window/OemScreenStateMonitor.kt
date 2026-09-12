@@ -1,4 +1,4 @@
-package io.github.julystar.musicapp.car
+package io.github.julystar.musicapp.car.window
 
 import android.content.ContentResolver
 import android.database.ContentObserver
@@ -7,7 +7,6 @@ import android.os.Looper
 import android.provider.Settings
 import android.util.Log
 import io.github.julystar.musicapp.car.presentation.layout.CarLayoutProfileHint
-import io.github.julystar.musicapp.car.presentation.layout.carLayoutHintFromOemState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

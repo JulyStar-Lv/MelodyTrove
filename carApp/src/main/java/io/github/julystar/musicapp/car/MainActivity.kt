@@ -58,10 +58,11 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import io.github.julystar.musicapp.car.presentation.CarRoot
-import io.github.julystar.musicapp.car.presentation.layout.CarAppWindowBounds
-import io.github.julystar.musicapp.car.presentation.layout.CarAppWindowBoundsResolver
 import io.github.julystar.musicapp.car.presentation.layout.CarLayoutProfileHint
 import io.github.julystar.musicapp.car.presentation.layout.CarLayoutProfileResolver
+import io.github.julystar.musicapp.car.window.CarAppWindowBounds
+import io.github.julystar.musicapp.car.window.CarAppWindowBoundsResolver
+import io.github.julystar.musicapp.car.window.OemScreenStateMonitor
 import io.github.julystar.musicapp.core.PlaybackService
 import io.github.julystar.musicapp.singleton.PlayerControllerRepository
 import io.github.julystar.musicapp.singleton.PermissionRepository
@@ -118,6 +119,9 @@ class MainActivity : ComponentActivity() {
                             exitPlaybackRequest = exitPlaybackRequest,
                         )
                     }
+                    CarStartupState.RecoveryRequired -> CarStartupMessage(
+                        message = "检测到上次异常退出\n请先在手机端完成安全模式恢复",
+                    )
                     is CarStartupState.Failed -> CarStartupMessage(
                         message = "Tide Player 启动失败\n请重新打开应用",
                     )

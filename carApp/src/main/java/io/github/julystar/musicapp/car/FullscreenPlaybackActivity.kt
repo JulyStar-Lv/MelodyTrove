@@ -13,10 +13,7 @@ import io.github.julystar.musicapp.car.presentation.layout.CarLayoutProfileHint
 import io.github.julystar.musicapp.car.presentation.layout.CarLayoutProfileResolver
 import org.koin.android.ext.android.inject
 
-/**
- * Uses a separate unresizable task so the cockpit window manager grants the
- * physical 5120-pixel surface instead of inheriting applist's 2560-pixel task.
- */
+/** Uses a separate unresizable task so the cockpit host grants the fullscreen drawing surface. */
 class FullscreenPlaybackActivity : ComponentActivity() {
     private val layoutProfileResolver: CarLayoutProfileResolver by inject()
 
@@ -41,7 +38,12 @@ class FullscreenPlaybackActivity : ComponentActivity() {
                         onExitFullscreen = ::finishWithoutAnimation,
                     )
                     else -> LaunchedEffect(startupState) {
-                        if (startupState is CarStartupState.Failed) finishWithoutAnimation()
+                        if (
+                            startupState is CarStartupState.Failed ||
+                            startupState == CarStartupState.RecoveryRequired
+                        ) {
+                            finishWithoutAnimation()
+                        }
                     }
                 }
             }

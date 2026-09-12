@@ -21,7 +21,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
@@ -50,8 +49,6 @@ import io.github.julystar.musicapp.core.domain.model.LibraryTrackItem
 import io.github.julystar.musicapp.core.domain.model.PlaylistSummary
 import io.github.julystar.musicapp.core.domain.model.RepositoryState
 import io.github.julystar.musicapp.core.domain.repository.ArtworkRepository
-import io.github.julystar.musicapp.service.playback.domain.PlaybackController
-import kotlinx.coroutines.launch
 import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
@@ -64,7 +61,7 @@ fun CarHomeScreen(
     artists: List<LibraryArtistItem>,
     playlists: List<PlaylistSummary>,
     artworkRepository: ArtworkRepository,
-    playbackController: PlaybackController,
+    onPlay: (CarPlaybackRequest) -> Unit,
     onAlbumClick: (Long) -> Unit,
     onArtistClick: (Long) -> Unit,
     onPlaylistClick: (PlaylistSummary) -> Unit,
@@ -88,11 +85,9 @@ fun CarHomeScreen(
         CarPageState("音乐库为空，请先在设置中添加音乐来源", modifier)
         return
     }
-    val scope = rememberCoroutineScope()
     fun play(items: List<LibraryTrackItem>, index: Int) {
         if (index in items.indices) {
-            val request = items.toCarPlaybackRequest(index)
-            scope.launch { playbackController.play(request.items, request.startIndex) }
+            onPlay(items.toCarPlaybackRequest(index))
         }
     }
     val recentPlayed = homeState.recentlyPlayed.dataOrEmpty()

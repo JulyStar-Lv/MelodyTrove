@@ -59,19 +59,17 @@ import io.github.julystar.musicapp.car.presentation.theme.LocalCarTypography
 import io.github.julystar.musicapp.core.domain.model.Artwork
 import io.github.julystar.musicapp.core.domain.model.CurrentTrackInfo
 import io.github.julystar.musicapp.core.domain.repository.ArtworkRepository
-import io.github.julystar.musicapp.core.domain.repository.FavoritesRepository
-import io.github.julystar.musicapp.service.playback.domain.NowPlayingRepository
 import io.github.julystar.musicapp.service.playback.domain.PlayableItem
-import io.github.julystar.musicapp.service.playback.domain.PlaybackController
 import io.github.julystar.musicapp.service.playback.domain.PlaybackPosition
 import io.github.julystar.musicapp.service.playback.domain.PlaybackQueue
 import io.github.julystar.musicapp.service.playback.domain.PlaybackStatus
 import io.github.julystar.musicapp.service.playback.domain.PlayerState
 import io.github.julystar.musicapp.service.playback.domain.RepeatMode
-import kotlinx.coroutines.launch
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.withFrameNanos
+import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 import io.github.julystar.musicapp.car.presentation.focus.CarFocusCoordinator
 import io.github.julystar.musicapp.car.presentation.focus.CarFocusId
 import io.github.julystar.musicapp.car.presentation.focus.CarFocusIds
@@ -85,18 +83,15 @@ fun CarNowPlayingScreen(
     onEnterFullscreen: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    val playbackController = koinInject<PlaybackController>()
-    val nowPlayingRepository = koinInject<NowPlayingRepository>()
+    val viewModel = koinViewModel<CarNowPlayingViewModel>()
     val artworkRepository = koinInject<ArtworkRepository>()
-    val favoritesRepository = koinInject<FavoritesRepository>()
-    val state by playbackController.state.collectAsState()
-    val position by playbackController.position.collectAsState()
-    val queue by playbackController.queue.collectAsState()
-    val trackInfo by nowPlayingRepository.currentTrackInfo.collectAsState()
-    val favoriteTrackIds by favoritesRepository.favoriteTrackIds.collectAsState(emptySet())
+    val uiState by viewModel.state.collectAsState()
+    val state = uiState.player
+    val position = uiState.position
+    val queue = uiState.queue
+    val trackInfo = uiState.trackInfo
     var queueVisible by remember { mutableStateOf(false) }
     val focusScope = rememberCoroutineScope()
-    val currentTrackId = state.currentItem?.libraryTrackId
     fun closeQueue() {
         queueVisible = false
         focusScope.launch {
@@ -160,19 +155,14 @@ fun CarNowPlayingScreen(
                 position,
                 trackInfo,
                 artworkRepository,
-                playbackController,
-                isFavorite = currentTrackId != null && currentTrackId in favoriteTrackIds,
-                onToggleFavorite = {
-                    currentTrackId?.let { trackId ->
-                        focusScope.launch { favoritesRepository.toggleFavorite(trackId) }
-                    }
-                },
+                onAction = viewModel::onAction,
+                isFavorite = uiState.isFavorite,
                 queueVisible,
                 onToggleQueue = { if (queueVisible) closeQueue() else queueVisible = true },
                 modifier = Modifier.width(metrics.nowPlayingPlayerPaneWidth).fillMaxHeight(),
             )
             if (queueVisible) {
-                QueuePane(metrics, queue, playbackController, artworkRepository, Modifier.weight(1f).fillMaxHeight())
+                QueuePane(metrics, queue, viewModel::onAction, artworkRepository, Modifier.weight(1f).fillMaxHeight())
             } else {
                 LyricsPane(metrics, state, position, trackInfo, Modifier.weight(1f).fillMaxHeight())
             }
@@ -224,9 +214,8 @@ private fun PlayerPane(
     position: PlaybackPosition,
     trackInfo: CurrentTrackInfo?,
     artworkRepository: ArtworkRepository,
-    playbackController: PlaybackController,
+    onAction: (CarNowPlayingAction) -> Unit,
     isFavorite: Boolean,
-    onToggleFavorite: () -> Unit,
     queueVisible: Boolean,
     onToggleQueue: () -> Unit,
     modifier: Modifier,
@@ -257,7 +246,7 @@ private fun PlayerPane(
                 right = CarFocusIds.NowPlayingMore,
                 down = CarFocusIds.NowPlayingRepeat,
                 enabled = state.currentItem?.libraryTrackId != null,
-                onClick = onToggleFavorite,
+                onClick = { onAction(CarNowPlayingAction.ToggleFavorite) },
                 modifier = Modifier,
             )
             BasicText(
@@ -275,7 +264,12 @@ private fun PlayerPane(
             )
         }
         Spacer(Modifier.height(spacing.content))
-        PlaybackProgress(metrics, position, playbackController::seekTo, Modifier.width(metrics.nowPlayingArtworkSize))
+        PlaybackProgress(
+            metrics,
+            position,
+            { onAction(CarNowPlayingAction.Seek(it)) },
+            Modifier.width(metrics.nowPlayingArtworkSize),
+        )
         Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.width(metrics.nowPlayingArtworkSize)) {
             BasicText(position.positionMs.asTime(), style = LocalCarTypography.current.body.copy(color = colors.textSecondary))
             BasicText(position.durationMs.asTime(), style = LocalCarTypography.current.body.copy(color = colors.textSecondary))
@@ -294,7 +288,7 @@ private fun PlayerPane(
                 focusId = CarFocusIds.NowPlayingRepeat,
                 up = CarFocusIds.NowPlayingShuffle,
                 right = CarFocusIds.NowPlayingPrevious,
-                onClick = { playbackController.setRepeatMode(state.repeatMode.nextCarMode()) },
+                onClick = { onAction(CarNowPlayingAction.ToggleRepeat) },
                 modifier = Modifier,
             )
             CarPlayerControl(
@@ -302,7 +296,7 @@ private fun PlayerPane(
                 focusId = CarFocusIds.NowPlayingPrevious,
                 left = CarFocusIds.NowPlayingRepeat,
                 right = CarFocusIds.NowPlayingToggle,
-                onClick = playbackController::skipPrevious,
+                onClick = { onAction(CarNowPlayingAction.Previous) },
                 modifier = Modifier,
             )
             CarPlayerControl(
@@ -314,7 +308,7 @@ private fun PlayerPane(
                 focusId = CarFocusIds.NowPlayingToggle,
                 left = CarFocusIds.NowPlayingPrevious,
                 right = CarFocusIds.NowPlayingNext,
-                onClick = playbackController::togglePlayPause,
+                onClick = { onAction(CarNowPlayingAction.PlayPause) },
                 modifier = Modifier,
             )
             CarPlayerControl(
@@ -322,7 +316,7 @@ private fun PlayerPane(
                 focusId = CarFocusIds.NowPlayingNext,
                 left = CarFocusIds.NowPlayingToggle,
                 right = CarFocusIds.NowPlayingQueue,
-                onClick = playbackController::skipNext,
+                onClick = { onAction(CarNowPlayingAction.Next) },
                 modifier = Modifier,
             )
             CarPlayerControl(
@@ -440,13 +434,12 @@ private fun LyricsPane(
 private fun QueuePane(
     metrics: CarLayoutMetrics,
     queue: PlaybackQueue,
-    playbackController: PlaybackController,
+    onAction: (CarNowPlayingAction) -> Unit,
     artworkRepository: ArtworkRepository,
     modifier: Modifier,
 ) {
     val colors = LocalCarColors.current
     val spacing = LocalCarSpacing.current
-    val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     LaunchedEffect(queue.currentIndex, queue.items.size) {
         if (queue.currentIndex in queue.items.indices) listState.animateScrollToItem(queue.currentIndex)
@@ -469,7 +462,7 @@ private fun QueuePane(
                     height = metrics.compactCardHeight * (104f / 112f),
                     artworkSize = metrics.iconSize,
                     focusId = item.carQueueFocusId(index),
-                    onClick = { scope.launch { playbackController.play(queue.items, index) } },
+                    onClick = { onAction(CarNowPlayingAction.PlayQueueItem(index)) },
                 )
             }
         }

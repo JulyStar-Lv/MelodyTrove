@@ -1,6 +1,7 @@
 package io.github.julystar.musicapp.car.presentation.layout
 
 import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import io.github.julystar.musicapp.car.presentation.theme.CarTouchTargets
 
@@ -89,6 +90,53 @@ private fun createMetrics(
         wx(reference.playlistCardWidth), minAxis * (reference.playlistArtworkSize / reference.contentHeight),
         maxOf(CarTouchTargets.Minimum, minAxis * (reference.primaryTouchTarget / reference.contentHeight)),
         reference.mediaGridColumns,
+        createFullscreenMetrics(contentSize),
+    )
+}
+
+private fun createFullscreenMetrics(contentSize: DpSize): CarFullscreenMetrics {
+    val width = contentSize.width
+    val height = contentSize.height
+    val minAxis = minOf(width, height)
+    fun wx(value: Float) = width * (value / FullscreenReference.contentWidth)
+    fun hy(value: Float) = height * (value / FullscreenReference.contentHeight)
+    fun square(value: Float) = minAxis * (value / FullscreenReference.contentHeight)
+    fun offset(x: Float, y: Float) = DpOffset(wx(x), hy(y))
+
+    return CarFullscreenMetrics(
+        backgroundScaleX = 5600f / FullscreenReference.contentWidth,
+        backgroundScaleY = 1784f / FullscreenReference.contentHeight,
+        exitPlaybackOffset = offset(96f, 216f),
+        exitFullscreenOffset = offset(184f, 216f),
+        controlSize = square(72f),
+        controlIconSize = square(56f),
+        controlCornerRadius = square(20f),
+        metadataOffset = offset(280f, 228.5f),
+        metadataWidth = wx(1600f),
+        coverFlowTop = hy(380f),
+        coverFlowHeight = hy(820f),
+        indicatorOffset = offset(2518f, 1260f),
+        indicatorSize = DpSize(wx(84f), hy(8f)),
+        minimalOffset = offset(320f, 394.25f),
+        minimalSize = DpSize(wx(4544f), hy(840f)),
+        minimalGap = wx(224f),
+        artworkSize = square(720f),
+        artworkCornerRadius = square(36f),
+        lyricsSize = DpSize(wx(3528f), hy(558f)),
+        currentLyricHeight = hy(380f),
+        nextLyricHeight = hy(150f),
+        coverFlowItemSize = DpSize(wx(720f), hy(832f)),
+        coverFlowCenterX = wx(2200f),
+        coverFlowDragInterval = wx(463f),
+        coverFlowInfoWidthInset = wx(40f),
+        coverFlowInfoMinimumWidth = wx(320f),
+        coverFlowInfoTopCentered = hy(750f),
+        coverFlowInfoTopNear = hy(684f),
+        coverFlowCenterOffsets = listOf(0f, 582.5f, 1045.5f, 1461f, 1847f, 2194f).map(::wx),
+        coverFlowArtworkWidths = listOf(720f, 517f, 441f, 430f, 400f, 360f).map(::wx),
+        coverFlowArtworkHeights = listOf(720f, 586f, 584f, 583f, 582f, 581f).map(::hy),
+        coverFlowArtworkCornerRadius = square(28f),
+        coverFlowCameraDistance = 2400f,
     )
 }
 

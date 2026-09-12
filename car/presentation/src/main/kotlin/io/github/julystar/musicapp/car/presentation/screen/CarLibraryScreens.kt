@@ -83,7 +83,7 @@ fun CarSongsScreen(
     tracks: List<LibraryTrackItem>,
     currentTrackId: Long?,
     artworkRepository: ArtworkRepository,
-    playbackController: PlaybackController,
+    onPlay: (CarPlaybackRequest) -> Unit,
     onOpenAlbums: () -> Unit,
     onOpenArtists: () -> Unit,
     modifier: Modifier = Modifier,
@@ -124,7 +124,7 @@ fun CarSongsScreen(
         {
             if (visibleTracks.isNotEmpty()) {
                 val request = visibleTracks.toCarPlaybackRequest(0)
-                scope.launch { playbackController.play(request.items, request.startIndex) }
+                onPlay(request)
             }
         },
         modifier,
@@ -147,7 +147,7 @@ fun CarSongsScreen(
                     },
                     onClick = {
                         val request = visibleTracks.toCarPlaybackRequest(index)
-                        scope.launch { playbackController.play(request.items, request.startIndex) }
+                        onPlay(request)
                     },
                     modifier = Modifier
                         .carFocusTarget(

@@ -44,6 +44,7 @@ import org.junit.runner.RunWith
 import org.koin.core.context.startKoin
 import org.koin.core.context.stopKoin
 import org.koin.dsl.module
+import org.koin.core.module.dsl.viewModelOf
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
@@ -64,6 +65,7 @@ class CarNowPlayingQueueComposeTest {
                 single<NowPlayingRepository> { QueueTestNowPlayingRepository }
                 single<ArtworkRepository> { QueueTestArtworkRepository }
                 single<FavoritesRepository> { QueueTestFavoritesRepository }
+                viewModelOf(::CarNowPlayingViewModel)
             })
         }
     }

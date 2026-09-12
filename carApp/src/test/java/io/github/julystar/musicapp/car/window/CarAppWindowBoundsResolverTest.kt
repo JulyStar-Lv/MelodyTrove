@@ -1,6 +1,7 @@
-package io.github.julystar.musicapp.car.presentation.layout
+package io.github.julystar.musicapp.car.window
 
 import androidx.compose.ui.unit.IntSize
+import io.github.julystar.musicapp.car.presentation.layout.CarLayoutProfileHint
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -44,24 +45,7 @@ class CarAppWindowBoundsResolverTest {
             requestedHint = CarLayoutProfileHint.FullscreenCockpit,
         )
 
-        assertEquals(0, bounds.left)
-        assertEquals(0, bounds.top)
-        assertEquals(5120, bounds.width)
-        assertEquals(1304, bounds.height)
-        assertEquals(CarLayoutProfileHint.FullscreenCockpit, bounds.profileHint)
-        assertTrue(bounds.embeddedInCockpit)
-    }
-
-    @Test
-    fun missingOemSignalDefaultsToFileManagerExpandedState() {
-        val bounds = CarAppWindowBoundsResolver.resolve(
-            hostSizePx = IntSize(2560, 1440),
-            requestedHint = CarLayoutProfileHint.Automatic,
-        )
-
-        assertEquals(64, bounds.left)
-        assertEquals(2496, bounds.width)
-        assertEquals(CarLayoutProfileHint.Expanded, bounds.profileHint)
+        assertEquals(CarAppWindowBounds(0, 0, 5120, 1304, true, CarLayoutProfileHint.FullscreenCockpit), bounds)
     }
 
     @Test
@@ -79,5 +63,16 @@ class CarAppWindowBoundsResolverTest {
         assertEquals(CarAppWindowBounds(0, 0, 1728, 1080, false, CarLayoutProfileHint.Automatic), vehiclePanel)
         assertFalse(expanded.embeddedInCockpit)
         assertFalse(vehiclePanel.embeddedInCockpit)
+    }
+
+    @Test
+    fun oemStateMappingKeepsAutomaticForMissingSignal() {
+        assertEquals(CarLayoutProfileHint.Expanded, carLayoutHintFromOemState(0, 0))
+        assertEquals(CarLayoutProfileHint.VehiclePanel, carLayoutHintFromOemState(1, 0))
+        assertEquals(CarLayoutProfileHint.VehiclePanel, carLayoutHintFromOemState(0, 1))
+        assertEquals(CarLayoutProfileHint.Automatic, carLayoutHintFromOemState(null, null))
+        assertEquals(CarLayoutProfileHint.Expanded, carLayoutHintFromOemState(0, null))
+        assertEquals(CarLayoutProfileHint.VehiclePanel, carLayoutHintFromOemState(1, null))
+        assertEquals(CarLayoutProfileHint.VehiclePanel, carLayoutHintFromOemState(null, 1))
     }
 }

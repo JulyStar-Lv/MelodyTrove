@@ -2,6 +2,7 @@ package io.github.julystar.musicapp.car.presentation.layout
 
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 
@@ -87,4 +88,42 @@ data class CarLayoutMetrics(
     val playlistArtworkSize: Dp,
     val primaryTouchTarget: Dp,
     val mediaGridColumns: Int,
+    val fullscreen: CarFullscreenMetrics,
+)
+
+@Immutable
+data class CarFullscreenMetrics(
+    val backgroundScaleX: Float,
+    val backgroundScaleY: Float,
+    val exitPlaybackOffset: DpOffset,
+    val exitFullscreenOffset: DpOffset,
+    val controlSize: Dp,
+    val controlIconSize: Dp,
+    val controlCornerRadius: Dp,
+    val metadataOffset: DpOffset,
+    val metadataWidth: Dp,
+    val coverFlowTop: Dp,
+    val coverFlowHeight: Dp,
+    val indicatorOffset: DpOffset,
+    val indicatorSize: DpSize,
+    val minimalOffset: DpOffset,
+    val minimalSize: DpSize,
+    val minimalGap: Dp,
+    val artworkSize: Dp,
+    val artworkCornerRadius: Dp,
+    val lyricsSize: DpSize,
+    val currentLyricHeight: Dp,
+    val nextLyricHeight: Dp,
+    val coverFlowItemSize: DpSize,
+    val coverFlowCenterX: Dp,
+    val coverFlowDragInterval: Dp,
+    val coverFlowInfoWidthInset: Dp,
+    val coverFlowInfoMinimumWidth: Dp,
+    val coverFlowInfoTopCentered: Dp,
+    val coverFlowInfoTopNear: Dp,
+    val coverFlowCenterOffsets: List<Dp>,
+    val coverFlowArtworkWidths: List<Dp>,
+    val coverFlowArtworkHeights: List<Dp>,
+    val coverFlowArtworkCornerRadius: Dp,
+    val coverFlowCameraDistance: Float,
 )

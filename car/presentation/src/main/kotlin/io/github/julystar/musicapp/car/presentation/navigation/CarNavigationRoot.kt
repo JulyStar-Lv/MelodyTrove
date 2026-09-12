@@ -40,11 +40,14 @@ import io.github.julystar.musicapp.car.presentation.layout.CarLayoutProfile
 import io.github.julystar.musicapp.car.presentation.icon.CarIcon
 import io.github.julystar.musicapp.car.presentation.nowplaying.CarNowPlayingScreen
 import io.github.julystar.musicapp.car.presentation.nowplaying.CarFullscreenNowPlayingScreen
+import io.github.julystar.musicapp.car.presentation.nowplaying.CarNowPlayingAction
+import io.github.julystar.musicapp.car.presentation.nowplaying.CarNowPlayingViewModel
 import io.github.julystar.musicapp.car.presentation.screen.CarAlbumsScreen
 import io.github.julystar.musicapp.car.presentation.screen.CarAlbumDetailScreen
 import io.github.julystar.musicapp.car.presentation.screen.CarArtistDetailScreen
 import io.github.julystar.musicapp.car.presentation.screen.CarArtistsScreen
 import io.github.julystar.musicapp.car.presentation.screen.CarHomeScreen
+import io.github.julystar.musicapp.car.presentation.screen.CarLibraryViewModel
 import io.github.julystar.musicapp.car.presentation.screen.CarPageState
 import io.github.julystar.musicapp.car.presentation.screen.CarPlaylistsScreen
 import io.github.julystar.musicapp.car.presentation.screen.CarPlaylistDetailScreen
@@ -55,14 +58,9 @@ import io.github.julystar.musicapp.car.presentation.theme.LocalCarColors
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarShapes
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarTypography
 import io.github.julystar.musicapp.core.domain.repository.ArtworkRepository
-import io.github.julystar.musicapp.core.domain.repository.LibraryRepository
-import io.github.julystar.musicapp.core.domain.repository.PlaylistRepository
-import io.github.julystar.musicapp.core.domain.repository.SettingsRepository
-import io.github.julystar.musicapp.core.domain.model.AppSettings
-import io.github.julystar.musicapp.core.domain.search.SearchRepository
-import io.github.julystar.musicapp.service.playback.domain.PlaybackController
 import io.github.julystar.musicapp.service.playback.domain.PlayerState
 import org.koin.compose.koinInject
+import org.koin.compose.viewmodel.koinViewModel
 
 @Composable
 fun CarNavigationRoot(
@@ -86,20 +84,11 @@ fun CarNavigationRoot(
         CarFullscreenNowPlayingScreen(safeMetrics, onExitPlayback, onExitFullscreen, modifier)
         return
     }
-    val library = koinInject<LibraryRepository>()
-    val playlistsRepository = koinInject<PlaylistRepository>()
+    val libraryViewModel = koinViewModel<CarLibraryViewModel>()
+    val libraryState by libraryViewModel.state.collectAsState()
+    val nowPlayingViewModel = koinViewModel<CarNowPlayingViewModel>()
+    val nowPlayingState by nowPlayingViewModel.state.collectAsState()
     val artworkRepository = koinInject<ArtworkRepository>()
-    val playbackController = koinInject<PlaybackController>()
-    val settingsRepository = koinInject<SettingsRepository>()
-    val searchRepository = koinInject<SearchRepository>()
-    val initialized by library.initialLoadComplete.collectAsState()
-    val libraryError by library.loadError.collectAsState()
-    val tracks by library.tracks.collectAsState()
-    val albums by library.albums.collectAsState()
-    val artists by library.artists.collectAsState()
-    val playlists by playlistsRepository.playlistSummaries.collectAsState()
-    val playerState by playbackController.state.collectAsState()
-    val settings by settingsRepository.settings.collectAsState(AppSettings())
     var detailTarget by remember { mutableStateOf<CarDetailTarget?>(null) }
     var parentDetailTarget by remember { mutableStateOf<CarDetailTarget?>(null) }
 
@@ -142,18 +131,18 @@ fun CarNavigationRoot(
                 onEnterFullscreen = onEnterFullscreen,
                 modifier = modifier.carInputRouter(
                     focusManager = focusManager,
-                    onPlayPause = playbackController::togglePlayPause,
-                    onNext = playbackController::skipNext,
-                    onPrevious = playbackController::skipPrevious,
-                    onStop = playbackController::pause,
+                    onPlayPause = { nowPlayingViewModel.onAction(CarNowPlayingAction.PlayPause) },
+                    onNext = { nowPlayingViewModel.onAction(CarNowPlayingAction.Next) },
+                    onPrevious = { nowPlayingViewModel.onAction(CarNowPlayingAction.Previous) },
+                    onStop = { nowPlayingViewModel.onAction(CarNowPlayingAction.Pause) },
                 ),
             )
         } else Box(modifier = modifier.carInputRouter(
             focusManager = focusManager,
-            onPlayPause = playbackController::togglePlayPause,
-            onNext = playbackController::skipNext,
-            onPrevious = playbackController::skipPrevious,
-            onStop = playbackController::pause,
+            onPlayPause = { nowPlayingViewModel.onAction(CarNowPlayingAction.PlayPause) },
+            onNext = { nowPlayingViewModel.onAction(CarNowPlayingAction.Next) },
+            onPrevious = { nowPlayingViewModel.onAction(CarNowPlayingAction.Previous) },
+            onStop = { nowPlayingViewModel.onAction(CarNowPlayingAction.Pause) },
         )) {
         CarAppWindowHeader(
             onExit = onExit,
@@ -165,9 +154,11 @@ fun CarNavigationRoot(
         NavigationRail(
             metrics = safeMetrics,
             route = route,
-            playerState = playerState,
+            playerState = nowPlayingState.player,
             artworkRepository = artworkRepository,
-            playbackController = playbackController,
+            onPrevious = { nowPlayingViewModel.onAction(CarNowPlayingAction.Previous) },
+            onToggle = { nowPlayingViewModel.onAction(CarNowPlayingAction.PlayPause) },
+            onNext = { nowPlayingViewModel.onAction(CarNowPlayingAction.Next) },
             contentFocusId = if (detailTarget != null) {
                 CarFocusIds.DetailBack
             } else if (route == CarRoute.Settings) {
@@ -226,14 +217,14 @@ fun CarNavigationRoot(
                 when (route) {
             CarRoute.Home -> CarHomeScreen(
                 metrics = safeMetrics,
-                loading = !initialized,
-                error = libraryError,
-                tracks = tracks,
-                albums = albums,
-                artists = artists,
-                playlists = playlists,
+                loading = !libraryState.initialLoadComplete,
+                error = libraryState.loadError,
+                tracks = libraryState.tracks,
+                albums = libraryState.albums,
+                artists = libraryState.artists,
+                playlists = libraryState.playlists,
                 artworkRepository = artworkRepository,
-                playbackController = playbackController,
+                onPlay = libraryViewModel::play,
                 onAlbumClick = { openDetail(CarDetailTarget.Album(it)) },
                 onArtistClick = { openDetail(CarDetailTarget.Artist(it)) },
                 onPlaylistClick = { openDetail(CarDetailTarget.Playlist(it.id, it.title)) },
@@ -244,41 +235,39 @@ fun CarNavigationRoot(
                 modifier = contentModifier,
             )
             CarRoute.Songs -> CarSongsScreen(
-                safeMetrics, !initialized, libraryError, tracks, playerState.currentItem?.libraryTrackId,
-                artworkRepository, playbackController,
+                safeMetrics, !libraryState.initialLoadComplete, libraryState.loadError,
+                libraryState.tracks, libraryState.currentTrackId,
+                artworkRepository, libraryViewModel::play,
                 onOpenAlbums = { route = CarRoute.Albums },
                 onOpenArtists = { route = CarRoute.Artists },
                 modifier = contentModifier,
             )
             CarRoute.Albums -> CarAlbumsScreen(
-                safeMetrics, !initialized, libraryError, albums, tracks, artworkRepository,
+                safeMetrics, !libraryState.initialLoadComplete, libraryState.loadError,
+                libraryState.albums, libraryState.tracks, artworkRepository,
                 onOpenSongs = { route = CarRoute.Songs },
                 onOpenArtists = { route = CarRoute.Artists },
                 onAlbumClick = { openDetail(CarDetailTarget.Album(it)) },
                 modifier = contentModifier,
             )
             CarRoute.Artists -> CarArtistsScreen(
-                safeMetrics, !initialized, libraryError, artists, albums, tracks, artworkRepository,
+                safeMetrics, !libraryState.initialLoadComplete, libraryState.loadError,
+                libraryState.artists, libraryState.albums, libraryState.tracks, artworkRepository,
                 onOpenSongs = { route = CarRoute.Songs },
                 onOpenAlbums = { route = CarRoute.Albums },
                 onArtistClick = { openDetail(CarDetailTarget.Artist(it)) },
                 modifier = contentModifier,
             )
             CarRoute.Playlists -> CarPlaylistsScreen(
-                safeMetrics, !initialized, playlists,
+                safeMetrics, !libraryState.initialLoadComplete, libraryState.playlists,
                 modifier = contentModifier,
             )
             CarRoute.Settings -> CarSettingsScreen(
                 safeMetrics,
-                settings,
-                settingsRepository,
                 contentModifier,
             )
             CarRoute.Search -> CarSearchScreen(
                 safeMetrics,
-                searchRepository,
-                playbackController,
-                playerState.currentItem?.libraryTrackId,
                 contentModifier,
             )
             CarRoute.NowPlaying -> Unit
@@ -320,7 +309,9 @@ private fun NavigationRail(
     route: CarRoute,
     playerState: PlayerState,
     artworkRepository: ArtworkRepository,
-    playbackController: PlaybackController,
+    onPrevious: () -> Unit,
+    onToggle: () -> Unit,
+    onNext: () -> Unit,
     contentFocusId: CarFocusId,
     onRoute: (CarRoute) -> Unit,
     onOpenNowPlaying: () -> Unit,
@@ -367,9 +358,9 @@ private fun NavigationRail(
             controlSize = metrics.iconSize,
             compact = metrics.profile == CarLayoutProfile.VehiclePanel,
             onOpen = onOpenNowPlaying,
-            onPrevious = playbackController::skipPrevious,
-            onToggle = playbackController::togglePlayPause,
-            onNext = playbackController::skipNext,
+            onPrevious = onPrevious,
+            onToggle = onToggle,
+            onNext = onNext,
             modifier = Modifier
                 .carFocusTarget(
                     id = CarFocusIds.MiniPlayer,

@@ -1,15 +1,10 @@
 package io.github.julystar.musicapp.car
 
 import android.app.Application
+import io.github.julystar.musicapp.car.di.carPlatformModule
 import io.github.julystar.musicapp.car.presentation.di.carPresentationModule
-import io.github.julystar.musicapp.di.AppInitializer
-import io.github.julystar.musicapp.di.initKoin
-import io.github.julystar.musicapp.diagnostics.DiagnosticsBootstrap
-import io.github.julystar.musicapp.diagnostics.RustDiagnosticsRepository
-import io.github.julystar.musicapp.diagnostics.collectAndroidHistoricalExitInfo
-import io.github.julystar.musicapp.diagnostics.lastUserRequestedProcessExitAtEpochMs
-import io.github.julystar.musicapp.diagnostics.recordKotlinUncaughtException
-import io.github.julystar.musicapp.platform.appContext
+import io.github.julystar.musicapp.runtime.AndroidRuntimeBootstrap
+import io.github.julystar.musicapp.runtime.AndroidRuntimeSession
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -20,15 +15,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import org.koin.core.Koin
-import org.koin.core.context.stopKoin
-import kotlin.system.exitProcess
 
 sealed interface CarStartupState {
     data object Initializing : CarStartupState
-
     data object Ready : CarStartupState
-
+    data object RecoveryRequired : CarStartupState
     data class Failed(val cause: Throwable) : CarStartupState
 }
 
@@ -37,14 +28,13 @@ class CarApplication : Application() {
     private val mutableStartupState = MutableStateFlow<CarStartupState>(CarStartupState.Initializing)
     private val mutableExitPlaybackRequest = MutableStateFlow(0L)
     private var startupJob: Job? = null
-    private var koin: Koin? = null
+    private var runtimeSession: AndroidRuntimeSession? = null
 
     val startupState: StateFlow<CarStartupState> = mutableStartupState.asStateFlow()
     val exitPlaybackRequest: StateFlow<Long> = mutableExitPlaybackRequest.asStateFlow()
 
     override fun onCreate() {
         super.onCreate()
-        appContext = this
         initializeApplication()
     }
 
@@ -53,26 +43,21 @@ class CarApplication : Application() {
         mutableStartupState.value = CarStartupState.Initializing
         startupJob = applicationScope.launch {
             try {
-                DiagnosticsBootstrap.initialize(
-                    lastUserRequestedExitAtEpochMs = lastUserRequestedProcessExitAtEpochMs(),
+                val preparation = AndroidRuntimeBootstrap.prepare(this@CarApplication)
+                if (!preparation.allowsInitialization) {
+                    mutableStartupState.value = CarStartupState.RecoveryRequired
+                    return@launch
+                }
+                runtimeSession = AndroidRuntimeBootstrap.openSession(
+                    additionalModules = listOf(carPlatformModule, carPresentationModule),
+                    disabledComponents = preparation.diagnosticsState.startupPlan.disabledComponents,
                 )
-                installFatalHandler()
-                collectAndroidHistoricalExitInfo()
-                val diagnosticsState = DiagnosticsBootstrap.finishPlatformExitCollection()
-                val disabledComponents = diagnosticsState.startupPlan.disabledComponents
-
-                val initializedKoin = initKoin(additionalModules = listOf(carPresentationModule)).koin
-                koin = initializedKoin
-                AppInitializer.initializeBridgeAsync(initializedKoin, disabledComponents)
-                AppInitializer.reloadRepositories(initializedKoin, disabledComponents)
                 mutableStartupState.value = CarStartupState.Ready
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
-                if (koin != null) {
-                    runCatching { stopKoin() }
-                    koin = null
-                }
+                runtimeSession?.close()
+                runtimeSession = null
                 mutableStartupState.value = CarStartupState.Failed(error)
             }
         }
@@ -82,23 +67,11 @@ class CarApplication : Application() {
         mutableExitPlaybackRequest.value += 1L
     }
 
-    private fun installFatalHandler() {
-        val previous = Thread.getDefaultUncaughtExceptionHandler()
-        Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-            recordKotlinUncaughtException(thread.name, throwable)
-            if (previous != null) {
-                previous.uncaughtException(thread, throwable)
-            } else {
-                exitProcess(1)
-            }
-        }
-    }
-
     override fun onTerminate() {
         startupJob?.cancel()
         applicationScope.cancel()
-        if (koin != null) stopKoin()
-        runCatching { RustDiagnosticsRepository.shutdown() }
+        AndroidRuntimeBootstrap.shutdown(runtimeSession)
+        runtimeSession = null
         super.onTerminate()
     }
 }

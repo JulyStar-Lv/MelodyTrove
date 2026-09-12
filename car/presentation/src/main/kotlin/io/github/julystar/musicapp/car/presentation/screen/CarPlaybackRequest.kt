@@ -4,7 +4,7 @@ import io.github.julystar.musicapp.core.domain.model.LIBRARY_PLAYBACK_PLAYLIST_I
 import io.github.julystar.musicapp.core.domain.model.LibraryTrackItem
 import io.github.julystar.musicapp.service.playback.domain.PlayableItem
 
-internal data class CarPlaybackRequest(
+data class CarPlaybackRequest(
     val items: List<PlayableItem>,
     val startIndex: Int,
 )

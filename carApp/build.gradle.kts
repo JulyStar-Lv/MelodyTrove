@@ -71,6 +71,7 @@ dependencies {
     implementation(project(":core:domain"))
     implementation(project(":core:runtime"))
     implementation(project(":service:playback:domain"))
+    implementation(project(":service:librarysync:domain"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -80,5 +81,7 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.koin.android)
     implementation(libs.media3.session)
+    testImplementation(kotlin("test"))
+    testImplementation(libs.junit)
     debugImplementation(libs.androidx.ui.tooling)
 }

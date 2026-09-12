@@ -127,35 +127,25 @@ class CarLayoutProfileResolverTest {
     }
 
     @Test
-    fun oemStateMappingIsPureAndKeepsAutomaticForMissingSignal() {
-        assertEquals(
-            CarLayoutProfileHint.Expanded,
-            carLayoutHintFromOemState(keyScreenShow = 0, keyVpaCuiShowLeft = 0),
-        )
-        assertEquals(
-            CarLayoutProfileHint.VehiclePanel,
-            carLayoutHintFromOemState(keyScreenShow = 1, keyVpaCuiShowLeft = 0),
-        )
-        assertEquals(
-            CarLayoutProfileHint.VehiclePanel,
-            carLayoutHintFromOemState(keyScreenShow = 0, keyVpaCuiShowLeft = 1),
-        )
-        assertEquals(
-            CarLayoutProfileHint.Automatic,
-            carLayoutHintFromOemState(keyScreenShow = null, keyVpaCuiShowLeft = null),
-        )
-        assertEquals(
-            CarLayoutProfileHint.Expanded,
-            carLayoutHintFromOemState(keyScreenShow = 0, keyVpaCuiShowLeft = null),
-        )
-        assertEquals(
-            CarLayoutProfileHint.VehiclePanel,
-            carLayoutHintFromOemState(keyScreenShow = 1, keyVpaCuiShowLeft = null),
-        )
-        assertEquals(
-            CarLayoutProfileHint.VehiclePanel,
-            carLayoutHintFromOemState(keyScreenShow = null, keyVpaCuiShowLeft = 1),
-        )
+    fun fullscreenReferenceKeepsCockpitGeometryInCentralizedMetrics() {
+        val fullscreen = CarLayoutProfileResolver().resolve(
+            usableSize = DpSize(5120.dp, 1304.dp),
+            hint = CarLayoutProfileHint.FullscreenCockpit,
+        ).fullscreen
+
+        assertDpEquals(96.dp, fullscreen.exitPlaybackOffset.x)
+        assertDpEquals(216.dp, fullscreen.exitPlaybackOffset.y)
+        assertDpEquals(280.dp, fullscreen.metadataOffset.x)
+        assertDpEquals(228.5.dp, fullscreen.metadataOffset.y)
+        assertDpEquals(720.dp, fullscreen.artworkSize)
+        assertDpEquals(380.dp, fullscreen.coverFlowTop)
+        assertDpEquals(2200.dp, fullscreen.coverFlowCenterX)
+        assertDpEquals(463.dp, fullscreen.coverFlowDragInterval)
+        assertDpEquals(2518.dp, fullscreen.indicatorOffset.x)
+        assertDpEquals(1260.dp, fullscreen.indicatorOffset.y)
+        assertEquals(6, fullscreen.coverFlowCenterOffsets.size)
+        assertEquals(6, fullscreen.coverFlowArtworkWidths.size)
+        assertEquals(6, fullscreen.coverFlowArtworkHeights.size)
     }
 
     private fun assertDpEquals(expected: Dp, actual: Dp) {
