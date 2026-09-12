@@ -43,7 +43,7 @@ import kotlin.math.max
 import kotlin.time.Clock
 
 @OptIn(ExperimentalForeignApi::class)
-internal class IosUrlSessionDownloadScheduler(
+class IosUrlSessionDownloadScheduler(
     private val repository: DownloadTaskRepository,
     private val sourceRegistry: MusicSourceRegistry,
     private val legacyStoragePlaybackResolver: LegacyStoragePlaybackResolver,

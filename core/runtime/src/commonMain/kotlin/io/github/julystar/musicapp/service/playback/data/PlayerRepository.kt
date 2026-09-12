@@ -526,7 +526,7 @@ private suspend fun Music.toCurrentTrackInfo(
     )
 }
 
-internal fun Music.toPlaybackArtwork(): Artwork {
+fun Music.toPlaybackArtwork(): Artwork {
     return cover?.toArtwork() ?: Artwork.LibraryTrack(meta.id.value)
 }
 
