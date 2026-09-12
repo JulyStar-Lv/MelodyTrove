@@ -10,7 +10,7 @@ class PlaybackModuleTest {
     @Test
     fun exposesTrackPreparationOperationsContract() {
         assertTrue(
-            playbackModule.mappings.values.any {
+            playbackRuntimeModule.mappings.values.any {
                 it.beanDefinition.primaryType == TrackPreparationOperations::class
             },
         )

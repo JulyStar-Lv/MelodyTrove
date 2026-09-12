@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="notification_previous">Previous</string>
+    <string name="notification_play">Play</string>
+    <string name="notification_pause">Pause</string>
+    <string name="notification_next">Next</string>
+    <string name="notification_add_favorite">Add to favorites</string>
+    <string name="notification_remove_favorite">Remove from favorites</string>
+    <string name="notification_playback_mode_repeat_off">Play in order</string>
+    <string name="notification_playback_mode_repeat_all">Repeat all</string>
+    <string name="notification_playback_mode_repeat_one">Repeat one</string>
+    <string name="notification_playback_mode_shuffle">Shuffle</string>
+</resources>

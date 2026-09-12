@@ -4,9 +4,9 @@ import io.github.julystar.musicapp.core.domain.model.MediaId
 import io.github.julystar.musicapp.core.domain.model.MediaType
 import io.github.julystar.musicapp.core.domain.model.LIBRARY_PLAYBACK_PLAYLIST_ID
 import io.github.julystar.musicapp.core.domain.model.SourceId
-import io.github.julystar.musicapp.feature.search.domain.SearchAlbumItem
-import io.github.julystar.musicapp.feature.search.domain.SearchArtistItem
-import io.github.julystar.musicapp.feature.search.domain.SearchTrackItem
+import io.github.julystar.musicapp.core.domain.search.SearchAlbumItem
+import io.github.julystar.musicapp.core.domain.search.SearchArtistItem
+import io.github.julystar.musicapp.core.domain.search.SearchTrackItem
 import kotlinx.collections.immutable.persistentListOf
 import kotlin.test.Test
 import kotlin.test.assertEquals

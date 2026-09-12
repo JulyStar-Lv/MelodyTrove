@@ -4,8 +4,8 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
-import io.github.julystar.musicapp.feature.search.domain.MAX_SEARCH_HISTORY_SIZE
-import io.github.julystar.musicapp.feature.search.domain.SearchHistoryRepository
+import io.github.julystar.musicapp.core.domain.search.MAX_SEARCH_HISTORY_SIZE
+import io.github.julystar.musicapp.core.domain.search.SearchHistoryRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.SerializationException

@@ -1,0 +1,45 @@
+package io.github.julystar.musicapp.car.presentation.nowplaying
+
+import io.github.julystar.musicapp.service.playback.domain.PlayableItem
+import io.github.julystar.musicapp.service.playback.domain.PlaybackPosition
+import io.github.julystar.musicapp.service.playback.domain.RepeatMode
+import io.github.julystar.musicapp.core.domain.model.MediaId
+import io.github.julystar.musicapp.core.domain.model.MediaType
+import io.github.julystar.musicapp.core.domain.model.SourceId
+import kotlin.test.Test
+import kotlin.test.assertEquals
+
+class CarNowPlayingStateTest {
+    @Test
+    fun repeatModeCyclesThroughAllStates() {
+        assertEquals(RepeatMode.All, RepeatMode.Off.nextCarMode())
+        assertEquals(RepeatMode.One, RepeatMode.All.nextCarMode())
+        assertEquals(RepeatMode.Off, RepeatMode.One.nextCarMode())
+    }
+
+    @Test
+    fun progressClampsPlayedAndNeverShowsBufferBehindPlayback() {
+        assertEquals(
+            CarPlaybackProgress(1f, 1f),
+            PlaybackPosition(positionMs = 120_000, durationMs = 60_000, bufferedMs = 30_000).toCarProgress(),
+        )
+        assertEquals(
+            CarPlaybackProgress(0.5f, 0.5f),
+            PlaybackPosition(positionMs = 30_000, durationMs = 60_000, bufferedMs = 10_000).toCarProgress(),
+        )
+        assertEquals(CarPlaybackProgress(0f, 0f), PlaybackPosition().toCarProgress())
+    }
+
+    @Test
+    fun queueKeysPreferMediaThenLibraryThenStablePosition() {
+        val remote = PlayableItem(
+            mediaId = MediaId(SourceId("source"), MediaType.Track, "remote"),
+            title = "Remote",
+        )
+        val library = PlayableItem(libraryTrackId = 42, title = "Library")
+
+        assertEquals(remote.mediaId.toString(), remote.stableCarQueueKey(0))
+        assertEquals("library:42", library.stableCarQueueKey(1))
+        assertEquals("queue.library:42", library.carQueueFocusId(1).value)
+    }
+}

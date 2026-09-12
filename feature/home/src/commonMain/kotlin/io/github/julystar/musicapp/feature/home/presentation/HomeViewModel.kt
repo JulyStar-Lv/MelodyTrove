@@ -14,9 +14,9 @@ import io.github.julystar.musicapp.core.domain.repository.PlaylistRepository
 import io.github.julystar.musicapp.core.presentation.theme.DesignPalette
 import io.github.julystar.musicapp.feature.home.domain.HistoryPlayItem
 import io.github.julystar.musicapp.feature.home.domain.HomeHistoryRepository
-import io.github.julystar.musicapp.feature.home.domain.HomeStatisticsRepository
-import io.github.julystar.musicapp.feature.home.domain.ListeningHistoryEntry
-import io.github.julystar.musicapp.feature.home.domain.ListeningStatisticsSnapshot
+import io.github.julystar.musicapp.core.domain.repository.HomeStatisticsRepository
+import io.github.julystar.musicapp.core.domain.home.ListeningHistoryEntry
+import io.github.julystar.musicapp.core.domain.home.ListeningStatisticsSnapshot
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentList
@@ -110,7 +110,7 @@ class HomeViewModel(
 
 private data class HomeActivityContent(
     val recentPlays: List<HistoryPlayItem>,
-    val statistics: io.github.julystar.musicapp.feature.home.domain.HomeStatistics,
+    val statistics: io.github.julystar.musicapp.core.domain.home.HomeStatistics,
     val listeningStatistics: ListeningStatisticsSnapshot,
 )
 

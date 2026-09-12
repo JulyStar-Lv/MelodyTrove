@@ -1,8 +1,11 @@
 use std::{
-    fs::{self, File, OpenOptions},
+    fs::{self, OpenOptions},
     io::{Cursor, Write},
     path::{Path, PathBuf},
 };
+
+#[cfg(not(windows))]
+use std::fs::File;
 
 use lofty::{
     config::{ParseOptions, WriteOptions},
@@ -244,12 +247,19 @@ pub fn write_metadata_atomic(
 
         let tag_changed = !written_fields.is_empty();
         if tag_changed {
+            let mut temporary_file = OpenOptions::new()
+                .read(true)
+                .write(true)
+                .open(&temporary)
+                .map_err(|error| {
+                    MetadataWriteError::Save(format!("open metadata temporary file: {error}"))
+                })?;
             tagged_file
-                .save_to_path(&temporary, WriteOptions::default())
-                .map_err(|error| MetadataWriteError::Save(error.to_string()))?;
-            File::open(&temporary)
-                .and_then(|file| file.sync_all())
-                .map_err(|error| MetadataWriteError::Save(error.to_string()))?;
+                .save_to(&mut temporary_file, WriteOptions::default())
+                .map_err(|error| MetadataWriteError::Save(format!("write metadata: {error}")))?;
+            temporary_file
+                .sync_all()
+                .map_err(|error| MetadataWriteError::Save(format!("sync metadata: {error}")))?;
         }
 
         let verified = read_local_metadata(&temporary, MetadataReadOptions::default())
@@ -260,6 +270,7 @@ pub fn write_metadata_atomic(
         if tag_changed {
             atomic_replace_file(&temporary, &path)
                 .map_err(|error| MetadataWriteError::AtomicReplace(error.to_string()))?;
+            #[cfg(not(windows))]
             if let Some(parent) = path.parent() {
                 if let Err(error) = File::open(parent).and_then(|directory| directory.sync_all()) {
                     warnings.push(format!("failed to sync finalized media directory: {error}"));

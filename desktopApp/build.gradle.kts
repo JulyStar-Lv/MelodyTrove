@@ -34,6 +34,7 @@ kotlin {
         val desktopMain by getting {
             dependencies {
                 implementation(project(":shared"))
+                implementation(project(":core:runtime"))
                 implementation(project(":core:domain"))
                 implementation(project(":core:presentation"))
                 implementation(project(":service:playback:domain"))

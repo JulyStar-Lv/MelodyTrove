@@ -1,9 +1,9 @@
 package io.github.julystar.musicapp.feature.home.presentation
 
 import io.github.julystar.musicapp.core.domain.model.LibraryTrackItem
-import io.github.julystar.musicapp.feature.home.domain.ListeningHistoryEntry
-import io.github.julystar.musicapp.feature.home.domain.ListeningStatisticsSnapshot
-import io.github.julystar.musicapp.feature.home.domain.ListeningTrackStatistics
+import io.github.julystar.musicapp.core.domain.home.ListeningHistoryEntry
+import io.github.julystar.musicapp.core.domain.home.ListeningStatisticsSnapshot
+import io.github.julystar.musicapp.core.domain.home.ListeningTrackStatistics
 import kotlinx.datetime.TimeZone
 import kotlin.test.Test
 import kotlin.test.assertEquals

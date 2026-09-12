@@ -1,9 +1,9 @@
 package io.github.julystar.musicapp.feature.search.presentation
 
 import androidx.compose.runtime.Immutable
-import io.github.julystar.musicapp.feature.search.domain.SearchAlbumItem
-import io.github.julystar.musicapp.feature.search.domain.SearchArtistItem
-import io.github.julystar.musicapp.feature.search.domain.SearchTrackItem
+import io.github.julystar.musicapp.core.domain.search.SearchAlbumItem
+import io.github.julystar.musicapp.core.domain.search.SearchArtistItem
+import io.github.julystar.musicapp.core.domain.search.SearchTrackItem
 import io.github.julystar.musicapp.core.domain.repository.UiMessage
 import kotlinx.collections.immutable.ImmutableList
 import kotlinx.collections.immutable.persistentListOf

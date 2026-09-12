@@ -1,0 +1,85 @@
+package io.github.julystar.musicapp.di
+
+import io.github.julystar.musicapp.platform.getAppCacheDir
+import io.github.julystar.musicapp.platform.getAppDataDirectory
+import io.github.julystar.musicapp.core.domain.repository.DiagnosticsRepository
+import io.github.julystar.musicapp.diagnostics.TrackPreparationDiagnostics
+import io.github.julystar.musicapp.metadata.PluginSemanticMetadataEnricher
+import io.github.julystar.musicapp.plugin.management.PlaybackLyricsEnricher
+import io.github.julystar.musicapp.service.playback.data.LegacyPlaybackController
+import io.github.julystar.musicapp.service.playback.data.CompletedMediaPromoter
+import io.github.julystar.musicapp.service.playback.data.CompletedPlaybackCachePromoter
+import io.github.julystar.musicapp.service.playback.data.DefaultTrackPreparationOperations
+import io.github.julystar.musicapp.service.playback.data.TrackPreparationOperations
+import io.github.julystar.musicapp.service.playback.data.LegacyNowPlayingRepository
+import io.github.julystar.musicapp.service.playback.data.LegacyPlaylistPlaybackSync
+import io.github.julystar.musicapp.service.playback.data.PlaybackAudioCache
+import io.github.julystar.musicapp.service.playback.data.PlaybackResourceResolver
+import io.github.julystar.musicapp.service.playback.data.SourceItemPropertyReader
+import io.github.julystar.musicapp.service.playback.data.PersistentPlaybackAudioCache
+import io.github.julystar.musicapp.service.playback.data.PlayerController
+import io.github.julystar.musicapp.service.playback.data.PlayerRepository
+import io.github.julystar.musicapp.service.playback.data.RoomPlaybackSourceRepository
+import io.github.julystar.musicapp.service.playback.domain.NowPlayingRepository
+import io.github.julystar.musicapp.service.playback.domain.PlaybackController
+import io.github.julystar.musicapp.service.playback.domain.PlaybackSourceRepository
+import io.github.julystar.musicapp.service.playback.domain.PlaylistPlaybackSync
+import io.github.julystar.musicapp.service.playback.domain.SleepController
+import org.koin.dsl.module
+
+val playbackRuntimeModule = module {
+    single<CompletedMediaPromoter> {
+        CompletedPlaybackCachePromoter(
+            database = get(),
+            downloadFinalizer = get(),
+            destinationDirectory = "${getAppDataDirectory()}/downloads",
+        )
+    }
+    single<PlaybackAudioCache> {
+        PersistentPlaybackAudioCache(
+            settingsRepository = get(),
+            cacheDirectory = getAppCacheDir(),
+            completedMediaPromoter = get(),
+        )
+    }
+    single {
+        PlaybackResourceResolver(
+            get(), get(), get(), get(), get(),
+            SourceItemPropertyReader { itemId -> get<io.github.julystar.musicapp.database.SourceItemDao>().propertiesForItems(listOf(itemId)) },
+        )
+    }
+    single<PlaybackSourceRepository> { RoomPlaybackSourceRepository(get(), get()) }
+    single { PlaybackLyricsEnricher(get(), get(), get(), get(), get()) }
+    single { PlayerRepository(get(), get(), get(), get(), get(), get(), get(), get()) }
+    single { PluginSemanticMetadataEnricher(get(), get()) }
+    single<TrackPreparationOperations> {
+        DefaultTrackPreparationOperations(
+            database = get(),
+            roomLibraryStore = get(),
+            metadataRefreshController = get(),
+            pluginEnricher = get(),
+            metadataRepository = get(),
+            identityReconciler = get(),
+            artworkResolver = get(),
+            lyricsEnricher = get(),
+            playerRepository = get(),
+            playbackResourceResolver = get(),
+        )
+    }
+    single { TrackPreparationDiagnostics(get<DiagnosticsRepository>()) }
+    single<PlaybackController> {
+        LegacyPlaybackController(
+            playerRepository = get(),
+            legacyController = get(),
+            roomLibraryStore = get(),
+            scope = get(),
+            settingsRepository = get(),
+            networkStatusProvider = get(),
+            trackPreparationOperations = get(),
+            trackPreparationDiagnostics = get(),
+        )
+    }
+    single<SleepController> { get<PlayerController>() }
+    single<NowPlayingRepository> { LegacyNowPlayingRepository(get(), get()) }
+    single<PlaylistPlaybackSync> { LegacyPlaylistPlaybackSync(get(), get()) }
+}

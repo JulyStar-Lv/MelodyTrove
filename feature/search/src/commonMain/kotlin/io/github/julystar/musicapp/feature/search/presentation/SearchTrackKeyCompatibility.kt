@@ -1,6 +1,6 @@
 package io.github.julystar.musicapp.feature.search.presentation
 
-import io.github.julystar.musicapp.feature.search.domain.SearchTrackItem
+import io.github.julystar.musicapp.core.domain.search.SearchTrackItem
 
 /**
  * Compatibility key used by the restored design screen.

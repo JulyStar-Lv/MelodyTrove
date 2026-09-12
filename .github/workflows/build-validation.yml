@@ -103,15 +103,27 @@ jobs:
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
         run: ./scripts/check-smb-cross-targets.sh android
-      - name: Build debug APK
+      - name: Test Automotive presentation and build Android debug APKs
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
-        run: ./gradlew --no-daemon --stacktrace :androidApp:assembleDebug
+        run: |
+          ./gradlew --no-daemon --stacktrace \
+            :car:presentation:testDebugUnitTest \
+            :carApp:assembleDebug \
+            :androidApp:assembleDebug
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: tideplayer-android-debug-${{ github.run_number }}
           path: androidApp/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      - name: Upload Automotive debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: tideplayer-car-debug-${{ github.run_number }}
+          path: carApp/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14
           compression-level: 0

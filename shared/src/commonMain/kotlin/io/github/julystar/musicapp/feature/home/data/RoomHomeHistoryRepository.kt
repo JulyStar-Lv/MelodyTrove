@@ -27,14 +27,14 @@ class RoomHomeHistoryRepository(
                 val recentEntities = trackDao.findRecentlyPlayed(limit = 20)
                 recentEntities.mapNotNull { entity ->
                     val libTrack = trackMap[entity.id] ?: entity.toLibraryTrackItem()
-                    if (entity.lastPlayedAt == null) null
-                    else HistoryPlayItem(
+                    val lastPlayedAt = entity.lastPlayedAt ?: return@mapNotNull null
+                    HistoryPlayItem(
                         trackId = entity.id,
                         title = libTrack.title,
                         artist = libTrack.artist,
                         durationMs = libTrack.durationMs,
                         mediaId = libTrack.mediaId,
-                        playedAtEpochMs = entity.lastPlayedAt,
+                        playedAtEpochMs = lastPlayedAt,
                         artworkIndex = indexFor(entity.id),
                     )
                 }

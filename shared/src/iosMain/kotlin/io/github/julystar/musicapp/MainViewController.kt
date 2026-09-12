@@ -13,6 +13,7 @@ import io.github.julystar.musicapp.core.domain.recovery.allowsNormalApplicationI
 import io.github.julystar.musicapp.core.domain.repository.ArtworkRepository
 import io.github.julystar.musicapp.core.presentation.platform.dispatchPlatformBack
 import io.github.julystar.musicapp.di.AppInitializer
+import io.github.julystar.musicapp.di.appModule
 import io.github.julystar.musicapp.di.initKoin
 import io.github.julystar.musicapp.diagnostics.DiagnosticsBootstrap
 import io.github.julystar.musicapp.diagnostics.DiagnosticsBootstrapState
@@ -68,7 +69,7 @@ private fun initializeApplication(disabledComponents: Set<String> = emptySet()) 
 private suspend fun initializeApplicationAsync(disabledComponents: Set<String> = emptySet()) {
     if (applicationInitialized) return
 
-    val koin = initKoin().koin
+    val koin = initKoin(additionalModules = listOf(appModule)).koin
     try {
         AppInitializer.initializeBridgeAsync(koin, disabledComponents)
         AppInitializer.reloadRepositories(koin, disabledComponents)

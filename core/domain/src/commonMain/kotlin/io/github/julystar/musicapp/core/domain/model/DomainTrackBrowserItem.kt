@@ -11,4 +11,7 @@ data class DomainTrackBrowserItem(
     val discNumber: Int? = null,
     val albumId: Long? = null,
     val canDownload: Boolean,
+    val codec: String? = null,
+    val sampleRateHz: Int? = null,
+    val bitDepth: Int? = null,
 )

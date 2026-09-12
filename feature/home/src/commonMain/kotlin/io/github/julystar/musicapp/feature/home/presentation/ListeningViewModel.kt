@@ -3,7 +3,7 @@ package io.github.julystar.musicapp.feature.home.presentation
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.julystar.musicapp.core.domain.repository.LibraryRepository
-import io.github.julystar.musicapp.feature.home.domain.HomeStatisticsRepository
+import io.github.julystar.musicapp.core.domain.repository.HomeStatisticsRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine

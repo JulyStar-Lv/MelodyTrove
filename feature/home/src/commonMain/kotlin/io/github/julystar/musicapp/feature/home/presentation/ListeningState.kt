@@ -3,10 +3,10 @@ package io.github.julystar.musicapp.feature.home.presentation
 import androidx.compose.runtime.Immutable
 import io.github.julystar.musicapp.core.domain.model.LibraryTrackItem
 import io.github.julystar.musicapp.core.domain.model.MediaId
-import io.github.julystar.musicapp.feature.home.domain.ListeningDistributionBucket
-import io.github.julystar.musicapp.feature.home.domain.ListeningHistoryEntry
-import io.github.julystar.musicapp.feature.home.domain.ListeningStatisticsSnapshot
-import io.github.julystar.musicapp.feature.home.domain.ListeningTrackStatistics
+import io.github.julystar.musicapp.core.domain.home.ListeningDistributionBucket
+import io.github.julystar.musicapp.core.domain.home.ListeningHistoryEntry
+import io.github.julystar.musicapp.core.domain.home.ListeningStatisticsSnapshot
+import io.github.julystar.musicapp.core.domain.home.ListeningTrackStatistics
 import kotlinx.datetime.DateTimeUnit
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.TimeZone

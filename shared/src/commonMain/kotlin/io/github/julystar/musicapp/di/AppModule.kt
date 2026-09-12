@@ -7,15 +7,11 @@ import org.koin.dsl.module
 
 val appModule = module {
     includes(
-        platformModule,
-        coreDataModule,
-        sourceDataModule,
         playbackModule,
-        downloadModule,
         downloadsFeatureModule,
+        homePresentationDataModule,
         homeFeatureModule,
         sourcesFeatureModule,
-        librarySyncModule,
         libraryFeatureModule,
         searchFeatureModule,
         importFeatureModule,
