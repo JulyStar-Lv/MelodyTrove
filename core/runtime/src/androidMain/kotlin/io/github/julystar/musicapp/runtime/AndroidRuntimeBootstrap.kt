@@ -26,22 +26,31 @@ data class AndroidRuntimePreparation(
 class AndroidRuntimeSession internal constructor(
     val koin: Koin,
 ) {
+    @Volatile
     private var closed = false
 
     fun close() {
-        if (closed) return
-        closed = true
-        stopKoin()
-        runCatching { RustDiagnosticsRepository.shutdown() }
+        synchronized(this) {
+            if (closed) return
+            closed = true
+        }
+        AndroidRuntimeBootstrap.closeSession(this)
     }
 }
 
 /** Shared Android application-runtime sequence used by the mobile and Automotive hosts. */
 object AndroidRuntimeBootstrap {
     private val fatalHandlerLock = Any()
+    private val sessionLock = Any()
 
     @Volatile
     private var fatalHandlerInstalled = false
+
+    @Volatile
+    private var activeSession: AndroidRuntimeSession? = null
+
+    val isDependencyGraphAvailable: Boolean
+        get() = activeSession != null
 
     fun prepare(context: Context): AndroidRuntimePreparation {
         appContext = context.applicationContext
@@ -63,20 +72,39 @@ object AndroidRuntimeBootstrap {
         )
     }
 
+    fun createSession(
+        additionalModules: List<Module>,
+    ): AndroidRuntimeSession {
+        synchronized(sessionLock) {
+            check(activeSession == null) { "Android runtime session is already open" }
+            return AndroidRuntimeSession(
+                initKoin(additionalModules = additionalModules).koin,
+            ).also { session ->
+                activeSession = session
+            }
+        }
+    }
+
+    suspend fun initializeSession(
+        session: AndroidRuntimeSession,
+        disabledComponents: Set<String>,
+    ): AndroidRuntimeSession = try {
+        check(activeSession === session) { "Android runtime session is not active" }
+        AppInitializer.initializeBridgeAsync(session.koin, disabledComponents)
+        AppInitializer.reloadRepositories(session.koin, disabledComponents)
+        session
+    } catch (error: Throwable) {
+        session.close()
+        throw error
+    }
+
     suspend fun openSession(
         additionalModules: List<Module>,
         disabledComponents: Set<String>,
-    ): AndroidRuntimeSession {
-        val initializedKoin = initKoin(additionalModules = additionalModules).koin
-        return try {
-            AppInitializer.initializeBridgeAsync(initializedKoin, disabledComponents)
-            AppInitializer.reloadRepositories(initializedKoin, disabledComponents)
-            AndroidRuntimeSession(initializedKoin)
-        } catch (error: Throwable) {
-            stopKoin()
-            throw error
-        }
-    }
+    ): AndroidRuntimeSession = initializeSession(
+        session = createSession(additionalModules),
+        disabledComponents = disabledComponents,
+    )
 
     fun openSessionBlocking(
         additionalModules: List<Module>,
@@ -86,11 +114,20 @@ object AndroidRuntimeBootstrap {
     }
 
     fun shutdown(session: AndroidRuntimeSession?) {
-        if (session != null) {
-            session.close()
-        } else {
-            runCatching { RustDiagnosticsRepository.shutdown() }
+        session?.close()
+        runCatching { RustDiagnosticsRepository.shutdown() }
+    }
+
+    internal fun closeSession(session: AndroidRuntimeSession) {
+        val shouldStopKoin = synchronized(sessionLock) {
+            if (activeSession !== session) {
+                false
+            } else {
+                activeSession = null
+                true
+            }
         }
+        if (shouldStopKoin) stopKoin()
     }
 
     private fun installFatalHandler() {

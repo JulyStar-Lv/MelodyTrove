@@ -27,16 +27,18 @@ class FullscreenPlaybackActivity : ComponentActivity() {
                 profileHint = CarLayoutProfileHint.FullscreenCockpit,
                 onRootPositioned = { _, _ -> },
             ) { panelSize, effectiveHint ->
-                val metrics = remember(panelSize, effectiveHint) {
-                    layoutProfileResolver.resolve(panelSize, hint = effectiveHint)
-                }
                 when (startupState) {
-                    CarStartupState.Ready -> CarRoot(
-                        metrics = metrics,
-                        onExit = ::finishWithoutAnimation,
-                        onExitPlayback = ::exitPlayback,
-                        onExitFullscreen = ::finishWithoutAnimation,
-                    )
+                    CarStartupState.Ready -> {
+                        val metrics = remember(panelSize, effectiveHint) {
+                            layoutProfileResolver.resolve(panelSize, hint = effectiveHint)
+                        }
+                        CarRoot(
+                            metrics = metrics,
+                            onExit = ::finishWithoutAnimation,
+                            onExitPlayback = ::exitPlayback,
+                            onExitFullscreen = ::finishWithoutAnimation,
+                        )
+                    }
                     else -> LaunchedEffect(startupState) {
                         if (
                             startupState is CarStartupState.Failed ||

@@ -15,6 +15,18 @@ data class CarAppWindowBounds(
     val profileHint: CarLayoutProfileHint,
 )
 
+@Immutable
+data class CarWindowInsetsPx(
+    val left: Int = 0,
+    val top: Int = 0,
+    val right: Int = 0,
+    val bottom: Int = 0,
+) {
+    init {
+        require(left >= 0 && top >= 0 && right >= 0 && bottom >= 0)
+    }
+}
+
 /** Resolves OEM host pixels into the presentation-level layout hint and app panel bounds. */
 object CarAppWindowBoundsResolver {
     private const val ReferenceHeightPx = 1440
@@ -25,17 +37,25 @@ object CarAppWindowBoundsResolver {
     fun resolve(
         hostSizePx: IntSize,
         requestedHint: CarLayoutProfileHint,
+        safeDrawingInsetsPx: CarWindowInsetsPx = CarWindowInsetsPx(),
     ): CarAppWindowBounds {
         require(hostSizePx.width > 0 && hostSizePx.height > 0)
 
         if (!isReferenceCockpitHost(hostSizePx)) {
+            val left = safeDrawingInsetsPx.left.coerceAtMost(hostSizePx.width - 1)
+            val top = safeDrawingInsetsPx.top.coerceAtMost(hostSizePx.height - 1)
+            val right = safeDrawingInsetsPx.right.coerceAtMost(hostSizePx.width - left - 1)
+            val bottom = safeDrawingInsetsPx.bottom.coerceAtMost(hostSizePx.height - top - 1)
             return CarAppWindowBounds(
-                left = 0,
-                top = 0,
-                width = hostSizePx.width,
-                height = hostSizePx.height,
+                left = left,
+                top = top,
+                width = hostSizePx.width - left - right,
+                height = hostSizePx.height - top - bottom,
                 embeddedInCockpit = false,
-                profileHint = CarLayoutProfileHint.Automatic,
+                profileHint = when (requestedHint) {
+                    CarLayoutProfileHint.FullscreenCockpit -> CarLayoutProfileHint.FullscreenCockpit
+                    else -> CarLayoutProfileHint.Automatic
+                },
             )
         }
 

@@ -66,6 +66,47 @@ class CarAppWindowBoundsResolverTest {
     }
 
     @Test
+    fun standaloneFullscreenPreservesTheExplicitProfile() {
+        val bounds = CarAppWindowBoundsResolver.resolve(
+            hostSizePx = IntSize(2496, 1080),
+            requestedHint = CarLayoutProfileHint.FullscreenCockpit,
+        )
+
+        assertEquals(
+            CarAppWindowBounds(0, 0, 2496, 1080, false, CarLayoutProfileHint.FullscreenCockpit),
+            bounds,
+        )
+    }
+
+    @Test
+    fun standaloneWindowAppliesSafeDrawingInsets() {
+        val bounds = CarAppWindowBoundsResolver.resolve(
+            hostSizePx = IntSize(1600, 900),
+            requestedHint = CarLayoutProfileHint.Expanded,
+            safeDrawingInsetsPx = CarWindowInsetsPx(left = 20, top = 40, right = 30, bottom = 60),
+        )
+
+        assertEquals(
+            CarAppWindowBounds(20, 40, 1550, 800, false, CarLayoutProfileHint.Automatic),
+            bounds,
+        )
+    }
+
+    @Test
+    fun referenceCockpitKeepsExplicitCoordinatesWhenSystemInsetsAreReported() {
+        val bounds = CarAppWindowBoundsResolver.resolve(
+            hostSizePx = IntSize(5120, 1440),
+            requestedHint = CarLayoutProfileHint.VehiclePanel,
+            safeDrawingInsetsPx = CarWindowInsetsPx(left = 24, top = 48, right = 24, bottom = 96),
+        )
+
+        assertEquals(
+            CarAppWindowBounds(832, 192, 1728, 1080, true, CarLayoutProfileHint.VehiclePanel),
+            bounds,
+        )
+    }
+
+    @Test
     fun oemStateMappingKeepsAutomaticForMissingSignal() {
         assertEquals(CarLayoutProfileHint.Expanded, carLayoutHintFromOemState(0, 0))
         assertEquals(CarLayoutProfileHint.VehiclePanel, carLayoutHintFromOemState(1, 0))

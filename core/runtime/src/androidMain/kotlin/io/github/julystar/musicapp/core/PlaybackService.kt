@@ -51,6 +51,7 @@ import io.github.julystar.musicapp.core.domain.repository.FavoritesRepository
 import io.github.julystar.musicapp.core.domain.repository.NetworkStatusProvider
 import io.github.julystar.musicapp.core.domain.repository.SettingsRepository
 import io.github.julystar.musicapp.diagnostics.AppLogger
+import io.github.julystar.musicapp.runtime.AndroidRuntimeBootstrap
 import io.github.julystar.musicapp.service.playback.data.PlaybackResourceResolver
 import io.github.julystar.musicapp.service.playback.data.PlayerRepository
 import io.github.julystar.musicapp.service.playback.data.toPlaybackArtwork
@@ -105,6 +106,15 @@ class PlaybackService : MediaLibraryService() {
     @OptIn(UnstableApi::class)
     override fun onCreate() {
         super.onCreate()
+        if (!AndroidRuntimeBootstrap.isDependencyGraphAvailable) {
+            AppLogger.warn(
+                DiagnosticLogCategory.Playback,
+                "PlaybackService",
+                "Playback service stopped because the application runtime is unavailable",
+            )
+            stopSelf()
+            return
+        }
         AppLogger.info(
             DiagnosticLogCategory.Playback,
             "PlaybackService",

@@ -16,12 +16,18 @@ import androidx.compose.animation.core.animateInt
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.collectAsState
@@ -39,6 +45,9 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
@@ -62,6 +71,7 @@ import io.github.julystar.musicapp.car.presentation.layout.CarLayoutProfileHint
 import io.github.julystar.musicapp.car.presentation.layout.CarLayoutProfileResolver
 import io.github.julystar.musicapp.car.window.CarAppWindowBounds
 import io.github.julystar.musicapp.car.window.CarAppWindowBoundsResolver
+import io.github.julystar.musicapp.car.window.CarWindowInsetsPx
 import io.github.julystar.musicapp.car.window.OemScreenStateMonitor
 import io.github.julystar.musicapp.core.PlaybackService
 import io.github.julystar.musicapp.singleton.PlayerControllerRepository
@@ -120,7 +130,9 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                     CarStartupState.RecoveryRequired -> CarStartupMessage(
-                        message = "检测到上次异常退出\n请先在手机端完成安全模式恢复",
+                        message = "检测到上次异常退出\n可在车机端尝试安全恢复",
+                        actionLabel = "尝试安全恢复",
+                        onAction = (application as CarApplication)::retryRecovery,
                     )
                     is CarStartupState.Failed -> CarStartupMessage(
                         message = "Tide Player 启动失败\n请重新打开应用",
@@ -262,11 +274,23 @@ internal fun TideCarAppWindow(
             },
     ) {
         val density = LocalDensity.current
+        val layoutDirection = LocalLayoutDirection.current
         val hostSizePx = with(density) {
             IntSize(maxWidth.roundToPx(), maxHeight.roundToPx())
         }
-        val bounds = remember(hostSizePx, profileHint) {
-            CarAppWindowBoundsResolver.resolve(hostSizePx, profileHint)
+        val safeDrawingInsets = WindowInsets.safeDrawing
+        val safeDrawingInsetsPx = CarWindowInsetsPx(
+            left = safeDrawingInsets.getLeft(density, layoutDirection),
+            top = safeDrawingInsets.getTop(density),
+            right = safeDrawingInsets.getRight(density, layoutDirection),
+            bottom = safeDrawingInsets.getBottom(density),
+        )
+        val bounds = remember(hostSizePx, profileHint, safeDrawingInsetsPx) {
+            CarAppWindowBoundsResolver.resolve(
+                hostSizePx = hostSizePx,
+                requestedHint = profileHint,
+                safeDrawingInsetsPx = safeDrawingInsetsPx,
+            )
         }
         val boundsTransition = updateTransition(
             targetState = bounds,
@@ -332,7 +356,11 @@ internal fun TideCarAppWindow(
 }
 
 @Composable
-private fun CarStartupMessage(message: String) {
+private fun CarStartupMessage(
+    message: String,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
+) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -340,13 +368,35 @@ private fun CarStartupMessage(message: String) {
             .padding(48.dp),
         contentAlignment = Alignment.Center,
     ) {
-        BasicText(
-            text = message,
-            style = TextStyle(
-                color = Color(0xFFF4F7FA),
-                fontSize = 32.sp,
-            ),
-        )
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            BasicText(
+                text = message,
+                style = TextStyle(
+                    color = Color(0xFFF4F7FA),
+                    fontSize = 32.sp,
+                    textAlign = TextAlign.Center,
+                ),
+            )
+            if (actionLabel != null && onAction != null) {
+                Spacer(Modifier.height(32.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFF2D7FF9))
+                        .clickable(role = Role.Button, onClick = onAction)
+                        .padding(horizontal = 32.dp, vertical = 20.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    BasicText(
+                        text = actionLabel,
+                        style = TextStyle(
+                            color = Color.White,
+                            fontSize = 26.sp,
+                        ),
+                    )
+                }
+            }
+        }
     }
 }
 
