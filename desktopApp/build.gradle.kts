@@ -10,6 +10,9 @@ plugins {
 
 val appPackageVersion = rootProject.extra["appPackageVersion"] as String
 val desktopProguardDir = layout.buildDirectory.dir("compose/proguard")
+val desktopProguardEnabled = providers.gradleProperty("desktop.proguard.enabled")
+    .map { value -> value.equals("true", ignoreCase = true) }
+    .orElse(false)
 val desktopTargetFormats = when {
     System.getProperty("os.name").startsWith("Mac", ignoreCase = true) -> arrayOf(
         TargetFormat.Dmg,
@@ -50,7 +53,11 @@ compose.desktop {
         buildTypes {
             release {
                 proguard {
-                    isEnabled.set(true)
+                    // Production hotfix default remains disabled because the previous
+                    // packaged build exposed DataStore/SQLite runtime regressions.
+                    // CI can explicitly enable shrinking with
+                    // -Pdesktop.proguard.enabled=true to validate keep rules safely.
+                    isEnabled.set(desktopProguardEnabled)
                     obfuscate.set(true)
                     // Kotlin coroutine state machines currently trigger a ProGuard
                     // stack-size calculation failure when optimization is enabled.

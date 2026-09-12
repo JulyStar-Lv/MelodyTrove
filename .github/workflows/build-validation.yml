@@ -132,6 +132,10 @@ jobs:
         run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends libasound2-dev pkg-config
       - name: Compile Desktop and run shared tests
         run: ./gradlew --no-daemon --stacktrace :desktopApp:compileKotlinDesktop :shared:desktopTest
+      - name: Validate Desktop ProGuard rules
+        run: |
+          ./gradlew --no-daemon --stacktrace -Pdesktop.proguard.enabled=true :desktopApp:proguardReleaseJars
+          test -s desktopApp/build/compose/proguard/mapping.txt
       - name: Upload JVM crash logs
         if: failure()
         uses: actions/upload-artifact@v4

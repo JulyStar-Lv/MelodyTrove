@@ -35,7 +35,7 @@ import java.nio.file.Files
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -372,7 +372,8 @@ private class CredentialSecurityFixture {
         AppDatabaseConstructor.initialize()
     }.setDriver(BundledSQLiteDriver()).setQueryCoroutineContext(Dispatchers.Default).build()
     val credentials = CredentialSecurityStore()
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val scopeJob = SupervisorJob()
+    private val scope = CoroutineScope(scopeJob + Dispatchers.Default)
     private val tempDir = Files.createTempDirectory("musicapp-credential-security").toFile()
     private val bridge = Bridge(
         appDocumentDir = tempDir.absolutePath,
@@ -401,8 +402,8 @@ private class CredentialSecurityFixture {
         openListAuthenticator = OpenListAuthenticator { SourceAuthResult.Success },
     )
 
-    fun close() {
-        scope.cancel()
+    suspend fun close() {
+        scopeJob.cancelAndJoin()
         database.close()
         tempDir.deleteRecursively()
     }
