@@ -21,6 +21,10 @@ import org.koin.compose.koinInject
 fun CarRoot(
     metrics: CarLayoutMetrics? = null,
     onExit: () -> Unit = {},
+    onEnterFullscreen: () -> Unit = {},
+    onExitPlayback: () -> Unit = {},
+    onExitFullscreen: () -> Unit = {},
+    exitPlaybackRequest: Long = 0L,
     modifier: Modifier = Modifier,
 ) {
     val settingsRepository = koinInject<SettingsRepository>()
@@ -33,7 +37,14 @@ fun CarRoot(
     }
     CarTheme(darkTheme = darkTheme, layoutMetrics = metrics) {
         Box(modifier.fillMaxSize().background(LocalCarColors.current.backgroundBase)) {
-            CarNavigationRoot(metrics = metrics, onExit = onExit)
+            CarNavigationRoot(
+                metrics = metrics,
+                onExit = onExit,
+                onEnterFullscreen = onEnterFullscreen,
+                onExitPlayback = onExitPlayback,
+                onExitFullscreen = onExitFullscreen,
+                exitPlaybackRequest = exitPlaybackRequest,
+            )
         }
     }
 }

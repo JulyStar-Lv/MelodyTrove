@@ -1,6 +1,7 @@
 package io.github.julystar.musicapp.car
 
 import android.content.ComponentName
+import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.os.Bundle
 import android.os.Build
@@ -28,6 +29,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -89,6 +93,7 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             val startupState by (application as CarApplication).startupState.collectAsState()
+            val exitPlaybackRequest by (application as CarApplication).exitPlaybackRequest.collectAsState()
             val profileHint by oemScreenStateMonitor.profileHint.collectAsState()
             TideCarAppWindow(
                 profileHint = profileHint,
@@ -106,7 +111,12 @@ class MainActivity : ComponentActivity() {
                                 "resolvedProfile=${metrics.profile} usableDp=${metrics.usableSize} contentDp=${metrics.contentSize}",
                             )
                         }
-                        CarRoot(metrics = metrics, onExit = ::finish)
+                        CarRoot(
+                            metrics = metrics,
+                            onExit = ::finish,
+                            onEnterFullscreen = ::openFullscreenPlayback,
+                            exitPlaybackRequest = exitPlaybackRequest,
+                        )
                     }
                     is CarStartupState.Failed -> CarStartupMessage(
                         message = "Tide Player 启动失败\n请重新打开应用",
@@ -114,6 +124,18 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun openFullscreenPlayback() {
+        applicationContext.startActivity(
+            Intent(applicationContext, FullscreenPlaybackActivity::class.java)
+                .addFlags(
+                    Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_MULTIPLE_TASK or
+                        Intent.FLAG_ACTIVITY_NO_ANIMATION,
+                ),
+        )
+        overridePendingTransition(0, 0)
     }
 
     override fun onStart() {
@@ -223,7 +245,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun TideCarAppWindow(
+internal fun TideCarAppWindow(
     profileHint: CarLayoutProfileHint,
     onRootPositioned: (IntSize, Offset) -> Unit,
     content: @Composable (DpSize, CarLayoutProfileHint) -> Unit,

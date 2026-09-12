@@ -9,11 +9,14 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -25,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import io.github.julystar.musicapp.car.presentation.component.CarAppWindowHeader
 import io.github.julystar.musicapp.car.presentation.component.CarMiniPlayer
 import io.github.julystar.musicapp.car.presentation.component.CarNavigationItem
+import io.github.julystar.musicapp.car.presentation.component.carInteractiveSurface
 import io.github.julystar.musicapp.car.presentation.focus.CarFocusHost
 import io.github.julystar.musicapp.car.presentation.focus.CarFocusId
 import io.github.julystar.musicapp.car.presentation.focus.CarFocusIds
@@ -33,6 +37,7 @@ import io.github.julystar.musicapp.car.presentation.focus.carInputRouter
 import io.github.julystar.musicapp.car.presentation.focus.rememberCarFocusCoordinator
 import io.github.julystar.musicapp.car.presentation.layout.CarLayoutMetrics
 import io.github.julystar.musicapp.car.presentation.layout.CarLayoutProfile
+import io.github.julystar.musicapp.car.presentation.icon.CarIcon
 import io.github.julystar.musicapp.car.presentation.nowplaying.CarNowPlayingScreen
 import io.github.julystar.musicapp.car.presentation.nowplaying.CarFullscreenNowPlayingScreen
 import io.github.julystar.musicapp.car.presentation.screen.CarAlbumsScreen
@@ -47,6 +52,8 @@ import io.github.julystar.musicapp.car.presentation.screen.CarSearchScreen
 import io.github.julystar.musicapp.car.presentation.screen.CarSettingsScreen
 import io.github.julystar.musicapp.car.presentation.screen.CarSongsScreen
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarColors
+import io.github.julystar.musicapp.car.presentation.theme.LocalCarShapes
+import io.github.julystar.musicapp.car.presentation.theme.LocalCarTypography
 import io.github.julystar.musicapp.core.domain.repository.ArtworkRepository
 import io.github.julystar.musicapp.core.domain.repository.LibraryRepository
 import io.github.julystar.musicapp.core.domain.repository.PlaylistRepository
@@ -61,6 +68,10 @@ import org.koin.compose.koinInject
 fun CarNavigationRoot(
     metrics: CarLayoutMetrics?,
     onExit: () -> Unit,
+    onEnterFullscreen: () -> Unit = {},
+    onExitPlayback: () -> Unit = {},
+    onExitFullscreen: () -> Unit = {},
+    exitPlaybackRequest: Long = 0L,
     modifier: Modifier = Modifier,
 ) {
     val safeMetrics = metrics?.takeIf { it.metricsAvailable }
@@ -68,8 +79,11 @@ fun CarNavigationRoot(
         CarPageState("无法读取当前窗口布局", modifier)
         return
     }
+    var route by rememberSaveable { mutableStateOf(CarRoute.Home) }
+    var previousRootRoute by rememberSaveable { mutableStateOf(CarRoute.Home) }
+    val screenStateHolder = rememberSaveableStateHolder()
     if (safeMetrics.profile == CarLayoutProfile.FullscreenCockpit) {
-        CarFullscreenNowPlayingScreen(safeMetrics, modifier)
+        CarFullscreenNowPlayingScreen(safeMetrics, onExitPlayback, onExitFullscreen, modifier)
         return
     }
     val library = koinInject<LibraryRepository>()
@@ -86,11 +100,12 @@ fun CarNavigationRoot(
     val playlists by playlistsRepository.playlistSummaries.collectAsState()
     val playerState by playbackController.state.collectAsState()
     val settings by settingsRepository.settings.collectAsState(AppSettings())
-    var route by rememberSaveable { mutableStateOf(CarRoute.Home) }
-    var previousRootRoute by rememberSaveable { mutableStateOf(CarRoute.Home) }
     var detailTarget by remember { mutableStateOf<CarDetailTarget?>(null) }
     var parentDetailTarget by remember { mutableStateOf<CarDetailTarget?>(null) }
-    val screenStateHolder = rememberSaveableStateHolder()
+
+    LaunchedEffect(exitPlaybackRequest) {
+        if (exitPlaybackRequest > 0L && route == CarRoute.NowPlaying) route = previousRootRoute
+    }
     val focusCoordinator = rememberCarFocusCoordinator()
     val focusManager = LocalFocusManager.current
 
@@ -106,7 +121,10 @@ fun CarNavigationRoot(
 
     BackHandler(enabled = detailTarget != null || route != CarRoute.Home) {
         if (detailTarget != null) closeDetail()
-        else route = if (route == CarRoute.NowPlaying) previousRootRoute else CarRoute.Home
+        else route = when (route) {
+            CarRoute.NowPlaying, CarRoute.Search -> previousRootRoute
+            else -> CarRoute.Home
+        }
     }
 
     val focusRoute = detailTarget?.focusRoute ?: route.name
@@ -121,6 +139,7 @@ fun CarNavigationRoot(
                 metrics = safeMetrics,
                 focusCoordinator = focusCoordinator,
                 onCollapse = { route = previousRootRoute },
+                onEnterFullscreen = onEnterFullscreen,
                 modifier = modifier.carInputRouter(
                     focusManager = focusManager,
                     onPlayPause = playbackController::togglePlayPause,
@@ -218,7 +237,10 @@ fun CarNavigationRoot(
                 onAlbumClick = { openDetail(CarDetailTarget.Album(it)) },
                 onArtistClick = { openDetail(CarDetailTarget.Artist(it)) },
                 onPlaylistClick = { openDetail(CarDetailTarget.Playlist(it.id, it.title)) },
-                onOpenSearch = { route = CarRoute.Search },
+                onOpenSearch = {
+                    previousRootRoute = route
+                    route = CarRoute.Search
+                },
                 modifier = contentModifier,
             )
             CarRoute.Songs -> CarSongsScreen(
@@ -286,7 +308,8 @@ private val CarRoute.navigationFocusId: CarFocusId
         CarRoute.Playlists -> CarFocusIds.Playlists
         CarRoute.Settings -> CarFocusIds.Settings
         CarRoute.Songs -> CarFocusIds.Songs
-        CarRoute.Albums, CarRoute.Artists -> CarFocusIds.Songs
+        CarRoute.Albums -> CarFocusIds.Albums
+        CarRoute.Artists -> CarFocusIds.Artists
         CarRoute.Search -> CarFocusIds.SearchField
         CarRoute.NowPlaying -> CarFocusIds.NowPlayingCollapse
     }
@@ -311,15 +334,13 @@ private fun NavigationRail(
             .border(1.dp, colors.borderSubtle, railShape),
     ) {
         val primaryRoutes = listOf(CarRoute.Home, CarRoute.Songs, CarRoute.Playlists, CarRoute.Settings)
-        val selectedRoot = when (route) {
-            CarRoute.Albums, CarRoute.Artists -> CarRoute.Songs
-            else -> route
-        }
         primaryRoutes.forEachIndexed { index, item ->
+            val down = primaryRoutes.getOrNull(index + 1)?.navigationFocusId
+                ?: CarFocusIds.MiniPlayer
             CarNavigationItem(
                 label = item.label,
                 icon = item.icon,
-                selected = selectedRoot == item,
+                selected = route == item,
                 enabled = true,
                 iconSize = metrics.iconSize,
                 onClick = { onRoute(item) },
@@ -327,8 +348,8 @@ private fun NavigationRail(
                     .carFocusTarget(
                         id = item.navigationFocusId,
                         up = primaryRoutes.getOrNull(index - 1)?.navigationFocusId ?: CarFocusIds.Exit,
-                        down = primaryRoutes.getOrNull(index + 1)?.navigationFocusId ?: CarFocusIds.MiniPlayer,
-                        right = if (selectedRoot == item) contentFocusId else null,
+                        down = down,
+                        right = if (route == item) contentFocusId else null,
                     )
                     .offset(
                         x = metrics.navigationRailInnerPadding,

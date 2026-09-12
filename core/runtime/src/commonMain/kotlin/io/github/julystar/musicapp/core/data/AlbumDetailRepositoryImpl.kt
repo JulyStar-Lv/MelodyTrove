@@ -37,6 +37,9 @@ class AlbumDetailRepositoryImpl(
                     mediaId = null,
                     albumId = track.albumId,
                     canDownload = false,
+                    codec = track.codec,
+                    sampleRateHz = track.sampleRate,
+                    bitDepth = track.bitsPerSample,
                 )
             },
         )

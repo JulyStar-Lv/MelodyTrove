@@ -20,12 +20,14 @@ data class CarAppWindowBounds(
  * On the target cockpit, the activity draws over a 2560x1440 driver canvas (or the
  * left half of the 5120x1440 display). The visible app panel occupies 2496x1080 at
  * (64, 192), then moves its left edge to x=832 when the vehicle panel is present.
- * Standalone app-sized windows are left untouched.
+ * Fullscreen playback uses the full cockpit width and leaves the 136 px vehicle
+ * dock exposed. Standalone app-sized windows are left untouched.
  */
 object CarAppWindowBoundsResolver {
     private const val ReferenceHeightPx = 1440
     private const val ReferenceDriverWidthPx = 2560
     private const val HeightTolerancePx = 72
+    private const val FullscreenContentHeightPx = 1304
 
     fun resolve(
         hostSizePx: IntSize,
@@ -41,6 +43,17 @@ object CarAppWindowBoundsResolver {
                 height = hostSizePx.height,
                 embeddedInCockpit = false,
                 profileHint = CarLayoutProfileHint.Automatic,
+            )
+        }
+
+        if (requestedHint == CarLayoutProfileHint.FullscreenCockpit) {
+            return CarAppWindowBounds(
+                left = 0,
+                top = 0,
+                width = hostSizePx.width,
+                height = minOf(hostSizePx.height, FullscreenContentHeightPx),
+                embeddedInCockpit = true,
+                profileHint = CarLayoutProfileHint.FullscreenCockpit,
             )
         }
 

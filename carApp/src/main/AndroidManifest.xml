@@ -23,7 +23,7 @@
         android:name=".CarApplication"
         android:allowBackup="true"
         android:appCategory="audio"
-        android:icon="@drawable/ic_car_launcher"
+        android:icon="@drawable/car_launcher_icon"
         android:label="@string/app_name"
         android:supportsRtl="true"
         android:theme="@style/Theme.TidePlayer.Car"
@@ -61,5 +61,14 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".FullscreenPlaybackActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:launchMode="standard"
+            android:resizeableActivity="false"
+            android:taskAffinity="${applicationId}.fullscreen"
+            android:theme="@style/Theme.TidePlayer.Car" />
     </application>
 </manifest>

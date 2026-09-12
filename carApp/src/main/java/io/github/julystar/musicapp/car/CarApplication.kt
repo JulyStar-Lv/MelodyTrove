@@ -35,10 +35,12 @@ sealed interface CarStartupState {
 class CarApplication : Application() {
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val mutableStartupState = MutableStateFlow<CarStartupState>(CarStartupState.Initializing)
+    private val mutableExitPlaybackRequest = MutableStateFlow(0L)
     private var startupJob: Job? = null
     private var koin: Koin? = null
 
     val startupState: StateFlow<CarStartupState> = mutableStartupState.asStateFlow()
+    val exitPlaybackRequest: StateFlow<Long> = mutableExitPlaybackRequest.asStateFlow()
 
     override fun onCreate() {
         super.onCreate()
@@ -74,6 +76,10 @@ class CarApplication : Application() {
                 mutableStartupState.value = CarStartupState.Failed(error)
             }
         }
+    }
+
+    fun requestExitPlayback() {
+        mutableExitPlaybackRequest.value += 1L
     }
 
     private fun installFatalHandler() {

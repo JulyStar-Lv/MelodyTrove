@@ -6,6 +6,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -26,6 +27,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import io.github.julystar.musicapp.car.presentation.component.CarPreference
 import io.github.julystar.musicapp.car.presentation.component.carInteractiveSurface
 import io.github.julystar.musicapp.car.presentation.focus.CarFocusId
@@ -66,7 +69,7 @@ fun CarSettingsScreen(
             .padding(
                 start = metrics.detailContentMargin,
                 top = metrics.contentTop,
-                end = metrics.detailContentMargin,
+                end = metrics.detailContentEndMargin,
                 bottom = LocalCarSpacing.current.wide,
             ),
     ) {
@@ -77,22 +80,31 @@ fun CarSettingsScreen(
                 .clip(LocalCarShapes.current.panel)
                 .background(colors.backgroundSubtle)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = LocalCarSpacing.current.section, vertical = 28.dp),
+                .padding(horizontal = metrics.libraryPanePadding, vertical = 28.dp),
         ) {
             SettingsPanelTitle("设置")
             Spacer(Modifier.height(LocalCarSpacing.current.section))
             SettingsGroupLabel("个性化")
-            SettingsNavItem("外观与语言", CarIcon.Settings, CarSettingsSection.Appearance, selectedSection) { selectedSection = it }
-            SettingsNavItem("歌词设置", CarIcon.Songs, CarSettingsSection.Lyrics, selectedSection) { selectedSection = it }
+            Spacer(Modifier.height(LocalCarSpacing.current.small))
+            SettingsGroupSurface {
+                SettingsNavItem("外观与语言", CarIcon.Settings, CarSettingsSection.Appearance, selectedSection) { selectedSection = it }
+                SettingsNavItem("歌词设置", CarIcon.Songs, CarSettingsSection.Lyrics, selectedSection) { selectedSection = it }
+            }
             Spacer(Modifier.height(20.dp))
             SettingsGroupLabel("播放")
-            SettingsNavItem("播放设置", CarIcon.Play, CarSettingsSection.Playback, selectedSection) { selectedSection = it }
+            Spacer(Modifier.height(LocalCarSpacing.current.small))
+            SettingsGroupSurface {
+                SettingsNavItem("播放设置", CarIcon.Play, CarSettingsSection.Playback, selectedSection) { selectedSection = it }
+            }
             Spacer(Modifier.height(20.dp))
             SettingsGroupLabel("音乐库与数据")
-            SettingsNavItem("音源设置", CarIcon.Albums, CarSettingsSection.Source, selectedSection) { selectedSection = it }
-            SettingsNavItem("元数据插件", CarIcon.Artists, CarSettingsSection.Metadata, selectedSection) { selectedSection = it }
-            SettingsNavItem("网络与缓存", CarIcon.Search, CarSettingsSection.Network, selectedSection) { selectedSection = it }
-            SettingsNavItem("存储与数据", CarIcon.Playlists, CarSettingsSection.Storage, selectedSection) { selectedSection = it }
+            Spacer(Modifier.height(LocalCarSpacing.current.small))
+            SettingsGroupSurface {
+                SettingsNavItem("音源设置", CarIcon.Albums, CarSettingsSection.Source, selectedSection) { selectedSection = it }
+                SettingsNavItem("元数据插件", CarIcon.Artists, CarSettingsSection.Metadata, selectedSection) { selectedSection = it }
+                SettingsNavItem("网络与缓存", CarIcon.Search, CarSettingsSection.Network, selectedSection) { selectedSection = it }
+                SettingsNavItem("存储与数据", CarIcon.Playlists, CarSettingsSection.Storage, selectedSection) { selectedSection = it }
+            }
         }
         Column(
             modifier = Modifier
@@ -143,57 +155,62 @@ private fun AppearanceSettings(
     Spacer(Modifier.height(LocalCarSpacing.current.section))
     SettingsGroupLabel("个性化")
     Spacer(Modifier.height(LocalCarSpacing.current.small))
-    CarPreference(
-        title = "深色模式",
-        summary = when (settings.themeMode) {
-            AppThemeMode.Dark -> "已开启"
-            AppThemeMode.Light -> "已关闭"
-            AppThemeMode.System -> "跟随系统"
-        },
-        checked = settings.themeMode == AppThemeMode.Dark,
-        controlSize = metrics.primaryTouchTarget * 0.8125f,
-        containerColor = LocalCarColors.current.panel,
-        highlightWhenChecked = false,
-        onClick = {
-            scope.launch {
-                repository.setThemeMode(
-                    if (settings.themeMode == AppThemeMode.Dark) AppThemeMode.Light else AppThemeMode.Dark,
-                )
-            }
-        },
-        modifier = Modifier
-            .carFocusTarget(CarFocusIds.item("setting", "theme"), left = leftFocus)
-            .height(metrics.compactCardHeight),
-    )
-    CarPreference(
-        title = "跟随封面配色",
-        summary = "使用当前歌曲封面生成界面色彩",
-        checked = settings.artworkThemeEnabled,
-        controlSize = metrics.primaryTouchTarget * 0.8125f,
-        containerColor = LocalCarColors.current.panel,
-        highlightWhenChecked = false,
-        onClick = { scope.launch { repository.setArtworkThemeEnabled(!settings.artworkThemeEnabled) } },
-        modifier = Modifier.height(metrics.compactCardHeight),
-    )
-    CarPreference(
-        title = "界面语言",
-        summary = when (settings.languageMode) {
-            AppLanguageMode.System -> "跟随系统"
-            AppLanguageMode.Chinese -> "简体中文"
-            AppLanguageMode.English -> "English"
-        },
-        controlSize = metrics.primaryTouchTarget * 0.8125f,
-        containerColor = LocalCarColors.current.panel,
-        onClick = {
-            val next = when (settings.languageMode) {
-                AppLanguageMode.System -> AppLanguageMode.Chinese
-                AppLanguageMode.Chinese -> AppLanguageMode.English
-                AppLanguageMode.English -> AppLanguageMode.System
-            }
-            scope.launch { repository.setLanguageMode(next) }
-        },
-        modifier = Modifier.height(metrics.compactCardHeight),
-    )
+    SettingsGroupSurface {
+        CarPreference(
+            title = "深色模式",
+            summary = when (settings.themeMode) {
+                AppThemeMode.Dark -> "已开启"
+                AppThemeMode.Light -> "已关闭"
+                AppThemeMode.System -> "跟随系统"
+            },
+            checked = settings.themeMode == AppThemeMode.Dark,
+            controlSize = metrics.primaryTouchTarget * 0.8125f,
+            containerColor = Color.Transparent,
+            shape = RectangleShape,
+            highlightWhenChecked = false,
+            onClick = {
+                scope.launch {
+                    repository.setThemeMode(
+                        if (settings.themeMode == AppThemeMode.Dark) AppThemeMode.Light else AppThemeMode.Dark,
+                    )
+                }
+            },
+            modifier = Modifier
+                .carFocusTarget(CarFocusIds.item("setting", "theme"), left = leftFocus)
+                .height(metrics.compactCardHeight),
+        )
+        CarPreference(
+            title = "跟随封面配色",
+            summary = "使用当前歌曲封面生成界面色彩",
+            checked = settings.artworkThemeEnabled,
+            controlSize = metrics.primaryTouchTarget * 0.8125f,
+            containerColor = Color.Transparent,
+            shape = RectangleShape,
+            highlightWhenChecked = false,
+            onClick = { scope.launch { repository.setArtworkThemeEnabled(!settings.artworkThemeEnabled) } },
+            modifier = Modifier.height(metrics.compactCardHeight),
+        )
+        CarPreference(
+            title = "界面语言",
+            summary = when (settings.languageMode) {
+                AppLanguageMode.System -> "跟随系统"
+                AppLanguageMode.Chinese -> "简体中文"
+                AppLanguageMode.English -> "English"
+            },
+            controlSize = metrics.primaryTouchTarget * 0.8125f,
+            containerColor = Color.Transparent,
+            shape = RectangleShape,
+            onClick = {
+                val next = when (settings.languageMode) {
+                    AppLanguageMode.System -> AppLanguageMode.Chinese
+                    AppLanguageMode.Chinese -> AppLanguageMode.English
+                    AppLanguageMode.English -> AppLanguageMode.System
+                }
+                scope.launch { repository.setLanguageMode(next) }
+            },
+            modifier = Modifier.height(metrics.compactCardHeight),
+        )
+    }
 }
 
 @Composable
@@ -203,17 +220,19 @@ private fun LyricsSettings(metrics: CarLayoutMetrics, settings: AppSettings, rep
     Spacer(Modifier.height(LocalCarSpacing.current.section))
     SettingsGroupLabel("显示与交互")
     Spacer(Modifier.height(LocalCarSpacing.current.small))
-    SettingsToggle("显示翻译", settings.lyrics.showTranslation, metrics) {
-        scope.launch { repository.setLyricTranslationVisible(!settings.lyrics.showTranslation) }
-    }
-    SettingsToggle("逐字歌词动效", settings.lyrics.wordLiftEnabled, metrics) {
-        scope.launch { repository.setLyricWordLiftEnabled(!settings.lyrics.wordLiftEnabled) }
-    }
-    SettingsToggle("歌词模糊效果", settings.lyrics.blurEffectEnabled, metrics) {
-        scope.launch { repository.setLyricBlurEffectEnabled(!settings.lyrics.blurEffectEnabled) }
-    }
-    SettingsToggle("点击歌词跳转", settings.lyrics.tapToSeekEnabled, metrics) {
-        scope.launch { repository.setLyricTapToSeekEnabled(!settings.lyrics.tapToSeekEnabled) }
+    SettingsGroupSurface {
+        SettingsToggle("显示翻译", settings.lyrics.showTranslation, metrics) {
+            scope.launch { repository.setLyricTranslationVisible(!settings.lyrics.showTranslation) }
+        }
+        SettingsToggle("逐字歌词动效", settings.lyrics.wordLiftEnabled, metrics) {
+            scope.launch { repository.setLyricWordLiftEnabled(!settings.lyrics.wordLiftEnabled) }
+        }
+        SettingsToggle("歌词模糊效果", settings.lyrics.blurEffectEnabled, metrics) {
+            scope.launch { repository.setLyricBlurEffectEnabled(!settings.lyrics.blurEffectEnabled) }
+        }
+        SettingsToggle("点击歌词跳转", settings.lyrics.tapToSeekEnabled, metrics) {
+            scope.launch { repository.setLyricTapToSeekEnabled(!settings.lyrics.tapToSeekEnabled) }
+        }
     }
 }
 
@@ -231,36 +250,42 @@ private fun PlaybackSettings(
     Spacer(Modifier.height(LocalCarSpacing.current.section))
     SettingsGroupLabel("音频输出")
     Spacer(Modifier.height(LocalCarSpacing.current.small))
-    SettingsInfo("当前输出", "默认输出", metrics)
-    SettingsInfo("选择输出设备", "跟随系统音频路由", metrics)
+    SettingsGroupSurface {
+        SettingsInfo("当前输出", "默认输出", metrics)
+        SettingsInfo("选择输出设备", "跟随系统音频路由", metrics)
+    }
     Spacer(Modifier.height(LocalCarSpacing.current.section))
     SettingsGroupLabel("音频焦点")
     Spacer(Modifier.height(LocalCarSpacing.current.small))
-    SettingsInfo(
-        title = "音频焦点处理",
-        summary = when (settings.audioFocusMode) {
-            AudioFocusMode.Pause -> "暂停播放"
-            AudioFocusMode.Duck -> "降低音量"
-            AudioFocusMode.Mix -> "允许混音"
-        },
-        metrics = metrics,
-        onClick = {
-            val next = when (settings.audioFocusMode) {
-                AudioFocusMode.Pause -> AudioFocusMode.Duck
-                AudioFocusMode.Duck -> AudioFocusMode.Mix
-                AudioFocusMode.Mix -> AudioFocusMode.Pause
-            }
-            scope.launch { repository.setAudioFocusMode(next) }
-        },
-    )
+    SettingsGroupSurface {
+        SettingsInfo(
+            title = "音频焦点处理",
+            summary = when (settings.audioFocusMode) {
+                AudioFocusMode.Pause -> "暂停播放"
+                AudioFocusMode.Duck -> "降低音量"
+                AudioFocusMode.Mix -> "允许混音"
+            },
+            metrics = metrics,
+            onClick = {
+                val next = when (settings.audioFocusMode) {
+                    AudioFocusMode.Pause -> AudioFocusMode.Duck
+                    AudioFocusMode.Duck -> AudioFocusMode.Mix
+                    AudioFocusMode.Mix -> AudioFocusMode.Pause
+                }
+                scope.launch { repository.setAudioFocusMode(next) }
+            },
+        )
+    }
     Spacer(Modifier.height(LocalCarSpacing.current.section))
     SettingsGroupLabel("播放行为")
     Spacer(Modifier.height(LocalCarSpacing.current.small))
+    SettingsGroupSurface {
     CarPreference(
         title = "设备断开时暂停",
         checked = settings.pauseOnDisconnect,
         controlSize = switchWidth,
-        containerColor = colors.panel,
+        containerColor = Color.Transparent,
+        shape = RectangleShape,
         highlightWhenChecked = false,
         onClick = { scope.launch { repository.setPauseOnDisconnect(!settings.pauseOnDisconnect) } },
         modifier = Modifier
@@ -275,7 +300,8 @@ private fun PlaybackSettings(
         title = "无缝播放",
         checked = settings.gaplessPlaybackEnabled,
         controlSize = switchWidth,
-        containerColor = colors.panel,
+        containerColor = Color.Transparent,
+        shape = RectangleShape,
         highlightWhenChecked = false,
         onClick = { scope.launch { repository.setGaplessPlaybackEnabled(!settings.gaplessPlaybackEnabled) } },
         modifier = Modifier
@@ -291,7 +317,8 @@ private fun PlaybackSettings(
         title = "播放失败后重试",
         checked = settings.retryPlaybackOnFailure,
         controlSize = switchWidth,
-        containerColor = colors.panel,
+        containerColor = Color.Transparent,
+        shape = RectangleShape,
         highlightWhenChecked = false,
         onClick = { scope.launch { repository.setRetryPlaybackOnFailure(!settings.retryPlaybackOnFailure) } },
         modifier = Modifier
@@ -306,11 +333,13 @@ private fun PlaybackSettings(
         title = "网络恢复后继续播放",
         checked = settings.resumePlaybackAfterNetworkRecovery,
         controlSize = switchWidth,
-        containerColor = colors.panel,
+        containerColor = Color.Transparent,
+        shape = RectangleShape,
         highlightWhenChecked = false,
         onClick = { scope.launch { repository.setResumePlaybackAfterNetworkRecovery(!settings.resumePlaybackAfterNetworkRecovery) } },
         modifier = Modifier.height(metrics.compactCardHeight),
     )
+    }
 }
 
 @Composable
@@ -324,17 +353,20 @@ private fun SourceSettings(
     Spacer(Modifier.height(LocalCarSpacing.current.section))
     SettingsGroupLabel("本地音乐")
     Spacer(Modifier.height(LocalCarSpacing.current.small))
+    SettingsGroupSurface {
     CarPreference(
         title = "扫描本地音乐",
         summary = state.summary,
         enabled = state != CarLocalLibraryState.Scanning,
         controlSize = metrics.primaryTouchTarget * 0.8125f,
-        containerColor = LocalCarColors.current.panel,
+        containerColor = Color.Transparent,
+        shape = RectangleShape,
         onClick = onImport,
         modifier = Modifier
             .carFocusTarget(CarFocusIds.item("setting", "local_music"), left = leftFocus)
             .height(metrics.compactCardHeight),
     )
+    }
 }
 
 @Composable
@@ -343,9 +375,11 @@ private fun MetadataSettings(metrics: CarLayoutMetrics, settings: AppSettings) {
     Spacer(Modifier.height(LocalCarSpacing.current.section))
     SettingsGroupLabel("扫描与解析")
     Spacer(Modifier.height(LocalCarSpacing.current.small))
-    SettingsInfo("标签解析", "优先读取文件内嵌元数据", metrics)
-    SettingsInfo("封面与歌词", "允许插件补全缺失内容", metrics)
-    SettingsInfo("WebDAV 扫描", settings.webDavMetadataScanMode.name, metrics)
+    SettingsGroupSurface {
+        SettingsInfo("标签解析", "优先读取文件内嵌元数据", metrics)
+        SettingsInfo("封面与歌词", "允许插件补全缺失内容", metrics)
+        SettingsInfo("WebDAV 扫描", settings.webDavMetadataScanMode.name, metrics)
+    }
 }
 
 @Composable
@@ -355,15 +389,17 @@ private fun NetworkSettings(metrics: CarLayoutMetrics, settings: AppSettings, re
     Spacer(Modifier.height(LocalCarSpacing.current.section))
     SettingsGroupLabel("网络")
     Spacer(Modifier.height(LocalCarSpacing.current.small))
-    SettingsToggle("允许使用计费网络", settings.allowMeteredNetworkUsage, metrics) {
-        scope.launch { repository.setAllowMeteredNetworkUsage(!settings.allowMeteredNetworkUsage) }
+    SettingsGroupSurface {
+        SettingsToggle("允许使用计费网络", settings.allowMeteredNetworkUsage, metrics) {
+            scope.launch { repository.setAllowMeteredNetworkUsage(!settings.allowMeteredNetworkUsage) }
+        }
+        SettingsToggle("边听边缓存", settings.listenAndCacheEnabled, metrics) {
+            scope.launch { repository.setListenAndCacheEnabled(!settings.listenAndCacheEnabled) }
+        }
+        SettingsInfo("连接超时", "${settings.connectionTimeoutSeconds} 秒", metrics)
+        SettingsInfo("音频缓存上限", settings.audioCacheLimitBytes.asStorageSize(), metrics)
+        SettingsInfo("图片缓存上限", settings.imageCacheLimitBytes.asStorageSize(), metrics)
     }
-    SettingsToggle("边听边缓存", settings.listenAndCacheEnabled, metrics) {
-        scope.launch { repository.setListenAndCacheEnabled(!settings.listenAndCacheEnabled) }
-    }
-    SettingsInfo("连接超时", "${settings.connectionTimeoutSeconds} 秒", metrics)
-    SettingsInfo("音频缓存上限", settings.audioCacheLimitBytes.asStorageSize(), metrics)
-    SettingsInfo("图片缓存上限", settings.imageCacheLimitBytes.asStorageSize(), metrics)
 }
 
 @Composable
@@ -373,12 +409,14 @@ private fun StorageSettings(metrics: CarLayoutMetrics, settings: AppSettings, re
     Spacer(Modifier.height(LocalCarSpacing.current.section))
     SettingsGroupLabel("音乐库")
     Spacer(Modifier.height(LocalCarSpacing.current.small))
-    SettingsToggle("扫描子目录", settings.scanSubdirectories, metrics) {
-        scope.launch { repository.setScanSubdirectories(!settings.scanSubdirectories) }
+    SettingsGroupSurface {
+        SettingsToggle("扫描子目录", settings.scanSubdirectories, metrics) {
+            scope.launch { repository.setScanSubdirectories(!settings.scanSubdirectories) }
+        }
+        SettingsInfo("自动扫描", settings.autoScanMode.name, metrics)
+        SettingsInfo("缺失文件策略", settings.missingFilePolicy.name, metrics)
+        SettingsInfo("最低音频时长", "${settings.minimumAudioDurationMs / 1000} 秒", metrics)
     }
-    SettingsInfo("自动扫描", settings.autoScanMode.name, metrics)
-    SettingsInfo("缺失文件策略", settings.missingFilePolicy.name, metrics)
-    SettingsInfo("最低音频时长", "${settings.minimumAudioDurationMs / 1000} 秒", metrics)
 }
 
 @Composable
@@ -387,7 +425,8 @@ private fun SettingsToggle(title: String, checked: Boolean, metrics: CarLayoutMe
         title = title,
         checked = checked,
         controlSize = metrics.primaryTouchTarget * 0.8125f,
-        containerColor = LocalCarColors.current.panel,
+        containerColor = Color.Transparent,
+        shape = RectangleShape,
         highlightWhenChecked = false,
         onClick = onClick,
         modifier = Modifier.height(metrics.compactCardHeight),
@@ -406,7 +445,8 @@ private fun SettingsInfo(
         summary = summary,
         interactive = onClick != null,
         controlSize = metrics.primaryTouchTarget * 0.8125f,
-        containerColor = LocalCarColors.current.panel,
+        containerColor = Color.Transparent,
+        shape = RectangleShape,
         onClick = onClick ?: {},
         modifier = Modifier.height(metrics.compactCardHeight),
     )
@@ -420,7 +460,6 @@ private fun SettingsNavItem(
     selected: CarSettingsSection,
     onSelect: (CarSettingsSection) -> Unit,
 ) {
-    Spacer(Modifier.height(LocalCarSpacing.current.small))
     SettingsNavigationRow(
         title = title,
         icon = icon,
@@ -449,8 +488,8 @@ private fun SettingsNavigationRow(
         modifier = modifier
             .fillMaxWidth()
             .carInteractiveSurface(
-                shape = LocalCarShapes.current.navigationItem,
-                defaultColor = if (selected) colors.accentSubtle else colors.panel,
+                shape = RectangleShape,
+                defaultColor = if (selected) colors.accentSubtle else Color.Transparent,
                 onClick = onClick,
             )
             .padding(horizontal = 18.dp),
@@ -471,6 +510,18 @@ private fun SettingsNavigationRow(
             ),
         )
     }
+}
+
+@Composable
+private fun SettingsGroupSurface(content: @Composable ColumnScope.() -> Unit) {
+    val shape = LocalCarShapes.current.navigationItem
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(LocalCarColors.current.panel),
+        content = content,
+    )
 }
 
 @Composable

@@ -38,6 +38,9 @@ class TrackBrowserRepositoryImpl(
             mediaId = null,
             albumId = albumId,
             canDownload = false,
+            codec = codec,
+            sampleRateHz = sampleRate,
+            bitDepth = bitsPerSample,
         )
     }
 }

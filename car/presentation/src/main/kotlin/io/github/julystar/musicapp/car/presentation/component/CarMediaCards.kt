@@ -41,6 +41,7 @@ fun CarAlbumCard(
     val shapes = LocalCarShapes.current
     val spacing = LocalCarSpacing.current
     Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
             .clip(shapes.card)
             .border(1.dp, colors.borderSubtle, shapes.card)
@@ -89,7 +90,7 @@ fun CarArtistCard(
             .clip(shapes.card)
             .border(1.dp, colors.borderSubtle, shapes.card)
             .carInteractiveSurface(shapes.card, defaultColor = colors.backgroundSubtle, onClick = onClick)
-            .padding(spacing.content),
+            .padding(spacing.compact),
     ) {
         CarArtwork(
             artwork = artwork,

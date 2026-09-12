@@ -100,5 +100,10 @@ internal fun TrackEntity.toLibraryTrackItem(
         mediaId = mediaId,
         albumName = albumName,
         albumId = albumId,
+        codec = codec,
+        sampleRateHz = sampleRate,
+        bitDepth = bitsPerSample,
+        createdAt = createdAt,
+        lastPlayedAt = lastPlayedAt,
     )
 }

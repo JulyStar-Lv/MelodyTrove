@@ -38,6 +38,21 @@ class CarAppWindowBoundsResolverTest {
     }
 
     @Test
+    fun fullscreenUsesTheWholeCockpitWidthAndLeavesTheVehicleDockVisible() {
+        val bounds = CarAppWindowBoundsResolver.resolve(
+            hostSizePx = IntSize(5120, 1440),
+            requestedHint = CarLayoutProfileHint.FullscreenCockpit,
+        )
+
+        assertEquals(0, bounds.left)
+        assertEquals(0, bounds.top)
+        assertEquals(5120, bounds.width)
+        assertEquals(1304, bounds.height)
+        assertEquals(CarLayoutProfileHint.FullscreenCockpit, bounds.profileHint)
+        assertTrue(bounds.embeddedInCockpit)
+    }
+
+    @Test
     fun missingOemSignalDefaultsToFileManagerExpandedState() {
         val bounds = CarAppWindowBoundsResolver.resolve(
             hostSizePx = IntSize(2560, 1440),

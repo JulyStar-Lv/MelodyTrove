@@ -1,6 +1,7 @@
 package io.github.julystar.musicapp.car.presentation.layout
 
 import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -38,6 +39,50 @@ class CarLayoutProfileResolverTest {
         assertEquals(3, metrics.mediaGridColumns)
         assertTrue(metrics.navigationRailWidth > 0.dp)
         assertTrue(metrics.detailHeroWidth > 0.dp)
+    }
+
+    @Test
+    fun expandedReferenceKeepsFigmaHomeAndGridGeometry() {
+        val metrics = CarLayoutProfileResolver().resolve(
+            usableSize = DpSize(2496.dp, 1080.dp),
+            hint = CarLayoutProfileHint.Expanded,
+        )
+
+        assertDpEquals(576.dp, metrics.homeQuickCardWidth)
+        assertDpEquals(164.dp, metrics.homeSearchCardWidth)
+        assertDpEquals(640.dp, metrics.homeRecentFeatureWidth)
+        assertEquals(3, metrics.homeRecentColumns)
+        assertDpEquals(332.dp, metrics.homeRecommendationCardWidth)
+        assertDpEquals(32.dp, metrics.libraryPanePadding)
+        assertDpEquals(24.dp, metrics.mediaGridPadding)
+        assertDpEquals(16.dp, metrics.mediaGridHorizontalGap)
+        assertDpEquals(40.dp, metrics.detailContentEndMargin)
+        assertDpEquals(0.dp, metrics.nowPlayingContentStartOffset)
+        assertDpEquals(136.dp, metrics.playlistSelectedCardHeight)
+        assertDpEquals(240.dp, metrics.playlistCardWidth)
+        assertDpEquals(216.dp, metrics.playlistArtworkSize)
+    }
+
+    @Test
+    fun vehicleReferenceKeepsFigmaAsymmetricPlayerAndCompactGeometry() {
+        val metrics = CarLayoutProfileResolver().resolve(
+            usableSize = DpSize(1728.dp, 1080.dp),
+            hint = CarLayoutProfileHint.VehiclePanel,
+        )
+
+        assertDpEquals(380.dp, metrics.homeQuickCardWidth)
+        assertDpEquals(184.dp, metrics.homeSearchCardWidth)
+        assertDpEquals(480.dp, metrics.homeRecentFeatureWidth)
+        assertEquals(2, metrics.homeRecentColumns)
+        assertDpEquals(440.dp, metrics.homeRecommendationCardWidth)
+        assertDpEquals(32.dp, metrics.mediaGridPadding)
+        assertDpEquals(12.dp, metrics.mediaGridHorizontalGap)
+        assertDpEquals(80.dp, metrics.nowPlayingContentStartOffset)
+        assertEquals(4, metrics.artistVisibleTrackCount)
+        assertEquals(1, metrics.playlistGridColumns)
+        assertDpEquals(136.dp, metrics.playlistSelectedCardHeight)
+        assertDpEquals(240.dp, metrics.playlistCardWidth)
+        assertDpEquals(216.dp, metrics.playlistArtworkSize)
     }
 
     @Test
@@ -111,5 +156,9 @@ class CarLayoutProfileResolverTest {
             CarLayoutProfileHint.VehiclePanel,
             carLayoutHintFromOemState(keyScreenShow = null, keyVpaCuiShowLeft = 1),
         )
+    }
+
+    private fun assertDpEquals(expected: Dp, actual: Dp) {
+        assertEquals(expected.value, actual.value, 0.001f)
     }
 }

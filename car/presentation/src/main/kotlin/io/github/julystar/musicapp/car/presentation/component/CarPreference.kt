@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.graphics.Shape
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarColors
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarShapes
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarSpacing
@@ -29,6 +30,7 @@ fun CarPreference(
     interactive: Boolean = true,
     controlSize: Dp,
     containerColor: Color? = null,
+    shape: Shape = LocalCarShapes.current.navigationItem,
     highlightWhenChecked: Boolean = true,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -39,7 +41,7 @@ fun CarPreference(
         modifier = modifier
             .fillMaxWidth()
             .carInteractiveSurface(
-                shape = LocalCarShapes.current.navigationItem,
+                shape = shape,
                 selected = highlightWhenChecked && checked == true,
                 enabled = enabled && interactive,
                 defaultColor = containerColor ?: colors.backgroundSubtle,

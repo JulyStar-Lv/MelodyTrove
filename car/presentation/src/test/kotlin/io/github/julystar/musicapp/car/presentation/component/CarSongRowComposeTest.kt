@@ -71,7 +71,7 @@ class CarSongRowComposeTest {
             .assertIsNotEnabled()
             .assert(hasStateDescription("正在播放"))
             .performClick()
-        compose.onNodeWithTag("song-row").assertTextEquals("♪", "Test Track", "Test Artist", "3:05")
+        compose.onNodeWithTag("song-row").assertTextEquals("Test Track", "Test Artist", "3:05")
         assertEquals(false, clicked)
     }
 

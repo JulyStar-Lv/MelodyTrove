@@ -29,9 +29,15 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import io.github.julystar.musicapp.car.presentation.component.CarAlbumCard
@@ -45,6 +51,7 @@ import io.github.julystar.musicapp.car.presentation.focus.CarFocusId
 import io.github.julystar.musicapp.car.presentation.focus.CarFocusIds
 import io.github.julystar.musicapp.car.presentation.focus.carFocusTarget
 import io.github.julystar.musicapp.car.presentation.layout.CarLayoutMetrics
+import io.github.julystar.musicapp.car.presentation.layout.CarLayoutProfile
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarColors
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarShapes
 import io.github.julystar.musicapp.car.presentation.theme.LocalCarSpacing
@@ -226,6 +233,7 @@ private fun DetailLayout(
             favoriteTrackIds = favoriteTrackIds,
             onToggleFavorite = { trackId -> scope.launch { favoritesRepository.toggleFavorite(trackId) } },
             onPlay = { index -> scope.launch { playbackController.play(queue, index) } },
+            layout = if (playlistId == null) DetailTrackLayout.Album else DetailTrackLayout.Playlist,
             modifier = Modifier.fillMaxSize(),
         )
     }
@@ -270,13 +278,14 @@ private fun ArtistDetailLayout(
             BasicText("歌曲  ›", style = LocalCarTypography.current.titleLarge.copy(color = LocalCarColors.current.textPrimary))
             Spacer(Modifier.height(LocalCarSpacing.current.small))
             DetailTrackList(
-                tracks = tracks.take(5),
+                tracks = tracks.take(metrics.artistVisibleTrackCount),
                 currentTrackId = playerState.currentItem?.libraryTrackId,
                 metrics = metrics,
                 artworkRepository = artworkRepository,
                 favoriteTrackIds = favoriteTrackIds,
                 onToggleFavorite = { trackId -> scope.launch { favoritesRepository.toggleFavorite(trackId) } },
                 onPlay = { index -> scope.launch { playbackController.play(queue, index) } },
+                layout = DetailTrackLayout.Artist,
                 modifier = Modifier.weight(1f),
             )
             Spacer(Modifier.height(LocalCarSpacing.current.section))
@@ -293,9 +302,9 @@ private fun ArtistDetailLayout(
                         CarAlbumCard(
                             album = album.toLibraryAlbumItem(detail.name),
                             artworkRepository = artworkRepository,
-                            artworkSize = metrics.recommendationCardWidth * 0.5f,
+                            artworkSize = metrics.artistAlbumArtworkSize,
                             onClick = { onAlbumClick(album.id) },
-                            modifier = Modifier.width(metrics.recommendationCardWidth * 0.72f).fillMaxHeight(),
+                            modifier = Modifier.width(metrics.artistAlbumCardWidth).fillMaxHeight(),
                         )
                     }
                 }
@@ -321,27 +330,62 @@ private fun DetailScaffold(
     content: @Composable () -> Unit,
 ) {
     val colors = LocalCarColors.current
+    val heroTint = colors.backgroundSubtle
     Row(
         horizontalArrangement = Arrangement.spacedBy(metrics.detailPaneGap),
         modifier = modifier.fillMaxSize().padding(
             start = metrics.detailContentMargin,
             top = metrics.contentTop,
-            end = metrics.contentHorizontalPadding,
+            end = metrics.detailContentEndMargin,
             bottom = metrics.navigationRailBottom,
         ),
     ) {
         Box(
             modifier = Modifier.width(metrics.detailHeroWidth).fillMaxHeight()
-                .clip(LocalCarShapes.current.panel).background(colors.backgroundSubtle),
+                .clip(LocalCarShapes.current.panel)
+                .background(colors.backgroundSubtle),
         ) {
-            CarArtwork(artwork, artworkRepository, metrics.detailHeroWidth, LocalCarShapes.current.panel)
-            Box(
-                Modifier.fillMaxWidth().height(metrics.detailHeroWidth * 0.62f).align(Alignment.Center)
-                    .background(Brush.verticalGradient(listOf(Color.Transparent, colors.backgroundSubtle.copy(alpha = 0.72f)))),
+            CarArtwork(
+                artwork = artwork,
+                repository = artworkRepository,
+                size = metrics.detailHeroWidth,
+                shape = RectangleShape,
+                fillBounds = true,
+                modifier = Modifier.fillMaxSize().graphicsLayer {
+                    scaleX = 1.08f
+                    scaleY = 1.08f
+                }.blur(36.dp),
+            )
+            CarArtwork(
+                artwork = artwork,
+                repository = artworkRepository,
+                size = metrics.detailHeroWidth,
+                shape = RectangleShape,
+                modifier = Modifier.align(Alignment.TopCenter)
+                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                    .drawWithContent {
+                        drawContent()
+                        drawRect(
+                            brush = Brush.verticalGradient(
+                                0f to Color.Black,
+                                0.68f to Color.Black,
+                                1f to Color.Transparent,
+                            ),
+                            blendMode = BlendMode.DstIn,
+                        )
+                    },
             )
             Box(
-                Modifier.fillMaxWidth().fillMaxHeight(0.46f).align(Alignment.BottomCenter)
-                    .background(Brush.verticalGradient(listOf(colors.backgroundSubtle.copy(alpha = 0.68f), colors.backgroundSubtle))),
+                Modifier.fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            0f to Color.Transparent,
+                            0.42f to Color.Transparent,
+                            0.58f to heroTint.copy(alpha = 0.08f),
+                            0.72f to heroTint.copy(alpha = 0.58f),
+                            1f to heroTint.copy(alpha = 0.9f),
+                        ),
+                    ),
             )
             Box(
                 contentAlignment = Alignment.Center,
@@ -352,14 +396,21 @@ private fun DetailScaffold(
                 CarIconView(CarIcon.Back, "返回", Color.White, Modifier.size(metrics.iconSize * 0.7f))
             }
             Column(
-                modifier = Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(LocalCarSpacing.current.pane),
+                modifier = Modifier.align(Alignment.TopStart)
+                    .fillMaxWidth()
+                    .padding(
+                        start = if (metrics.profile == CarLayoutProfile.Expanded) 40.dp else 24.dp,
+                        top = 600.dp,
+                        end = if (metrics.profile == CarLayoutProfile.Expanded) 40.dp else 24.dp,
+                    )
+                    .height(280.dp),
             ) {
                 BasicText(title, style = LocalCarTypography.current.pageTitle.copy(color = colors.textPrimary), maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(LocalCarSpacing.current.section))
                 BasicText(subtitle, style = LocalCarTypography.current.body.copy(color = colors.textPrimary), maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Spacer(Modifier.height(LocalCarSpacing.current.small))
                 BasicText(secondary, style = LocalCarTypography.current.body.copy(color = colors.textSecondary))
-                Spacer(Modifier.height(LocalCarSpacing.current.section))
+                Spacer(Modifier.weight(1f))
                 Row(horizontalArrangement = Arrangement.spacedBy(LocalCarSpacing.current.small)) {
                     DetailAction("播放全部", CarIcon.Play, playEnabled, onPlayAll, Modifier.width(176.dp))
                     DetailAction("随机", CarIcon.Shuffle, playEnabled, onShuffle, Modifier.width(metrics.headerHeight))
@@ -369,8 +420,12 @@ private fun DetailScaffold(
             }
         }
         Box(
-            modifier = Modifier.weight(1f).fillMaxHeight().clip(LocalCarShapes.current.panel)
-                .background(colors.backgroundSubtle).padding(LocalCarSpacing.current.section),
+            modifier = Modifier.weight(1f).fillMaxHeight()
+                .clip(LocalCarShapes.current.panel)
+                .background(colors.backgroundSubtle).padding(
+                    horizontal = metrics.detailContentPadding,
+                    vertical = LocalCarSpacing.current.section,
+                ),
         ) { content() }
     }
 }
@@ -413,27 +468,67 @@ private fun DetailTrackList(
     favoriteTrackIds: Set<Long>,
     onToggleFavorite: (Long) -> Unit,
     onPlay: (Int) -> Unit,
+    layout: DetailTrackLayout,
     modifier: Modifier,
 ) {
     if (tracks.isEmpty()) return CarPageState("这里还没有歌曲", modifier)
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(1.dp), modifier = modifier) {
-        itemsIndexed(tracks, key = { _, track -> track.id }) { index, track ->
-            CarSongRow(
-                track = track,
-                index = index,
-                playing = currentTrackId == track.id,
-                height = metrics.detailRowHeight,
-                artworkRepository = artworkRepository,
-                showArtwork = track.albumId != null,
-                showAlbum = track.albumName != null,
-                showActions = true,
-                favorite = track.id in favoriteTrackIds,
-                onToggleFavorite = { onToggleFavorite(track.id) },
-                onClick = { onPlay(index) },
-                modifier = Modifier
-                    .carFocusTarget(CarFocusIds.item("detail_track", track.id), left = CarFocusIds.DetailPlayAll)
-                    .height(metrics.detailRowHeight),
+    Column(modifier) {
+        if (layout != DetailTrackLayout.Playlist) {
+            DetailTrackHeader(layout, metrics)
+        }
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(1.dp), modifier = Modifier.weight(1f)) {
+            itemsIndexed(tracks, key = { _, track -> track.id }) { index, track ->
+                CarSongRow(
+                    track = track,
+                    index = index,
+                    playing = currentTrackId == track.id,
+                    height = metrics.detailRowHeight,
+                    artworkRepository = artworkRepository,
+                    showArtwork = layout != DetailTrackLayout.Album && track.albumId != null,
+                    showAlbum = layout != DetailTrackLayout.Album && track.albumName != null,
+                    showQuality = layout == DetailTrackLayout.Album,
+                    showDuration = metrics.profile == CarLayoutProfile.Expanded,
+                    showActions = metrics.profile == CarLayoutProfile.Expanded,
+                    favorite = track.id in favoriteTrackIds,
+                    onToggleFavorite = { onToggleFavorite(track.id) },
+                    onClick = { onPlay(index) },
+                    modifier = Modifier
+                        .carFocusTarget(CarFocusIds.item("detail_track", track.id), left = CarFocusIds.DetailPlayAll)
+                        .height(metrics.detailRowHeight),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailTrackHeader(layout: DetailTrackLayout, metrics: CarLayoutMetrics) {
+    val colors = LocalCarColors.current
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().height(metrics.headerHeight).padding(horizontal = LocalCarSpacing.current.section),
+    ) {
+        Spacer(Modifier.width(metrics.detailRowHeight * 0.5f))
+        if (layout == DetailTrackLayout.Artist) {
+            Spacer(Modifier.width(metrics.detailRowHeight * 0.64f + LocalCarSpacing.current.content))
+        }
+        BasicText(
+            "歌曲",
+            style = LocalCarTypography.current.body.copy(color = colors.textSecondary),
+            modifier = Modifier.weight(1.3f),
+        )
+        BasicText(
+            if (layout == DetailTrackLayout.Album) "音质" else "专辑",
+            style = LocalCarTypography.current.body.copy(color = colors.textSecondary),
+            modifier = Modifier.weight(0.8f),
+        )
+        if (metrics.profile == CarLayoutProfile.Expanded) {
+            BasicText(
+                "时长",
+                style = LocalCarTypography.current.body.copy(color = colors.textSecondary),
+                modifier = Modifier.width(metrics.detailRowHeight),
             )
+            Spacer(Modifier.width(metrics.detailRowHeight * 1.2f + LocalCarSpacing.current.small))
         }
     }
 }
@@ -463,10 +558,23 @@ private sealed interface DetailResult<out T> {
 }
 
 private fun DomainTrackBrowserItem.toLibraryTrackItem() =
-    LibraryTrackItem(id, title, artist, durationMs, mediaId, albumName, albumId)
+    LibraryTrackItem(
+        id = id,
+        title = title,
+        artist = artist,
+        durationMs = durationMs,
+        mediaId = mediaId,
+        albumName = albumName,
+        albumId = albumId,
+        codec = codec,
+        sampleRateHz = sampleRateHz,
+        bitDepth = bitDepth,
+    )
 
 private fun DomainPlaylistTrack.toLibraryTrackItem() =
     LibraryTrackItem(trackId, title, artist, durationMs, mediaId, albumName)
 
 private fun DomainArtistAlbum.toLibraryAlbumItem(artist: String?) =
     LibraryAlbumItem(id, name ?: "未知专辑", year, artist)
+
+private enum class DetailTrackLayout { Album, Artist, Playlist }

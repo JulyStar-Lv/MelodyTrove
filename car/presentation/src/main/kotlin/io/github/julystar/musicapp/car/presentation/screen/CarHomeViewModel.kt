@@ -76,6 +76,11 @@ class CarHomeViewModel(
         artist = artist,
         durationMs = durationMs,
         mediaId = mediaId,
+        albumName = albumName,
+        albumId = albumId,
+        codec = codec,
+        sampleRateHz = sampleRateHz,
+        bitDepth = bitDepth,
     )
 
     private companion object {

@@ -12,4 +12,9 @@ data class LibraryTrackItem(
     val mediaId: MediaId? = null,
     val albumName: String? = null,
     val albumId: Long? = null,
+    val codec: String? = null,
+    val sampleRateHz: Int? = null,
+    val bitDepth: Int? = null,
+    val createdAt: Long? = null,
+    val lastPlayedAt: Long? = null,
 )

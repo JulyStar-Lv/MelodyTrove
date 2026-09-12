@@ -117,27 +117,27 @@ fun CarHomeScreen(
                     albums.firstOrNull()?.id?.let(Artwork::LibraryAlbum), artworkRepository,
                     listOf(Color(0xFF7456D8), Color(0xFF4930A8)),
                     onClick = { play(homeState.favorites.dataOrEmpty(), 0) },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.width(metrics.homeQuickCardWidth),
                 )
                 HomeHeroAction(
                     "每日推荐", tracks.firstOrNull()?.title ?: "本地精选", CarIcon.Albums,
                     tracks.firstOrNull()?.id?.let { Artwork.LibraryCover(it) }, artworkRepository,
                     listOf(Color(0xFF168E78), Color(0xFF075C54)),
                     onClick = { play(tracks, 0) },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.width(metrics.homeQuickCardWidth),
                 )
                 HomeHeroAction(
                     "播放历史", homeState.recentlyPlayed.summary("暂无播放历史"), CarIcon.Songs,
                     recentPlayed.firstOrNull()?.id?.let { Artwork.LibraryCover(it) }, artworkRepository,
                     listOf(Color(0xFFE85D73), Color(0xFFB73D54)),
                     onClick = { play(recentPlayed, 0) },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.width(metrics.homeQuickCardWidth),
                 )
                 HomeSearchAction(
                     onClick = onOpenSearch,
                     modifier = Modifier
                         .carFocusTarget(CarFocusIds.content("Home"), left = CarFocusIds.Home)
-                        .width(metrics.quickActionHeight),
+                        .width(metrics.homeSearchCardWidth),
                 )
             }
         }
@@ -150,16 +150,16 @@ fun CarHomeScreen(
         if (albums.isNotEmpty()) {
             item(key = "album-heading") { CarSectionTitle("推荐专辑", CarIcon.Albums) }
             item(key = "album-row") {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(metrics.cardGap)) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(metrics.homeRecommendationGap)) {
                     items(albums.take(HOME_MEDIA_LIMIT), key = { it.id }) { album ->
                         CarAlbumCard(
                             album = album,
                             artworkRepository = artworkRepository,
-                            artworkSize = metrics.recommendationCardWidth - spacing.compact * 2f,
+                            artworkSize = metrics.homeRecommendationArtworkSize,
                             onClick = { onAlbumClick(album.id) },
                             modifier = Modifier
                                 .carFocusTarget(CarFocusIds.item("home_album", album.id), left = CarFocusIds.Home)
-                                .width(metrics.recommendationCardWidth)
+                                .width(metrics.homeRecommendationCardWidth)
                                 .height(metrics.recommendationCardHeight),
                         )
                     }
@@ -169,7 +169,7 @@ fun CarHomeScreen(
         if (playlists.isNotEmpty()) {
             item(key = "playlist-heading") { CarSectionTitle("推荐歌单", CarIcon.Playlists) }
             item(key = "playlist-row") {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(metrics.cardGap)) {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(metrics.homeRecommendationGap)) {
                     items(playlists.take(HOME_MEDIA_LIMIT), key = { it.id }) { playlist ->
                         CarQuickActionCard(
                             playlist.title,
@@ -200,7 +200,7 @@ fun CarHomeScreen(
                             onClick = { onArtistClick(artist.id) },
                             modifier = Modifier
                                 .carFocusTarget(CarFocusIds.item("home_artist", artist.id), left = CarFocusIds.Home)
-                                .width(metrics.recommendationCardWidth)
+                                .width(metrics.homeRecommendationCardWidth)
                                 .height(metrics.artistCardHeight),
                         )
                     }
@@ -287,11 +287,14 @@ private fun HomeRecentAdded(
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.weight(1f).fillMaxHeight().carFocusTarget(
-                CarFocusIds.item("home_recent", first.id), left = CarFocusIds.Home,
-            ).carInteractiveSurface(LocalCarShapes.current.card, defaultColor = LocalCarColors.current.panel) {
-                onPlay(tracks, 0)
-            }.padding(LocalCarSpacing.current.compact),
+            modifier = Modifier
+                .width(metrics.homeRecentFeatureWidth)
+                .fillMaxHeight()
+                .carFocusTarget(CarFocusIds.item("home_recent", first.id), left = CarFocusIds.Home)
+                .carInteractiveSurface(LocalCarShapes.current.card, defaultColor = LocalCarColors.current.panel) {
+                    onPlay(tracks, 0)
+                }
+                .padding(LocalCarSpacing.current.compact),
         ) {
             CarArtwork(
                 first.albumId?.let(Artwork::LibraryAlbum) ?: Artwork.LibraryCover(first.id),
@@ -310,17 +313,26 @@ private fun HomeRecentAdded(
                 CarIconView(CarIcon.Play, null, Color.White, Modifier.size(28.dp))
             }
         }
-        Column(verticalArrangement = Arrangement.spacedBy(LocalCarSpacing.current.compact), modifier = Modifier.weight(1.45f)) {
-            tracks.drop(1).take(6).chunked(2).forEachIndexed { rowIndex, rowTracks ->
-                Row(horizontalArrangement = Arrangement.spacedBy(metrics.cardGap), modifier = Modifier.fillMaxWidth().weight(1f)) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(metrics.cardGap),
+            modifier = Modifier.width(
+                metrics.homeRecentCompactWidth * metrics.homeRecentColumns +
+                    metrics.cardGap * (metrics.homeRecentColumns - 1),
+            ),
+        ) {
+            tracks.drop(1).take(metrics.homeRecentColumns * 2).chunked(metrics.homeRecentColumns)
+                .forEachIndexed { rowIndex, rowTracks ->
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(metrics.cardGap),
+                    modifier = Modifier.fillMaxWidth().height((248.dp - metrics.cardGap) / 2f),
+                ) {
                     rowTracks.forEachIndexed { columnIndex, track ->
                         HomeCompactTrack(
                             track, artworkRepository,
-                            onClick = { onPlay(tracks, rowIndex * 2 + columnIndex + 1) },
-                            modifier = Modifier.weight(1f),
+                            onClick = { onPlay(tracks, rowIndex * metrics.homeRecentColumns + columnIndex + 1) },
+                            modifier = Modifier.width(metrics.homeRecentCompactWidth),
                         )
                     }
-                    if (rowTracks.size == 1) Spacer(Modifier.weight(1f))
                 }
             }
         }
@@ -336,9 +348,14 @@ private fun HomeCompactTrack(
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier.fillMaxHeight().carInteractiveSurface(
-            LocalCarShapes.current.card, defaultColor = LocalCarColors.current.panel, onClick = onClick,
-        ).padding(LocalCarSpacing.current.small),
+        modifier = modifier
+            .fillMaxHeight()
+            .carInteractiveSurface(
+                LocalCarShapes.current.card,
+                defaultColor = LocalCarColors.current.panel,
+                onClick = onClick,
+            )
+            .padding(LocalCarSpacing.current.small),
     ) {
         CarArtwork(track.albumId?.let(Artwork::LibraryAlbum) ?: Artwork.LibraryCover(track.id), artworkRepository, 56.dp, LocalCarShapes.current.artwork)
         Spacer(Modifier.width(LocalCarSpacing.current.compact))

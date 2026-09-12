@@ -2,6 +2,7 @@ package io.github.julystar.musicapp.car.presentation.nowplaying
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,7 +33,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.contentDescription
@@ -78,6 +82,7 @@ fun CarNowPlayingScreen(
     metrics: CarLayoutMetrics,
     focusCoordinator: CarFocusCoordinator,
     onCollapse: () -> Unit,
+    onEnterFullscreen: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val playbackController = koinInject<PlaybackController>()
@@ -111,6 +116,10 @@ fun CarNowPlayingScreen(
     val backdropArtwork = trackInfo?.artwork
         ?: state.currentItem?.libraryTrackId?.let { Artwork.LibraryTrack(it, true) }
     val colors = LocalCarColors.current
+    val darkBackground = colors.backgroundBase == Color.Black
+    val headerControlBackground = if (darkBackground) Color.Black.copy(alpha = 0.22f) else Color.White.copy(alpha = 0.42f)
+    val headerControlBorder = if (darkBackground) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.08f)
+    val headerControlShape = RoundedCornerShape(20.dp)
     Box(modifier.fillMaxSize().background(colors.backgroundBase)) {
         CarArtwork(
             artwork = backdropArtwork,
@@ -139,8 +148,10 @@ fun CarNowPlayingScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(
-                    horizontal = metrics.nowPlayingHorizontalMargin,
-                    vertical = metrics.nowPlayingVerticalMargin,
+                    start = metrics.nowPlayingHorizontalMargin + metrics.nowPlayingContentStartOffset,
+                    top = metrics.nowPlayingVerticalMargin,
+                    end = metrics.nowPlayingHorizontalMargin,
+                    bottom = metrics.nowPlayingVerticalMargin,
                 ),
         ) {
             PlayerPane(
@@ -168,7 +179,7 @@ fun CarNowPlayingScreen(
         }
         CarPlayerControl(
             icon = CarIcon.Collapse,
-            description = "收起正在播放",
+            description = "退出播放界面",
             size = metrics.headerHeight,
             iconSize = metrics.iconSize,
             selected = false,
@@ -179,6 +190,29 @@ fun CarNowPlayingScreen(
                 start = metrics.nowPlayingHorizontalMargin,
                 top = metrics.nowPlayingVerticalMargin,
             ),
+            containerColor = headerControlBackground,
+            borderColor = headerControlBorder,
+            shape = headerControlShape,
+        )
+        CarPlayerControl(
+            icon = CarIcon.Fullscreen,
+            description = "全屏播放",
+            size = metrics.headerHeight,
+            iconSize = metrics.iconSize,
+            selected = false,
+            focusId = CarFocusIds.NowPlayingFullscreen,
+            left = CarFocusIds.NowPlayingCollapse,
+            right = CarFocusIds.NowPlayingShuffle,
+            onClick = onEnterFullscreen,
+            modifier = Modifier.padding(
+                start = metrics.nowPlayingHorizontalMargin,
+                top = metrics.nowPlayingVerticalMargin +
+                    metrics.headerHeight +
+                    metrics.nowPlayingVerticalMargin / 3f,
+            ),
+            containerColor = headerControlBackground,
+            borderColor = headerControlBorder,
+            shape = headerControlShape,
         )
     }
 }
@@ -367,14 +401,18 @@ private fun LyricsPane(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+        val artistAndAlbum = listOfNotNull(
+            trackInfo?.artist?.takeIf(String::isNotBlank) ?: state.currentItem?.artist?.takeIf(String::isNotBlank),
+            state.currentItem?.album?.takeIf(String::isNotBlank),
+        ).joinToString(" · ")
         BasicText(
-            text = state.currentItem?.artist.orEmpty(),
+            text = artistAndAlbum,
             style = LocalCarTypography.current.title.copy(color = colors.textSecondary),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
         Spacer(Modifier.height(spacing.section))
-        Box(Modifier.fillMaxWidth().height(LocalCarDimensions.current.dividerWidth).background(colors.borderDefault))
+        Box(Modifier.fillMaxWidth().height(2.dp).background(Color.White.copy(alpha = 0.38f)))
         if (lines.isEmpty()) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                 BasicText("暂无歌词", style = LocalCarTypography.current.title.copy(color = colors.textSummary))
@@ -390,6 +428,7 @@ private fun LyricsPane(
                         text = line.text,
                         style = (if (index == currentIndex) LocalCarTypography.current.headline else LocalCarTypography.current.titleLarge)
                             .copy(color = if (index == currentIndex) colors.accentPrimary else colors.textSecondary),
+                        modifier = if (index == currentIndex) Modifier else Modifier.blur(3.dp),
                     )
                 }
             }
@@ -496,18 +535,24 @@ private fun CarPlayerControl(
     right: CarFocusId? = null,
     onClick: () -> Unit,
     modifier: Modifier,
+    containerColor: Color = Color.Transparent,
+    borderColor: Color = Color.Transparent,
+    shape: Shape? = null,
 ) {
     val colors = LocalCarColors.current
+    val controlShape = shape ?: LocalCarShapes.current.control
     Box(
         contentAlignment = Alignment.Center,
         modifier = modifier
             .carFocusTarget(focusId, up = up, down = down, left = left, right = right)
             .size(size)
             .semantics { contentDescription = description }
+            .then(if (borderColor != Color.Transparent) Modifier.border(1.dp, borderColor, controlShape) else Modifier)
             .carInteractiveSurface(
-                LocalCarShapes.current.control,
+                controlShape,
                 selected = selected,
                 enabled = enabled,
+                defaultColor = containerColor,
                 onClick = onClick,
             ),
     ) {
